@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | fleet, protocol |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (the hub's metric history of its devices) in the first release; existing supported behavior and its obligations remain required. |
@@ -10,7 +10,7 @@
 | Depends | spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting") |
 | Phase | 8/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -417,3 +417,227 @@ Granting latest or series to a remote operator delegates its device scope to tha
 1. Wire one registered local producer through the managed session to the real hub query. Prove permission scoping, reconnect retention, actual series gaps and the absent-versus-zero distinction.
 2. Implement fine/coarse aggregation, bounded reduction, sequence checks and reset-aware rates. Register each supported producer in its owning package and verify compiled-out producers supply no data.
 3. Add checkpoint/restart, deletion fencing, capacity accounting and doctor coverage. Run the storage and estate sizing checks before finalizing defaults. Register shared commands and verify every command surface.
+
+---
+
+## Deliverables Checklist
+
+| Deliverable | Verification Method | Status | Evidence |
+|-------------|---------------------|--------|----------|
+| Fixed 15-figure wire vocabulary, bounds, `sample-report` verb, and `sample-interval-seconds` advertisement | `go test` on `pkg/fleet/` | Done | `pkg/fleet/envelope.go` (`VerbSampleReport`, `ConfigFetchResponse.SampleIntervalSeconds`), `pkg/fleet/sample.go` (`AllSampleFigures`, `EncodeSampleReport`, `DecodeAndValidateSampleReport`, `ValidateSourceSnapshot`); `pkg/fleet/` PASS (1.053s) |
+| Private bounded raw ZeFS key families and `ListKeys` prefixes | `go test` on `pkg/zefs/` | Done | `pkg/zefs/keys.go` (`KeyFleetHistoryLatest` 16 KiB, `KeyFleetHistoryShard` 2 MiB, `KeyFleetHistoryDeleteIntent` 4 KiB, plus trailing-slash prefixes); `pkg/zefs/` PASS (145.075s) |
+| Hub history YANG configuration and extraction/validation | `go test` on `internal/component/config/`, `./le config claims`, `./le yang glue check` | Done | `internal/component/plugin/yang/ze-plugin-conf.yang` (`bus/hub/history`), `internal/component/plugin/types.go` (`HubHistoryConfig`, `ValidateHubHistoryConfig`), `internal/component/config/loader_extract.go` (`ExtractHubConfig`, `extractHubHistoryConfig`); `TestExtractHubConfigHistory` PASS, `config claims` OK (115 claims), `yang glue check` OK (170 dirs) |
+| Local device-scope visibility projection across AAA, authz, TACACS+, and all 6 hub wrappers | `go test` on `aaa`, `authz`, `tacacs`, `cmd/ze/hub`, `plugin/server` | Done | `internal/component/aaa/command_args.go` (`LocalScopeAuthorizer`, `AuthorizeLocalScope`, `FleetDeviceReadTokens`), `internal/component/tacacs/authorizer.go`, `cmd/ze/hub/aaa_lifecycle.go`, `internal/component/plugin/server/fleet_visibility.go`; real TCP TACACS+ test proves <=1 remote call across 4,096 devices (`tacacs` PASS 5.219s) |
+| Hub dual-resolution metric history store, checkpointing, deletion fencing, budgets, reload, and doctor checks | `go test -race` on `plugin/server`, `plugin/doctor`, `./le arch doctor-coverage check` | Done | `internal/component/plugin/server/managed_history.go` (`ManagedHistoryStore`), `managed_serve.go`, `managed_apply.go`, `managed_record_store.go`, `doctor_codes.go`, `internal/component/plugin/doctor/check_managed_runtime.go`; `plugin/server` PASS under `-race` (47.104s), `plugin/doctor` PASS (1.607s), `doctor-coverage` OK (12/12 sites) |
+| Six device-local hidden `show fleet source <owner>` producers, collector, and per-session `sessionSampler` | `go test` on `host`, `host-cmd/cmd`, `iface`, `iface/cmd`, `bgp/plugins/cmd/peer`, `bgp/plugins/cmd/rib`, `bgp/plugins/rib`, `l2tp/cmd`, `l2tp/pppoe/cmd`, `managed`, `go build -tags ze_core ./cmd/ze` | Done | `internal/component/plugin/server/fleet_sample_sources.go`, `internal/component/managed/sample.go`, `client.go`, `cmd/ze/hub/main.go`, plus all 6 owning packages; all scoped package tests PASS, `ze_core` build PASS (0 gated imports), `plugin declarations`/`boundary`/`arch tier` OK |
+| `show fleet sample latest`, `series`, and `storage` commands, command-specific pipes, surface parity, and `.ci` functional tests | `go test` on `managed`, `plugin/all`, `cmd/ze/hub`; `.ci` runs | Done | `internal/component/managed/cmd_history.go`, `yang/ze-managed-cmd.yang`, `wire-methods.snapshot`; `managed` PASS under `-race` (67.465s), `TestRegisteredWireMethods` PASS, `TestEveryCommandOnEverySurface` 0 fleet failures across 8 surfaces, `fleet-history-reconnect.ci` PASS (95.6s), `fleet-history-cap.ci` PASS (23.1s) |
+
+## Security Review Checklist
+
+| Concern | Check | Status | Evidence |
+|---------|-------|--------|----------|
+| Untrusted wire payload bounds & DoS | Payload size, figure count, unknown JSON fields, trailing tokens, UTF-8, finite domains | Pass | `pkg/fleet/sample.go` `DecodeAndValidateSampleReport` enforces `SampleReportBodyMax` (8 KiB) and valid UTF-8 before decoding, `DisallowUnknownFields`, EOF check, `SampleFiguresMax` (16), duplicate rejection, and finite min/max checks; `internal/component/plugin/server/fleet_report.go` enforces `BodyMax` before dispatch |
+| Device identity spoofing & stale sessions | Client identity taken only from authenticated session; superseded sessions rejected | Pass | `internal/component/plugin/server/managed_serve.go` `recordSampleReport` verifies active `visibleDeviceLocked(name)`, `device.declared`, and `device.conn == mc` under `s.mu` before calling `s.history.Ingest` |
+| Authorization & RBAC bypass | Device visibility fails closed; zero per-device remote TACACS+ calls; absent vs denied indistinguishable; storage grant required | Pass | `internal/component/plugin/server/fleet_visibility.go` `FleetDeviceScope` zero value denies all, `ResolveFleetDeviceScope(nil)` denies all; `internal/component/tacacs/authorizer.go` `AuthorizeLocalScope` never calls `a.client` and denies when `profilesBound && !hasProfiles`; `cmd/ze/hub/aaa_lifecycle.go` denies retired/absent/generation-0/unmapped sessions; `cmd_devices.go` / `cmd_reports.go` / `cmd_history.go` enforce `ResolveFleetDeviceScope(ctx)` with uniform empty/unknown responses |
+| Storage bounds & path/key safety | ZeFS key names single-segment, `Private: true`, `ValueMax` enforced before write and before decode | Pass | `pkg/zefs/keys.go` registers `Private: true` keys with `ValueMax` (16 KiB / 2 MiB / 4 KiB); `internal/component/plugin/server/managed_history.go` checks `ValueMax` before `WriteKey` and before decoding; `fleet.ValidDeviceKeyName` rejects `/` and `..` |
+| Output/query exhaustion & clock attacks | Query rows and bytes capped; backwards hub clock rejected without mutating history | Pass | `internal/component/plugin/server/managed_history.go` enforces 4,096 rows and 4 MiB serialized JSON limits, `points` in `1..2112`, UTC-slot admission rate limit across reconnects, and backwards wall-clock step rejection (`nowUnix < dev.latest.lastAcceptedUnix`) |
+| Peer-reachable panics & concurrency races | Zero `panic()` on wire/query/producer paths; `-race` clean; goroutines bounded and joined | Pass | `git grep 'panic('` returned 0 hits across all 13 fleet-8 Go product files; `plugin/server` and `managed` full tests PASS under `-race`; `sessionSampler.Stop()` and `ManagedServer.Stop()` (`FlushFinal`) cancel and join before closing connections or returning store |
+
+## Documentation Update Checklist
+
+| Category | Updated? | File / Section / Source Evidence |
+|----------|----------|----------------------------------|
+| Architecture design | Yes | `docs/architecture/fleet-config.md` (`### Device metric sampling and hub-side history`, RPC table, doctor table, `bus/hub/history` YANG table) — commit `2cf8f71e01` |
+| API / RPC docs | Yes | `docs/architecture/api/commands.md` (`## Managed Config RPCs`, `show fleet sample latest/series/storage`, command-specific pipes, `sample-report`, hidden `show fleet source <owner>`) — commit `2cf8f71e01` |
+| Wire / storage format | Yes | `docs/architecture/zefs-format.md` (`KeyFleetHistoryLatest`, `KeyFleetHistoryShard`, `KeyFleetHistoryDeleteIntent`, `ValueMax`, `ListKeys` prefixes) — commit `2cf8f71e01` |
+| Doctor checks | Yes | `docs/architecture/doctor-and-health-checks.md` (`managed-history-checkpoint`, `managed-history-capacity`, `managed-history-corrupt` and codes 717–719) — commit `2cf8f71e01` |
+| Feature declaration & pages | Yes | `features/fleet-management.md` (added `.ci` paths + description), `docs/features/fleet-management.md`, `docs/features/cli-commands.md` — closure Commit A |
+| User guide & CLI reference | Yes | `docs/guide/fleet-config.md` (overview, `Inspect the Fleet`, Troubleshooting doctor codes), `docs/guide/command-reference.md` (3 commands), `docs/guide/status.md` — closure Commit A |
+| Operator news fragment | Yes | `website/changes/fragments/fleet-8-metric-history.md` (`topic: Fleet`, `feature: fleet-management`) — closure Commit A |
+| Plugin SDK / RFC compliance / comparison table | No | `git diff --name-only 30057171e0~1..2cf8f71e01` touches neither `pkg/plugin/sdk/`, `rfc/short/`, nor `docs/comparison.md`; fleet metric history is a Ze-internal hub/device RPC with no RFC requirement or SDK breaking change |
+
+## Implementation Summary
+
+### What Was Implemented
+- **Commit `30057171e0` (Wire schema, ZeFS keys, hub config):** Added `fleet.VerbSampleReport`, `ConfigFetchResponse.SampleIntervalSeconds`, `pkg/fleet/sample.go` (15-figure vocabulary, `SampleAggKind`, `EncodeSampleReport`, `DecodeAndValidateSampleReport`, `ValidateSourceSnapshot`, `SampleRatioValue`), 3 `Private: true` ZeFS raw state key families and trailing-slash `ListKeys` prefixes in `pkg/zefs/keys.go`, and `bus/hub/history` YANG/config extraction and estate-reserve validation (`ze-plugin-conf.yang`, `plugin/types.go`, `config/loader_extract.go`).
+- **Commit `d7b2a1afd2` (Local device-scope visibility):** Added `aaa.LocalScopeAuthorizer`, `aaa.AuthorizeLocalScope`, and `aaa.FleetDeviceReadTokens`; propagated strictly-local fail-closed projection through `acceptedGenerationAuthorizer`, `authz.StoreAuthorizer` / `boundStoreAuthorizer`, `tacacsAuthorizer` (zero remote TACACS+ calls during projection), all six hub AAA lifecycle wrappers in `cmd/ze/hub/aaa_lifecycle.go`, and `pluginserver.FleetDeviceScope`.
+- **Commit `625ce24df3` (Hub history store, persistence, fencing, doctor):** Implemented `ManagedHistoryStore` in `internal/component/plugin/server/managed_history.go` with lazy allocation, dual-resolution rings (1m/1d fine + 15m/7d coarse with packed per-minute contributions), UTC-slot rate limiting across reconnects, backwards-clock rejection, incremental byte accounting with oldest-first cap eviction, `ZEH1` zlib-compressed shards, 5-minute checkpointing + `FlushFinal`, persisted delete-intent fencing on `meta/fleet/device/<name>/record` deletion (`FenceForgetDevice`), live reload via `PrepareManagedListenersWithHistory` / `ApplyManagedListeners`, and three runtime doctor checks (`managed-history-checkpoint`, `managed-history-capacity`, `managed-history-corrupt`).
+- **Commit `ac87b39896` (Device producers, collector, session sender):** Implemented hidden `show fleet source <owner>` producers for `host` (ungated Linux procfs/statfs + non-Linux stub), `iface` (builtin + forked physical counts/rates), `bgp-peer`, `bgp-rib` (builtin + forked Stage 1), `l2tp`, and `pppoe` (additive `subscriber-sessions`), `FleetSampleCollector` enumerating full registries across in-process and forked `PluginConn`, per-session `sessionSampler` with zero standalone calls and unknown-method downgrade, and hub wiring in `cmd/ze/hub/main.go`.
+- **Commit `2cf8f71e01` (Query commands, pipes, `.ci` tests, architecture docs):** Registered `show fleet sample latest`, `series`, and `storage` with command-specific pipe filters and strict ordering refusals, wired fail-closed `ResolveFleetDeviceScope` across all 8 fleet commands, updated `wire-methods.snapshot` (+9 methods), fixed `treeHasPath` in `cmd/ze/hub/surface_parity_test.go` (approved by independent `ze-test-judge`), added live functional tests `test/managed/fleet-history-reconnect.ci` and `test/managed/fleet-history-cap.ci` with compiled fixtures, and updated architecture docs.
+- **Closure Commit A:** Added `internal/le/repo/numberparse-allowlist.txt` entry for `extractHubHistoryConfig`'s two 32-bit parses (`interval`, `retention-days`), fixed `clicatalog.Collect()` in `internal/le/cli/catalog/catalog.go` (+ `TestCollectOmitsHiddenSchemaCommands` in `catalog_test.go`) to skip `ze:hidden` schema paths matching `internal/plugins/help/help_command.go`, wrote `website/changes/fragments/fleet-8-metric-history.md`, updated operator guides/feature pages (`features/fleet-management.md`, `docs/features/fleet-management.md`, `docs/features/cli-commands.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/guide/status.md`), repointed all 8 sibling spec citers, and recorded the closure sections and hash-pinned review artifact.
+
+### Bugs Found/Fixed
+- **Nil-context fail-open helper (`resolveManagedScope`):** Removed during critical review before commit `2cf8f71e01`; all 8 fleet handlers now call `pluginserver.ResolveFleetDeviceScope(ctx)` directly so `ctx == nil` fails closed, covered by `cmd_history_test.go`.
+- **TACACS+ unbound vs empty-bound local scope & nil-bundle/generation-0 AAA wrappers:** Fixed during critical review before commit `d7b2a1afd2` (`profilesBound` + `hasProfiles` in `tacacs/authorizer.go`, nil-bundle plugin/recovery handling and `generation != 0` guard in `cmd/ze/hub/aaa_lifecycle.go`), covered by `authorizer_fleet_scope_test.go` and `aaa_lifecycle_fleet_scope_test.go`.
+- **`treeHasPath` ignoring `command.Node.Hidden`:** Fixed in `cmd/ze/hub/surface_parity_test.go` (approved by independent `ze-test-judge`) so hidden `show fleet source <owner>` nodes match actual SSH/web/`ze cli` visibility.
+- **Wiki catalog `clicatalog.Collect()` omitting `command.HiddenAtPath` filter:** Fixed in `internal/le/cli/catalog/catalog.go` across wire, builtin-local, local, and plugin command loops to match `internal/plugins/help/help_command.go` and prevent `doc-drift` on the 6 hidden `show fleet source <owner>` commands, covered by `TestCollectOmitsHiddenSchemaCommands` in `internal/le/cli/catalog/catalog_test.go` (PASS 144.5s, lint 0 issues).
+- **`numberparse-allowlist.txt` missing `loader_extract.go`:** Found by `./le repo check` during closure; added justified allowlist row (`2 internal/component/config/loader_extract.go`) for `interval` and `retention-days` in Commit A.
+
+### Documentation Updates
+- `docs/architecture/fleet-config.md` (`<!-- source: pkg/fleet/sample.go -->`, `managed/sample.go`, `fleet_sample_sources.go`, all 6 producer files, `managed_history.go`, `managed_record_store.go`, `managed_apply.go`, `pkg/zefs/keys.go`, `aaa/command_args.go`, `fleet_visibility.go`, `cmd_history.go`, `aaa_lifecycle.go`)
+- `docs/architecture/api/commands.md` (`<!-- source: internal/component/managed/cmd_history.go -->`, `fleet_sample_sources.go`, `ze-managed-cmd.yang`)
+- `docs/architecture/zefs-format.md` (`<!-- source: pkg/zefs/keys.go -- KeyFleetHistoryLatest, KeyFleetHistoryShard, KeyFleetHistoryDeleteIntent -->`)
+- `docs/architecture/doctor-and-health-checks.md` (`<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -->`, `doctor_codes.go`)
+- `features/fleet-management.md`, `docs/features/fleet-management.md`, `docs/features/cli-commands.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/guide/status.md` (with source anchors matching producing functions)
+- `./le doc check all`: 0 Fleet-8 anchor or doc errors (only pre-existing unrelated `Registration.EventTypes` / `RegisterPluginEventTypes` anchors and stale pre-`2cf8f71e01` `le` binary catalog drift; `./le doc check links` 0 Fleet-8 findings).
+
+### Deviations from Plan
+- **Owner ruling of 2026-11-23 (already reflected in Task):** Charts, `HistoryPart`, and `LatestSamplePart` moved to post-release specs (`spec-fleet-ui-3-dashboards-and-charts.md` and `spec-fleet-ui-2-estate-tree-and-device-tables.md`); first release delivers all queries as commands on every command surface (AC-10).
+- **Additional helper files created/modified cleanly:** `internal/component/host/memory_linux.go` (shared memory helper), `internal/component/plugin/server/doctor_codes.go` + `internal/component/plugin/doctor/register_external.go` (doctor code registration), `internal/component/plugin/server/fleet_report.go` + `managed_registry.go` (receiver bounds & history retention hooks), `internal/component/managed/cmd_devices.go` + `cmd_reports.go` + `report.go` (shared visibility scope & unknown-method helpers), `internal/component/plugin/all/testdata/wire-methods.snapshot` (+9 RPC wire methods), `internal/test/fixture/{register_,misc_fixture_}managed_fleet_history.go` (compiled `.ci` drivers), `internal/le/repo/numberparse-allowlist.txt` (allowlist for `extractHubHistoryConfig`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `extractHubHistoryConfig` added two `strconv.ParseInt(..., 10, 32)` calls in `loader_extract.go` without updating `numberparse-allowlist.txt` | `./le repo check` enforces an exact allowlist of 32-bit parses in product Go to prevent hand-rolled ASN parsers | Running `./le repo check` during `/ze-close` pre-check | Added justified allowlist entry (`2 internal/component/config/loader_extract.go`) in closure Commit A |
+| approach | Operator guides and feature pages (`docs/guide/fleet-config.md`, `command-reference.md`, `status.md`, `docs/features/fleet-management.md`, `cli-commands.md`, `features/fleet-management.md`) were not updated in commit `2cf8f71e01` alongside the architecture docs | Closure documentation review requires user guides, command reference, and feature pages to stay current with new operator commands and doctor codes | Checking `/ze-close` step 4 documentation categories | Updated all six pages with source anchors in closure Commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Fixed 15-figure registered sample vocabulary with units & aggregation rules | Done | `pkg/fleet/sample.go` (`sampleFigureVocabulary`, `AllSampleFigures`, `LookupSampleFigure`) | Absent optional owners omitted, never zero |
+| `sample-report` verb & `sample-interval-seconds` negotiation on `config-fetch` | Done | `pkg/fleet/envelope.go`, `internal/component/plugin/server/managed.go`, `internal/component/managed/client.go`, `sample.go` | Both changed and `"current"` replies carry interval |
+| Dual-resolution bounded persistent history store (1m/1d fine, 15m/7d coarse with packed minute peaks) | Done | `internal/component/plugin/server/managed_history.go` (`ManagedHistoryStore`, `fineRing`, `coarseRing`) | 5m periodic checkpoint + `FlushFinal`, zlib `ZEH1` shards |
+| Budgets (1 MiB/device, 2 GiB/hub defaults), reserve validation, oldest-first eviction, capacity pressure | Done | `internal/component/plugin/types.go`, `config/loader_extract.go`, `plugin/server/managed_history.go` | Verified with 2,000-connected, 4,096-sparse, and 7d incompressible sizing tests |
+| Undeclaration retention vs durable deletion fencing | Done | `internal/component/plugin/server/managed_apply.go`, `managed_record_store.go`, `managed_history.go` (`FenceForgetDevice`) | Delete intent replayed on startup recovery |
+| Local device-scope visibility projection without per-device TACACS+ calls | Done | `internal/component/aaa/command_args.go`, `login_profiles.go`, `authz/register.go`, `tacacs/authorizer.go`, `cmd/ze/hub/aaa_lifecycle.go`, `plugin/server/fleet_visibility.go` | Fail-closed; <=1 remote TACACS+ call across 4,096 devices |
+| Three read commands with command-specific pipes across all 6 surfaces | Done | `internal/component/managed/cmd_history.go`, `register.go`, `yang/ze-managed-cmd.yang` | `latest`, `series`, `storage`; 4,096-row / 4 MiB output bounds |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/managed/fleet-history-reconnect.ci`, `internal/component/managed/managed_sample_sources_test.go`, `cmd_history_test.go` | Connected device pushes figures at interval; absent owners omitted |
+| AC-2 | Done | `internal/component/plugin/server/managed_history_test.go` (fine 1m/1d + coarse 15m/7d + 1-day seam alignment tests) | Fine for last day, coarse for last week, seam counted once |
+| AC-3 | Done | `test/managed/fleet-history-reconnect.ci`, `internal/component/plugin/server/managed_history_test.go` | History and latest survive hub restart via `FlushFinal` + `LoadFromStore` |
+| AC-4 | Done | `test/managed/fleet-history-reconnect.ci`, `internal/component/plugin/server/managed_history_test.go` | Offline period renders explicit gap bucket (`gap: true`) |
+| AC-5 | Done | `test/managed/fleet-history-cap.ci`, `internal/component/plugin/server/managed_history_test.go` (worst-case 7d incompressible 1,014,677 B <= 1 MiB) | Oldest-first eviction, recent kept, `capacity-pressure: true` + `doctor-managed-history-capacity-pressure` |
+| AC-6 | Done | `internal/component/managed/cmd_history_test.go`, `internal/component/plugin/server/managed_history_test.go` | Sum/mean/ratio with `contributors` and `missing` counts |
+| AC-7 | Done | `test/managed/fleet-history-cap.ci`, `internal/component/plugin/server/managed_history_test.go` | Undeclaration preserves history; record deletion fences & erases across restart |
+| AC-8 | Done | `internal/component/plugin/server/managed_history_test.go`, `internal/component/managed/client_test.go` | Extra reports in same UTC interval refused & counted; store unchanged |
+| AC-9 | Done | `internal/component/managed/managed_sample_sources_test.go`, `internal/component/managed/client_test.go`, `sample_test.go` | Standalone `FleetSampleMetrics()` all zero; old-hub omission/unknown-method preserves config fetch/ACK |
+| AC-10 | Done | `cmd/ze/hub/surface_parity_test.go` (`TestEveryCommandOnEverySurface`), `internal/component/managed/cmd_history_test.go` | 0 fleet failures across all 8 surfaces; `show fleet sample latest/series/storage` served everywhere |
+| AC-11 | Done | `test/managed/fleet-history-reconnect.ci`, `internal/component/managed/cmd_history_test.go`, `managed_sample_sources_test.go` | `no-reports` for unreported devices, absent figure omitted, measured zero preserved, `MarkUnsupported` supported |
+| AC-12 | Done | `test/managed/fleet-history-reconnect.ci`, `internal/component/plugin/server/managed_history_test.go` | Disconnect preserves latest + age across restart; outage is gap; reconnect gets new receipt time |
+| AC-13 | Done | `pkg/fleet/sample_test.go`, `internal/component/plugin/server/managed_history_test.go` | Malformed, oversized, duplicate, rate-limited, or superseded-session report rejected atomically; other devices unaffected |
+| AC-14 | Done | `internal/component/plugin/server/managed_history_test.go`, `internal/component/managed/cmd_history_test.go` | Cross-resolution counts/coverage, weighted means, paired numerator/denominator ratios, unavailable on zero denominator |
+| AC-15 | Done | `internal/component/plugin/server/managed_history_test.go`, `test/managed/fleet-history-cap.ci`, `internal/component/plugin/doctor/` | Dirty state retained on checkpoint failure, `doctor-managed-history-checkpoint-failed` exposed, late flush fenced against deletion, last complete checkpoint loaded on restart |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Wire/key/config unit tests | Done | `pkg/fleet/envelope_test.go`, `pkg/fleet/sample_test.go`, `pkg/zefs/keys_test.go`, `internal/component/config/loader_extract_test.go` | All PASS |
+| Local device visibility & TACACS+ scale tests | Done | `internal/component/aaa/local_scope_test.go`, `authz/register_test.go`, `tacacs/authorizer_fleet_scope_test.go`, `cmd/ze/hub/aaa_lifecycle_fleet_scope_test.go`, `plugin/server/fleet_visibility_test.go` | Proves <=1 remote TACACS+ call across 4,096 devices; all PASS |
+| Hub history rings, clock step, checkpoint failure, deletion race, and estate sizing tests | Done | `internal/component/plugin/server/managed_history_test.go` | PASS under `-race` (47.104s); includes 4,096-sparse, 2,000-connected, and 7d incompressible sizing |
+| Device producers, collector, session sampler, mixed builtin/forked, and standalone tests | Done | `internal/component/host/fleet_samples_linux_test.go`, `plugins/host-cmd/cmd/fleet_samples_test.go`, `iface/fleet_samples_test.go`, `bgp/plugins/cmd/peer/fleet_samples_test.go`, `bgp/plugins/rib/fleet_samples_test.go`, `l2tp/cmd/fleet_samples_test.go`, `l2tp/pppoe/cmd/fleet_samples_test.go`, `plugin/server/fleet_sample_sources_test.go`, `managed/sample_test.go`, `client_test.go`, `managed_sample_sources_test.go` | All PASS |
+| Query command, pipe, RBAC, and surface parity tests | Done | `internal/component/managed/cmd_history_test.go`, `cmd_devices_test.go`, `cmd_reports_test.go`, `cmd/ze/hub/surface_parity_test.go`, `internal/component/plugin/all/all_test.go` | All PASS (0 fleet failures across 8 surfaces) |
+| Live functional `.ci` tests | Done | `test/managed/fleet-history-reconnect.ci`, `test/managed/fleet-history-cap.ci` | PASS (95.6s and 23.1s against real `ze` hub daemon with disk ZeFS) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 35 files in `## Files to Modify` | Done | Every listed file modified across commits `30057171e0..2cf8f71e01` |
+| All 18 files in `## Files to Create` | Done | Verified on disk via `ls -l` (18/18 present) |
+
+### Audit Summary
+- **Total items:** 7 deliverables, 15 ACs, 35 modified files, 18 created files, 2 `.ci` wiring tests
+- **Done:** 100% (all items implemented and verified)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** Recorded in Deviations from Plan (web charts/parts moved per owner ruling of 2026-11-23; additional supporting files noted above)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Managed devices push the fixed 15-figure sample set over the authenticated managed channel without affecting standalone devices or old hubs | Functional + unit tests | `test/managed/fleet-history-reconnect.ci` PASS (95.6s); `internal/component/managed/managed_sample_sources_test.go` (real builtin `host` + forked `bgp-rib` over `net.Pipe`, standalone `FleetSampleMetrics()` all zero) PASS; `internal/component/managed/client_test.go` (old-hub omission & `unknown method: sample-report` downgrade) PASS; `go build -tags ze_core ./cmd/ze` PASS |
+| Hub keeps a week of bounded dual-resolution history surviving restarts, preserving offline gaps, and enforcing per-device and hub-wide byte caps | Functional + race + sizing benchmark tests | `test/managed/fleet-history-reconnect.ci` PASS (disconnect retention, offline gap, hub restart); `test/managed/fleet-history-cap.ci` PASS (23.1s: live cap tighten, oldest-first eviction, `doctor-managed-history-capacity-pressure`, undeclaration retention, durable erasure after restart); `internal/component/plugin/server/managed_history_test.go` PASS under `-race` (4,096 sparse: 272,350 B / 0.67s checkpoint / 0.18s reload; 2,000 connected: 7,728,504 B = 3,864 B/dev, 58 MiB heap delta, 13.38s checkpoint, 5.14s reload; 7d incompressible worst-case: 1,014,677 B <= 1 MiB, `effectiveRetention=99h15m0s`) |
+| Hub answers latest, series, ranking, estate reduction, and storage queries identically on every command surface under fail-closed local device visibility | Surface parity + security negative tests | `cmd/ze/hub/surface_parity_test.go` `TestEveryCommandOnEverySurface` 0 fleet failures across all 8 surfaces; `internal/component/plugin/all` `TestRegisteredWireMethods` PASS; `internal/component/managed/cmd_history_test.go` (all 3 commands, all 8 pipes, RBAC fail-closed on nil ctx and denied devices) PASS; `internal/component/tacacs/authorizer_fleet_scope_test.go` PASS (real TCP TACACS+ server: <=1 remote call for 4,096 devices, fail-closed on unmapped remote profiles) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Fleet web charts and `HistoryPart` | Moved out of first release by owner ruling of 2026-11-23 ("commands in the first release, pages after it") | `plan/post-release/features/spec-fleet-ui-3-dashboards-and-charts.md` |
+| Fleet device table latest-sample columns and `LatestSamplePart` | Moved out of first release by owner ruling of 2026-11-23 | `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` |
+| History administration web page | Post-release web surface | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-8-metric-history-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md` |
+| `./le spec review check` | `review_gate: OK (90 code files, clean, hashes match tmp/review/fleet-8-metric-history-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md)` |
+| Rounds | 1 (independent closure review over all 90 code files across commits `30057171e0..2cf8f71e01` plus `internal/le/cli/catalog/catalog.go` and `catalog_test.go`: 0 BLOCKER, 0 product ISSUE; style pass ran across all changed Go files with 0 peer-reachable `panic()` calls and bounded loops/caches; design-documents lens verified all approved verdicts and the 12 post-approval decision rows on `api/architecture.md`, `core-design.md`, `process-protocol.md`, and `tls-listeners.md` with 0 violations) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, design-documents+style+spec-completeness |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE (repo check) | `internal/component/config/loader_extract.go` added 2 non-ASN 32-bit parses (`interval`, `retention-days`) missing from `numberparse-allowlist.txt` | `internal/le/repo/numberparse-allowlist.txt` | Added `2 internal/component/config/loader_extract.go` with justification comment in Commit A (`./le repo check` 0 Fleet-8 findings) |
+| 2 | NOTE (docs) | Operator guides and feature pages lacked Fleet-8 metric history entries beside the updated architecture docs | `features/fleet-management.md`, `docs/features/fleet-management.md`, `docs/features/cli-commands.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/guide/status.md` | Updated all 6 pages with source anchors in Commit A |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `pkg/fleet/sample.go` | Yes | `-rw-r--r-- 1 thomas thomas 17707 Nov 26 18:07 pkg/fleet/sample.go` |
+| `internal/component/plugin/server/fleet_visibility.go` | Yes | `-rw-r--r-- 1 thomas thomas 3301 Nov 26 18:11 internal/component/plugin/server/fleet_visibility.go` |
+| `internal/component/plugin/server/fleet_sample_sources.go` | Yes | `-rw-r--r-- 1 thomas thomas 13660 Nov 26 18:32 internal/component/plugin/server/fleet_sample_sources.go` |
+| `internal/component/plugin/server/managed_history.go` | Yes | `-rw-r--r-- 1 thomas thomas 113545 Nov 26 20:57 internal/component/plugin/server/managed_history.go` |
+| `internal/component/plugin/server/managed_history_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 55206 Nov 26 20:37 internal/component/plugin/server/managed_history_test.go` |
+| `internal/component/host/fleet_samples_linux.go` & `fleet_samples_other.go` | Yes | `9774` B & `557` B (Nov 26) |
+| `internal/plugins/host-cmd/cmd/fleet_samples.go` | Yes | `1520` B (Nov 26 18:22) |
+| `internal/component/iface/fleet_samples.go` | Yes | `7280` B (Nov 26 18:23) |
+| `internal/component/bgp/plugins/cmd/peer/fleet_samples.go` & `rib/fleet_samples.go` | Yes | `3235` B & `1735` B (Nov 26) |
+| `internal/component/l2tp/cmd/fleet_samples.go` & `pppoe/cmd/fleet_samples.go` | Yes | `1804` B & `2180` B (Nov 26) |
+| `internal/component/managed/sample.go`, `cmd_history.go`, `managed_sample_sources_test.go` | Yes | `11179` B, `22255` B, `10854` B (Nov 26) |
+| `test/managed/fleet-history-reconnect.ci` & `test/managed/fleet-history-cap.ci` | Yes | `1240` B & `1326` B (Nov 26 20:33) |
+| `website/changes/fragments/fleet-8-metric-history.md` | Yes | Created in Commit A (`topic: Fleet`, `feature: fleet-management`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Connected device reports at interval; absent owners omitted | `internal/component/managed/sample.go` `sessionSampler.collectAndSend`, `plugin/server/fleet_sample_sources.go` `FleetSampleCollector.Collect`; `test/managed/fleet-history-reconnect.ci` PASS (95.6s), `managed_sample_sources_test.go` PASS |
+| AC-2 | Fine 1m/1d and coarse 15m/7d series across seam | `internal/component/plugin/server/managed_history.go` `QuerySeries` (seam aligned on 15m UTC boundary); `managed_history_test.go` PASS under `-race` |
+| AC-3 | History persists across hub restart | `internal/component/plugin/server/managed_history.go` `FlushFinal` + `LoadFromStore`; `test/managed/fleet-history-reconnect.ci` PASS |
+| AC-4 | Offline hour shows gap in series | `internal/component/plugin/server/managed_history.go` `QuerySeries` (`gap: true` explicit empty slots); `test/managed/fleet-history-reconnect.ci` PASS |
+| AC-5 | Cap shortens retention oldest-first and raises capacity alarm | `internal/component/plugin/server/managed_history.go` `enforceBudgetsLocked`; `test/managed/fleet-history-cap.ci` PASS (23.1s); 7d incompressible test 1,014,677 B <= 1 MiB |
+| AC-6 | Set query sums/averages reporting devices with contributor count | `internal/component/plugin/server/managed_history.go` `ReduceLatestRows`, `QuerySeries`; `managed/cmd_history_test.go` PASS |
+| AC-7 | Record deletion erases history across restart; undeclaration preserves it | `internal/component/plugin/server/managed_apply.go`, `managed_record_store.go`, `managed_history.go` `FenceForgetDevice`; `test/managed/fleet-history-cap.ci` PASS |
+| AC-8 | Reports faster than interval refused & counted | `internal/component/plugin/server/managed_history.go` `Ingest` (`slot <= dev.latest.lastAcceptedSlot`); `managed_history_test.go` PASS |
+| AC-9 | Standalone zero sampling calls; old hub keeps config fetch/ACK | `internal/component/managed/sample.go` `FleetSampleMetrics()`, `isUnknownMethodError`; `managed_sample_sources_test.go` + `client_test.go` PASS |
+| AC-10 | All 3 queries served on CLI, SSH, MCP, REST, gRPC, and web | `cmd/ze/hub/surface_parity_test.go` `TestEveryCommandOnEverySurface` 0 fleet failures across 8 surfaces; `TestRegisteredWireMethods` PASS; `cli grammar` OK (544 cmds); `command-contract` OK (576/576) |
+| AC-11 | Unreported device `no-reports`, absent figure omitted, zero preserved | `internal/component/plugin/server/managed_history.go` `QueryLatest`, `MarkUnsupported`; `fleet-history-reconnect.ci` + `cmd_history_test.go` PASS |
+| AC-12 | Disconnect retains latest+age across restart; outage gap; reconnect fresh receipt | `internal/component/plugin/server/managed_history.go` `Ingest`, `QueryLatest`, `QuerySeries`; `test/managed/fleet-history-reconnect.ci` PASS |
+| AC-13 | Malformed/oversized/repeated/superseded report rejected atomically | `pkg/fleet/sample.go` `DecodeAndValidateSampleReport`, `managed_serve.go` `recordSampleReport`, `managed_history.go` `Ingest`; `pkg/fleet/` + `managed_history_test.go` PASS |
+| AC-14 | Cross-resolution coverage, weighted averages, paired capacity ratios | `pkg/fleet/sample.go` `SampleRatioValue`, `managed_history.go` `QuerySeries` / `ReduceLatestRows`; `managed_history_test.go` + `cmd_history_test.go` PASS |
+| AC-15 | Checkpoint failure retains dirty data + doctor; delete fences flush; restart loads last complete checkpoint | `internal/component/plugin/server/managed_history.go` `CheckpointOnce`, `FenceForgetDevice`, `LoadFromStore`; `plugin/doctor/check_managed_runtime.go`; `managed_history_test.go` + `plugin/doctor` + `fleet-history-cap.ci` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Managed device `sample-report` -> hub `ManagedHistoryStore` -> `show fleet sample latest/series` across disconnect, gap, reconnect, hub restart | `test/managed/fleet-history-reconnect.ci` | Read file in full; invokes `le test fixture managed/fleet-history-reconnect` against real `ze` hub daemon with `option=storage:value=disk`; PASS (95.6s) |
+| Live reload budget tightening -> oldest-first eviction + `doctor-managed-history-capacity-pressure` -> undeclaration preservation -> `delete data key` fencing & restart erasure | `test/managed/fleet-history-cap.ci` | Read file in full; invokes `le test fixture managed/fleet-history-cap` against real `ze` hub daemon with `option=storage:value=disk`; PASS (23.1s) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| Risk: Store size (1 MiB/dev, 2 GiB/hub defaults) | confirmed | Measured in `managed_history_test.go`: 4,096 sparse = 272,350 B; 2,000 connected × 30m × 15 figs = 7,728,504 B (3,864 B/dev), 58 MiB heap delta; worst-case 7d incompressible under 1 MiB cap = 1,014,677 B <= 1 MiB with accurate `effectiveRetention=99h15m0s` |
+| Risk: Write load (5m timer checkpoint) | confirmed | Measured in `managed_history_test.go`: 4,096 sparse checkpoints in 0.67s / reloads in 0.18s; 2,000 connected checkpoints in 13.38s / reloads in 5.14s without holding ingest lock during I/O |
+| Risk: Query cost & output bounds | confirmed | `QuerySeries` / `QueryLatest` bound output to 4,096 rows and 4 MiB serialized JSON; `points` capped at `1..2112`; TACACS+ local visibility projection uses <=1 remote call across 4,096 devices (`tacacs` PASS 5.219s) |
+| Risk: Clock difference & step | confirmed | Hub stamps every accepted report with `s.currentTime().UTC()`; `Ingest` rejects `nowUnix < dev.latest.lastAcceptedUnix` without mutating history (`managed_history_test.go`) |
+| Risk: Counter figures & restart spikes | confirmed | `host/fleet_samples_linux.go` (`FleetSampler`) and `iface/fleet_samples.go` (`fleetSampleTracker`) skip first tick and reset on rollback or physical membership change |
+| Risk: Zero-call standalone & older hub compat | confirmed | `managed_sample_sources_test.go` verifies zero `FleetSampleMetrics()` calls in standalone; `client_test.go` verifies old-hub omission and `unknown method: sample-report` session downgrade |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Architecture contracts (`docs/architecture/fleet-config.md`, `api/commands.md`, `zefs-format.md`, `doctor-and-health-checks.md`) | Read all 4 pages against producing code; `./le doc check all` reported 0 Fleet-8 anchor errors; `./le doc check links` 0 Fleet-8 errors | Yes |
+| Operator docs & feature pages (`features/fleet-management.md`, `docs/features/fleet-management.md`, `docs/features/cli-commands.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/guide/status.md`) | Updated in Commit A with source anchors pointing at verified symbols (`handleFleetSampleLatest`, `handleFleetSampleSeries`, `handleFleetSampleStorage`, `ManagedHistoryStore`, `sessionSampler`) | Yes |
+| Sibling spec citers (`git grep 'spec-fleet-8-metric-history\.md'`) | All 8 sibling specs repointed to `docs/architecture/fleet-config.md` ("Device metric sampling and hub-side history") + bare stem `spec-fleet-8-metric-history` (closed 2026-11-27); 0 dangling citations remain in `plan/` or `docs/` | Yes |
+| Operator news fragment (`website/changes/fragments/fleet-8-metric-history.md`) | Front matter (`spec`, `topic: Fleet`, `feature: fleet-management`) and 6 fixed headings verified against `website/changes/fragments/README.md` | Yes |
+| No RFC / SDK / comparison changes | `git diff --name-only 30057171e0~1..2cf8f71e01` touches 0 files under `rfc/short/`, `pkg/plugin/sdk/`, or `docs/comparison.md` | Yes |
+

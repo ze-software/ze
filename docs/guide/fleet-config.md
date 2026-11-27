@@ -26,7 +26,7 @@ What you get, and what you do not:
 |--------------------------|------------------------------|
 | Keep one full configuration for each client, on the hub | Build a configuration from a template: each client has its own file |
 | Push a change to the one client it belongs to | Roll a change out to a group of clients in stages |
-| Track each device's connection state, labels, version, configuration state, hardware inventory, and component health (`show fleet devices`, `show fleet device name <name>`, `show fleet device inventory name <name>`, `show fleet device health name <name>`, `show fleet health`) | Automatically enroll undeclared devices |
+| Track each device's connection state, labels, version, configuration state, hardware inventory, component health, and up to 7 days of bounded metric history (`show fleet devices`, `show fleet device name <name>`, `show fleet device inventory name <name>`, `show fleet device health name <name>`, `show fleet health`, `show fleet sample latest`, `show fleet sample series`, `show fleet sample storage`) | Automatically enroll undeclared devices, or replace Prometheus for arbitrary metrics and long-term retention |
 | Keep a client running when the hub is down | Run a device without its hub-served or cached configuration |
 
 This guide follows the order of a first deployment:
@@ -697,9 +697,14 @@ configuration state (`in-sync`, `pending`, `rejected`, `diverged`,
 `never-fetched`), declared labels, hub and device versions, fetch timestamps,
 and remote address. Managed devices also push bounded hardware inventory
 summaries (on connect and every 24 hours, excluding raw SMART data and
-block-device serials) and per-component health reports (on connect and every 5
-minutes, matching `/health`) to the hub. All five hub commands work on every
-command surface (CLI, SSH, MCP, REST, gRPC, and the web command line):
+block-device serials), per-component health reports (on connect and every 5
+minutes, matching `/health`), and a fixed set of 15 operational metric figures
+(`sample-report`, at the hub's `bus hub history interval`, default 60 seconds;
+retained for 1 day at 1-minute resolution and up to 7 days at 15-minute
+resolution with per-minute aligned peaks under default 1 MiB/device and 2 GiB/hub
+byte caps). All eight hub commands work on every command surface (CLI, SSH,
+MCP, REST, gRPC, and the web command line), scoped locally to the devices the
+authenticated operator is authorized to read:
 
 ```
 show fleet devices
@@ -708,14 +713,25 @@ show fleet device name edge-01
 show fleet device inventory name edge-01
 show fleet device health name edge-01
 show fleet health
+show fleet sample latest
+show fleet sample latest | rank cpu-used | first 10
+show fleet sample latest | label site=lon | reduce
+show fleet sample series | figure cpu-used | label site=lon | from 2026-11-24T00:00:00Z | until 2026-11-25T00:00:00Z | reduce | points 300
+show fleet sample storage
 ```
 
 Devices that have not yet sent a report appear explicitly with `reported: false`
 and `status: not-reported` (and are counted separately under `unreported` in
-`show fleet health`). Disconnecting does not erase a device's last accepted
-inventory or health snapshot, nor does it mark components down: the hub retains
-the last snapshot and its UTC `received-at` timestamp across disconnects and
-hub restarts alongside `connected: false`.
+`show fleet health`), or `status: no-reports` in `show fleet sample latest`.
+Optional compiled-out or unconfigured metric owners are omitted rather than
+reported as zero. Disconnecting does not erase a device's last accepted
+inventory, health, or latest metric snapshot, nor does it mark components down
+or insert synthetic series points: the hub retains the last snapshot and its UTC
+`received-at` timestamp across disconnects and hub restarts alongside
+`connected: false`, while offline periods stay explicit gaps in `show fleet
+sample series`. Undeclaring a device preserves its remembered registry record
+and metric history; deleting `meta/fleet/device/<name>/record` fences checkpoint
+writers and erases its metric history durably across hub restart.
 
 A hub declares up to 4,096 distinct clients across its serving blocks, bounds
 concurrent unauthenticated handshakes at 32 (releasing each slot as soon as
@@ -723,9 +739,11 @@ authentication completes), and supports 2,000+ simultaneous authenticated
 sessions.
 <!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice -->
 <!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
+<!-- source: internal/component/managed/cmd_history.go -- handleFleetSampleLatest, handleFleetSampleSeries, handleFleetSampleStorage -->
 <!-- source: internal/component/plugin/server/fleet_report.go -- handleReport, FleetHealthSummary -->
+<!-- source: internal/component/plugin/server/managed_history.go -- ManagedHistoryStore, Ingest, QueryLatest, QuerySeries, QueryStorage -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- managedMaxHandshakes, managedReadMax -->
-<!-- source: internal/component/plugin/types.go -- ManagedClientsMax -->
+<!-- source: internal/component/plugin/types.go -- ManagedClientsMax, HubHistoryConfig -->
 
 ## Changing the Hub's Certificate Without Cutting Devices Off
 
@@ -782,6 +800,9 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `doctor-hub-client-missing` on the client | The client applied a configuration with no `client` block, so it follows no hub | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
 | `doctor-managed-diverged` on the client | The client runs a configuration that is not the last one its hub gave it, so it holds | See [When a Client Holds](#when-a-client-holds) |
 | `doctor-managed-report-failed` on the client | A periodic `inventory-report` or `health-report` failed to collect, exceeded 64 KiB, timed out after 30 seconds, or was refused by the hub (configuration sync and heartbeats continue) | Run `ze show doctor` and verify hub connectivity and hub version; the warning clears automatically on the next accepted report of that kind |
+| `doctor-managed-history-checkpoint-failed` on the hub | A hub metric history checkpoint or deletion-intent flush failed against the store (dirty samples stay in memory for retry) | Run `ze show data check` and `ze show fleet sample storage` to verify store health and checkpoint age |
+| `doctor-managed-history-capacity-pressure` on the hub | Hub metric history reached `device-budget-bytes` or `hub-budget-bytes` and evicted oldest buckets first (recent samples and latest readings stay kept) | Run `ze show fleet sample storage`, then raise `bus hub history device-budget-bytes` / `hub-budget-bytes` or shorten `retention-days` if needed |
+| `doctor-managed-history-corrupt` on the hub | A persisted metric history latest record or shard failed validation at startup (healthy shards stay readable) | Run `ze show data check`; the next valid sample report replaces the corrupt key, or remove it with `ze data rm` |
 | `doctor-managed-client-rejected` on the hub, the reason starts with `holding:` | The same: that client holds | See [When a Client Holds](#when-a-client-holds) |
 | A client holds after `request fleet enable` | The client was changed while it was out of the fleet | See [When a Client Holds](#when-a-client-holds) |
 | `request fleet enable` is refused: the configuration names no hub | The client's configuration has no `client` block, so the client has no hub to rejoin | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |

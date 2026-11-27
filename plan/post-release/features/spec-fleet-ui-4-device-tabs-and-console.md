@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md, spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting"), plan/release/features/spec-fleet-8-metric-history.md |
+| Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md, spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting"), spec-fleet-8-metric-history (closed 2026-11-27; documented in `docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history") |
 | Phase | 4/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |

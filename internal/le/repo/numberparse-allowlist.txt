@@ -72,6 +72,8 @@
 1 internal/component/config/cli/cmd_validate.go
 1 internal/component/config/infra/authz.go
 1 internal/component/config/infra/ssh.go
+# extractHubHistoryConfig reads bus hub history interval (seconds) and retention-days, not AS numbers.
+2 internal/component/config/loader_extract.go
 1 internal/component/config/schema.go
 1 internal/component/config/validators.go
 1 internal/component/config/yang/enum_assignment.go

@@ -13,6 +13,7 @@ serves configuration to remote ze instances over TLS.
   never a fall-through to another anchor
 - Hub device registry: `show fleet devices` lists live sessions, current configuration states and retained history, and `| label site=lon` filters the table by a declared label. `show fleet device name edge-01` includes fetch and acknowledgement details.
 - Inventory and health reporting: managed clients push bounded hardware inventory (`inventory-report`, on connect and every 24 hours; excluding raw SMART readings and block-device serials) and component health (`health-report`, on connect and every 5 minutes; matching `/health`) to the hub. The hub persists the latest accepted snapshots across disconnect and restart and serves `show fleet device inventory name <name>`, `show fleet device health name <name>`, and `show fleet health` on every command surface.
+- Device metric sampling and hub-side history: managed clients push a fixed set of 15 operational figures (`sample-report`) at the hub-configured `bus hub history interval` (default 60s). The hub retains a bounded dual-resolution store (1-minute buckets for 1 day, 15-minute buckets for up to 7 days with aligned per-minute peaks; default 1 MiB/device and 2 GiB/hub) persisted across restarts and serves caller-scoped `show fleet sample latest`, `show fleet sample series`, and `show fleet sample storage` on every command surface.
 - Config fetch with version hashing: clients only download when config changes
 - Two-phase config change: hub notifies, client fetches when ready
 - Partition resilience: clients cache config locally and start from cache when hub is unreachable
@@ -30,4 +31,7 @@ serves configuration to remote ze instances over TLS.
 <!-- source: internal/component/plugin/server/fleet_report.go -- handleReport, FleetHealthSummary -->
 <!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice -->
 <!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
-<!-- source: pkg/fleet/ -- version hash, RPC envelope, and inventory/health report types -->
+<!-- source: internal/component/managed/cmd_history.go -- handleFleetSampleLatest, handleFleetSampleSeries, handleFleetSampleStorage -->
+<!-- source: internal/component/managed/sample.go -- sessionSampler, FleetSampleMetrics -->
+<!-- source: internal/component/plugin/server/managed_history.go -- ManagedHistoryStore, Ingest, QueryLatest, QuerySeries, QueryStorage -->
+<!-- source: pkg/fleet/ -- version hash, RPC envelope, inventory/health report types, and sample vocabulary -->

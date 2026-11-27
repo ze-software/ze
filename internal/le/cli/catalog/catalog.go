@@ -110,8 +110,10 @@ func Collect() ([]Entry, error) {
 	}
 	for wireMethod, cliPaths := range wireToPaths {
 		for _, cliPath := range cliPaths {
+			if command.HiddenAtPath(tree, strings.Fields(cliPath)) {
+				continue
+			}
 			if seen[cliPath] {
-
 				continue
 			}
 			mode := "daemon"
@@ -147,6 +149,9 @@ func Collect() ([]Entry, error) {
 
 	builtins := mainPackageLocals()
 	for index := range builtins {
+		if command.HiddenAtPath(tree, strings.Fields(builtins[index].Path)) {
+			continue
+		}
 		if seen[builtins[index].Path] {
 			// The daemon serves this path under its YANG node too, so the
 			// entry above carries the daemon route alone: add the local one.
@@ -160,6 +165,9 @@ func Collect() ([]Entry, error) {
 		// leroot registers every development command under "le ". The wiki is
 		// the ze product catalog, so those process-local registrations are not
 		// part of the old ze help command inventory being replaced.
+		if command.HiddenAtPath(tree, strings.Fields(local.Path)) {
+			continue
+		}
 		if strings.HasPrefix(local.Path, "le ") || seen[local.Path] {
 			continue
 		}
@@ -257,6 +265,9 @@ func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.N
 	for _, registration := range pluginregistry.All() {
 		for index := range registration.Commands {
 			decl := &registration.Commands[index]
+			if command.HiddenAtPath(tree, strings.Fields(decl.Name)) {
+				continue
+			}
 			if decl.Name == "" || decl.Hidden || seen[decl.Name] {
 				continue
 			}

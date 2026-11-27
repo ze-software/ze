@@ -49,7 +49,7 @@ components it composes.
 | Estate tree | Built by grouping devices on flat key=value labels. No hierarchy is added to the data model |
 | Device commands through the hub | In scope. The hub relays operator commands to a selected device over the existing managed channel (`spec-fleet-9-device-command-relay.md`) |
 | Relay identity | A relayed command runs under an authorization profile that the device's own configuration names. With no such line the device refuses every relayed command and names the line that adds it. The hub user's name travels with the command for the device's audit log |
-| Hub-side metric history | In scope, persisted and bounded: about a week of what devices report, kept across a hub restart (`plan/release/features/spec-fleet-8-metric-history.md`) |
+| Hub-side metric history | In scope, persisted and bounded: about a week of what devices report, kept across a hub restart (`spec-fleet-8-metric-history`, closed 2026-11-27; `docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history") |
 | Browser CLI per device | In scope: the existing web CLI opened against a chosen device through the relay |
 | Compile tag | The whole interface is one compiled-out feature under the tag `ze_fleet_ui`, declared in `feature-gates.txt` and dependent on `ze_web`. A build without the tag has no fleet route, no Fleet mode, no fleet asset and no fleet command. The prototype's sample source sits behind a second, development-only tag, `ze_fleet_ui_sample`, which no shipped flavour sets |
 | Prototype first | The first deliverable is an interactive prototype of the whole interface on sample data, for the owner to review and correct. No child after `fleet-ui-1` starts until he has approved it. The prototype is built from the real shell, components and pages, so later children make it functional by replacing its data, never by rewriting it |
@@ -74,7 +74,7 @@ Back-end work the interface needs, owned by the `fleet` set:
 |------|----------------------------------|
 | `spec-fleet-1-device-registry` (closed 2026-11-25; `docs/architecture/fleet-config.md`) | The persistent registry, labels, groups, `show fleet` commands. Every page reads it |
 | `spec-fleet-4-inventory-health` (closed 2026-11-26; `docs/architecture/fleet-config.md`, "Inventory and health reporting") | Inventory and health per device. Dashboards, alarms and the System tab read it |
-| `plan/release/features/spec-fleet-8-metric-history.md` | The sample reports and the bounded history every chart reads |
+| `spec-fleet-8-metric-history` (closed 2026-11-27; `docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history") | The sample reports and the bounded history every chart reads |
 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The relay every device tab and the per-device CLI use |
 | `plan/post-release/features/spec-fleet-2-config-templates.md`, `spec-fleet-3-audit-trail.md`, `spec-fleet-5-staged-rollout.md`, `spec-fleet-7-config-reconnect-resolution` | The data behind the config, rollout and audit pages of `fleet-ui-6` |
 
@@ -426,7 +426,7 @@ empty state naming what is missing and the next action.
 This umbrella changes no wire. It specifies markup, URLs and the composition of
 pages over commands. The wires the interface depends on are changed and
 censused in the specs that own them: the report and history verbs in
-`plan/release/features/spec-fleet-8-metric-history.md`, the relay verbs in
+`spec-fleet-8-metric-history` (`docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history"), the relay verbs in
 `plan/post-release/features/spec-fleet-9-device-command-relay.md`, and the
 `show fleet` answer shapes in
 `spec-fleet-1-device-registry` (`docs/architecture/fleet-config.md`) and

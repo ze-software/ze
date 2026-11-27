@@ -282,3 +282,21 @@ func aliasesOf(entry *Entry) []command.PipeOperationEntry {
 	}
 	return aliases
 }
+
+// VALIDATES: Collect omits commands under ze:hidden schema paths while keeping
+// public fleet commands, matching internal/plugins/help/help_command.go.
+// PREVENTS: doc-drift between the wiki catalog producer and live `ze help command`.
+func TestCollectOmitsHiddenSchemaCommands(t *testing.T) {
+	var sawPublic bool
+	for _, entry := range collectForTest(t) {
+		if strings.HasPrefix(entry.Path, "show fleet source ") {
+			t.Errorf("hidden schema command %q must not appear in the wiki catalog", entry.Path)
+		}
+		if entry.Path == "show fleet sample latest" {
+			sawPublic = true
+		}
+	}
+	if !sawPublic {
+		t.Fatal("public command \"show fleet sample latest\" is missing from the catalog")
+	}
+}
