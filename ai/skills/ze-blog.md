@@ -93,6 +93,13 @@ The old posts contain rhetorical questions ("But how can 2737504257 be in the AS
 
 NOTE: "AI objections, a story I have heard before", "What Neurodivergence Really Means", and "The lack of AI control plane" were authored by Claude from Thomas's input. Do NOT use these as style references. They are examples of what to improve.
 
+## Independent sceptical review before showing Thomas
+
+Before presenting a new blog post or major rewrite to Thomas, run two checks on the source file:
+
+1. **Advisory readability report:** run `./le doc ste readability file <post>` to inspect Flesch-Kincaid grade, average sentence length and flagged dense or nested sentences. Treat the report as advisory: simplify overloaded sentences without turning the prose into choppy fragments.
+2. **Sceptical network-engineer review:** launch a read-only subagent (`research` / `ze-read`) over the draft whose sole job is to challenge every claim as a seasoned ISP/network engineer: flag unverified generalisations about other routers, operating systems or vendor tools (demand primary sources or removal), question whether operational examples match real NOC experience, and call out any awkward, internal-jargon or overly complex English. Fix every valid objection before rendering the page for Thomas.
+
 ## Done when
 
-Done when the source post in `website/blog/posts/` passes the `ze-author` final check and `./le site build` has regenerated its pages.
+Done when the source post in `website/blog/posts/` passes the `ze-author` final check, the advisory `./le doc ste readability file <post>` and sceptical network-engineer review have run and their findings are addressed, and `./le site build` has regenerated its pages.

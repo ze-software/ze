@@ -710,7 +710,7 @@ func TestEveryNamedFileReachesTheRatchet(t *testing.T) {
 
 func TestEveryActionIsNativeAndReadOnly(t *testing.T) {
 	want := map[string]bool{
-		"check": true, "review": true, "review-changed": true,
+		"check": true, "review": true, "review-changed": true, "readability": true,
 	}
 	for _, row := range Actions().Actions {
 		if !want[row.Verb] {

@@ -41,6 +41,13 @@ var actions = leaction.New(area,
 		Answer: reviewAnswer},
 	leaction.Action{Verb: "review-changed", Does: "report", Summary: "list plain-English findings in changed files", Why: "the same findings, over the files this working tree changed",
 		Answer: changedAnswer},
+	leaction.Action{Verb: "readability", Does: "report", Summary: "rate English simplicity and flag dense sentences in prose",
+		Why: "advisory readability metrics (Flesch-Kincaid grade, sentence length, clause density) for blog posts and docs; never blocks a commit",
+		Parameters: []leaction.Parameter{{
+			Keyword: fileKeyword, Kind: leaction.KindPath, Help: "Markdown file to score (default: blog posts)", Value: "path",
+			Requirement: leaction.Optional, Repeat: true,
+		}},
+		AnswerArgs: readabilityNamed},
 )
 
 // Actions answers the command surface as data.
