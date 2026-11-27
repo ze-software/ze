@@ -1,10 +1,15 @@
 // Design: docs/architecture/fleet-config.md — managed config RPC payloads
 // Related: version.go — version hash computation
+// Related: chain.go — SHA-1 configuration hash chain folding
+// Related: diff.go — deterministic line diff/patch payloads
 // Related: report.go — inventory and health report payloads and producer registry
 
 package fleet
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"time"
 	"unicode/utf8"
 )
@@ -30,24 +35,83 @@ const (
 	VerbSampleReport = "sample-report"
 )
 
+// Fetch delivery modes, resync requests, and rejection classifications carried
+// on managed configuration RPC payloads.
+const (
+	// FetchModeFull indicates ConfigFetchResponse carries a full base64 config.
+	FetchModeFull = "full"
+	// FetchModeDiff indicates ConfigFetchResponse carries a base64 line diff
+	// over BaseVersion.
+	FetchModeDiff = "diff"
+
+	// ResyncModeDiff requests a diff-based resync on chain mismatch first.
+	ResyncModeDiff = "diff"
+	// ResyncModeFull requests a full configuration replay fallback.
+	ResyncModeFull = "full"
+
+	// RejectKindVerify marks a ConfigAck refusal caused by YANG verification.
+	RejectKindVerify = "verify"
+	// RejectKindCommit marks a ConfigAck refusal caused by staging or commit failure.
+	RejectKindCommit = "commit"
+	// RejectKindResync marks a ConfigAck refusal caused by diff/chain resync failure.
+	RejectKindResync = "resync"
+)
+
+// ManagedReply is the shared reply payload carried on managed RPC answers
+// (ping, config-ack, config-held, config-changed) so both peers compare their
+// expected SHA-1 configuration hash chain head on every reply.
+type ManagedReply struct {
+	ChainHash string `json:"chain-hash,omitempty"`
+}
+
+// DecodeManagedReply decodes a ManagedReply from raw JSON. An empty or
+// whitespace-only payload (a legacy empty ok reply from an older peer) returns
+// an empty ManagedReply with no error.
+func DecodeManagedReply(raw json.RawMessage) (ManagedReply, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return ManagedReply{}, nil
+	}
+	var reply ManagedReply
+	if err := json.Unmarshal(trimmed, &reply); err != nil {
+		return ManagedReply{}, fmt.Errorf("fleet: decode managed reply: %w", err)
+	}
+	return reply, nil
+}
+
+// PingRequest is sent by a managed client on VerbPing heartbeats carrying its
+// current SHA-1 configuration hash chain head.
+type PingRequest struct {
+	ChainHash string `json:"chain-hash,omitempty"`
+}
+
 // ConfigFetchRequest is sent by a managed client to request its config.
 // Version is the client's current config hash, or empty on first boot.
+// ChainHash and Resync are optional: ChainHash carries the client's current
+// SHA-1 chain head, and Resync requests ResyncModeDiff or ResyncModeFull.
 type ConfigFetchRequest struct {
-	Version string `json:"version"`
+	Version   string `json:"version"`
+	ChainHash string `json:"chain-hash,omitempty"`
+	Resync    string `json:"resync,omitempty"`
 }
 
 // ConfigFetchResponse is the hub's reply to a config-fetch request.
 // If the client's version matches, Status is "current" and Config is empty.
-// Otherwise, Version is the new hash and Config is base64-encoded config bytes.
+// Otherwise, Version is the new hash and Config is base64-encoded config bytes
+// (or Diff when Mode is FetchModeDiff).
 //
-// HeldVersion, DiscardVersion, and SampleIntervalSeconds are optional, so a
-// client built before them decodes the answer as before and ignores them.
+// HeldVersion, DiscardVersion, SampleIntervalSeconds, Mode, BaseVersion, Diff,
+// Reanchor, and ChainHash are optional, so a client built before them decodes
+// the answer as before and ignores them.
 // HeldVersion is the version hash of the configuration the hub holds as this
 // client's held copy, and is absent when the hub holds none. DiscardVersion is
 // present only when the hub's operator decided that a client running exactly
 // that version drops it and applies Config. SampleIntervalSeconds advertises
 // the hub's configured metric sample interval in seconds on both changed and
-// current replies; zero (omitted) disables sampling.
+// current replies; zero (omitted) disables sampling. Mode selects FetchModeFull
+// (or empty) versus FetchModeDiff, with BaseVersion and base64 Diff carrying
+// the line patch, Reanchor signaling a FoldFull base re-anchor, and ChainHash
+// carrying the hub's expected 40-hex SHA-1 chain head.
 type ConfigFetchResponse struct {
 	Version               string `json:"version,omitempty"`
 	Config                string `json:"config,omitempty"`
@@ -55,26 +119,35 @@ type ConfigFetchResponse struct {
 	HeldVersion           string `json:"held-version,omitempty"`
 	DiscardVersion        string `json:"discard-version,omitempty"`
 	SampleIntervalSeconds int    `json:"sample-interval-seconds,omitempty"`
+	Mode                  string `json:"mode,omitempty"`
+	BaseVersion           string `json:"base-version,omitempty"`
+	Diff                  string `json:"diff,omitempty"`
+	Reanchor              bool   `json:"reanchor,omitempty"`
+	ChainHash             string `json:"chain-hash,omitempty"`
 }
 
 // ConfigChanged is sent by the hub to notify a connected client
 // that a new config version is available.
 type ConfigChanged struct {
-	Version string `json:"version"`
+	Version   string `json:"version"`
+	ChainHash string `json:"chain-hash,omitempty"`
 }
 
 // ConfigAck is sent by the client after receiving and processing a config.
-// OK is true if the config was accepted, false if validation failed.
+// OK is true if the config was accepted, false if validation or commit failed.
 // Error describes the rejection reason when OK is false.
 //
-// Holding is optional: true says the client refused because it holds a
-// configuration of its own, not because the hub's one is invalid. A hub built
-// before the field ignores it and reads Error as before.
+// Holding, ChainHash, and RejectKind are optional: Holding says the client
+// refused because it holds a configuration of its own; ChainHash reports the
+// client's SHA-1 chain head; RejectKind classifies non-OK refusals as
+// RejectKindVerify, RejectKindCommit, or RejectKindResync.
 type ConfigAck struct {
-	Version string `json:"version"`
-	OK      bool   `json:"ok"`
-	Error   string `json:"error,omitempty"`
-	Holding bool   `json:"holding,omitempty"`
+	Version    string `json:"version"`
+	OK         bool   `json:"ok"`
+	Error      string `json:"error,omitempty"`
+	Holding    bool   `json:"holding,omitempty"`
+	ChainHash  string `json:"chain-hash,omitempty"`
+	RejectKind string `json:"reject-kind,omitempty"`
 }
 
 // ConfigHeld is the payload of config-held: the configuration a holding client
@@ -82,11 +155,13 @@ type ConfigAck struct {
 // session. Version is the version hash of the decoded Config bytes, which the
 // hub recomputes and never trusts. Config is the base64-encoded configuration.
 // EditedAt is when that configuration became active on the client, and is
-// absent when the client's store records no such time.
+// absent when the client's store records no such time. ChainHash optionally
+// carries the client's SHA-1 chain head at hold time.
 type ConfigHeld struct {
-	Version  string    `json:"version"`
-	Config   string    `json:"config"`
-	EditedAt time.Time `json:"edited-at,omitzero"`
+	Version   string    `json:"version"`
+	Config    string    `json:"config"`
+	EditedAt  time.Time `json:"edited-at,omitzero"`
+	ChainHash string    `json:"chain-hash,omitempty"`
 }
 
 // HeldConfigMax is the largest configuration, in raw bytes before base64, that

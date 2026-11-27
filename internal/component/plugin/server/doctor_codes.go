@@ -64,6 +64,10 @@ const (
 	CodeDoctorManagedHistoryCapacityPressure = "doctor-managed-history-capacity-pressure"
 	// CodeDoctorManagedHistoryCorrupt reports a stored fleet metric history record or shard that could not be decoded.
 	CodeDoctorManagedHistoryCorrupt = "doctor-managed-history-corrupt"
+	// CodeDoctorManagedChainDrift reports a managed configuration SHA-1 hash chain mismatch whose resync did not converge.
+	CodeDoctorManagedChainDrift = "doctor-managed-chain-drift"
+	// CodeDoctorManagedChainUnreadable reports a persisted managed configuration hash chain key that could not be read or decoded.
+	CodeDoctorManagedChainUnreadable = "doctor-managed-chain-unreadable"
 	// CodeDoctorPluginRemovalUnrecovered is the doctor diagnostic code "doctor-plugin-removal-unrecovered".
 	CodeDoctorPluginRemovalUnrecovered = "doctor-plugin-removal-unrecovered"
 	// CodeDoctorPluginCapabilitiesNotRestored is the doctor diagnostic code "doctor-plugin-capabilities-not-restored".
@@ -302,6 +306,24 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A persisted fleet metric history latest record or compressed shard failed size, version, or integrity validation on startup load and was skipped while healthy shards remained readable. " +
 			"The next valid sample report replaces the damaged key.",
 		Examples: []string{exampleShowDoctor, exampleShowFleetSampleStorage, "ze show diagnostic doctor-managed-history-corrupt"},
+	},
+	{
+		Code:  CodeDoctorManagedChainDrift,
+		Title: "Managed configuration hash chain did not converge",
+		Description: "A managed client and its hub disagreed on their configuration SHA-1 hash chain, and both diff-based resync and full configuration replay failed to make them agree. " +
+			"The client keeps running its last committed configuration instead of the hub's latest configuration until the cause is fixed and a later resync or reconnect succeeds. " +
+			"Run `ze show fleet status` and `ze show doctor` to inspect the reported chain hashes, sync state, and failure cause.",
+		Examples:     []string{exampleShowDoctor, "ze show fleet status", "ze show diagnostic doctor-managed-chain-drift"},
+		RelatedCodes: []string{CodeDoctorManagedChainUnreadable, CodeDoctorManagedClientRejected},
+	},
+	{
+		Code:  CodeDoctorManagedChainUnreadable,
+		Title: "Stored managed configuration hash chain cannot be read",
+		Description: "A persisted managed configuration hash chain key (`meta/managed/chain-state` on a client or `meta/managed/client/<name>/chain` on a hub) failed storage read, write, or JSON decoding. " +
+			"Because the stored chain head is unreadable, Ze does not treat it as absent and waits for the next successful full configuration replay to overwrite and heal it. " +
+			"Run `ze show data check` to inspect the state store for damaged keys.",
+		Examples:     []string{exampleShowDoctor, "ze show data check", "ze show diagnostic doctor-managed-chain-unreadable"},
+		RelatedCodes: []string{CodeDoctorManagedChainDrift, CodeDoctorManagedDeviceRecordUnreadable},
 	},
 	{
 		Code:  CodeDoctorPluginRemovalUnrecovered,

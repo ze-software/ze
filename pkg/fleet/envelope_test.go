@@ -403,3 +403,222 @@ func TestConfigFetchSampleIntervalRoundTrip(t *testing.T) {
 		t.Fatalf("old hub interval = %d, want 0", fromOldHub.SampleIntervalSeconds)
 	}
 }
+
+func TestEnvelopeChainAndDiffRoundTrip(t *testing.T) {
+	// VALIDATES: ManagedReply, PingRequest, and all optional chain-hash,
+	// resync, diff, reanchor, and reject-kind fields on ConfigFetchRequest,
+	// ConfigFetchResponse, ConfigChanged, ConfigAck, and ConfigHeld marshal
+	// under their exact kebab-case keys, omit when zero, and round-trip cleanly.
+	// PREVENTS: JSON key typos or missing omitempty tags breaking fleet-10
+	// drift detection or older peer interoperability.
+	const chain = "0123456789abcdef0123456789abcdef01234567"
+
+	// ManagedReply
+	reply := ManagedReply{ChainHash: chain}
+	data, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatalf("marshal ManagedReply: %v", err)
+	}
+	wantReply := `{"chain-hash":"` + chain + `"}`
+	if string(data) != wantReply {
+		t.Fatalf("ManagedReply json = %s, want %s", data, wantReply)
+	}
+	decodedReply, err := DecodeManagedReply(data)
+	if err != nil {
+		t.Fatalf("DecodeManagedReply: %v", err)
+	}
+	if decodedReply != reply {
+		t.Fatalf("DecodeManagedReply = %+v, want %+v", decodedReply, reply)
+	}
+
+	// PingRequest
+	ping := PingRequest{ChainHash: chain}
+	data, err = json.Marshal(ping)
+	if err != nil {
+		t.Fatalf("marshal PingRequest: %v", err)
+	}
+	if string(data) != wantReply {
+		t.Fatalf("PingRequest json = %s, want %s", data, wantReply)
+	}
+	var pingBack PingRequest
+	if err := json.Unmarshal(data, &pingBack); err != nil {
+		t.Fatalf("unmarshal PingRequest: %v", err)
+	}
+	if pingBack != ping {
+		t.Fatalf("PingRequest round-trip = %+v, want %+v", pingBack, ping)
+	}
+	emptyPing, err := json.Marshal(PingRequest{})
+	if err != nil {
+		t.Fatalf("marshal empty PingRequest: %v", err)
+	}
+	if string(emptyPing) != `{}` {
+		t.Fatalf("empty PingRequest json = %s, want {}", emptyPing)
+	}
+
+	// ConfigFetchRequest
+	fetchReq := ConfigFetchRequest{
+		Version:   "1111111111111111",
+		ChainHash: chain,
+		Resync:    ResyncModeDiff,
+	}
+	data, err = json.Marshal(fetchReq)
+	if err != nil {
+		t.Fatalf("marshal ConfigFetchRequest: %v", err)
+	}
+	wantFetchReq := `{"version":"1111111111111111","chain-hash":"` + chain + `","resync":"diff"}`
+	if string(data) != wantFetchReq {
+		t.Fatalf("ConfigFetchRequest json = %s, want %s", data, wantFetchReq)
+	}
+	var fetchReqBack ConfigFetchRequest
+	if err := json.Unmarshal(data, &fetchReqBack); err != nil {
+		t.Fatalf("unmarshal ConfigFetchRequest: %v", err)
+	}
+	if fetchReqBack != fetchReq {
+		t.Fatalf("ConfigFetchRequest round-trip = %+v, want %+v", fetchReqBack, fetchReq)
+	}
+
+	// ConfigFetchResponse (diff + reanchor + sample-interval-seconds + chain-hash)
+	fetchResp := ConfigFetchResponse{
+		Version:               "2222222222222222",
+		SampleIntervalSeconds: 30,
+		Mode:                  FetchModeDiff,
+		BaseVersion:           "1111111111111111",
+		Diff:                  "W10=",
+		Reanchor:              true,
+		ChainHash:             chain,
+	}
+	data, err = json.Marshal(fetchResp)
+	if err != nil {
+		t.Fatalf("marshal ConfigFetchResponse: %v", err)
+	}
+	wantFetchResp := `{"version":"2222222222222222","sample-interval-seconds":30,` +
+		`"mode":"diff","base-version":"1111111111111111","diff":"W10=","reanchor":true,` +
+		`"chain-hash":"` + chain + `"}`
+	if string(data) != wantFetchResp {
+		t.Fatalf("ConfigFetchResponse json = %s, want %s", data, wantFetchResp)
+	}
+	var fetchRespBack ConfigFetchResponse
+	if err := json.Unmarshal(data, &fetchRespBack); err != nil {
+		t.Fatalf("unmarshal ConfigFetchResponse: %v", err)
+	}
+	if fetchRespBack != fetchResp {
+		t.Fatalf("ConfigFetchResponse round-trip = %+v, want %+v", fetchRespBack, fetchResp)
+	}
+
+	// ConfigChanged
+	changed := ConfigChanged{Version: "2222222222222222", ChainHash: chain}
+	data, err = json.Marshal(changed)
+	if err != nil {
+		t.Fatalf("marshal ConfigChanged: %v", err)
+	}
+	wantChanged := `{"version":"2222222222222222","chain-hash":"` + chain + `"}`
+	if string(data) != wantChanged {
+		t.Fatalf("ConfigChanged json = %s, want %s", data, wantChanged)
+	}
+	var changedBack ConfigChanged
+	if err := json.Unmarshal(data, &changedBack); err != nil {
+		t.Fatalf("unmarshal ConfigChanged: %v", err)
+	}
+	if changedBack != changed {
+		t.Fatalf("ConfigChanged round-trip = %+v, want %+v", changedBack, changed)
+	}
+
+	// ConfigAck
+	ack := ConfigAck{
+		Version:    "2222222222222222",
+		OK:         false,
+		Error:      "yang validation failed",
+		ChainHash:  chain,
+		RejectKind: RejectKindVerify,
+	}
+	data, err = json.Marshal(ack)
+	if err != nil {
+		t.Fatalf("marshal ConfigAck: %v", err)
+	}
+	wantAck := `{"version":"2222222222222222","ok":false,"error":"yang validation failed",` +
+		`"chain-hash":"` + chain + `","reject-kind":"verify"}`
+	if string(data) != wantAck {
+		t.Fatalf("ConfigAck json = %s, want %s", data, wantAck)
+	}
+	var ackBack ConfigAck
+	if err := json.Unmarshal(data, &ackBack); err != nil {
+		t.Fatalf("unmarshal ConfigAck: %v", err)
+	}
+	if ackBack != ack {
+		t.Fatalf("ConfigAck round-trip = %+v, want %+v", ackBack, ack)
+	}
+
+	// ConfigHeld
+	held := ConfigHeld{
+		Version:   "3333333333333333",
+		Config:    "cGx1Z2luIHsgfQ==",
+		ChainHash: chain,
+	}
+	data, err = json.Marshal(held)
+	if err != nil {
+		t.Fatalf("marshal ConfigHeld: %v", err)
+	}
+	wantHeld := `{"version":"3333333333333333","config":"cGx1Z2luIHsgfQ==","chain-hash":"` + chain + `"}`
+	if string(data) != wantHeld {
+		t.Fatalf("ConfigHeld json = %s, want %s", data, wantHeld)
+	}
+	var heldBack ConfigHeld
+	if err := json.Unmarshal(data, &heldBack); err != nil {
+		t.Fatalf("unmarshal ConfigHeld: %v", err)
+	}
+	if heldBack != held {
+		t.Fatalf("ConfigHeld round-trip = %+v, want %+v", heldBack, held)
+	}
+
+	// Verify constant values match spec-fleet-10 wire strings.
+	if FetchModeFull != "full" || FetchModeDiff != "diff" {
+		t.Fatalf("unexpected FetchMode constants: %q, %q", FetchModeFull, FetchModeDiff)
+	}
+	if ResyncModeDiff != "diff" || ResyncModeFull != "full" {
+		t.Fatalf("unexpected ResyncMode constants: %q, %q", ResyncModeDiff, ResyncModeFull)
+	}
+	if RejectKindVerify != "verify" || RejectKindCommit != "commit" || RejectKindResync != "resync" {
+		t.Fatalf("unexpected RejectKind constants: %q, %q, %q", RejectKindVerify, RejectKindCommit, RejectKindResync)
+	}
+}
+
+func TestManagedReplyToleratesLegacyEmptyOK(t *testing.T) {
+	// VALIDATES: DecodeManagedReply returns an empty ManagedReply with no error
+	// on nil, empty, whitespace-only, or empty-object JSON replies (legacy
+	// SendOK peers), decodes chain-hash when present, and rejects invalid JSON.
+	// PREVENTS: False drift or protocol errors when speaking with a peer that
+	// replies with empty SendOK.
+	emptyInputs := []struct {
+		name string
+		raw  json.RawMessage
+	}{
+		{name: "nil raw", raw: nil},
+		{name: "empty slice", raw: json.RawMessage{}},
+		{name: "whitespace only", raw: json.RawMessage(" \t\r\n ")},
+		{name: "empty object", raw: json.RawMessage(`{}`)},
+	}
+	for _, tc := range emptyInputs {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := DecodeManagedReply(tc.raw)
+			if err != nil {
+				t.Fatalf("DecodeManagedReply(%q) returned err: %v", tc.raw, err)
+			}
+			if got.ChainHash != "" {
+				t.Fatalf("DecodeManagedReply(%q).ChainHash = %q, want empty", tc.raw, got.ChainHash)
+			}
+		})
+	}
+
+	const chain = "abcdef0123456789abcdef0123456789abcdef01"
+	got, err := DecodeManagedReply(json.RawMessage(`{"chain-hash":"` + chain + `","future-field":1}`))
+	if err != nil {
+		t.Fatalf("DecodeManagedReply with chain-hash: %v", err)
+	}
+	if got.ChainHash != chain {
+		t.Fatalf("ChainHash = %q, want %q", got.ChainHash, chain)
+	}
+
+	if _, err := DecodeManagedReply(json.RawMessage(`{"chain-hash":`)); err == nil {
+		t.Fatalf("expected error on truncated JSON")
+	}
+}

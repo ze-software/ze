@@ -191,3 +191,23 @@ var (
 	KeyFleetAlarmDevice = MustRegister(KeyEntry{Pattern: "meta/fleet/alarm/device/{name}", Description: "Managed device declaration timing, active alarms, and bounded alarm history (JSON)", Private: true, ValueMax: FleetAlarmDeviceValueMax})
 	KeyFleetAlarmHub    = MustRegister(KeyEntry{Pattern: "meta/fleet/alarm/hub", Description: "Hub-scoped active alarms, occurrence sequence state, and bounded alarm history (JSON)", Private: true, ValueMax: FleetAlarmHubValueMax})
 )
+
+// Per-key value byte bounds and ListKeys prefix for the managed configuration
+// SHA-1 hash chain state keys. ManagedClientChainPrefix includes its trailing
+// slash because callers enumerate keys through storage.Storage.ListKeys, which
+// translates directory prefixes for the store backend.
+const (
+	ManagedChainStateValueMax  = 4 << 10
+	ManagedClientChainValueMax = 4 << 10
+
+	ManagedClientChainPrefix = "meta/managed/client/"
+)
+
+// Persisted SHA-1 configuration hash chain state keys for managed clients and
+// their hub. Both key families are Private and bounded by their ValueMax
+// constants. Kept in their own declaration so documentation drift checks read
+// each key group separately.
+var (
+	KeyManagedChainState  = MustRegister(KeyEntry{Pattern: "meta/managed/chain-state", Description: "Persisted SHA-1 configuration hash chain state for a managed client (JSON)", Private: true, ValueMax: ManagedChainStateValueMax})
+	KeyManagedClientChain = MustRegister(KeyEntry{Pattern: "meta/managed/client/{name}/chain", Description: "Hub-side persisted SHA-1 configuration hash chain state for one managed client (JSON)", Private: true, ValueMax: ManagedClientChainValueMax})
+)
