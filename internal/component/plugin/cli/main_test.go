@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -238,4 +240,84 @@ func TestQueryAnswerIsTheSameLineFromBothWriters(t *testing.T) {
 
 	assert.Equal(t, zeLine, sdkLine,
 		"the ze binary and the SDK answer one declaration with two different lines")
+}
+
+func restoreProfilingGlobals(t *testing.T) {
+	t.Helper()
+	prevMutex := runtime.SetMutexProfileFraction(-1)
+	prevBlock := flightrec.BlockProfileRate()
+	t.Cleanup(func() {
+		runtime.SetMutexProfileFraction(prevMutex)
+		flightrec.SetBlockProfileRate(prevBlock)
+	})
+	runtime.SetMutexProfileFraction(0)
+	flightrec.SetBlockProfileRate(0)
+}
+
+// TestConfigurePluginProfilingEnablesSamplingDefaults verifies separate-process
+// plugin launch enables mutex and block sampling matching daemon startup.
+//
+// VALIDATES: configurePluginProfiling sets mutex fraction 10 and block rate
+// 100000 via flightrec.SetBlockProfileRate.
+// PREVENTS: forked Ze plugins reporting zero sampling rates for mutex/block
+// profiles.
+func TestConfigurePluginProfilingEnablesSamplingDefaults(t *testing.T) {
+	restoreProfilingGlobals(t)
+
+	configurePluginProfiling()
+
+	require.Equal(t, pluginMutexProfileFraction, runtime.SetMutexProfileFraction(-1))
+	require.Equal(t, pluginBlockProfileRate, flightrec.BlockProfileRate())
+}
+
+// TestRunQueryModeDoesNotMutateProfilingGlobals verifies ZE_PLUGIN_MODE=declare
+// exits before configuring runtime profiling globals or running CLIHandler.
+//
+// VALIDATES: Run answers declare queries purely from registration metadata
+// without mutating runtime.SetMutexProfileFraction or flightrec.BlockProfileRate.
+// PREVENTS: query-mode side effects on profiling globals.
+func TestRunQueryModeDoesNotMutateProfilingGlobals(t *testing.T) {
+	restoreProfilingGlobals(t)
+
+	handlerRan := registerQueryFake(t, "test-cli-query-profiling", nil, nil)
+	requestQueryMode(t)
+
+	code, _, stderr := captureQuery(t, "test-cli-query-profiling")
+	require.Equal(t, 0, code, "stderr: %s", stderr)
+	require.False(t, *handlerRan)
+	require.Equal(t, 0, runtime.SetMutexProfileFraction(-1))
+	require.Equal(t, 0, flightrec.BlockProfileRate())
+}
+
+// TestRunNormalModeEnablesProfilingBeforeCLIHandler verifies normal plugin
+// execution enables mutex and block sampling before invoking CLIHandler.
+//
+// VALIDATES: Run configures mutex and block profiling prior to CLIHandler when
+// query mode is not requested.
+// PREVENTS: profiling defaults from being skipped on `ze plugin <name>`.
+func TestRunNormalModeEnablesProfilingBeforeCLIHandler(t *testing.T) {
+	restoreProfilingGlobals(t)
+
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "test-cli-normal-profiling"
+	var seenMutex, seenBlock int
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        pluginName,
+		Description: "test normal mode profiling defaults",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler: func([]string) int {
+			seenMutex = runtime.SetMutexProfileFraction(-1)
+			seenBlock = flightrec.BlockProfileRate()
+			return 0
+		},
+	}))
+
+	require.NoError(t, env.Set(sdk.EnvPluginMode, ""))
+
+	code := Run([]string{pluginName})
+	require.Equal(t, 0, code)
+	require.Equal(t, pluginMutexProfileFraction, seenMutex)
+	require.Equal(t, pluginBlockProfileRate, seenBlock)
 }

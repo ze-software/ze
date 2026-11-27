@@ -777,6 +777,7 @@ OS view. Available via daemon SSH (online RPC); YANG registration only.
 
 ```
 ze show runtime memory             # runtime.MemStats (alloc, heap, GC) + hardware enrichment
+ze cli -c "show runtime memory | plugin <name>"  # Go runtime memory and CPU vitals of one plugin process
 ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS + hardware
 ze show system date                # wall-clock time: RFC3339, Unix, timezone
 ze show system platform            # runtime platform type and capabilities
@@ -788,7 +789,7 @@ Each response is a flat JSON map with kebab-case keys:
 
 | Command | Top-level keys |
 |---------|----------------|
-| `show runtime memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
+| `show runtime memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`); with `\| plugin <name>`, inspects that plugin process and includes `plugin`, `process-mode`, `pid`, `num-goroutines`, `num-cpu`, `max-procs`, `go-version` (or `fallback: true` host snapshot if an external plugin cannot answer) |
 | `show system cpu` | `num-cpu`, `num-goroutines`, `max-procs`, `go-version`, `hardware` (optional: `host.DetectCPU()`) |
 | `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs`; an enabled NTP client adds `ntp-synced`, `ntp-source`, `ntp-offset` |
 | `show system dns` | `records` (each learned record: `origin`, `rank`, `interface`, `unit`, `addresses`, `received`, `expires`, and when set `fallback`, `priority`, `name`, `transport`, `port`, `path`), `consumers` (each: `consumer`, `selections` with `path`, `instance`, `sources`, `mode`, `default`, `received-interfaces`, `used`, `servers`, `self`, `serves`); the router is first, as consumer `system` (`docs/features/dns-resolver.md`) |
@@ -2319,10 +2320,14 @@ Levels: emerg, alert, crit, err, warning, notice, info, debug. Linux only.
 ze show system goroutines summary    # Count by state
 ze show system goroutines blocked    # Only waiting goroutines
 ze show system goroutines full       # Full stack dump
+ze cli -c "show system goroutines mode blocked | plugin <name>"  # Goroutines of one plugin process
 ```
 
 The `full` mode uses singleflight deduplication: concurrent requests share
-a single 16 MB allocation.
+a single 16 MB allocation. Pipe through `| plugin <name>` to inspect an internal
+or forked plugin process on its independent runtime-inspect worker (returning
+`plugin`, `process-mode`, and `pid`, or a non-destructive `fallback: true` host
+`/proc/<pid>` and `stderr-tail` snapshot if an external plugin cannot answer).
 
 <!-- source: internal/component/cmd/show/goroutines.go -- handleShowSystemGoroutines -->
 
@@ -2707,6 +2712,7 @@ ze show system profile mutex                    # Contended mutex profile
 ze show system profile block                    # Blocking wait profile
 ze cli -c "show system profile type heap | summary"   # Top 32 functions in JSON
 ze cli -c "show system profile type mutex | summary"  # Top contended mutex stacks
+ze cli -c "show system profile type heap | plugin <name> | summary"  # Top functions in one plugin process
 ```
 
 Bare output returns base64-encoded pprof bytes (`format: "pprof-base64"`) for
@@ -2714,6 +2720,9 @@ Bare output returns base64-encoded pprof bytes (`format: "pprof-base64"`) for
 daemon and return up to 32 top functions sorted by cumulative then flat total
 (`format: "summary"`, `sample-type`, `sample-unit`, `total`, `top-functions`,
 and `truncated`). `mutex` and `block` responses also include `sampling-rate`.
+Pipe through `| plugin <name>` (composable with `| summary` in either order) to
+profile an internal or forked plugin process; unreachable external plugins
+return a non-destructive `fallback: true` host snapshot.
 CPU profiling is mutex-protected: concurrent requests return an error.
 
 <!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
@@ -2749,10 +2758,14 @@ and `bytes`.
 
 ```
 ze show system memory        # OS process memory (VmRSS/VmSize) from /proc/self/status
+ze cli -c "show system memory | plugin <name>"  # OS memory, wchan, and FD count of one plugin process
 ```
 
 Returns vm-rss-kb, vm-size-kb, vm-swap-kb, vm-peak-kb, vm-data-kb,
-vm-stack-kb, threads. Linux only.
+vm-stack-kb, threads. With `| plugin <name>`, reads `/proc/<pid>/status`,
+`wchan`, and `fd-count` for forked external plugins (`process-mode: "external"`),
+or reads `/proc/self/status` with `shared-daemon-process: true` for in-daemon
+plugins. Linux only.
 
 <!-- source: internal/component/cmd/show/memory_map_linux.go -- handleShowSystemMemoryMap -->
 
@@ -4860,7 +4873,7 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show log levels` | read-only | List subsystems with current log levels |
-| `show log recent` | read-only | Show recent log entries from in-memory ring |
+| `show log recent` | read-only | Show recent log entries from in-memory ring; supports `\| plugin <name>` to query one plugin process's log ring (with non-destructive host `stderr-tail` fallback for unreachable external plugins) |
 | `request log level <subsystem> <level>` | write | Set log level at runtime |
 
 Levels: debug, info, warn, err, disabled.

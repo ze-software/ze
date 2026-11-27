@@ -465,13 +465,13 @@ func triageRuntime(ctx *pluginserver.CommandContext) map[string]any {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	out := map[string]any{
-		"num-goroutines": runtime.NumGoroutine(),
-		"num-cpu":        runtime.NumCPU(),
-		"max-procs":      runtime.GOMAXPROCS(0),
-		"heap-alloc":     m.HeapAlloc,
-		"heap-in-use":    m.HeapInuse,
-		"sys":            m.Sys,
-		"num-gc":         m.NumGC,
+		keyNumGoroutines: runtime.NumGoroutine(),
+		keyNumCPU:        runtime.NumCPU(),
+		keyMaxProcs:      runtime.GOMAXPROCS(0),
+		keyHeapAlloc:     m.HeapAlloc,
+		keyHeapInUse:     m.HeapInuse,
+		keySys:           m.Sys,
+		keyNumGC:         m.NumGC,
 	}
 	if ctx == nil {
 		return out

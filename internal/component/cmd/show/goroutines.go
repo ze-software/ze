@@ -34,9 +34,13 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-goroutines", Handler: handleShowSystemGoroutines},
 	)
+	command.RegisterPipeFilters(
+		[]string{"show system goroutines", "show runtime memory", "show system memory"},
+		pluginPipeFilter,
+	)
 }
 
-func handleShowSystemGoroutines(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleShowSystemGoroutines(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	mode := goroutineModeSummary
 	for _, a := range args {
@@ -44,6 +48,14 @@ func handleShowSystemGoroutines(_ *pluginserver.CommandContext, validated comman
 		case goroutineModeSummary, goroutineModeBlocked, goroutineModeFull:
 			mode = a
 		}
+	}
+
+	pluginName, hasPlugin, refusal := extractPluginPipeTarget(validated, "ze show system goroutines | plugin <name>")
+	if refusal != nil {
+		return refusal, nil
+	}
+	if hasPlugin {
+		return inspectPluginGoroutines(ctx, pluginName, mode)
 	}
 
 	switch mode {
@@ -68,7 +80,7 @@ func goroutinesFull() (*plugin.Response, error) {
 		g.mu.Unlock()
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"mode": goroutineModeFull, "stacks": res},
+			Data:   plugin.Map{keyMode: goroutineModeFull, "stacks": res},
 		}, nil
 	}
 	g.running = true
@@ -87,7 +99,7 @@ func goroutinesFull() (*plugin.Response, error) {
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"mode": goroutineModeFull, "stacks": stacks},
+		Data:   plugin.Map{keyMode: goroutineModeFull, "stacks": stacks},
 	}, nil
 }
 
@@ -120,8 +132,19 @@ func goroutinesFiltered(onlyBlocked bool) (*plugin.Response, error) {
 		}
 		buf = make([]byte, min(len(buf)*2, goroutineFullBufSize))
 	}
-	stacks := string(buf)
+	mode := goroutineModeSummary
+	if onlyBlocked {
+		mode = goroutineModeBlocked
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(buildGoroutinesMap(mode, string(buf)))}, nil
+}
 
+func buildGoroutinesMap(mode, stacks string) map[string]any {
+	if mode == goroutineModeFull {
+		return map[string]any{keyMode: goroutineModeFull, "stacks": stacks}
+	}
+
+	onlyBlocked := mode == goroutineModeBlocked
 	goroutines := parseGoroutineStacks(stacks)
 
 	counts := map[string]int{}
@@ -139,13 +162,13 @@ func goroutinesFiltered(onlyBlocked bool) (*plugin.Response, error) {
 		"by-state": counts,
 	}
 	if onlyBlocked {
-		result["mode"] = goroutineModeBlocked
+		result[keyMode] = goroutineModeBlocked
 		result["blocked"] = filtered
 		result["blocked-count"] = len(filtered)
 	} else {
-		result["mode"] = goroutineModeSummary
+		result[keyMode] = goroutineModeSummary
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
+	return result
 }
 
 func parseGoroutineStacks(stacks string) []goroutineInfo {

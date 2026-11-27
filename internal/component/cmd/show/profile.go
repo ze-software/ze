@@ -45,14 +45,18 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-cmd:show-system-profile", Handler: handleShowSystemProfile},
 	)
-	command.RegisterPipeFilters([]string{"show system profile"}, command.PipeFilter{
-		Name:        pipeOpSummary,
-		Description: "Summarize top functions from the captured pprof profile",
-		Argument:    command.ArgNone,
-	})
+	command.RegisterPipeFilters(
+		[]string{"show system profile"},
+		command.PipeFilter{
+			Name:        pipeOpSummary,
+			Description: "Summarize top functions from the captured pprof profile",
+			Argument:    command.ArgNone,
+		},
+		pluginPipeFilter,
+	)
 }
 
-func handleShowSystemProfile(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleShowSystemProfile(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	profileType := profileTypeHeap
 	duration := defaultCPUProfileDuration
@@ -94,7 +98,16 @@ func handleShowSystemProfile(_ *pluginserver.CommandContext, validated command.V
 		}
 	}
 
+	pluginName, hasPlugin, refusal := extractPluginPipeTarget(validated, "ze show system profile type heap | plugin <name>")
+	if refusal != nil {
+		return refusal, nil
+	}
+
 	wantSummary := hasPipeOp(validated, pipeOpSummary)
+	if hasPlugin {
+		return inspectPluginProfile(ctx, pluginName, profileType, duration, wantSummary)
+	}
+
 	switch profileType {
 	case profileTypeCPU:
 		return profileCPU(duration, wantSummary)

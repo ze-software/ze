@@ -1838,6 +1838,7 @@ site.
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
 | `resolver-cache-clear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear one declared resolver cache |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
+| `runtime-inspect` | `RuntimeInspectInput` | `RuntimeInspectOutput` | Read-only Go runtime inspection on an independent worker (`goroutines`, `profile`, `log-recent`, `runtime-stats`) |
 
 A Go plugin whose `config-apply` failed and could not put its running config
 back answers with `sdk.RunningConfigLost(cause, problem, firstStep)`. The
@@ -2237,6 +2238,61 @@ filter-update answer").
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilter, answerFilterBatch -->
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- filter-update caller -->
+
+#### Runtime inspection (`ze-plugin-callback:runtime-inspect`)
+
+`ze-plugin-callback:runtime-inspect` inspects a running plugin's Go runtime on
+the same connection without waiting behind ordinary callbacks. `sdk.Plugin.Run`
+starts one bounded `runtimeInspectWorker` automatically for every SDK plugin
+with zero per-plugin registration boilerplate, registering it on
+`MuxConn.RegisterIndependentRequestHandler` for external TLS connections and on
+`DirectBridge.SetRuntimeInspect` / `DirectBridge.RuntimeInspect` for internal
+plugins (reusing the `sdk_read_snapshot.go` and `bridge_read_snapshot.go`
+independent worker pattern alongside `current-selection` and
+`origin-admission-lookup`). Because requests bypass `eventLoop`, inspection
+still completes when a plugin's ordinary event or command handler is deadlocked.
+`PluginConn.SendRuntimeInspect` stamps `deadline-ms` via
+`rpc.RuntimeInspectCallContext` (`10s` default, `duration + 5s` up to `65s` for
+CPU profiles) and never falls back to the startup socket after `DirectBridge`
+cutover.
+<!-- source: pkg/plugin/rpc/runtime_inspect.go -- MethodRuntimeInspect, RuntimeInspectInput, RuntimeInspectOutput, RuntimeInspectCallContext, MuxConn.RuntimeInspect -->
+<!-- source: pkg/plugin/rpc/bridge_runtime_inspect.go -- DirectBridge.SetRuntimeInspect, DirectBridge.RuntimeInspect -->
+<!-- source: pkg/plugin/sdk/sdk_runtime_inspect.go -- runtimeInspectWorker, startRuntimeInspectWorker, collectRuntimeInspect -->
+<!-- source: internal/component/plugin/ipc/runtime_inspect.go -- PluginConn.SendRuntimeInspect -->
+
+One multiplexed RPC serves four bounded read-only `kind` values, each echoing
+`kind` and `os.Getpid()` and staying within `rpc.MaxMessageSize`:
+
+- `goroutines`: `runtime.Stack` capped at `4 MiB` (`truncated: true` when clipped).
+- `profile`: `cpu`, `heap`, `goroutine`, `allocs`, `mutex`, or `block` via
+  `runtime/pprof`, capped at `8 MiB` raw (`<= 10.7 MiB` base64, `truncated: true`
+  when clipped). CPU profiling is serialized with `sync.Mutex.TryLock()` and
+  exits immediately on request or plugin cancellation; `mutex` and `block`
+  replies carry `sampling-rate`.
+- `log-recent`: `slogutil.GlobalLogRing().Snapshot` capped at `256` entries,
+  preserving slog redaction and fault-ring separation.
+- `runtime-stats`: `runtime.ReadMemStats`, goroutine count, logical CPU count,
+  `GOMAXPROCS`, and `runtime.Version()`.
+
+**Fault isolation:** No diagnostic error, deadline expiry, queue saturation, or
+collector panic may close a healthy plugin's production connection.
+`Server.InspectPlugin` caps concurrent in-flight inspections at `4` per process
+(below the SDK worker's `16`-slot queue), `runtimeInspectWorker.admitWire`
+always returns `nil` (dropping excess wire frames without closing `MuxConn`),
+`runtimeInspectWorker.serve` recovers panics into ordinary RPC errors, and
+`runtimeInspectWorker.answer` never tears down `engineMux` on a reply error.
+
+**Non-destructive host fallback:** When `proc.IsExternal()` is true and
+`SendRuntimeInspect` fails (timeout while wedged, `unknown method` on a non-Go
+external plugin, or transport error), `Server.InspectPlugin` never sends
+`SIGQUIT` or any terminating signal. Instead it calls `Process.HostInspect`,
+returning `fallback: true`, `fallback-reason` (`timeout`, `unsupported`, or
+`transport-error`), `rpc-error`, Linux `/proc/<pid>` metrics (`status`, `wchan`,
+`fd` count via `procfs.ReadProcessInspect`), and the last `32` lines (`256`
+bytes each) from the process's `stderrTailRing`. `Process.monitorCmd` clears
+`Process.pid` to `0` before child reap so a recycled OS PID is never read.
+<!-- source: internal/component/plugin/process/host_inspect.go -- HostProcessSnapshot, stderrTailRing, Process.PID, Process.IsExternal, Process.HostInspect -->
+<!-- source: internal/component/plugin/server/runtime_inspect.go -- PluginInspectResult, Server.InspectPlugin, Server.InspectPluginHost -->
 
 ### Plugin to Engine
 

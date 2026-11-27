@@ -11,6 +11,10 @@ module ze-plugin-callback {
          The engine uses these RPCs during startup to deliver config and
          registry, and at runtime to deliver events and request encoding.";
 
+    revision 2026-11-27 {
+        description "Add runtime-inspect independent read-only diagnostic callback RPC";
+    }
+
     revision 2026-02-01 {
         description "Initial revision";
     }
@@ -1156,6 +1160,156 @@ to the single document the record path would have carried.";
                          verdict.";
                     ze:help "Why the filter could not judge the route";
                 }
+            }
+        }
+    }
+
+    // Runtime: Independent read-only Go runtime inspection.
+
+    rpc runtime-inspect {
+        ze:method "ze-plugin-callback:runtime-inspect";
+        ze:help "Inspect plugin Go runtime diagnostics independently of ordinary callbacks.";
+        description "Runs on one SDK-owned bounded independent connection worker before the ordinary callback queue so inspection keeps answering even when a plugin event loop is blocked. Diagnostic saturation, deadline expiry, or collector errors never close the production connection.";
+        input {
+            leaf kind {
+                type enumeration {
+                    enum goroutines { ze:help "Capture bounded Go goroutine stack dump"; }
+                    enum profile { ze:help "Capture bounded runtime/pprof profile"; }
+                    enum log-recent { ze:help "Capture recent structured log entries from the plugin log ring"; }
+                    enum runtime-stats { ze:help "Capture Go runtime memory and scheduler statistics"; }
+                }
+                mandatory true;
+                ze:help "Runtime inspection kind";
+                description "Selects which bounded read-only runtime snapshot to capture.";
+            }
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute inspection deadline in Unix milliseconds";
+                description "Bounded to 65 seconds from admission. Expired requests are refused without invoking collectors.";
+            }
+            leaf profile-type {
+                type enumeration {
+                    enum cpu { ze:help "CPU execution profile"; }
+                    enum heap { ze:help "Heap memory allocation profile"; }
+                    enum goroutine { ze:help "Goroutine stack profile"; }
+                    enum allocs { ze:help "Past memory allocations profile"; }
+                    enum mutex { ze:help "Mutex contention profile"; }
+                    enum block { ze:help "Goroutine blocking profile"; }
+                }
+                ze:help "Profile type when kind is profile";
+                description "Required when kind is profile; selects the runtime/pprof profile to capture.";
+            }
+            leaf duration-ms {
+                type int64 { range "0..60000"; }
+                ze:help "CPU profile sampling duration in milliseconds";
+                description "Used when kind is profile and profile-type is cpu. Zero selects the 10000 ms default; explicit values must be in 1000..60000.";
+            }
+            leaf log-level {
+                type string;
+                ze:help "Optional log level filter for log-recent";
+                description "Exact log level name accepted by slogutil (debug, info, warn, error, or aliases).";
+            }
+            leaf log-component {
+                type string;
+                ze:help "Optional component filter for log-recent";
+                description "Exact subsystem or component name to filter recent structured logs.";
+            }
+            leaf log-count {
+                type uint32 { range "0..256"; }
+                ze:help "Maximum number of log entries for log-recent";
+                description "Zero selects the maximum of 256 entries.";
+            }
+        }
+        output {
+            leaf kind {
+                type enumeration {
+                    enum goroutines { ze:help "Bounded Go goroutine stack dump"; }
+                    enum profile { ze:help "Bounded runtime/pprof profile"; }
+                    enum log-recent { ze:help "Recent structured log entries"; }
+                    enum runtime-stats { ze:help "Go runtime memory and scheduler statistics"; }
+                }
+                mandatory true;
+                ze:help "Echoed inspection kind";
+                description "Must match the requested input kind.";
+            }
+            leaf pid {
+                type int32 { range "1..max"; }
+                mandatory true;
+                ze:help "OS process ID of the answering plugin";
+                description "Positive process identifier returned by os.Getpid inside the answering process.";
+            }
+            leaf truncated {
+                type boolean;
+                ze:help "Whether payload was truncated to its wire size bound";
+                description "True when goroutine-stacks hit 4 MiB or raw profile bytes hit 8 MiB.";
+            }
+            leaf goroutine-stacks {
+                type string;
+                ze:help "Raw runtime.Stack text for goroutines kind";
+                description "Bounded to 4 MiB; truncated is set true if the buffer cap was reached.";
+            }
+            leaf profile-type {
+                type string;
+                ze:help "Captured profile type";
+                description "Echoes the requested profile-type when kind is profile.";
+            }
+            leaf profile-count {
+                type int32;
+                ze:help "Sample count reported by pprof.Profile.Count";
+                description "Populated for snapshot profiles (heap, goroutine, allocs, mutex, block).";
+            }
+            leaf profile-data {
+                type string;
+                ze:help "Base64-encoded pprof protobuf bytes";
+                description "Raw pprof bytes are capped at 8 MiB before base64 encoding so the frame stays below 16 MiB.";
+            }
+            leaf sampling-rate {
+                type int64;
+                ze:help "Active runtime sampling rate for mutex or block profiles";
+                description "Present for mutex (SetMutexProfileFraction) and block (BlockProfileRate) profiles, including explicit zero when disabled.";
+            }
+            list log-entries {
+                ordered-by user;
+                ze:help "Recent structured log entries newest-first";
+                description "Up to 256 entries captured from the plugin's process-local slogutil log ring.";
+                leaf timestamp {
+                    type string;
+                    ze:help "RFC3339 UTC timestamp";
+                }
+                leaf level {
+                    type string;
+                    ze:help "Log severity level";
+                }
+                leaf component {
+                    type string;
+                    ze:help "Subsystem or component name";
+                }
+                leaf message {
+                    type string;
+                    ze:help "Log message text";
+                }
+                anyxml attributes {
+                    ze:help "Structured log attributes map";
+                }
+            }
+            container runtime-stats {
+                ze:help "Go runtime memory and scheduler vitals";
+                description "Populated when kind is runtime-stats.";
+                leaf alloc { type uint64; ze:help "Allocated heap bytes"; }
+                leaf total-alloc { type uint64; ze:help "Cumulative allocated bytes"; }
+                leaf sys { type uint64; ze:help "Total bytes obtained from the OS"; }
+                leaf heap-alloc { type uint64; ze:help "Allocated heap bytes"; }
+                leaf heap-sys { type uint64; ze:help "Heap bytes obtained from the OS"; }
+                leaf heap-in-use { type uint64; ze:help "Bytes in in-use heap spans"; }
+                leaf heap-objects { type uint64; ze:help "Number of allocated heap objects"; }
+                leaf stack-in-use { type uint64; ze:help "Bytes in stack spans"; }
+                leaf num-gc { type uint32; ze:help "Completed GC cycles"; }
+                leaf gc-cpu-pct { type decimal64 { fraction-digits 6; } ze:help "Percentage of CPU spent in GC"; }
+                leaf num-goroutines { type int32; ze:help "Current goroutine count"; }
+                leaf num-cpu { type int32; ze:help "Logical CPU count"; }
+                leaf max-procs { type int32; ze:help "Active GOMAXPROCS value"; }
+                leaf go-version { type string; ze:help "Go runtime version string"; }
             }
         }
     }

@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Links operator commands, config reloads, bus events, and plugin RPCs with a shared operation ID and keeps core diagnostics reachable even if a control-plane lock wedges; existing shipped behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-ai-diagnostics-3-external-plugin-introspection.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-27 |

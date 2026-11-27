@@ -83,6 +83,8 @@ type DirectBridge struct {
 	hasCurrentSelection      atomic.Bool
 	originAdmissionLookup    OriginAdmissionLookupHandler
 	hasOriginAdmissionLookup atomic.Bool
+	runtimeInspect           RuntimeInspectHandler
+	hasRuntimeInspect        atomic.Bool
 	injectWireRoute          InjectWireRouteHandler      // Typed fast path (no JSON) -- bmp-6
 	hasInjectWireRoute       atomic.Bool                 // set atomically when injectWireRoute is written
 	updateRouteSel           UpdateRouteSelResultHandler // Typed fast path with *selector.Selector

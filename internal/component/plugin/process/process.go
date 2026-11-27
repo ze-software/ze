@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -86,6 +87,14 @@ type Process struct {
 	conn *ipc.PluginConn
 
 	running atomic.Bool
+
+	// Host-side process tracking for non-destructive fallback inspection.
+	// pid holds the live OS PID for forked children (external and separate-process)
+	// and is cleared to 0 before cmd.Wait reaps the zombie so a recycled PID is
+	// never inspected.
+	pid        atomic.Int32
+	isExternal atomic.Bool
+	stderrTail stderrTailRing
 
 	// Session state (per-process API connection state)
 	// Note: ACK is controlled by serial prefix (#N), not per-process state
@@ -857,6 +866,7 @@ func (p *Process) startSeparateProcess() error {
 // (either a foreign external shell command or a separate-process compiled
 // plugin).
 func (p *Process) startChildCmd(cmd *exec.Cmd, usesShell bool) error {
+	p.isExternal.Store(true)
 	if p.acceptor == nil {
 		return fmt.Errorf("plugin %s: no TLS acceptor configured (hub config required for forked plugins)", p.config.Name)
 	}
@@ -940,9 +950,11 @@ func (p *Process) startChildCmd(cmd *exec.Cmd, usesShell bool) error {
 		logger().Debug("close plugin stderr write end", "plugin", p.config.Name, "error", closeErr)
 	}
 
-	p.running.Store(true)
-
 	startedCmd := p.cmd
+	if startedCmd.Process != nil && startedCmd.Process.Pid > 0 && startedCmd.Process.Pid <= math.MaxInt32 {
+		p.pid.Store(int32(startedCmd.Process.Pid)) //nolint:gosec // G115: bounded by MaxInt32
+	}
+	p.running.Store(true)
 	p.externalDone = make(chan struct{})
 	relayDone := make(chan struct{})
 	reaped := make(chan struct{})
@@ -1123,6 +1135,7 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		p.captureTerminalStderr(line)
+		p.stderrTail.Add(line)
 		if !enabled {
 			continue
 		}
@@ -1389,14 +1402,20 @@ func (g *pluginGroup) signalLocked() {
 // group is where the exit is recorded before the reap. externalDone closes
 // only after this monitor has also joined the actual stderr relay.
 func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *stderrRelayReader, reaped chan<- struct{}, group *pluginGroup) {
+	defer p.pid.Store(0)
+
 	// The exit is recorded with the plugin still unreaped, so no kill can be
 	// sent past the reap (pluginGroup), and a stopped plugin that exited on its
 	// own has its descendants signaled while the group number is still its own.
+	// Clear p.pid before cmd.Wait reaps the zombie so HostInspect can never read
+	// /proc/<pid> for a recycled PID.
 	if waitExitedUnreaped(cmd.Process.Pid) {
+		p.pid.Store(0)
 		group.exit(p.ctx.Err() != nil)
 	}
 
 	waitErr := cmd.Wait()
+	p.pid.Store(0)
 	p.exit.record(forkExitStatus(cmd, waitErr))
 	// Where waitExitedUnreaped had no answer the exit is recorded only now, past
 	// the reap: a kill that raced it in between is the one this cannot exclude.

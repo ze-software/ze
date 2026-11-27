@@ -13,7 +13,7 @@ is part of the binary.
 
 Every diagnostic is a YANG RPC registered as a CLI command. The MCP tool list
 is generated from the registered RPCs, so a new diagnostic appears to an AI
-agent with no MCP code change. This held across all eight diagnostic areas and
+agent with no MCP code change. This held across every diagnostic area and
 is the reason none of them needed a bespoke transport.
 
 | Area | What it exposes |
@@ -27,6 +27,7 @@ is the reason none of them needed a bespoke transport.
 | Log query | slog ring handler split into `general` (512 `debug`/`info`) and `faults` (256 `warn`/`error`) buffers filtered by level, component and count |
 | Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime |
 | Execution trace | always-on Go flight recorder, on-demand snapshot capture, and snapshot retrieval (`show system trace`, `request system trace snapshot`) |
+| Plugin runtime | cross-process `\| plugin <name>` inspection on goroutines, profiles (`\| summary`), Go memory, OS `/proc/<pid>` memory, and plugin log rings with non-destructive host fallback |
 
 ### Single-call live triage (`show system triage`)
 
@@ -68,6 +69,33 @@ stopped recorder or an unknown identifier return an operator error naming
 
 <!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
 <!-- source: internal/core/flightrec/flightrec.go -- Start, Stop, CaptureAuto, CaptureNow -->
+
+### External plugin runtime introspection (`| plugin <name>`)
+
+`show system goroutines`, `show system profile` (composable with `| summary`),
+`show runtime memory`, `show system memory`, and `show log recent` register a
+command-owned `| plugin <name>` pipe filter via `command.RegisterPipeFilters`.
+Because pipe filters propagate automatically from the command registry, CLI,
+SSH, web, REST, gRPC, and MCP all expose plugin targeting
+(`pipe: [{"name": "plugin", "args": ["<name>"]}]`, or combined with
+`{"name": "summary"}` on `show system profile`) with zero MCP-specific code.
+Queries without `| plugin` keep their existing daemon-local behavior unchanged.
+
+Go-runtime queries route identically over `DirectBridge` (in-daemon plugins)
+and TLS `MuxConn` (forked external plugins) through `Server.InspectPlugin` and
+the SDK's auto-started independent `ze-plugin-callback:runtime-inspect` worker,
+so inspection still answers when a plugin's ordinary `eventLoop` is deadlocked.
+Every response tags `plugin`, `process-mode` (`internal` or `external`), and
+`pid`. When a forked external plugin cannot answer (wedged runtime, timeout,
+disconnected transport, or non-Go binary), `Server.InspectPlugin` never sends
+`SIGQUIT` or any signal; it returns a structured `fallback: true` snapshot with
+`fallback-reason`, `rpc-error`, host Linux `/proc/<pid>` metrics (`state`,
+`wchan`, `threads`, `vm-rss-kb`, `fd-count`), and the plugin's last 32
+`stderr-tail` lines.
+
+<!-- source: internal/component/plugin/server/runtime_inspect.go -- Server.InspectPlugin, Server.InspectPluginHost -->
+<!-- source: internal/component/cmd/show/plugin_inspect.go -- plugin pipe filters and fallback builders -->
+<!-- source: internal/plugins/log/cmd/handlers.go -- handleLogRecent -->
 
 ### Structured log fields
 

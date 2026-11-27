@@ -230,6 +230,12 @@ type Server struct {
 	installedByPlugin map[string]map[routeKey]struct{}
 	routeMetricOnce   sync.Once
 	routeInstallRPCs  metrics.CounterVec // ze_route_install_rpc_total{plugin,op,result}
+
+	// Per-process in-flight runtime-inspect counter (runtime_inspect.go).
+	// Protected by its own leaf mutex; entries are deleted when count reaches 0
+	// so retired *process.Process pointers never leak.
+	inspectMu       sync.Mutex
+	inspectInFlight map[*process.Process]int
 }
 
 // wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.

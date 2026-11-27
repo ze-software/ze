@@ -704,6 +704,17 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 			}
 		}
 	}()
+	stopRuntimeInspect, err := p.startRuntimeInspectWorker(ctx)
+	if err != nil {
+		return startupFailure(5, "runtime-inspect", err)
+	}
+	defer func() {
+		if err := stopRuntimeInspect(); err != nil {
+			if runErr == nil {
+				runErr = err
+			}
+		}
+	}()
 	p.mu.Lock()
 	readyInput := &rpc.ReadyInput{
 		Format:   p.readyFormat,

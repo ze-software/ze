@@ -1,0 +1,308 @@
+# Test: `| plugin <name>` runtime introspection works end-to-end for a forked separate-process Go plugin, an in-daemon internal plugin, and non-destructive host fallback for a non-Go external plugin.
+# QUESTION: on a live daemon running a compiled-in `process separate` plugin (`my-ddos`),
+# an in-daemon plugin (`in-hostname`), and a non-Go external plugin (`ext-norpc`) that
+# refuses `ze-plugin-callback:runtime-inspect` with `unknown method`, do
+# `show system goroutines`, `show system profile` (including `| summary` and `mutex` sampling-rate),
+# `show runtime memory`, `show system memory`, and `show log recent` with `| plugin <name>`
+# return distinct external PIDs and live runtime data for `my-ddos`, daemon-shared internal
+# data for `in-hostname`, non-destructive `/proc/<pid>` + `stderr-tail` fallback for `ext-norpc`
+# while keeping `ext-norpc` running, and a structured refusal for an unknown plugin?
+# A unit test cannot decide this because the path spans live separate-process forking of
+# `ze plugin ddos-flowspec`, separate-process profiling initialization, TLS connect-back
+# independent callback routing, real Linux `/proc/<pid>` inspection, stderr tail capture,
+# and CLI pipe parsing/dispatch end-to-end.
+#
+# VALIDATES: spec-ai-diagnostics-3-external-plugin-introspection AC-5, AC-7, AC-8.
+# PREVENTS: `| plugin <name>` routing only in-process, missing separate-process mutex
+# sampling defaults, missing `/proc/<pid>` or `stderr-tail` host fallback, or signalling
+# a non-Go/wedged external plugin on read-only `show` inspection.
+
+option=storage:value=disk
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=ext-norpc.py:mode=755:terminator=EOF_EXTPY
+#!/usr/bin/env python3
+import json
+import os
+import socket
+import ssl
+import sys
+
+if os.environ.get("ZE_PLUGIN_MODE") == "declare":
+    sys.stdout.write('#1 ze-plugin-engine:declare-registration {"protocol-version":1}\n')
+    sys.stdout.flush()
+    sys.exit(0)
+
+sys.stderr.write("EXT-FALLBACK-MARKER: non-go helper alive\n")
+sys.stderr.flush()
+
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+port = int(os.environ["ZE_PLUGIN_HUB_PORT"])
+token = os.environ["ZE_PLUGIN_HUB_TOKEN"]
+name = os.environ["ZE_PLUGIN_NAME"]
+ca_pem = os.environ["ZE_PLUGIN_CA_PEM"]
+
+ctx = ssl.create_default_context(cadata=ca_pem)
+raw_sock = socket.create_connection((host, port), timeout=15)
+tls_sock = ctx.wrap_socket(raw_sock, server_hostname=host)
+tls_sock.settimeout(None)
+rfile = tls_sock.makefile("r", encoding="utf-8", newline="\n")
+wfile = tls_sock.makefile("w", encoding="utf-8", newline="\n")
+
+
+def send_line(line):
+    wfile.write(line + "\n")
+    wfile.flush()
+
+
+def parse_line(line):
+    line = line.rstrip("\r\n")
+    parts = line.split(" ", 2)
+    req_id = parts[0]
+    verb = parts[1] if len(parts) > 1 else ""
+    payload = parts[2] if len(parts) > 2 else ""
+    return req_id, verb, payload
+
+
+def wait_for_ok(expected_id):
+    while True:
+        line = rfile.readline()
+        if not line:
+            raise SystemExit("unexpected EOF waiting for " + expected_id)
+        req_id, verb, _ = parse_line(line)
+        if req_id == expected_id:
+            if verb != "ok":
+                raise SystemExit("expected ok for " + expected_id + ", got: " + line.strip())
+            return
+        if verb.startswith("ze-plugin-callback:"):
+            send_line(f"{req_id} ok")
+
+
+def wait_for_callback(expected_verb):
+    while True:
+        line = rfile.readline()
+        if not line:
+            raise SystemExit("unexpected EOF waiting for " + expected_verb)
+        req_id, verb, _ = parse_line(line)
+        if verb == expected_verb:
+            send_line(f"{req_id} ok")
+            return
+        if verb.startswith("ze-plugin-callback:"):
+            send_line(f"{req_id} ok")
+
+
+# Auth handshake (#0 auth)
+send_line("#0 auth " + json.dumps({"token": token, "name": name}))
+wait_for_ok("#0")
+
+# Stage 1: declare-registration
+send_line('#1 ze-plugin-engine:declare-registration {"protocol-version":1}')
+wait_for_ok("#1")
+
+# Stage 2: configure callback
+wait_for_callback("ze-plugin-callback:configure")
+
+# Stage 3: declare-capabilities
+send_line("#2 ze-plugin-engine:declare-capabilities {}")
+wait_for_ok("#2")
+
+# Stage 4: share-registry callback
+wait_for_callback("ze-plugin-callback:share-registry")
+
+# Stage 5: ready
+send_line("#3 ze-plugin-engine:ready {}")
+wait_for_ok("#3")
+
+# Runtime loop: refuse runtime-inspect as unknown method; answer bye cleanly.
+while True:
+    line = rfile.readline()
+    if not line:
+        break
+    req_id, verb, _ = parse_line(line)
+    if verb == "ze-plugin-callback:bye":
+        send_line(f"{req_id} ok")
+        break
+    if verb.startswith("ze-plugin-callback:"):
+        err = json.dumps({"code": "error", "message": "unknown method: " + verb})
+        send_line(f"{req_id} error {err}")
+EOF_EXTPY
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bus {
+	endpoint in-hostname {
+		internal bgp-hostname;
+	}
+	endpoint my-ddos {
+		internal ddos-flowspec;
+		process separate;
+	}
+	endpoint ext-norpc {
+		external {
+			run "python3 ./ext-norpc.py";
+		}
+		encoding json;
+	}
+}
+ddos {
+	flowspec {
+		response-level enforce;
+		action discard;
+		hold-down 3600;
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.2; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=verify-inspect.py:mode=755:terminator=EOF_VERIFY
+#!/usr/bin/env python3
+import json
+import subprocess
+import sys
+
+
+def cli_json(cmd):
+    out = subprocess.check_output(["ze", "cli", "-c", cmd + " | json"], text=True)
+    return json.loads(out)
+
+
+def must(cond, msg):
+    if not cond:
+        raise SystemExit("FAIL: " + msg)
+
+
+# 1. Internal plugin establishes the daemon PID baseline.
+in_mem = cli_json("show runtime memory | plugin in-hostname")
+must(in_mem.get("plugin") == "in-hostname", f"in-hostname plugin field: {in_mem}")
+must(in_mem.get("process-mode") == "internal", f"in-hostname process-mode: {in_mem}")
+daemon_pid = in_mem.get("pid", 0)
+must(daemon_pid > 0, f"in-hostname pid invalid: {in_mem}")
+must(in_mem.get("alloc", 0) > 0, f"in-hostname alloc invalid: {in_mem}")
+must(in_mem.get("num-goroutines", 0) > 0, f"in-hostname num-goroutines invalid: {in_mem}")
+
+in_sysmem = cli_json("show system memory | plugin in-hostname")
+must(in_sysmem.get("process-mode") == "internal", f"in-hostname sysmem mode: {in_sysmem}")
+must(in_sysmem.get("pid") == daemon_pid, f"in-hostname sysmem pid: {in_sysmem}")
+must(in_sysmem.get("shared-daemon-process") is True, f"in-hostname shared flag: {in_sysmem}")
+must(in_sysmem.get("vm-rss-kb", 0) > 0, f"in-hostname vm-rss-kb: {in_sysmem}")
+
+# 2. Forked separate-process Go plugin (my-ddos): all five commands return external PID != daemon_pid.
+ext_g = cli_json("show system goroutines mode summary | plugin my-ddos")
+must(ext_g.get("plugin") == "my-ddos", f"my-ddos goroutines plugin: {ext_g}")
+must(ext_g.get("process-mode") == "external", f"my-ddos goroutines mode: {ext_g}")
+ext_pid = ext_g.get("pid", 0)
+must(ext_pid > 0 and ext_pid != daemon_pid, f"my-ddos pid {ext_pid} vs daemon {daemon_pid}")
+must(ext_g.get("total", 0) > 0, f"my-ddos goroutines total: {ext_g}")
+must(isinstance(ext_g.get("by-state"), dict) and len(ext_g["by-state"]) > 0, f"my-ddos by-state: {ext_g}")
+
+ext_gb = cli_json("show system goroutines mode blocked | plugin my-ddos")
+must(ext_gb.get("mode") == "blocked" and ext_gb.get("pid") == ext_pid, f"my-ddos blocked: {ext_gb}")
+
+ext_heap = cli_json("show system profile type heap | plugin my-ddos | summary")
+must(ext_heap.get("process-mode") == "external" and ext_heap.get("pid") == ext_pid, f"my-ddos heap: {ext_heap}")
+must(ext_heap.get("format") == "summary" and ext_heap.get("type") == "heap", f"my-ddos heap format: {ext_heap}")
+
+ext_mutex = cli_json("show system profile type mutex | plugin my-ddos | summary")
+must(ext_mutex.get("process-mode") == "external" and ext_mutex.get("pid") == ext_pid, f"my-ddos mutex: {ext_mutex}")
+must(ext_mutex.get("sampling-rate") == 10, f"my-ddos mutex sampling-rate: {ext_mutex}")
+
+ext_rt = cli_json("show runtime memory | plugin my-ddos")
+must(ext_rt.get("process-mode") == "external" and ext_rt.get("pid") == ext_pid, f"my-ddos rt mem: {ext_rt}")
+must(ext_rt.get("alloc", 0) > 0 and ext_rt.get("num-goroutines", 0) > 0, f"my-ddos rt stats: {ext_rt}")
+must(bool(ext_rt.get("go-version")), f"my-ddos go-version: {ext_rt}")
+
+ext_os = cli_json("show system memory | plugin my-ddos")
+must(ext_os.get("process-mode") == "external" and ext_os.get("pid") == ext_pid, f"my-ddos os mem: {ext_os}")
+must(ext_os.get("vm-rss-kb", 0) > 0 and ext_os.get("threads", 0) > 0, f"my-ddos os rss/threads: {ext_os}")
+
+ext_log = cli_json("show log recent | plugin my-ddos")
+must(ext_log.get("process-mode") == "external" and ext_log.get("pid") == ext_pid, f"my-ddos log: {ext_log}")
+must(isinstance(ext_log.get("entries"), list), f"my-ddos log entries: {ext_log}")
+
+# 3. Non-Go external plugin (ext-norpc): triggers non-destructive host fallback and stays alive.
+fb_g = cli_json("show system goroutines | plugin ext-norpc")
+must(fb_g.get("fallback") is True, f"ext-norpc goroutines fallback: {fb_g}")
+must(fb_g.get("fallback-reason") == "unsupported", f"ext-norpc fallback-reason: {fb_g}")
+must(fb_g.get("process-mode") == "external", f"ext-norpc process-mode: {fb_g}")
+norpc_pid = fb_g.get("pid", 0)
+must(norpc_pid > 0 and norpc_pid != daemon_pid and norpc_pid != ext_pid, f"ext-norpc pid: {fb_g}")
+must(fb_g.get("running") is True, f"ext-norpc running: {fb_g}")
+host = fb_g.get("host") or {}
+must(host.get("threads", 0) > 0 and host.get("vm-rss-kb", 0) > 0, f"ext-norpc host procfs: {fb_g}")
+must(host.get("fd-count", 0) > 0, f"ext-norpc host fd-count: {fb_g}")
+tail = fb_g.get("stderr-tail") or []
+must(any("EXT-FALLBACK-MARKER: non-go helper alive" in line for line in tail), f"ext-norpc stderr-tail: {fb_g}")
+
+fb_log = cli_json("show log recent | plugin ext-norpc")
+must(fb_log.get("fallback") is True and fb_log.get("pid") == norpc_pid, f"ext-norpc log fallback: {fb_log}")
+must(any("EXT-FALLBACK-MARKER: non-go helper alive" in line for line in (fb_log.get("stderr-tail") or [])), f"ext-norpc log stderr-tail: {fb_log}")
+
+# Confirm ext-norpc is still running (read-only show never signalled it).
+subs = cli_json("show system subsystem list")
+by_name = {s["name"]: s for s in subs.get("subsystems", [])}
+must("ext-norpc" in by_name and by_name["ext-norpc"].get("running") is True, f"ext-norpc stopped after inspect: {subs}")
+
+# 4. Unknown plugin returns structured refusal naming ze show system subsystem list.
+proc = subprocess.run(
+    ["ze", "cli", "-c", "show system goroutines | plugin does-not-exist"],
+    capture_output=True,
+    text=True,
+)
+combined = proc.stdout + proc.stderr
+must(proc.returncode != 0 or "does-not-exist" in combined, f"unknown plugin should fail: rc={proc.returncode} out={combined}")
+must("ze show system subsystem list" in combined, f"unknown plugin missing fix hint: {combined}")
+
+print(f"OK: verified internal pid={daemon_pid}, separate pid={ext_pid}, fallback pid={norpc_pid}")
+EOF_VERIFY
+
+cmd=background:seq=1:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=2:exec=python3 verify-inspect.py:exit=0
+expect=stdout:contains=OK: verified internal pid=
+
+cmd=stop:seq=3:name=daemon:signal=term

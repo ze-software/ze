@@ -18,8 +18,12 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/procfs"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestRPCsRegistered(t *testing.T) {
@@ -423,4 +427,191 @@ func TestLogRecentOwnsGroupedAttributes(t *testing.T) {
 		}
 		session["peer"] = "changed-query-result"
 	}
+}
+
+func TestShowLogRecentPluginPipeRegistered(t *testing.T) {
+	filters := command.PipeFiltersForCommand("show log recent")
+	found := false
+	for _, f := range filters {
+		if f.Name == pipeOpPlugin && f.Argument == command.ArgText {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("command.PipeFiltersForCommand(\"show log recent\") = %+v, want plugin (ArgText)", filters)
+	}
+}
+
+func TestShowLogRecentPluginPipeRefusals(t *testing.T) {
+	srv, err := pluginserver.NewServer(nil, nil)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	liveCtx := &pluginserver.CommandContext{Server: srv}
+
+	t.Run("duplicate-plugin", func(t *testing.T) {
+		args := commandtest.Args().WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"a"}},
+			{Name: pipeOpPlugin, Args: []string{"b"}},
+		})
+		resp, err := handleLogRecent(liveCtx, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusError || !strings.Contains(resp.Error, "duplicate | plugin") {
+			t.Fatalf("got status=%v err=%q, want duplicate refusal", resp.Status, resp.Error)
+		}
+	})
+
+	t.Run("blank-plugin", func(t *testing.T) {
+		args := commandtest.Args().WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"  "}},
+		})
+		resp, err := handleLogRecent(liveCtx, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusError || !strings.Contains(resp.Error, "| plugin requires a plugin name") {
+			t.Fatalf("got status=%v err=%q, want blank name refusal", resp.Status, resp.Error)
+		}
+	})
+
+	t.Run("nil-server", func(t *testing.T) {
+		args := commandtest.Args().WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"my-ddos"}},
+		})
+		resp, err := handleLogRecent(nil, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusError || !strings.Contains(resp.Error, "ze show system subsystem list") {
+			t.Fatalf("got status=%v err=%q, want unavailable refusal", resp.Status, resp.Error)
+		}
+	})
+
+	t.Run("unknown-plugin", func(t *testing.T) {
+		args := commandtest.Args().WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"missing-plugin"}},
+		})
+		resp, err := handleLogRecent(liveCtx, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusError || !strings.Contains(resp.Error, "missing-plugin") || !strings.Contains(resp.Error, "ze show system subsystem list") {
+			t.Fatalf("got status=%v err=%q, want unknown plugin refusal", resp.Status, resp.Error)
+		}
+	})
+}
+
+func TestShowLogRecentPluginPipeSuccessAndFallback(t *testing.T) {
+	srv := &pluginserver.Server{}
+	cmdCtx := &pluginserver.CommandContext{Server: srv}
+	prev := inspectLogPluginFunc
+	t.Cleanup(func() { inspectLogPluginFunc = prev })
+
+	t.Run("rpc-success-and-count-clamping", func(t *testing.T) {
+		var gotInput rpc.RuntimeInspectInput
+		var gotName string
+		inspectLogPluginFunc = func(_ *pluginserver.Server, _ context.Context, name string, input rpc.RuntimeInspectInput) (*pluginserver.PluginInspectResult, *opererr.Error) {
+			gotName = name
+			gotInput = input
+			return &pluginserver.PluginInspectResult{
+				Plugin:      name,
+				ProcessMode: "external",
+				PID:         6123,
+				Output: &rpc.RuntimeInspectOutput{
+					Kind: rpc.RuntimeInspectLogRecent,
+					PID:  6123,
+					LogEntries: []rpc.RuntimeInspectLogEntry{
+						{
+							Timestamp:  "2026-11-27T12:00:00Z",
+							Level:      "error",
+							Component:  "ddos",
+							Message:    "mitigation rule rejected",
+							Attributes: map[string]any{"rule": "syn-flood"},
+						},
+					},
+				},
+			}, nil
+		}
+
+		args := commandtest.Args("level", "err", "component", "ddos", "count", "500").WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"my-ddos"}},
+		})
+		resp, err := handleLogRecent(cmdCtx, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusDone {
+			t.Fatalf("status = %v, err = %q, want StatusDone", resp.Status, resp.Error)
+		}
+		if gotName != "my-ddos" || gotInput.Kind != rpc.RuntimeInspectLogRecent ||
+			gotInput.LogLevel != "err" || gotInput.LogComponent != "ddos" ||
+			gotInput.LogCount != rpc.RuntimeInspectMaxLogEntries {
+			t.Fatalf("unexpected inspect input: name=%q input=%+v", gotName, gotInput)
+		}
+		data, ok := resp.Data.(plugin.Map)
+		if !ok {
+			t.Fatalf("Data is %T, want plugin.Map", resp.Data)
+		}
+		if data["plugin"] != "my-ddos" || data["process-mode"] != "external" || data["pid"] != 6123 || data[fieldCount] != 1 {
+			t.Fatalf("unexpected metadata: %+v", data)
+		}
+		entries, ok := data["entries"].([]map[string]any)
+		if !ok || len(entries) != 1 || entries[0]["message"] != "mitigation rule rejected" {
+			t.Fatalf("unexpected entries: %+v", data["entries"])
+		}
+	})
+
+	t.Run("host-fallback", func(t *testing.T) {
+		fdCount := 9
+		inspectLogPluginFunc = func(_ *pluginserver.Server, _ context.Context, name string, _ rpc.RuntimeInspectInput) (*pluginserver.PluginInspectResult, *opererr.Error) {
+			return &pluginserver.PluginInspectResult{
+				Plugin:         name,
+				ProcessMode:    "external",
+				PID:            6124,
+				Fallback:       true,
+				FallbackReason: "unsupported",
+				RPCError:       "unknown method",
+				Host: &process.HostProcessSnapshot{
+					PID:        6124,
+					Running:    true,
+					Stage:      "Running",
+					StderrTail: []string{"ext helper started", "ext helper stderr line"},
+					Proc: &procfs.ProcessInspect{
+						State:   "S (sleeping)",
+						Threads: 2,
+						VmRSSKB: 4096,
+						FDCount: &fdCount,
+					},
+				},
+			}, nil
+		}
+
+		args := commandtest.Args().WithPipeOperations([]command.PipeOperation{
+			{Name: pipeOpPlugin, Args: []string{"ext-helper"}},
+		})
+		resp, err := handleLogRecent(cmdCtx, args)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if resp.Status != plugin.StatusDone {
+			t.Fatalf("status = %v, err = %q, want StatusDone", resp.Status, resp.Error)
+		}
+		data, ok := resp.Data.(plugin.Map)
+		if !ok {
+			t.Fatalf("Data is %T, want plugin.Map", resp.Data)
+		}
+		if data["fallback"] != true || data["fallback-reason"] != "unsupported" || data[fieldCount] != 0 || data["pid"] != 6124 {
+			t.Fatalf("unexpected fallback payload: %+v", data)
+		}
+		if data["host"] == nil {
+			t.Fatal("expected non-nil host field in fallback response")
+		}
+		tail, ok := data["stderr-tail"].([]string)
+		if !ok || len(tail) != 2 || tail[1] != "ext helper stderr line" {
+			t.Fatalf("unexpected stderr-tail: %+v", data["stderr-tail"])
+		}
+	})
 }

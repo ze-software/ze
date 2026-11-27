@@ -8,6 +8,9 @@ the show commands that replace those six tools.
 
 <!-- source: internal/core/procfs/reader.go -- types, hex parsing, TCP state names -->
 <!-- source: internal/core/procfs/reader_linux.go -- ReadFileLines -->
+<!-- source: internal/core/procfs/process.go -- ProcessInspect, parseProcessStatusLines -->
+<!-- source: internal/core/procfs/process_linux.go -- ReadProcessInspect -->
+<!-- source: internal/core/procfs/process_other.go -- non-Linux ReadProcessInspect stub -->
 
 ## The decisions
 
@@ -57,6 +60,27 @@ returns structured JSON (`format: "summary"`) with flat and cumulative totals
 per function.
 <!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile, profileCPU, profileSnapshot -->
 <!-- source: internal/component/cmd/show/profile_summary.go -- summarizePprof -->
+
+**Plugin runtime inspection uses command-owned `| plugin <name>` pipe filters
+and `procfs.ReadProcessInspect`.** Following "the pipe wins", `show system
+goroutines`, `show system profile` (composable with `| summary`), `show runtime
+memory`, and `show system memory` register a `| plugin <name>` pipe filter via
+`command.RegisterPipeFilters`. The Go-runtime commands route through
+`Server.InspectPlugin` (`ze-plugin-callback:runtime-inspect`) and reuse the
+daemon's own `parseGoroutineStacks` and `summarizePprof` parsers rather than
+duplicating parsers in the SDK. `show system memory | plugin <name>` and the
+non-destructive external-plugin fallback call `procfs.ReadProcessInspect(pid)`
+(a `//go:build linux` / `!linux` pair in `internal/core/procfs/process_linux.go`
+and `process_other.go`) to read `/proc/<pid>/status`, `/proc/<pid>/wchan`, and
+`/proc/<pid>/fd` entry count directly from the host, while in-daemon targets
+report `shared-daemon-process: true`. Compiled-in plugins launched as separate
+processes (`ze plugin <reg>`) enable the same mutex and block sampling defaults
+(`runtime.SetMutexProfileFraction(10)` and `flightrec.SetBlockProfileRate(100_000)`)
+in `internal/component/plugin/cli/main.go` strictly after the query-mode fast
+path exits.
+<!-- source: internal/component/cmd/show/plugin_inspect.go -- plugin pipe registration and inspectPlugin* helpers -->
+<!-- source: internal/component/plugin/cli/main.go -- configurePluginProfiling -->
+<!-- source: internal/core/procfs/process_linux.go -- ReadProcessInspect -->
 
 **Always-on Go execution trace capture lives in `internal/core/flightrec`.**
 It wraps `runtime/trace.FlightRecorder` with a 10-second / 4 MiB rolling

@@ -70,6 +70,14 @@ One round-trip returns build provenance (`version`), component `health`, daemon 
 - **Hangs, deadlocks, or memory growth**: inspect waiting goroutines with `show system goroutines mode blocked` (use `mode full` only for a hang), and capture AI-readable top-function JSON profile summaries without `go tool pprof` using `show system profile type heap | summary`, `type cpu duration 10s | summary`, `type mutex | summary`, `type block | summary`, `type goroutine | summary`, or `type allocs | summary` (over MCP, pass `pipe: [{"name": "summary"}]`). Bare `show system profile` without `| summary` returns raw `pprof-base64` bytes for `go tool pprof`.
 - **Pre-incident execution traces**: list auto-captured and manual Go flight-recorder snapshots with `show system trace`, capture one immediately with `request system trace snapshot`, and fetch a snapshot's trace bytes with `show system trace id <id>`.
 - **Plugin and reload issues**: run `show doctor`, `show reload-status`, and `show plugin list`.
+- **Forked and internal plugin runtime introspection (`| plugin <name>`)**: scope any of the five runtime diagnostic commands to a specific running plugin process without shell access:
+  - `show system goroutines mode blocked | plugin <name>` (also `mode summary` or `mode full`; runs on an independent SDK worker so it still answers when the plugin's ordinary `eventLoop` is deadlocked)
+  - `show system profile type heap | plugin <name> | summary` (composable in either order with `| summary` across `cpu`, `heap`, `goroutine`, `allocs`, `mutex`, and `block`)
+  - `show runtime memory | plugin <name>` (Go `MemStats`, goroutines, CPU count, `GOMAXPROCS`, Go version)
+  - `show system memory | plugin <name>` (Linux `/proc/<pid>/status`, `wchan`, and open `fd-count`; in-daemon plugins report `shared-daemon-process: true`)
+  - `show log recent level err | plugin <name>` (queries the plugin's own process-local `slogutil` ring; also supports `level`, `component`, and `count`)
+  - Over MCP, pass structured pipe entries with the exact `"args"` list syntax: `pipe: [{"name": "plugin", "args": ["<name>"]}]` (or `pipe: [{"name": "plugin", "args": ["<name>"]}, {"name": "summary"}]` on `show system profile`).
+  - **Interpreting responses**: every answer includes `plugin`, `process-mode` (`"internal"` for in-daemon goroutines or `"external"` for forked subprocesses), and `pid`. When a forked external plugin is wedged, timed out, disconnected, or non-Go, the daemon never sends `SIGQUIT` or any terminating signal; instead it returns `fallback: true` with `fallback-reason` (`"timeout"`, `"unsupported"`, or `"transport-error"`), `rpc-error`, `host` Linux `/proc/<pid>` metrics (`state`, `wchan`, `threads`, `vm-rss-kb`, `fd-count`), and up to 32 recent `stderr-tail` lines.
 
 ### 3. Bug Report Essentials
 

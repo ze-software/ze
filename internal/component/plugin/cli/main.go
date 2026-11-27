@@ -7,13 +7,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+const (
+	pluginMutexProfileFraction = 10
+	pluginBlockProfileRate     = 100_000
 )
 
 // Run executes the plugin subcommand with the given arguments.
@@ -50,7 +57,17 @@ func Run(args []string) int {
 	if sdk.QueryModeRequested() {
 		return answerQuery(os.Stdout, reg)
 	}
+	configurePluginProfiling()
 	return reg.CLIHandler(args[1:])
+}
+
+// configurePluginProfiling enables mutex and block contention sampling for a
+// compiled-in plugin running as a separate process, matching daemon startup.
+// Callers MUST invoke it only after the query-mode fast path exits so declare
+// queries never mutate runtime profiling globals.
+func configurePluginProfiling() {
+	runtime.SetMutexProfileFraction(pluginMutexProfileFraction)
+	flightrec.SetBlockProfileRate(pluginBlockProfileRate)
 }
 
 // answerQuery writes the plugin's Stage 1 declaration to out as one

@@ -26,19 +26,27 @@ import (
 // heap-objects, num-gc). The `hardware` nested object surfaces the
 // physical memory sizes and ECC counters from host inventory (Linux only;
 // omitted entirely on platforms where inventory returns ErrUnsupported).
-func handleShowSystemMemory(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+func handleShowSystemMemory(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	pluginName, hasPlugin, refusal := extractPluginPipeTarget(validated, "ze show runtime memory | plugin <name>")
+	if refusal != nil {
+		return refusal, nil
+	}
+	if hasPlugin {
+		return inspectPluginRuntimeMemory(ctx, pluginName)
+	}
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	data := map[string]any{
 		"alloc":        m.Alloc,
 		"total-alloc":  m.TotalAlloc,
-		"sys":          m.Sys,
-		"heap-alloc":   m.HeapAlloc,
+		keySys:         m.Sys,
+		keyHeapAlloc:   m.HeapAlloc,
 		"heap-sys":     m.HeapSys,
-		"heap-in-use":  m.HeapInuse,
+		keyHeapInUse:   m.HeapInuse,
 		"heap-objects": m.HeapObjects,
 		"stack-in-use": m.StackInuse,
-		"num-gc":       m.NumGC,
+		keyNumGC:       m.NumGC,
 		"gc-cpu-pct":   m.GCCPUFraction * 100,
 	}
 	if hw, err := host.DetectMemory(); err == nil && hw != nil {
@@ -56,9 +64,9 @@ func handleShowSystemMemory(_ *pluginserver.CommandContext, _ command.ValidatedA
 // ErrUnsupported so operators still get the runtime fields.
 func handleShowSystemCPU(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	data := map[string]any{
-		"num-cpu":        runtime.NumCPU(),
-		"num-goroutines": runtime.NumGoroutine(),
-		"max-procs":      runtime.GOMAXPROCS(0),
+		keyNumCPU:        runtime.NumCPU(),
+		keyNumGoroutines: runtime.NumGoroutine(),
+		keyMaxProcs:      runtime.GOMAXPROCS(0),
 		"go-version":     runtime.Version(),
 	}
 	if hw, err := host.DetectCPU(); err == nil && hw != nil {
