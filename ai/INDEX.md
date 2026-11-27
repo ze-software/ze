@@ -547,6 +547,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | ZeFS format | `docs/architecture/zefs-format.md` |
 | Configuration storage | `docs/architecture/storage-backends.md` |
 | Fleet config | `docs/architecture/fleet-config.md` |
+| Fleet alarms | `docs/architecture/fleet-alarms.md` |
 | Web interface | `docs/architecture/web-interface.md` |
 | Web components | `docs/architecture/web-components.md` |
 | Fleet interface | `docs/architecture/fleet-interface.md` |
@@ -621,6 +622,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | config history, object/<sha256>, content-addressed version, dangling entry, orphan object, dangling pointer | `storage-backends.md`, `internal/component/config/storage/history.go`, `internal/component/config/storage/history_check.go` |
 | ze init, bootstrap the store, import a blob, --from, --force, --seed, --managed | `storage-backends.md`, `guide/quickstart.md`, `internal/plugins/init/main.go` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
+| fleet alarms, show fleet alarm, show fleet alarm history, ManagedAlarmStore, AlarmKindRegistry, bus hub alarms | `docs/architecture/fleet-alarms.md`, `internal/component/plugin/server/managed_alarms.go`, `internal/component/managed/cmd_alarms.go` |
 | fleet interface, /fleet/, fleetui, estate page, sample estate, ze_fleet_ui, ze_fleet_ui_sample, review build | `fleet-interface.md`, `internal/component/web/fleetui/` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |

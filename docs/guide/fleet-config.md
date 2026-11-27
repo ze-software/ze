@@ -26,7 +26,7 @@ What you get, and what you do not:
 |--------------------------|------------------------------|
 | Keep one full configuration for each client, on the hub | Build a configuration from a template: each client has its own file |
 | Push a change to the one client it belongs to | Roll a change out to a group of clients in stages |
-| Track each device's connection state, labels, version, configuration state, hardware inventory, component health, and up to 7 days of bounded metric history (`show fleet devices`, `show fleet device name <name>`, `show fleet device inventory name <name>`, `show fleet device health name <name>`, `show fleet health`, `show fleet sample latest`, `show fleet sample series`, `show fleet sample storage`) | Automatically enroll undeclared devices, or replace Prometheus for arbitrary metrics and long-term retention |
+| Track each device's connection state, labels, version, configuration state, hardware inventory, component health, up to 7 days of bounded metric history, and hub-derived fleet alarms with bounded episode history (`show fleet devices`, `show fleet device name <name>`, `show fleet device inventory name <name>`, `show fleet device health name <name>`, `show fleet health`, `show fleet sample latest`, `show fleet sample series`, `show fleet sample storage`, `show fleet alarm`, `show fleet alarm history device <name>`) | Automatically enroll undeclared devices, acknowledge or silence alarms, or replace Prometheus for arbitrary metrics and long-term retention |
 | Keep a client running when the hub is down | Run a device without its hub-served or cached configuration |
 
 This guide follows the order of a first deployment:
@@ -702,7 +702,11 @@ minutes, matching `/health`), and a fixed set of 15 operational metric figures
 (`sample-report`, at the hub's `bus hub history interval`, default 60 seconds;
 retained for 1 day at 1-minute resolution and up to 7 days at 15-minute
 resolution with per-minute aligned peaks under default 1 MiB/device and 2 GiB/hub
-byte caps). All eight hub commands work on every command surface (CLI, SSH,
+byte caps). The hub continuously derives open fleet alarms and bounded closed
+episode history from those facts (`device-offline`, `component-down`,
+`component-degraded`, `config-diverged`, `config-rejected`, `resource-high`,
+`software-behind`, and `history-full`), tuned under `bus { hub { alarms { ... } } }`.
+All ten hub commands work on every command surface (CLI, SSH,
 MCP, REST, gRPC, and the web command line), scoped locally to the devices the
 authenticated operator is authorized to read:
 
@@ -718,7 +722,47 @@ show fleet sample latest | rank cpu-used | first 10
 show fleet sample latest | label site=lon | reduce
 show fleet sample series | figure cpu-used | label site=lon | from 2026-11-24T00:00:00Z | until 2026-11-25T00:00:00Z | reduce | points 300
 show fleet sample storage
+show fleet alarm
+show fleet alarm | severity critical | limit 100
+show fleet alarm | kind device-offline | device edge-01
+show fleet alarm history device edge-01
+show fleet alarm history device edge-01 | limit 50
 ```
+
+Alarm delays, thresholds, and closed-episode retention caps live under
+`bus { hub { alarms { ... } } }` and apply live on reload without restarting the
+hub:
+
+```
+bus {
+    hub {
+        alarms {
+            offline-delay 300;
+            resource-cpu-percent 90;
+            resource-memory-percent 90;
+            resource-storage-percent 90;
+            resource-duration 300;
+            software-behind-versions 1;
+            retention-days 7;
+            max-episodes-per-device 512;
+            max-episodes-hub 65536;
+        }
+    }
+}
+```
+
+Each open alarm carries a stable occurrence identifier and opening timestamp
+preserved across repeat reports, reads, disconnects, and hub restarts. For a
+declared device that has never connected, `offline-delay` runs from its
+declaration time across reloads and restarts; once a device connects, later
+disconnects start a fresh grace interval from disconnect time. Open
+`resource-high` occurrences stay open while a device is offline, close on
+reconnect, and require fresh post-reconnect samples spanning `resource-duration`
+to open a new occurrence. Both alarm commands return bounded pages (up to 1,024
+open rows or 512 history events) with snapshot-bound `cursor` tokens, full
+authorized totals and counts, and `retained-since` / `truncated` history bounds;
+see [fleet-alarms.md](../architecture/fleet-alarms.md) for the complete alarm
+model.
 
 Devices that have not yet sent a report appear explicitly with `reported: false`
 and `status: not-reported` (and are counted separately under `unreported` in
@@ -740,10 +784,13 @@ sessions.
 <!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice -->
 <!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
 <!-- source: internal/component/managed/cmd_history.go -- handleFleetSampleLatest, handleFleetSampleSeries, handleFleetSampleStorage -->
+<!-- source: internal/component/managed/cmd_alarms.go -- handleFleetAlarm, handleFleetAlarmHistory -->
 <!-- source: internal/component/plugin/server/fleet_report.go -- handleReport, FleetHealthSummary -->
 <!-- source: internal/component/plugin/server/managed_history.go -- ManagedHistoryStore, Ingest, QueryLatest, QuerySeries, QueryStorage -->
+<!-- source: internal/component/plugin/server/managed_alarms.go -- ManagedAlarmStore, QueryOpen, QueryHistory -->
 <!-- source: internal/component/plugin/server/managed_serve.go -- managedMaxHandshakes, managedReadMax -->
-<!-- source: internal/component/plugin/types.go -- ManagedClientsMax, HubHistoryConfig -->
+<!-- source: internal/component/plugin/types.go -- ManagedClientsMax, HubHistoryConfig, HubAlarmsConfig -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- container alarms -->
 
 ## Changing the Hub's Certificate Without Cutting Devices Off
 
@@ -803,6 +850,8 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `doctor-managed-history-checkpoint-failed` on the hub | A hub metric history checkpoint or deletion-intent flush failed against the store (dirty samples stay in memory for retry) | Run `ze show data check` and `ze show fleet sample storage` to verify store health and checkpoint age |
 | `doctor-managed-history-capacity-pressure` on the hub | Hub metric history reached `device-budget-bytes` or `hub-budget-bytes` and evicted oldest buckets first (recent samples and latest readings stay kept) | Run `ze show fleet sample storage`, then raise `bus hub history device-budget-bytes` / `hub-budget-bytes` or shorten `retention-days` if needed |
 | `doctor-managed-history-corrupt` on the hub | A persisted metric history latest record or shard failed validation at startup (healthy shards stay readable) | Run `ze show data check`; the next valid sample report replaces the corrupt key, or remove it with `ze data rm` |
+| `doctor-managed-alarm-write-failed` on the hub | Persisting a hub fleet alarm shard failed (live alarms stay derived in memory and dirty shards remain queued for retry while durability is degraded) | Run `ze show data check` and `ze show fleet alarm`, then repair the daemon state store before the next alarm flush |
+| `doctor-managed-alarm-corrupt` on the hub | A persisted fleet alarm shard failed byte-bound, version, or schema validation at startup (healthy shards stay readable and live alarms continue to be derived) | Inspect `ze show fleet alarm` and `ze show warnings`; the next alarm state transition replaces the damaged shard |
 | `doctor-managed-client-rejected` on the hub, the reason starts with `holding:` | The same: that client holds | See [When a Client Holds](#when-a-client-holds) |
 | A client holds after `request fleet enable` | The client was changed while it was out of the fleet | See [When a Client Holds](#when-a-client-holds) |
 | `request fleet enable` is refused: the configuration names no hub | The client's configuration has no `client` block, so the client has no hub to rejoin | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
@@ -811,7 +860,7 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `show fleet status` shows `managed` true and `client` `stopped` | The client's configuration names no hub | See the `doctor-hub-client-missing` row |
 | `show fleet status` shows `managed` true and `client` `stopped`, and the configuration names a hub | The client left the fleet with `request fleet disable`, and `meta/instance/managed` was then written back to `true` with `ze data write` or `update data key`. A raw write starts no client | Run `ze request fleet enable` on the client |
 | `show fleet status` shows `managed` true and `client` `stopped`, and the client logged `config-hub-invalid` at start | The client could not read the `client` block of its configuration, so it started no hub client | Correct the `client` block in its configuration on the hub, and check it there with `ze config validate`. Then run `ze init --managed --force` on the client, and start it |
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound, checkManagedAlarmWrite, checkManagedAlarmCorrupt -->
 <!-- source: cmd/ze/hub/managed_owner.go -- startAtBoot, state -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
 <!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged -->

@@ -1,6 +1,6 @@
 # Fleet alarm conditions
 
-The first-release alarm design covers the conditions a fleet hub can derive from device declarations, managed sessions, health reports and samples. The alarm list and history are proposed in Fleet UI-5. Fleet UI-8 adds same-device causes. Their commands are the first-release operator surface. [Alarm list design](../../plan/release/features/spec-fleet-ui-5-alarm-list.md) · [Alarm cause design](../../plan/release/features/spec-fleet-ui-8-alarm-causes.md)
+The first-release alarm design covers the conditions a fleet hub derives from device declarations, managed sessions, health reports, configuration state, inventory versions, metric samples, and history capacity. The hub alarm list, durable episode history, and read-only commands (`show fleet alarm`, `show fleet alarm history device <name>`) are implemented (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27). Fleet UI-8 adds same-device causes. [Alarm cause design](../../plan/release/features/spec-fleet-ui-8-alarm-causes.md)
 
 ## Design decisions
 
@@ -42,12 +42,16 @@ An alarm is a derived condition true right now; nothing is acknowledged or silen
 | `software-behind` | Device | Informational | Device runs a version at least `software-behind-versions` behind the newest ordered estate version |
 | `history-full` | Hub | Warning | Metric history reached its size cap and is dropping samples early |
 | `relay-not-granted` (registered by `fleet-9`) | Device | Informational | A relay-capable device reports an explicit absent grant |
+<!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindRegistry, RegisterAlarmKind, registerBuiltinAlarmKinds -->
+<!-- source: internal/component/plugin/server/managed_alarms_version.go -- parseSoftwareVersion, buildUniqueOrderedVersions -->
+<!-- source: internal/component/plugin/server/register_alarms.go -- init -->
 
 ## Device offline
 
 Record the time the hub first accepts a device declaration. If no connection arrives before the configured delay expires, the hub opens Device offline at the end of that interval. Connecting before expiry cancels the pending opening. A device that has connected before uses its last disconnect as the start of the next interval. Removing a declaration ends its tracking. Re-adding the same name begins a new interval. A restart preserves the recorded start of a continuing declaration.
 
-For a declaration already present when this facility is first enabled, begin timing at the first durable observation of that declaration. Its actual historical declaration time may be unknown. [Planned acceptance test](../../plan/release/features/spec-fleet-ui-5-alarm-list.md)
+For a declaration already present when this facility is first enabled, begin timing at the first durable observation of that declaration. Its actual historical declaration time may be unknown. Verified end to end by `test/managed/fleet-alarm-history.ci`.
+<!-- source: internal/component/plugin/server/managed_alarms.go -- ManagedAlarmStore.SyncDeclarations, ManagedAlarmStore.ReconcileStartup, ManagedAlarmStore.offlineDeadlineLocked, ManagedAlarmStore.Tick -->
 
 ## Occurrence identity and reconnect semantics
 
@@ -56,6 +60,9 @@ Each alarm occurrence is identified by its registered kind, target device (or hu
 Disconnect preserves the latest health report and metric sample with their original receipt times. An open `component-down` or `component-degraded` occurrence stays open across disconnect and keeps its opening time if the component is still unhealthy after reconnect. An open `resource-high` occurrence stays open while the device is offline, closes at reconnect, and requires fresh post-reconnect samples spanning `resource-duration` to open a new occurrence. Omitted resource figures or zero capacity totals reset pending qualification timers without closing an already-open `resource-high` occurrence. A known absent relay grant stays visible while offline.
 
 Removing a device declaration closes its session- and telemetry-driven alarms (`device-offline`, `software-behind`, `component-down`, `component-degraded`, `resource-high`, and `config-rejected`) and clears pending resource qualification timers. `config-diverged` remains governed by whether the hub still stores a held configuration copy for that device.
+<!-- source: internal/component/plugin/server/managed_alarms.go -- ManagedAlarmStore.OnDeviceConnected, ManagedAlarmStore.OnDeviceDisconnected, ManagedAlarmStore.OnHealthReport, ManagedAlarmStore.OnSampleReport, ManagedAlarmStore.OnConfigState, ManagedAlarmStore.OnInventoryReport, ManagedAlarmStore.OnHistoryHealth -->
+<!-- source: internal/component/plugin/server/managed_alarms_store.go -- ManagedAlarmStore.LoadFromStore, ManagedAlarmStore.FlushOnce, ManagedAlarmStore.FlushFinal, ManagedAlarmStore.RunLoop -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedAlarmWrite, checkManagedAlarmCorrupt -->
 
 ## Storage keys and retention bounds
 
@@ -79,3 +86,5 @@ Two read-only daemon commands publish the alarm model uniformly on CLI, SSH, RES
 | `show fleet alarm` | `ze-managed:show-fleet-alarm` | Returns bounded pages (up to 1,024 rows) of open alarms with stable occurrence IDs, full authorized totals and severity/visibility counts, and a snapshot-bound continuation cursor |
 | `show fleet alarm history device <name>` | `ze-managed:show-fleet-alarm-history` | Returns bounded pages (up to 512 rows) of one authorized device's alarm openings and clearings with earliest retained time, truncation flag, and continuation cursor |
 <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container alarm -->
+<!-- source: internal/component/managed/cmd_alarms.go -- registerAlarmCommands, handleFleetAlarm, handleFleetAlarmHistory -->
+<!-- source: internal/component/plugin/server/managed_alarms.go -- ManagedAlarmStore.QueryOpen, ManagedAlarmStore.QueryHistory -->

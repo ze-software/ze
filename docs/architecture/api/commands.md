@@ -4643,8 +4643,8 @@ unreadable chain never reads as an empty answer.
 
 ## Managed Config RPCs
 
-The hub's device registry, fleet reporting, and metric history surface expose
-eight builtin RPCs on every command surface: `ze-managed:fleet-devices` serves
+The hub's device registry, fleet reporting, metric history, and alarm surface
+expose ten builtin RPCs on every command surface: `ze-managed:fleet-devices` serves
 `show fleet devices` as a table; `ze-managed:fleet-device` serves
 `show fleet device name <name>` as a document;
 `ze-managed:fleet-device-inventory` serves
@@ -4653,9 +4653,11 @@ eight builtin RPCs on every command surface: `ze-managed:fleet-devices` serves
 as a document; `ze-managed:fleet-health` serves `show fleet health` as a
 document; `ze-managed:show-fleet-sample-latest` serves `show fleet sample latest` as
 a table; `ze-managed:show-fleet-sample-series` serves `show fleet sample series` as a
-table; and `ze-managed:show-fleet-sample-storage` serves `show fleet sample storage`
-as a document. Name completion reads the hub's registry in memory for all three
-per-device commands. The device table declares the `label` pipe operation with a
+table; `ze-managed:show-fleet-sample-storage` serves `show fleet sample storage`
+as a document; `ze-managed:show-fleet-alarm` serves `show fleet alarm` as a
+tabulated envelope; and `ze-managed:show-fleet-alarm-history` serves
+`show fleet alarm history device <name>` as a tabulated envelope. Name
+completion reads the hub's registry in memory for all four per-device commands. The device table declares the `label` pipe operation with a
 `key=value` argument; multiple label operations select rows matching every pair.
 The per-device inventory and health commands return explicit `reported`,
 `status` (`reported` or `not-reported`, or the device's health status),
@@ -4679,6 +4681,8 @@ budgeting, and ranking are registered as command-specific pipe operations via
 | `show fleet sample latest` | table | `device <name>`, `label <key=value>`, `figure <name>`, `reduce`, `rank <figure>` | Authorized device scope is projected locally before filtering, ranking, or reducing. `rank` drops rows missing the named figure and sorts descending then by device name (combine with generic `first N` for top-N). `device`/`label` after `reduce` is refused. |
 | `show fleet sample series` | table | `device <name>`, `label <key=value>`, `figure <name>`, `from <RFC3339>`, `until <RFC3339>`, `reduce`, `points <1..2112>` | Half-open UTC range `[from, until)` crossing 1m fine (1d) and 15m coarse (up to 7d) resolutions with explicit gaps (`gap: true`) and aligned coarse set maxima. Bounded to 4,096 rows and 4 MiB serialized output per answer. |
 | `show fleet sample storage` | document | (generic pipes only) | Authorizes the exact storage path before exposing hub-wide capacity, retention, and checkpoint health; filters per-device `devices` rows through the caller's local device scope. |
+| `show fleet alarm` | tab (`ShapeTab`) | `severity <level>`, `kind <kind>`, `device <name>`, `cursor <token>`, `limit <1..1024>` | Authorizes caller device scope before filtering, counting, sorting, or issuing a snapshot-bound continuation cursor. Returns bounded pages (up to 1,024 rows) plus complete authorized `total` and severity/visibility `counts` across all pages. |
+| `show fleet alarm history device <name>` | tab (`ShapeTab`) | `cursor <token>`, `limit <1..512>` | Returns newest-first bounded pages (up to 512 events) of one authorized device's open and closed alarm episodes with `retained-since`, `truncated`, and snapshot-bound continuation cursor; refuses unauthorized or unknown devices uniformly. |
 
 On managed devices, each feature that contributes metric readings registers a
 hidden read-only command under `show fleet source <owner>` (`host`, `iface`,
@@ -4693,7 +4697,9 @@ forked plugin's `PluginConn`.
 <!-- source: internal/component/managed/cmd_devices.go -- handleFleetDevices, handleFleetDevice, completeFleetDevices -->
 <!-- source: internal/component/managed/cmd_reports.go -- handleFleetDeviceInventory, handleFleetDeviceHealth, handleFleetHealth -->
 <!-- source: internal/component/managed/cmd_history.go -- registerHistoryCommands, handleFleetSampleLatest, handleFleetSampleSeries, handleFleetSampleStorage -->
+<!-- source: internal/component/managed/cmd_alarms.go -- registerAlarmCommands, handleFleetAlarm, handleFleetAlarmHistory -->
 <!-- source: internal/component/plugin/server/managed_history.go -- ManagedHistoryLatest, ManagedHistorySeries, ManagedHistoryStorage, ReduceLatestRows, RankLatestRows -->
+<!-- source: internal/component/plugin/server/managed_alarms.go -- ManagedAlarmStore, QueryOpen, QueryHistory -->
 <!-- source: internal/component/plugin/server/fleet_sample_sources.go -- FleetSampleSourcePrefix, FleetSampleCollector -->
 
 RPCs for hub-client managed configuration and device reporting. These operate

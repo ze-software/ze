@@ -239,6 +239,8 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `meta/fleet/history/latest/{name}` | Latest accepted fleet metric sample observation for one managed device (`KeyFleetHistoryLatest`, JSON, `Private: true`, `ValueMax: 16 KiB`) | `meta/fleet/history/latest/edge-01` |
 | `meta/fleet/history/shard/{name}/{shard}` | Bounded `ZEH1` zlib-compressed fine or coarse metric history shard for one managed device (`KeyFleetHistoryShard`, binary, `Private: true`, `ValueMax: 2 MiB`) | `meta/fleet/history/shard/edge-01/fine` |
 | `meta/fleet/history/delete-intent/{name}` | Durable deletion intent fencing fleet metric history checkpoint writers while erasing a forgotten device's history (`KeyFleetHistoryDeleteIntent`, JSON, `Private: true`, `ValueMax: 4 KiB`) | `meta/fleet/history/delete-intent/edge-01` |
+| `meta/fleet/alarm/device/{name}` | Managed device declaration timing, active alarm occurrences, and bounded closed episode history (`KeyFleetAlarmDevice`, JSON, `Private: true`, `ValueMax: 256 KiB`) | `meta/fleet/alarm/device/edge-01` |
+| `meta/fleet/alarm/hub` | Hub-scoped active alarm occurrences, monotonic occurrence sequence state, and bounded hub closed episode history (`KeyFleetAlarmHub`, JSON, `Private: true`, `ValueMax: 64 KiB`) | `meta/fleet/alarm/hub` |
 | `meta/managed/base-version` | The baseline of a managed client: the version hash (`fleet.VersionHash`) of the last configuration its hub gave it. `show fleet status` reports it beside the hash of the configuration the device runs. An absent key is a valid state, no baseline recorded. It sits under `meta/managed/`, beside the hub bootstrap keys, because `meta/instance/managed` is a value and the store refuses a key below a value | `meta/managed/base-version` |
 | `meta/config/client-<name>.conf/held` | The hub's copy of the configuration a managed client holds (`KeyConfigHeld`), one record per client, written only on the hub: a JSON value of the configuration bytes the client uploaded with `config-held`, their version hash, when that configuration became active on the client, and any revert decision an operator recorded. It sits under the client's own configuration name, beside its version pointers, so the running daemon's `update data key` and `delete data key` refuse it (`storage.RuntimeKey`). It is Private, so `show data registered` hides it, and it carries the client's secrets as `client-<name>.conf` does | `meta/config/client-edge1.conf/held` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
@@ -332,6 +334,14 @@ trailing-slash `ListKeys` prefix constant (`FleetHistoryLatestPrefix`,
 `FleetHistoryShardPrefix`, `FleetHistoryDeleteIntentPrefix`) for directory
 enumeration through `storage.Storage.ListKeys`.
 <!-- source: pkg/zefs/keys.go -- FleetHistoryLatestValueMax, FleetHistoryShardValueMax, FleetHistoryDeleteIntentValueMax, FleetHistoryLatestPrefix, FleetHistoryShardPrefix, FleetHistoryDeleteIntentPrefix, KeyFleetHistoryLatest, KeyFleetHistoryShard, KeyFleetHistoryDeleteIntent -->
+
+Hub-side fleet alarms register two `Private: true` raw state key families with
+explicit `ValueMax` bounds enforced by the alarm writer before `WriteKey` and
+before decoding bytes read back from storage: `KeyFleetAlarmDevice`
+(`meta/fleet/alarm/device/{name}`, `FleetAlarmDeviceValueMax` = 256 KiB, with
+trailing-slash `ListKeys` prefix `FleetAlarmDevicePrefix`) and `KeyFleetAlarmHub`
+(`meta/fleet/alarm/hub`, `FleetAlarmHubValueMax` = 64 KiB).
+<!-- source: pkg/zefs/keys.go -- FleetAlarmDeviceValueMax, FleetAlarmHubValueMax, FleetAlarmDevicePrefix, KeyFleetAlarmDevice, KeyFleetAlarmHub -->
 
 `KeyEntry.Matches` is the one rule that says whether a concrete key is an
 instance of a pattern: literal parts match exactly and each `{param}` matches

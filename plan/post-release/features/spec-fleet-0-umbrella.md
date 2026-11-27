@@ -100,7 +100,7 @@ management now ships in the first release (`ai/META-DECISIONS.md`, "Goal and
 scope"): the device registry (phase 1), device health reports (phase 4),
 metric history (phase 8) and configuration drift detection with repair by the
 hub (phase 10) live in `plan/release/features/`, beside the fleet interface's
-alarm list (`plan/release/features/spec-fleet-ui-5-alarm-list.md`)
+alarm list (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`)
 and alarm causes (`plan/release/features/spec-fleet-ui-8-alarm-causes.md`).
 Phases 2, 3, 5 and 9 stay in `plan/post-release/features/`. Phases 6 and 7,
 the configuration freeze and the reconnect resolution, are closed. This
@@ -521,7 +521,7 @@ longer plans, the child wins.
    - Tests and files: settled by the child's design
 
 10. **Phase: Drift Hash Chain (fleet-10, `plan/release/features/spec-fleet-10-drift-hash-chain.md`)** -- hub and client fold every applied hub change into a chain, compare its head on every reply, resync a client that holds no local edit, and open a Configuration resync failed alarm when repair fails
-   - Depends: phases 1 and 7, `plan/release/features/spec-fleet-ui-5-alarm-list.md`, `plan/release/features/spec-fleet-ui-8-alarm-causes.md`
+   - Depends: phases 1 and 7, `spec-fleet-ui-5-alarm-list` (closed 2026-11-27; `docs/architecture/fleet-alarms.md`), `plan/release/features/spec-fleet-ui-8-alarm-causes.md`
    - Tests and files: settled by the child's design
 
 ### Critical Review Checklist

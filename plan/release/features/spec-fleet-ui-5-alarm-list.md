@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | fleet, cli |
 | Priority | P2 |
 | Release reason | Thomas put the fleet alarm list in the first release, reached through its commands on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. Its pages, the hub's task model and panel, notifications and live page updates come after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
@@ -10,7 +10,7 @@
 | Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting"), spec-fleet-8-metric-history (closed 2026-11-27; documented in `docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history") |
 | Phase | 5/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -294,3 +294,217 @@ On 2026-11-25 Thomas chose “After the configured offline grace period from dec
 1. Wire one producer to the daemon's open-list and history commands. Exercise the transition through a real managed session, including a repeat that changes no occurrence.
 2. Add registered condition owners, clock-driven thresholds, history persistence and retained-state reconciliation. Test eviction, failed writes, current-session fencing and restart.
 3. Publish permission-scoped command answers and verify all surfaces. Exercise a 2,000-device loss of connectivity. Fleet-ui-8 adds cause resolution; fleet-ui-9 owns the web presentation.
+
+---
+
+## Deliverables Checklist
+
+| Deliverable | Verification Method | Status | Evidence |
+|-------------|---------------------|--------|----------|
+| Private bounded raw ZeFS alarm key families and `ListKeys` prefix | `go test -race ./pkg/zefs/ -run TestKey` | Done | `pkg/zefs/keys.go` (`KeyFleetAlarmDevice` 256 KiB, `KeyFleetAlarmHub` 64 KiB, `FleetAlarmDevicePrefix` `"meta/fleet/alarm/device/"`); `./le test unit pkg path ./pkg/zefs/ run TestKey` PASS (1.2s) |
+| Hub `bus { hub { alarms { ... } } }` YANG schema, typed config, and validation | `go test -race` on `internal/component/plugin/` and `internal/component/config/`, `./le config claims`, `./le yang glue check` | Done | `internal/component/plugin/yang/ze-plugin-conf.yang` (`container alarms`), `internal/component/plugin/types.go` (`HubAlarmsConfig`, `DefaultHubAlarmsConfig`, `ValidateHubAlarmsConfig`), `internal/component/config/loader_extract.go` (`ExtractHubConfig`, `extractHubAlarmsConfig`); `TestDefaultHubAlarmsConfig\|TestValidateHubAlarmsConfigBounds` PASS (1.2s), `TestExtractHubConfigAlarms\|TestFirstPassAnswersNothingToRun` PASS (2.4s), `config claims` OK (115 claims), `yang glue check` OK (170 dirs) |
+| Open hub alarm kind registry and 8 first-release built-in kinds (`relay-not-granted` left unregistered for `fleet-9`) | `go test -race ./internal/component/plugin/server/ -run TestAlarm` | Done | `internal/component/plugin/server/managed_alarms_kinds.go` (`AlarmKindRegistry`, `RegisterAlarmKind`, `MustRegisterAlarmKind`, `LookupAlarmKind`, `registerBuiltinAlarmKinds`), `register_alarms.go` (`init`); `TestAlarmOpenKindRegistrationAndRelaySeam` PASS |
+| Hub alarm engine: declaration-generation offline grace, component health, config diverged/rejected, resource-high settling/reconnect, software-behind ordering, history-full, external evaluator seam | `go test -race ./internal/component/plugin/server/` | Done | `internal/component/plugin/server/managed_alarms.go` (`ManagedAlarmStore`), `managed_alarms_version.go` (`parseSoftwareVersion`, `buildUniqueOrderedVersions`, `softwareVersionRank`); `TestAlarm*` + `TestManagedServerAlarm*` PASS (4.6s) |
+| Durable bounded shard persistence, oldest-first retention/cap eviction, degraded write/corrupt recovery, and shutdown drain | `go test -race ./internal/component/plugin/server/` and `./internal/component/plugin/doctor/` | Done | `internal/component/plugin/server/managed_alarms_store.go` (`LoadFromStore`, `FlushOnce`, `FlushFinal`, `RunLoop`, `encodeAlarmDeviceShard`, `decodeAlarmDeviceShard`), `managed_doctor.go` (`appendAlarmHealth`), `internal/component/plugin/doctor/check_managed_runtime.go` (`checkManagedAlarmWrite`, `checkManagedAlarmCorrupt`), `register_external.go`; `TestAlarmRestartPersistenceAndDegradedRecovery`, `TestManagedServerAlarmRestartPersistenceAndDoctorDegradation`, `TestCheckManagedAlarmWrite`, `TestCheckManagedAlarmCorrupt` PASS; `arch doctor-coverage check` OK (15/15 sites) |
+| Hub startup, live reload (`PrepareManagedListenersWithHistoryAndAlarms` / `ApplyManagedListeners`), and stale-session fencing | `go test -race ./cmd/ze/hub/ -run TestManaged` and `./internal/component/plugin/server/` | Done | `cmd/ze/hub/managed_server.go` (`prepareManagedReload`, `startManagedServer`), `internal/component/plugin/server/managed_apply.go`, `managed_registry.go` (`activeSessionLocked`, `checkActiveSession`), `managed_held.go` (`handleConfigHeld`, `clearAndReport`), `managed_serve.go`; `TestManaged` PASS (6.8s), `TestManagedServerAlarmLiveReloadAndDeclarations` & `TestManagedServerAlarmSessionFencingAndRestartHeldDetail` PASS |
+| Authorized paginated `show fleet alarm` and `show fleet alarm history device <name>` commands, YANG, pipes, wire-methods snapshot, and all command surfaces | `go test -race ./internal/component/managed/`, `./internal/component/plugin/all/`, `TestEveryCommandOnEverySurface`, `./le cli grammar`, `./le doc yang-contract command-contract` | Done | `internal/component/managed/yang/ze-managed-cmd.yang` (`container alarm`, `container history`), `internal/component/managed/cmd_alarms.go` (`registerAlarmCommands`, `handleFleetAlarm`, `handleFleetAlarmHistory`), `internal/component/managed/register.go`, `internal/component/plugin/all/testdata/wire-methods.snapshot`; `TestFleetAlarm*\|TestShowFleetAlarm*` PASS (4.6s), `TestRegisteredWireMethods` PASS (1.2s), `TestEveryCommandOnEverySurface` 0 fleet failures across 8 surfaces, `cli grammar` OK (547 cmds), `command-contract` OK (579/579) |
+| Live functional `.ci` tests over real `ze hub` + disk ZeFS + SSH CLI | `./le test managed` | Done | `test/managed/fleet-alarm-lifecycle.ci` PASS (27.2s), `test/managed/fleet-alarm-history.ci` PASS (16.0s), `internal/test/fixture/misc_fixture_managed_fleet_alarms.go`, `register_managed_fleet_alarms.go` |
+
+## Security Review Checklist
+
+| Concern | Check | Status | Evidence |
+|---------|-------|--------|----------|
+| Untrusted input & cursor validation | Cursor length, base64url, strict JSON (`DisallowUnknownFields`, trailing data), negative limits, unknown severity/kind, malformed version strings | Pass | `internal/component/plugin/server/managed_alarms.go` `decodeAlarmCursor` caps `alarmCursorBytesMax` (512), rejects unknown fields and trailing tokens; `parseAlarmListPipeQuery`/`parseAlarmHistoryPipeQuery` in `internal/component/managed/cmd_alarms.go` enforce `1..1024` / `1..512` and reject conflicting or duplicate filters; `parseSoftwareVersion` in `managed_alarms_version.go` caps `softwareVersionLenMax` (128) and checks decimal overflow |
+| Device identity spoofing & stale sessions | Client identity derived solely from authenticated TLS session; superseded connections fenced before mutating registry, held storage, or alarms | Pass | `internal/component/plugin/server/managed_registry.go` `activeSessionLocked`/`checkActiveSession`, `managed_serve.go` `handleRequest`/`handleConfigAck`/`recordSampleReport`, `managed_held.go` `handleConfigHeld` reject superseded sessions before storage writes or alarm state transitions (`TestManagedServerAlarmSessionFencingAndRestartHeldDetail`) |
+| Authorization & RBAC bypass | Device visibility enforced before filtering, sorting, counting, and cursor creation; continuation rechecks scope/user/filters; hub-scoped alarms fail closed on restricted callers and empty fleets | Pass | `internal/component/plugin/server/managed_alarms.go` `QueryOpen`, `queryOpenContinuationLocked`, `QueryHistory`, `queryHistoryContinuationLocked`, `allowsHubScopeLocked` (two disjoint synthetic probes `alarmHubScopeProbeAlpha`/`alarmHubScopeProbeDigit` prevent fail-open on empty fleet), `scopePermitsOpenSnapshotLocked`; `cmd_alarms.go` `handleFleetAlarmHistory` returns uniform `unknownFleetDeviceRefusal` for unauthorized and unknown devices (`TestAlarmScalePaginationScopeAndCursorValidation`, `TestAlarmHubScopeEmptyFleetAndUnrestrictedAlarmOperator`, `TestShowFleetAlarmHistoryValidationScopingAndGenericPipes`) |
+| Storage bounds & shard safety | `Private: true` ZeFS keys, single-segment names, `ValueMax` enforced before `WriteKey` and before decode, strict JSON decoding on startup | Pass | `pkg/zefs/keys.go` registers `Private: true` `KeyFleetAlarmDevice` (256 KiB) and `KeyFleetAlarmHub` (64 KiB); `managed_alarms_store.go` `parseAlarmDeviceKey` enforces `fleet.ValidDeviceKeyName`, `encodeAlarmDeviceShard`/`encodeAlarmHubShard` evict oldest closed history to fit `ValueMax`, `decodeAlarmDeviceShard`/`decodeAlarmHubShard` check `ValueMax`, UTF-8, version, device match, and `decodeStrictJSON` (`TestAlarmRestartPersistenceAndDegradedRecovery`) |
+| Denial of service & resource exhaustion | Snapshot cache bounded, closed episode caps enforced per device and across hub, page sizes capped, detail strings bounded | Pass | `managed_alarms.go` caps `alarmSnapshotCacheMax` (64) with 5m TTL and LRU eviction (`ensureSnapshotCapacityLocked`), `AlarmPageMax` (1024), `AlarmHistoryPageMax` (512); `managed_alarms_store.go` enforces `RetentionDays` (`1..30`), `MaxEpisodesPerDevice` (`1..512`), `MaxEpisodesHub` (`1..65536`); detail text passes `boundedManagedDetail` |
+| Peer-reachable panics & concurrency races | Zero peer-reachable `panic()`; `-race` clean; lock ordering documented and obeyed; goroutines bounded and joined before store release | Pass | Only compile-time `init()` panics (`MustRegister`, `registerAlarmDoctorCodes`) and internal-enum/cursor-marshal `BUG` panics exist; `ManagedAlarmStore` never acquires `ioMu` under `mu` and `ManagedServer.Stop` cancels `RunLoop` and calls `FlushFinal` before returning the store; all unit packages pass under `-race` |
+
+## Documentation Update Checklist
+
+| Category | Updated? | File / Section / Source Evidence |
+|----------|----------|----------------------------------|
+| Architecture design (alarms) | Yes | `docs/architecture/fleet-alarms.md` (Configuration, Alarm kinds, Device offline, Occurrence identity and reconnect semantics, Storage keys and retention bounds, Operator commands; source anchors added and closed-spec links repointed) — commits `2df7740cc2`, `4bc85a738e`, and closure Commit A |
+| Architecture design (fleet config) | Yes | `docs/architecture/fleet-config.md` (`bus/hub/alarms` YANG table) — commit `2df7740cc2` |
+| Wire / storage format | Yes | `docs/architecture/zefs-format.md` (`Key Namespaces` and `Key Registry` for `KeyFleetAlarmDevice`, `KeyFleetAlarmHub`, `FleetAlarmDevicePrefix`, `ValueMax`) — closure Commit A |
+| API / RPC docs | Yes | `docs/architecture/api/commands.md` (`show fleet alarm`, `show fleet alarm history device <name>`, `ShapeTab`, command-specific pipes) — closure Commit A |
+| Doctor checks | Yes | `docs/architecture/doctor-and-health-checks.md` (`managed-alarm-write`, `managed-alarm-corrupt` and codes `doctor-managed-alarm-write-failed`, `doctor-managed-alarm-corrupt`) — closure Commit A |
+| Feature declaration & pages | Yes | `features/fleet-management.md` (added `fleet-alarm-lifecycle.ci`, `fleet-alarm-history.ci` and alarm summary), `docs/features/fleet-management.md`, `docs/features/cli-commands.md` — closure Commit A |
+| User guide & CLI reference | Yes | `docs/guide/fleet-config.md` (overview, `Inspect the Fleet`, `bus { hub { alarms } }` syntax, Troubleshooting doctor codes), `docs/guide/command-reference.md` (2 commands), `docs/guide/status.md` — closure Commit A |
+| Discovery index | Yes | `ai/INDEX.md` (`Fleet alarms` architecture row and keyword row) — closure Commit A |
+| Operator news fragment | Yes | `website/changes/fragments/fleet-ui-5-alarm-list.md` (`topic: Fleet`, `feature: fleet-management`) — closure Commit A |
+| Plugin SDK / RFC compliance / comparison table | No | `git diff --name-only 2df7740cc2~1..4bc85a738e` touches neither `pkg/plugin/sdk/`, `rfc/short/`, nor `docs/comparison.md`; fleet alarms are hub-derived from existing Ze facts with no RFC requirement or SDK change |
+
+## Implementation Summary
+
+### What Was Implemented
+- **Commit `2df7740cc2`:** Registered `KeyFleetAlarmDevice` (`meta/fleet/alarm/device/{name}`, 256 KiB), `KeyFleetAlarmHub` (`meta/fleet/alarm/hub`, 64 KiB), and `FleetAlarmDevicePrefix` in `pkg/zefs/keys.go`; declared `bus { hub { alarms { ... } } }` in `internal/component/plugin/yang/ze-plugin-conf.yang`; added `HubAlarmsConfig`, `DefaultHubAlarmsConfig`, and `ValidateHubAlarmsConfig` in `internal/component/plugin/types.go`; extracted and validated alarm settings in `internal/component/config/loader_extract.go` (`ExtractHubConfig`, `extractHubAlarmsConfig`).
+- **Commit `0f0cca6dd5`:** Implemented `AlarmKindRegistry` with 8 first-release built-in kinds (`managed_alarms_kinds.go`, `register_alarms.go`), deterministic SemVer/numeric software version ordering (`managed_alarms_version.go`), `ManagedAlarmStore` (`managed_alarms.go`) with serialized transition evaluation, declaration-generation offline grace, reconnect settling for `resource-high`, external evaluator seam, authorized LRU snapshot continuation pagination, and bounded ZeFS shard persistence/retention (`managed_alarms_store.go`). Wired startup reconciliation, live reload (`PrepareManagedListenersWithHistoryAndAlarms` / `ApplyManagedListeners`), session fencing on `config-fetch`/`config-ack`/`config-held`/`sample-report`, forget fencing, and runtime doctor checks (`managed-alarm-write`, `managed-alarm-corrupt`) across `managed_serve.go`, `managed_apply.go`, `managed_registry.go`, `managed_held.go`, `managed_history.go`, `managed_record_store.go`, `managed_doctor.go`, `cmd/ze/hub/managed_server.go`, and `internal/component/plugin/doctor/`.
+- **Commit `4bc85a738e`:** Declared `show fleet alarm` and `show fleet alarm history device <name>` in `internal/component/managed/yang/ze-managed-cmd.yang`, implemented `ShapeTab` command handlers, column orders, and command-specific pipes in `internal/component/managed/cmd_alarms.go` (wired from `register.go`), updated `internal/component/plugin/all/testdata/wire-methods.snapshot`, added live `.ci` functional tests (`test/managed/fleet-alarm-lifecycle.ci`, `test/managed/fleet-alarm-history.ci`) and fixture (`internal/test/fixture/misc_fixture_managed_fleet_alarms.go`), and updated `docs/architecture/fleet-alarms.md`.
+- **Closure Commit A:** Updated `internal/le/repo/numberparse-allowlist.txt` for `loader_extract.go`'s third non-ASN 32-bit parse (`extractHubAlarmsConfig`), wrote `website/changes/fragments/fleet-ui-5-alarm-list.md`, repaired stale architecture/guide/feature/index docs with source anchors (`docs/architecture/fleet-alarms.md`, `zefs-format.md`, `doctor-and-health-checks.md`, `api/commands.md`, `docs/guide/fleet-config.md`, `command-reference.md`, `status.md`, `docs/features/cli-commands.md`, `fleet-management.md`, `features/fleet-management.md`, `ai/INDEX.md`), and repointed all sibling spec citers.
+
+### Bugs Found/Fixed
+- **Critical Review Round 1 (2 BLOCKERs, 6 ISSUEs, 2 NOTEs — all fixed in `0f0cca6dd5` with regression tests):**
+  - Re-adding a previously removed device across a hub restart did not reset its declaration generation / offline grace timer — fixed in `ManagedAlarmStore.ReconcileStartup` (`TestAlarmRestartAfterRemoveAndReaddResetsGrace`).
+  - Unclean hub crash while a device was connected could immediately open `device-offline` from an older `declaredAt` — fixed in `ReconcileStartup` by seeding `lastDisconnectedAt = now` on restart (`TestAlarmUncleanHubCrashWhileConnectedGrace`).
+  - Undeclaring a device left session/telemetry alarms open or cleared `config-diverged` when a held record remained — fixed in `closeUndeclaredDeviceAlarmsLocked` (`TestAlarmUndeclareClearsSessionTelemetryPreservesConfigDiverged`).
+  - Missing resource figures / zero capacity totals and exact threshold boundary edge cases — fixed in `OnSampleReport` / `ratioPercentFromSamples` / `evalResourceSubjectLocked` (`TestAlarmResourceHighMissingFiguresAndExactThreshold`).
+  - Hub-scoped alarm visibility on empty fleets and unrestricted alarm operators — fixed in `allowsHubScopeLocked` using two disjoint synthetic probes (`TestAlarmHubScopeEmptyFleetAndUnrestrictedAlarmOperator`).
+  - External registered alarm kinds not re-evaluated on events and `Tick` — fixed by calling `evaluateExternalKindsAt` across event handlers and `Tick` (`TestAlarmExternalKindReactiveOnEventsAndTick`).
+  - Stale-session fencing on `config-fetch`/`config-ack`/`config-held` and restart held detail preservation — fixed in `managed_registry.go` (`activeSessionLocked`/`checkActiveSession`), `managed_held.go`, `managed_serve.go` (`TestManagedServerAlarmSessionFencingAndRestartHeldDetail`).
+- **Closure Step 5 (`./le repo check`):** Caught `internal/component/config/loader_extract.go` 32-bit parse count drift (3 vs 2 in `internal/le/repo/numberparse-allowlist.txt`); updated allowlist in Commit A so `./le repo check` reports 0 fleet/config issues.
+
+### Documentation Updates
+- Updated `docs/architecture/fleet-alarms.md`, `docs/architecture/fleet-config.md`, `docs/architecture/zefs-format.md`, `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/api/commands.md`, `docs/guide/fleet-config.md`, `docs/guide/command-reference.md`, `docs/guide/status.md`, `docs/features/cli-commands.md`, `docs/features/fleet-management.md`, `features/fleet-management.md`, `ai/INDEX.md`, and `website/changes/fragments/fleet-ui-5-alarm-list.md`.
+- `./le doc check all`: 0 anchor or doc issues on any fleet/alarm file (checked 3,177 digest anchors, all resolve; `./le --name fleetui5 doc-drift` reported `No documentation drift detected` on the current build).
+
+### Deviations from Plan
+- Split `managed_alarms.go` responsibilities cleanly across `managed_alarms.go`, `managed_alarms_kinds.go`, `managed_alarms_store.go`, `managed_alarms_version.go`, and `register_alarms.go` (plus `managed_alarms_wiring_test.go`) to separate kind registration, SemVer ordering, persistence, and engine logic.
+- In `docs/architecture/fleet-alarms.md:9`, the `## Design decisions` row's `Source` cell keeps its original path `plan/release/features/spec-fleet-ui-5-alarm-list.md` untouched because `judgeDecisionRows` (`internal/le/doc/consistency/decisionschange.go`) forbids modifying existing `## Design decisions` rows without Thomas's `decision-change` authorization (matching `docs/architecture/fleet-config.md:19` after `spec-fleet-1-device-registry` closed).
+- All web pages, task model, notifications, and live SSE updates remain homed in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md` (see `## Work Not Done` above).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Implementation commits `2df7740cc2`–`4bc85a738e` updated `docs/architecture/fleet-alarms.md` and `fleet-config.md` but left `zefs-format.md`, `doctor-and-health-checks.md`, `api/commands.md`, `docs/guide/fleet-config.md`, `command-reference.md`, `status.md`, `docs/features/*`, `features/fleet-management.md`, and `ai/INDEX.md` without the new alarm keys, doctor checks, and commands, and left `numberparse-allowlist.txt` at count 2 for `loader_extract.go` | Every phase that adds ZeFS keys, doctor checks, CLI commands, or a 32-bit integer parse owes the companion architecture/guide/index/allowlist updates in the same work (`ai/rules/documentation.md`, `./le repo check`) | Closure step 4 documentation anchor grep and step 5 `./le repo check` | Repaired all stale pages with source anchors and updated `internal/le/repo/numberparse-allowlist.txt` in Closure Commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Open alarm kind registry (`init()` registration, duplicate rejection, external evaluator seam) | Done | `internal/component/plugin/server/managed_alarms_kinds.go:355-610`, `register_alarms.go:7-10` | 8 built-in first-release kinds; `relay-not-granted` intentionally unregistered until `fleet-9` |
+| Derived hub alarms across connectivity, health, config diverged/rejected, resource-high, software-behind, history-full | Done | `internal/component/plugin/server/managed_alarms.go:371-1296`, `managed_alarms_version.go:50-357` | All 8 conditions derived from hub facts; no acknowledge/silence state |
+| Stable occurrence identity (kind, device/hub, subject, monotonic ID) and idempotent repeat/read handling | Done | `internal/component/plugin/server/managed_alarms.go:1380-1527` | Reads never mutate state or synthesize transitions |
+| Declaration-generation offline grace preserved across restart/reload; fresh interval on re-add | Done | `internal/component/plugin/server/managed_alarms.go:371-589, 1230-1296` | Unclean crash while connected seeds grace from restart time |
+| Resource-high retained while offline, closed on reconnect, requires fresh qualifying samples | Done | `internal/component/plugin/server/managed_alarms.go:597-661, 804-907, 1460-1475` | Missing/zero-total figures reset qualification without closing open occurrence |
+| Bounded ZeFS shard persistence, retention/cap eviction, degraded durability + doctor checks | Done | `internal/component/plugin/server/managed_alarms_store.go:66-1025`, `internal/component/plugin/doctor/check_managed_runtime.go:381-444` | `KeyFleetAlarmDevice` (256 KiB), `KeyFleetAlarmHub` (64 KiB), `managed-alarm-write`, `managed-alarm-corrupt` |
+| `show fleet alarm` and `show fleet alarm history device <name>` on every command surface with authorization, pagination, and pipes | Done | `internal/component/managed/cmd_alarms.go:66-373`, `internal/component/managed/yang/ze-managed-cmd.yang`, `internal/component/managed/register.go` | `ShapeTab` envelopes answering generic + command pipes across CLI, SSH, MCP, REST, gRPC, and web CLI |
+| Live reload of `bus { hub { alarms { ... } } }` | Done | `cmd/ze/hub/managed_server.go:59`, `internal/component/plugin/server/managed_apply.go:289-352` | Validated in prepare phase, applied atomically on promotion |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-4 | Done | `TestAlarmComponentLifecycleAndIdempotency`, `TestManagedServerAlarmLifecycleAndReconnect`, `test/managed/fleet-alarm-lifecycle.ci` | Condition opens in `show fleet alarm` with kind/device/severity/since, clears from open list, and preserves opening/clearing in history |
+| AC-8 | Done | `TestFleetAlarmCommandRegistrationAndCompletion`, `TestShowFleetAlarmOpenFiltersPaginationAndGenericPipes`, `TestShowFleetAlarmHistoryValidationScopingAndGenericPipes`, `TestEveryCommandOnEverySurface`, `test/managed/fleet-alarm-lifecycle.ci` | Identical structured data and generic pipe behavior across CLI, SSH, MCP, REST, gRPC, and web command surface |
+| AC-9 | Done | `TestAlarmComponentLifecycleAndIdempotency`, `test/managed/fleet-alarm-lifecycle.ci` | Two components down on one device open two distinct occurrence IDs; repeated reports and reads create zero duplicate transitions |
+| AC-10 | Done | `TestAlarmResourceHighDisconnectReconnect`, `TestAlarmResourceHighMissingFiguresAndExactThreshold`, `TestManagedServerAlarmLifecycleAndReconnect`, `test/managed/fleet-alarm-lifecycle.ci` | Open `resource-high` stays open while offline, closes immediately on reconnect, requires fresh sustained samples to open a new ID; `component-down` retains original ID/since |
+| AC-11 | Done | `TestAlarmOpenKindRegistrationAndRelaySeam`, `TestAlarmExternalKindReactiveOnEventsAndTick` | `relay-not-granted` absent without `fleet-9`; external registration opens only on explicit absent grant on a relay-capable device |
+| AC-12 | Done | `TestAlarmRestartPersistenceAndDegradedRecovery`, `TestManagedServerAlarmRestartPersistenceAndDoctorDegradation`, `test/managed/fleet-alarm-history.ci` | Hub restart restores open occurrence IDs/timestamps and bounded closed history, reconciles fresh facts without inventing downtime timestamps, and records observed clears |
+| AC-13 | Done | `TestAlarmScalePaginationScopeAndCursorValidation`, `TestShowFleetAlarmOpenFiltersPaginationAndGenericPipes`, `TestShowFleetAlarmHistoryValidationScopingAndGenericPipes`, `test/managed/fleet-alarm-history.ci` | 2,000-device disconnect paginated cleanly with full authorized totals/counts, scope recheck on continuation, `retained-since`, and `truncated` flag |
+| AC-14 | Done | `TestAlarmDeclarationGraceReloadRestartAndReadd`, `TestAlarmRestartAfterRemoveAndReaddResetsGrace`, `TestManagedServerAlarmLiveReloadAndDeclarations`, `test/managed/fleet-alarm-history.ci` | Original declaration grace survives reload and restart; connect cancels pending opening; remove + re-add starts fresh interval |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests: config bounds & extraction | Done | `internal/component/plugin/hub_alarms_config_test.go`, `internal/component/config/hub_alarms_config_test.go` | `TestDefaultHubAlarmsConfig`, `TestValidateHubAlarmsConfigBounds`, `TestExtractHubConfigAlarms` |
+| Unit tests: alarm engine, kinds, persistence, scale, restart, fencing | Done | `internal/component/plugin/server/managed_alarms_test.go`, `managed_alarms_wiring_test.go` | 13 core engine tests + 6 live server wiring tests |
+| Unit tests: runtime doctor checks | Done | `internal/component/plugin/doctor/check_managed_runtime_test.go` | `TestCheckManagedAlarmWrite`, `TestCheckManagedAlarmCorrupt` |
+| Unit tests: command handlers, pipes, scoping, completion | Done | `internal/component/managed/cmd_alarms_test.go` | 5 handler/pipe/scoping test suites + `TestEveryCommandOnEverySurface` |
+| Live `.ci` functional tests | Done | `test/managed/fleet-alarm-lifecycle.ci`, `test/managed/fleet-alarm-history.ci` | Real `ze hub` + disk ZeFS + SSH CLI |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/managed/register.go` | Done | Modified (`registerAlarmCommands()`) |
+| `internal/component/plugin/server/managed_apply.go` | Done | Modified (`PrepareManagedListenersWithHistoryAndAlarms`, `ApplyManagedListeners`) |
+| `internal/component/plugin/server/managed_registry.go` | Done | Modified (alarm callbacks + session fencing) |
+| `internal/component/plugin/server/managed_serve.go` | Done | Modified (startup load/reconcile, `RunLoop`, `FlushFinal`, query accessors) |
+| `internal/component/plugin/server/managed_record_store.go` | Done | Modified (forget fencing for alarm shards) |
+| `internal/component/config/loader_extract.go` | Done | Modified (`extractHubAlarmsConfig`) |
+| `cmd/ze/hub/managed_server.go` | Done | Modified (`prepareManagedReload`, `startManagedServer`) |
+| `docs/architecture/fleet-alarms.md` | Done | Updated with config, kinds, storage, commands, and source anchors |
+| `internal/component/managed/yang/ze-managed-cmd.yang` | Done | Modified (`show fleet alarm` and `show fleet alarm history device`) |
+| `internal/component/plugin/yang/ze-plugin-conf.yang` | Done | Modified (`bus/hub/alarms`) |
+| `pkg/zefs/keys.go` | Done | Modified (`KeyFleetAlarmDevice`, `KeyFleetAlarmHub`, `FleetAlarmDevicePrefix`) |
+| `docs/architecture/fleet-config.md` | Done | Modified (`bus/hub/alarms` YANG table) |
+| `internal/component/plugin/server/managed_alarms.go` (+ `_kinds.go`, `_store.go`, `_version.go`, `register_alarms.go`) | Done | Created (split cleanly by responsibility) |
+| `internal/component/managed/cmd_alarms.go` (+ `cmd_alarms_test.go`) | Done | Created |
+| `internal/component/plugin/server/managed_alarms_test.go` (+ `managed_alarms_wiring_test.go`) | Done | Created |
+| `test/managed/fleet-alarm-lifecycle.ci` | Done | Created |
+| `test/managed/fleet-alarm-history.ci` | Done | Created |
+
+### Audit Summary
+- **Total items:** 41 (8 requirements, 8 ACs, 5 test groups, 17 planned file items + 3 extra wiring/doc categories)
+- **Done:** 41
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations: clean split of `managed_alarms*.go` files; `docs/architecture/fleet-alarms.md:9` Design decisions row preserved intact)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every condition needing attention in the estate is derived once by the hub with stable occurrence ID, device, severity, and opening time, without discovering issues device-by-device | Functional `.ci` + unit tests (`-race`) | `test/managed/fleet-alarm-lifecycle.ci` PASS (27.2s) verifying distinct `component-down` IDs (`bgp`, `iface`), idempotent repeat reports/reads, `device-offline` after `offline-delay`, and `resource-high` reconnect settling; `TestAlarmComponentLifecycleAndIdempotency` & `TestAlarmConfigSoftwareHistoryAndRetention` PASS (`-race`, 4.6s) |
+| Open alarm list and per-device history are exposed identically on every command surface (CLI, SSH, MCP, REST, gRPC, web CLI) as authorized, paginated structured data answering every pipe | Unit + surface + functional `.ci` tests | `TestEveryCommandOnEverySurface` 0 fleet failures across 8 surfaces; `TestFleetAlarmCommandRegistrationAndCompletion`, `TestShowFleetAlarmOpenFiltersPaginationAndGenericPipes`, `TestShowFleetAlarmHistoryValidationScopingAndGenericPipes` PASS (`-race`, 4.6s); `TestAlarmScalePaginationScopeAndCursorValidation` traverses 2,000 disconnected devices across bounded pages with scope rechecks; `./le --name fleetui5 cli grammar` OK (547 cmds), `command-contract` OK (579/579) |
+| Unread transitions, open occurrence identity, declaration offline grace, and bounded truncated history survive hub restart and degrade transparently on persistence/shard faults | Functional `.ci` + unit tests (`-race`) | `test/managed/fleet-alarm-history.ci` PASS (16.0s) proving declaration grace preservation across restart, unread open/clear/reopen recording, oldest-first cap truncation (`max-episodes-per-device=3`), cursor pagination, and post-restart clear; `TestAlarmRestartPersistenceAndDegradedRecovery`, `TestCheckManagedAlarmWrite`, `TestCheckManagedAlarmCorrupt` PASS (`-race`) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-ui-5-alarm-list-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md` |
+| `./le spec review check` | `review_gate: OK (37 code files, clean, hashes match tmp/review/fleet-ui-5-alarm-list-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md)` |
+| Rounds | 2 (Round 1 caught 2 BLOCKERs and 6 ISSUEs in alarm engine/restart/fencing; all fixed with regression tests in `0f0cca6dd5`; Round 2 + closure independent review CLEAN over all 41 files including `numberparse-allowlist.txt`) |
+| Reviewer lenses used | logic+wiring, security+authorization+edge-cases, persistence+restart+style-pass, spec-completeness+docs |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Re-adding a removed device across hub restart did not reset declaration generation/grace | `internal/component/plugin/server/managed_alarms.go` `ReconcileStartup` | Reset generation/grace on `!dev.declared && d.Declared` + `TestAlarmRestartAfterRemoveAndReaddResetsGrace` (`0f0cca6dd5`) |
+| 2 | BLOCKER | Unclean hub crash while connected could open `device-offline` from an older `declaredAt` | `internal/component/plugin/server/managed_alarms.go` `ReconcileStartup` | Seed `lastDisconnectedAt = now` on restart for previously connected device + `TestAlarmUncleanHubCrashWhileConnectedGrace` (`0f0cca6dd5`) |
+| 3 | ISSUE | Undeclare handling for session/telemetry alarms vs `config-diverged` | `internal/component/plugin/server/managed_alarms.go` `closeUndeclaredDeviceAlarmsLocked` | Close session/telemetry/rejected alarms while keeping `config-diverged` governed by held copy + `TestAlarmUndeclareClearsSessionTelemetryPreservesConfigDiverged` (`0f0cca6dd5`) |
+| 4 | ISSUE | Missing resource figures / zero totals and exact threshold boundary | `internal/component/plugin/server/managed_alarms.go` `OnSampleReport`, `evalResourceSubjectLocked` | Reset pending qualification on missing/zero totals without closing open alarms + `TestAlarmResourceHighMissingFiguresAndExactThreshold` (`0f0cca6dd5`) |
+| 5 | ISSUE | Hub-scoped alarm visibility check on empty fleet | `internal/component/plugin/server/managed_alarms.go` `allowsHubScopeLocked` | Probe two disjoint synthetic device names + `TestAlarmHubScopeEmptyFleetAndUnrestrictedAlarmOperator` (`0f0cca6dd5`) |
+| 6 | ISSUE | External registered alarm kinds reactive on events and `Tick` | `internal/component/plugin/server/managed_alarms.go` `evaluateExternalKindsAt` | Invoke external evaluators on fact transitions and `Tick` + `TestAlarmExternalKindReactiveOnEventsAndTick` (`0f0cca6dd5`) |
+| 7 | ISSUE | Stale-session fencing on `config-fetch`/`config-ack`/`config-held` and restart held detail | `internal/component/plugin/server/managed_registry.go`, `managed_held.go`, `managed_serve.go` | Added `activeSessionLocked`/`checkActiveSession` fencing and restart held detail lookup + `TestManagedServerAlarmSessionFencingAndRestartHeldDetail` (`0f0cca6dd5`) |
+| 8 | ISSUE | `./le repo check` flagged `internal/component/config/loader_extract.go` 32-bit parse count (3 vs 2 in `numberparse-allowlist.txt`) | `internal/le/repo/numberparse-allowlist.txt:75-76` | Updated allowlist count to 3 documenting `extractHubAlarmsConfig` (Closure Commit A; `./le repo check` now reports 0 fleet/config issues) |
+| 9 | ISSUE | Companion architecture/guide/feature/index docs lacked the new alarm keys, doctor checks, and commands | `docs/architecture/{zefs-format,doctor-and-health-checks,api/commands}.md`, `docs/guide/{fleet-config,command-reference,status}.md`, `docs/features/{cli-commands,fleet-management}.md`, `features/fleet-management.md`, `ai/INDEX.md` | Updated all pages with verified `<!-- source: ... -->` anchors in Closure Commit A |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/server/managed_alarms.go` (+ `_kinds.go`, `_store.go`, `_version.go`, `register_alarms.go`) | Yes | `ls -la`: `managed_alarms.go` (66686 B), `managed_alarms_kinds.go` (18967 B), `managed_alarms_store.go` (30155 B), `managed_alarms_version.go` (8465 B), `register_alarms.go` (333 B) |
+| `internal/component/plugin/server/managed_alarms_test.go` (+ `managed_alarms_wiring_test.go`) | Yes | `ls -la`: `managed_alarms_test.go` (67055 B), `managed_alarms_wiring_test.go` (27136 B) |
+| `internal/component/managed/cmd_alarms.go` (+ `cmd_alarms_test.go`) | Yes | `ls -la`: `cmd_alarms.go` (13848 B), `cmd_alarms_test.go` (28631 B) |
+| `internal/component/config/hub_alarms_config_test.go` & `internal/component/plugin/hub_alarms_config_test.go` | Yes | `ls -la`: `config/hub_alarms_config_test.go` (6271 B), `plugin/hub_alarms_config_test.go` (8016 B) |
+| `internal/test/fixture/misc_fixture_managed_fleet_alarms.go` (+ `register_managed_fleet_alarms.go`) | Yes | `ls -la`: `misc_fixture_managed_fleet_alarms.go` (46294 B), `register_managed_fleet_alarms.go` (372 B) |
+| `test/managed/fleet-alarm-lifecycle.ci` & `test/managed/fleet-alarm-history.ci` | Yes | `ls -la`: `fleet-alarm-lifecycle.ci` (1438 B), `fleet-alarm-history.ci` (1519 B) |
+| `website/changes/fragments/fleet-ui-5-alarm-list.md` | Yes | `ls -la`: `website/changes/fragments/fleet-ui-5-alarm-list.md` (2748 B) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4 | Alarm opens in `show fleet alarm` with kind/device/severity/since, clears from it, and records opening + clearing in history | `TestAlarmComponentLifecycleAndIdempotency` PASS (`-race`), `TestManagedServerAlarmLifecycleAndReconnect` PASS (`-race`), `test/managed/fleet-alarm-lifecycle.ci` PASS (27.2s) |
+| AC-8 | `show fleet alarm` and `show fleet alarm history device <name>` answer the same structured data and pipes across all command surfaces | `TestFleetAlarmCommandRegistrationAndCompletion` & `TestShowFleetAlarm*` PASS (`-race`, 4.6s), `TestEveryCommandOnEverySurface` 0 fleet failures across 8 surfaces, `./le --name fleetui5 cli grammar` OK (547 cmds), `command-contract` OK (579/579) |
+| AC-9 | Two components down open two distinct occurrence IDs; repeats and reads produce no transitions | `TestAlarmComponentLifecycleAndIdempotency` PASS (`-race`), `test/managed/fleet-alarm-lifecycle.ci` PASS (27.2s) |
+| AC-10 | Open `resource-high` stays open while offline, closes on reconnect, and requires fresh sustained samples to reopen; `component-down` keeps its opening time | `TestAlarmResourceHighDisconnectReconnect` & `TestAlarmResourceHighMissingFiguresAndExactThreshold` PASS (`-race`), `test/managed/fleet-alarm-lifecycle.ci` PASS (27.2s) |
+| AC-11 | `relay-not-granted` absent without `fleet-9`; external registration opens only on known absent grant on a relay-capable device | `TestAlarmOpenKindRegistrationAndRelaySeam` & `TestAlarmExternalKindReactiveOnEventsAndTick` PASS (`-race`) |
+| AC-12 | Hub restart restores open occurrence identity and bounded history, reconciles fresh facts without inventing downtime timestamps, and records observed clear | `TestAlarmRestartPersistenceAndDegradedRecovery` & `TestManagedServerAlarmRestartPersistenceAndDoctorDegradation` PASS (`-race`), `test/managed/fleet-alarm-history.ci` PASS (16.0s) |
+| AC-13 | Bounded pages with stable continuation cursor, full authorized totals/counts, scope recheck, `retained-since`, and `truncated` flag across 2,000 devices | `TestAlarmScalePaginationScopeAndCursorValidation` PASS (`-race`), `TestShowFleetAlarmOpenFiltersPaginationAndGenericPipes` & `TestShowFleetAlarmHistoryValidationScopingAndGenericPipes` PASS (`-race`), `test/managed/fleet-alarm-history.ci` PASS (16.0s) |
+| AC-14 | Unconnected declared device preserves original offline grace across reload/restart; connect cancels; remove + re-add starts fresh interval | `TestAlarmDeclarationGraceReloadRestartAndReadd`, `TestAlarmRestartAfterRemoveAndReaddResetsGrace`, `TestManagedServerAlarmLiveReloadAndDeclarations` PASS (`-race`), `test/managed/fleet-alarm-history.ci` PASS (16.0s) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Managed hub + real TLS device session + SSH CLI (`show fleet alarm`, `show fleet alarm history device`, disconnect/reconnect, `resource-high` settling, pipes) | `test/managed/fleet-alarm-lifecycle.ci` | Read file lines 1-19 (`le test fixture managed/fleet-alarm-lifecycle`, `option=storage:value=disk`); ran PASS (27.2s) |
+| Managed hub + disk ZeFS + hub restart + SSH CLI (declaration grace survival, unread open/clear/reopen, `max-episodes-per-device=3` truncation, cursor pagination, post-restart clear) | `test/managed/fleet-alarm-history.ci` | Read file lines 1-20 (`le test fixture managed/fleet-alarm-history`, `option=storage:value=disk`); ran PASS (16.0s) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| Dep-1 (`fleet-1` device registry and change notifications) | confirmed | `spec-fleet-1-device-registry` closed 2026-11-25; `managed_registry.go` (`admitOnListener`, `disconnectDevice`) and `managed_apply.go` (`ApplyManagedListeners`) feed `ManagedAlarmStore` (`TestManagedServerAlarmLiveReloadAndDeclarations` PASS) |
+| Dep-2 (`fleet-4` health and inventory reports) | confirmed | `spec-fleet-4-inventory-health` closed 2026-11-26; `recordHealthReport`/`recordInventoryReport` in `managed_registry.go` preserve latest timestamped snapshots across disconnect and feed `OnHealthReport`/`OnInventoryReport` (`TestManagedServerAlarmLifecycleAndReconnect` PASS) |
+| Dep-3 (`fleet-8` metric sampling and history health) | confirmed | `spec-fleet-8-metric-history` closed 2026-11-27; `recordSampleReport` in `managed_serve.go` and `OnHealthChanged` in `managed_history.go` feed `OnSampleReport` and `OnHistoryHealth` (`TestManagedServerAlarmHistoryFullAndForget` PASS) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/fleet-alarms.md` & `fleet-config.md` (`bus/hub/alarms`, 8 kinds, ZeFS keys, commands) | Anchors to `ze-plugin-conf.yang`, `ze-managed-cmd.yang`, `pkg/zefs/keys.go`, `types.go`, `loader_extract.go`, `managed_alarms*.go`, `cmd_alarms.go`, `check_managed_runtime.go` | Yes (`./le doc check all`: 0 fleet/alarm anchor errors) |
+| `docs/architecture/zefs-format.md`, `doctor-and-health-checks.md`, `api/commands.md` | Anchors to `pkg/zefs/keys.go`, `check_managed_runtime.go`, `register_external.go`, `cmd_alarms.go`, `managed_alarms.go` | Yes (`./le doc check all`: 0 fleet/alarm anchor errors) |
+| `docs/guide/fleet-config.md`, `command-reference.md`, `status.md`, `docs/features/cli-commands.md`, `fleet-management.md`, `features/fleet-management.md`, `ai/INDEX.md` | Anchors to `cmd_alarms.go`, `managed_alarms*.go`, `ze-managed-cmd.yang`, `ze-plugin-conf.yang`, `check_managed_runtime.go`, `test/managed/fleet-alarm-*.ci` | Yes (`./le doc check all`: 0 fleet/alarm anchor errors; `git grep "spec-fleet-ui-5-alarm-list\.md"` cleared outside protected `fleet-alarms.md:9` decision row and `retired_selector.go:167`) |
+| `website/changes/fragments/fleet-ui-5-alarm-list.md` | Follows `website/changes/fragments/README.md` (`spec: fleet-ui-5-alarm-list`, `topic: Fleet`, `feature: fleet-management`, six required headings in order) | Yes (verified against `website/data/topics.json` and `website/changes/fragments/fleet-8-metric-history.md`) |
