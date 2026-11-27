@@ -2695,16 +2695,51 @@ returns an error. An unknown peer name returns "peer not found".
 ### show system profile
 
 ```
-ze show system profile heap                     # Heap profile
+ze show system profile heap                     # Heap profile (base64 pprof)
 ze show system profile cpu duration 10s         # CPU profile (1s-60s)
 ze show system profile goroutine                # Goroutine profile
 ze show system profile allocs                   # Allocation profile
+ze show system profile mutex                    # Contended mutex profile
+ze show system profile block                    # Blocking wait profile
+ze cli -c "show system profile type heap | summary"   # Top 32 functions in JSON
+ze cli -c "show system profile type mutex | summary"  # Top contended mutex stacks
 ```
 
-Returns base64-encoded pprof data. CPU profiling is mutex-protected:
-concurrent requests return an error.
+Bare output returns base64-encoded pprof bytes (`format: "pprof-base64"`) for
+`go tool pprof`. Pipe through `| summary` to decode the profile inside the
+daemon and return up to 32 top functions sorted by cumulative then flat total
+(`format: "summary"`, `sample-type`, `sample-unit`, `total`, `top-functions`,
+and `truncated`). `mutex` responses also include `sampling-rate`. CPU profiling
+is mutex-protected: concurrent requests return an error.
 
 <!-- source: internal/component/cmd/show/profile.go -- handleShowSystemProfile -->
+<!-- source: internal/component/cmd/show/profile_summary.go -- summarizePprof -->
+
+### show system trace
+
+```
+ze show system trace                  # Flight-recorder status and snapshot metadata
+ze show system trace id <id>          # Fetch one snapshot (go-trace-base64)
+```
+
+Without `id`, returns recorder status (`enabled`, `min-age`, `max-bytes`,
+`snapshot-count`, `max-snapshots`) and metadata for retained snapshots without
+raw trace bytes. With `id <id>`, returns that snapshot's metadata plus
+`format: "go-trace-base64"` and base64-encoded Go execution trace bytes for
+`go tool trace`.
+
+### request system trace snapshot
+
+```
+ze request system trace snapshot      # Capture a flight-recorder snapshot now
+```
+
+Freezes the daemon's rolling Go execution flight recorder into the 4-slot
+in-memory snapshot ring immediately (bypassing the automatic capture cooldown)
+and returns the captured snapshot's `id`, `captured-at`, `trigger`, `detail`,
+and `bytes`.
+
+<!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
 
 ### show system memory
 
@@ -4867,10 +4902,11 @@ active after enabling debug or applying a profile.
 | `show fleet sample latest` | read-only | Latest metric observations reported by authorized managed devices on a hub (`\| device`, `\| label`, `\| figure`, `\| reduce`, `\| rank`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container latest --> |
 | `show fleet sample series` | read-only | Dual-resolution metric history series across authorized managed devices over a half-open UTC range (`\| device`, `\| label`, `\| figure`, `\| from`, `\| until`, `\| reduce`, `\| points`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container series --> |
 | `show fleet sample storage` | read-only | Hub-wide metric history budgets, effective retention, checkpoint health, and caller-scoped per-device byte usage <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container storage --> |
-| `show fleet alarm` | read-only | Open hub-derived fleet alarms visible to the caller, with complete authorized counts and continuation pagination (`\| severity`, `\| kind`, `\| device`, `\| cursor`, `\| limit`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container alarm --> |
-| `show fleet alarm history device <name>` | read-only | Retained alarm openings and clearings for one authorized managed device, with `retained-since`, `truncated`, and pagination (`\| cursor`, `\| limit`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container history --> |
+| `show fleet alarm` | read-only | Open hub-derived fleet alarms visible to the caller, with derived `hidden-behind` cause IDs, complete authorized counts, and continuation pagination (`\| severity`, `\| kind`, `\| device`, `\| hidden true\|false`, `\| cursor`, `\| limit`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container alarm --> |
+| `show fleet alarm history device <name>` | read-only | Retained alarm openings and clearings for one authorized managed device, with derived cause-overlap fields (`hidden`, `hidden-behind`, `hidden-unknown`), `retained-since`, `truncated`, and pagination (`\| cursor`, `\| limit`) <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container history --> |
 | `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
 | `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
+| `show event recent [namespace <name>] [count <n>]` | read-only | Show recent events from the global event ring with `timestamp`, `namespace`, `event-type`, and optional `source`, `subject`, and `direction` <!-- source: internal/component/cmd/show/show.go -- handleShowEventRecent --> |
 
 ---
 

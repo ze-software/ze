@@ -53,7 +53,9 @@ const (
 	alarmHubScopeProbeAlpha = "z0-ze-hub-scope-probe-a"
 	alarmHubScopeProbeDigit = "0z-ze-hub-scope-probe-b"
 
-	alarmRestartFix = "restart the query without a cursor to start a fresh snapshot"
+	alarmRestartFix     = "restart the query without a cursor to start a fresh snapshot"
+	alarmFilterChanged  = "alarm query filters changed between continuation pages"
+	alarmFilterBoundWhy = "a continuation cursor is bound to the severity, kind, device, and hidden filters of the first page"
 )
 
 // AlarmOccurrence is one currently open alarm condition derived by the hub.
@@ -86,6 +88,7 @@ type AlarmListQuery struct {
 	Severity string
 	Kind     string
 	Device   string
+	Hidden   *bool
 	Limit    int
 	Cursor   string
 }
@@ -105,17 +108,20 @@ type AlarmListPage struct {
 // AlarmHistoryEvent is one past or currently open alarm occurrence within the
 // retention period.
 type AlarmHistoryEvent struct {
-	ID        string        `json:"id"`
-	Kind      string        `json:"kind"`
-	Severity  AlarmSeverity `json:"severity"`
-	Scope     AlarmScope    `json:"scope"`
-	Device    string        `json:"device,omitempty"`
-	Subject   string        `json:"subject,omitempty"`
-	Summary   string        `json:"summary"`
-	Detail    string        `json:"detail,omitempty"`
-	Opened    time.Time     `json:"opened"`
-	Cleared   bool          `json:"cleared"`
-	ClearedAt time.Time     `json:"cleared-at,omitzero"`
+	ID            string        `json:"id"`
+	Kind          string        `json:"kind"`
+	Severity      AlarmSeverity `json:"severity"`
+	Scope         AlarmScope    `json:"scope"`
+	Device        string        `json:"device,omitempty"`
+	Subject       string        `json:"subject,omitempty"`
+	Summary       string        `json:"summary"`
+	Detail        string        `json:"detail,omitempty"`
+	Opened        time.Time     `json:"opened"`
+	Cleared       bool          `json:"cleared"`
+	ClearedAt     time.Time     `json:"cleared-at,omitzero"`
+	Hidden        bool          `json:"hidden,omitempty"`
+	HiddenBehind  string        `json:"hidden-behind,omitempty"`
+	HiddenUnknown bool          `json:"hidden-unknown,omitempty"`
 }
 
 // AlarmHistoryQuery filters and paginates a device's alarm history query.
@@ -210,6 +216,14 @@ type alarmCursorPayload struct {
 	Offset     int    `json:"o"`
 }
 
+type alarmHiddenFilter int8
+
+const (
+	alarmHiddenFilterAny   alarmHiddenFilter = 0
+	alarmHiddenFilterFalse alarmHiddenFilter = 1
+	alarmHiddenFilterTrue  alarmHiddenFilter = 2
+)
+
 type alarmOpenSnapshot struct {
 	id                string
 	createdAt         time.Time
@@ -222,6 +236,7 @@ type alarmOpenSnapshot struct {
 	filterSeverity    AlarmSeverity
 	filterKind        string
 	filterDevice      string
+	filterHidden      alarmHiddenFilter
 	rows              []AlarmOccurrence
 	counts            AlarmCounts
 }
@@ -337,6 +352,12 @@ func (s *ManagedAlarmStore) currentTime() time.Time {
 		return s.now().UTC()
 	}
 	return time.Now().UTC()
+}
+
+// ValidateRegistry validates the complete alarm cause graph in s's kind
+// registry. Safe for concurrent use.
+func (s *ManagedAlarmStore) ValidateRegistry() error {
+	return s.registry.ValidateCauses()
 }
 
 // Config returns the active hub alarm configuration. Safe for concurrent use.
@@ -1464,7 +1485,14 @@ func (s *ManagedAlarmStore) closeSettlingOccurrencesLocked(dev *alarmDevice, at 
 			toClose = append(toClose, k)
 			continue
 		}
-		if spec, ok := s.registry.Lookup(k.kind); ok && spec.Settles {
+		spec, ok := s.registry.Lookup(k.kind)
+		if !ok {
+			continue
+		}
+		if !spec.Settles {
+			continue
+		}
+		if s.registry.CauseDepths(k.kind)[AlarmKindDeviceOffline] > 0 {
 			toClose = append(toClose, k)
 		}
 	}
@@ -1582,6 +1610,8 @@ func (s *ManagedAlarmStore) QueryOpen(scope FleetDeviceScope, query AlarmListQue
 		limit = AlarmPageMax
 	}
 
+	hiddenFilter := encodeAlarmHiddenFilter(query.Hidden)
+
 	now := s.currentTime()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1590,17 +1620,15 @@ func (s *ManagedAlarmStore) QueryOpen(scope FleetDeviceScope, query AlarmListQue
 	degraded, degradedReason := s.degradedStatusLocked()
 
 	if query.Cursor != "" {
-		return s.queryOpenContinuationLocked(scope, severityFilter, query, limit, now, degraded, degradedReason)
+		return s.queryOpenContinuationLocked(scope, severityFilter, hiddenFilter, query, limit, now, degraded, degradedReason)
 	}
 
 	hubAllowed := s.allowsHubScopeLocked(scope)
-	rows := make([]AlarmOccurrence, 0)
+	authorizedRows := make([]AlarmOccurrence, 0)
 
-	if hubAllowed && query.Device == "" {
+	if hubAllowed {
 		for _, occ := range s.hubOpen {
-			if matchesOpenFilters(occ, severityFilter, query.Kind, query.Device) {
-				rows = append(rows, *occ)
-			}
+			authorizedRows = append(authorizedRows, *occ)
 		}
 	}
 
@@ -1610,14 +1638,18 @@ func (s *ManagedAlarmStore) QueryOpen(scope FleetDeviceScope, query AlarmListQue
 			continue
 		}
 		authorizedDevices = append(authorizedDevices, name)
-		if query.Device != "" && name != query.Device {
-			continue
-		}
 		dev := s.devices[name]
 		for _, occ := range dev.open {
-			if matchesOpenFilters(occ, severityFilter, query.Kind, query.Device) {
-				rows = append(rows, *occ)
-			}
+			authorizedRows = append(authorizedRows, *occ)
+		}
+	}
+
+	applyAlarmCauses(s.registry, authorizedRows)
+
+	rows := make([]AlarmOccurrence, 0, len(authorizedRows))
+	for i := range authorizedRows {
+		if matchesOpenFilters(&authorizedRows[i], severityFilter, query.Kind, query.Device, hiddenFilter) {
+			rows = append(rows, authorizedRows[i])
 		}
 	}
 
@@ -1648,6 +1680,7 @@ func (s *ManagedAlarmStore) QueryOpen(scope FleetDeviceScope, query AlarmListQue
 			filterSeverity:    severityFilter,
 			filterKind:        query.Kind,
 			filterDevice:      query.Device,
+			filterHidden:      hiddenFilter,
 			rows:              rows,
 			counts:            counts,
 		}
@@ -1670,7 +1703,7 @@ func (s *ManagedAlarmStore) QueryOpen(scope FleetDeviceScope, query AlarmListQue
 	}, nil
 }
 
-func (s *ManagedAlarmStore) queryOpenContinuationLocked(scope FleetDeviceScope, severityFilter AlarmSeverity, query AlarmListQuery, limit int, now time.Time, degraded bool, degradedReason string) (AlarmListPage, error) {
+func (s *ManagedAlarmStore) queryOpenContinuationLocked(scope FleetDeviceScope, severityFilter AlarmSeverity, hiddenFilter alarmHiddenFilter, query AlarmListQuery, limit int, now time.Time, degraded bool, degradedReason string) (AlarmListPage, error) {
 	token, err := decodeAlarmCursor(query.Cursor, alarmCursorTypeOpen)
 	if err != nil {
 		return AlarmListPage{}, err
@@ -1690,22 +1723,16 @@ func (s *ManagedAlarmStore) queryOpenContinuationLocked(scope FleetDeviceScope, 
 			alarmRestartFix)
 	}
 	if snap.filterSeverity != severityFilter {
-		return AlarmListPage{}, opererr.New(
-			"alarm query filters changed between continuation pages",
-			"a continuation cursor is bound to the severity, kind, and device filters of the first page",
-			alarmRestartFix)
+		return AlarmListPage{}, opererr.New(alarmFilterChanged, alarmFilterBoundWhy, alarmRestartFix)
 	}
 	if snap.filterKind != query.Kind {
-		return AlarmListPage{}, opererr.New(
-			"alarm query filters changed between continuation pages",
-			"a continuation cursor is bound to the severity, kind, and device filters of the first page",
-			alarmRestartFix)
+		return AlarmListPage{}, opererr.New(alarmFilterChanged, alarmFilterBoundWhy, alarmRestartFix)
 	}
 	if snap.filterDevice != query.Device {
-		return AlarmListPage{}, opererr.New(
-			"alarm query filters changed between continuation pages",
-			"a continuation cursor is bound to the severity, kind, and device filters of the first page",
-			alarmRestartFix)
+		return AlarmListPage{}, opererr.New(alarmFilterChanged, alarmFilterBoundWhy, alarmRestartFix)
+	}
+	if snap.filterHidden != hiddenFilter {
+		return AlarmListPage{}, opererr.New(alarmFilterChanged, alarmFilterBoundWhy, alarmRestartFix)
 	}
 	if !s.scopePermitsOpenSnapshotLocked(scope, snap) {
 		return AlarmListPage{}, opererr.New(
@@ -1818,6 +1845,7 @@ func (s *ManagedAlarmStore) QueryHistory(scope FleetDeviceScope, query AlarmHist
 				retainedSince = dev.earliestRetained
 			}
 		}
+		applyAlarmHistoryCauses(s.registry, events, retainedSince)
 	}
 
 	slices.SortFunc(events, compareAlarmHistoryEvents)
@@ -2064,17 +2092,230 @@ func (s *ManagedAlarmStore) ensureSnapshotCapacityLocked(now time.Time) {
 	}
 }
 
-func matchesOpenFilters(occ *AlarmOccurrence, severity AlarmSeverity, kind, device string) bool {
-	if severity != AlarmSeverityUnspecified && occ.Severity != severity {
+func encodeAlarmHiddenFilter(hidden *bool) alarmHiddenFilter {
+	if hidden == nil {
+		return alarmHiddenFilterAny
+	}
+	if *hidden {
+		return alarmHiddenFilterTrue
+	}
+	return alarmHiddenFilterFalse
+}
+
+func isBetterAlarmCause(depth int, id string, bestDepth int, bestID string) bool {
+	if bestID == "" {
+		return true
+	}
+	if depth < bestDepth {
+		return true
+	}
+	if depth > bestDepth {
 		return false
 	}
-	if kind != "" && occ.Kind != kind {
+	return id < bestID
+}
+
+// applyAlarmCauses computes HiddenBehind for each device-scoped occurrence in
+// rows from the registered cause graph. Matching is strictly same-device;
+// hub-scoped occurrences (Device == "") are neither hidden nor causes. Among
+// open causes on the same device, the minimum breadth-first depth wins, with
+// ties broken by smallest occurrence ID in byte order. Independent of slice
+// ordering.
+func applyAlarmCauses(reg *AlarmKindRegistry, rows []AlarmOccurrence) {
+	byDevice := make(map[string][]int)
+	for i := range rows {
+		rows[i].HiddenBehind = ""
+		if rows[i].Device == "" {
+			continue
+		}
+		byDevice[rows[i].Device] = append(byDevice[rows[i].Device], i)
+	}
+	if reg == nil {
+		return
+	}
+
+	depthsByKind := make(map[string]map[string]int)
+	getDepths := func(kind string) map[string]int {
+		if d, ok := depthsByKind[kind]; ok {
+			return d
+		}
+		d := reg.CauseDepths(kind)
+		depthsByKind[kind] = d
+		return d
+	}
+
+	for _, indices := range byDevice {
+		if len(indices) <= 1 {
+			continue
+		}
+		for _, idx := range indices {
+			row := &rows[idx]
+			depths := getDepths(row.Kind)
+			if len(depths) == 0 {
+				continue
+			}
+			bestDepth := 0
+			bestID := ""
+			for _, candIdx := range indices {
+				if candIdx == idx {
+					continue
+				}
+				cand := &rows[candIdx]
+				depth, ok := depths[cand.Kind]
+				if !ok {
+					continue
+				}
+				if isBetterAlarmCause(depth, cand.ID, bestDepth, bestID) {
+					bestDepth = depth
+					bestID = cand.ID
+				}
+			}
+			row.HiddenBehind = bestID
+		}
+	}
+}
+
+func isZeroDurationAlarmEvent(ev *AlarmHistoryEvent) bool {
+	if !ev.Cleared {
 		return false
 	}
-	if device != "" && occ.Device != device {
+	return ev.ClearedAt.Equal(ev.Opened)
+}
+
+func alarmPointInInterval(t time.Time, ev *AlarmHistoryEvent) bool {
+	if t.Before(ev.Opened) {
 		return false
+	}
+	if !ev.Cleared {
+		return true
+	}
+	return t.Before(ev.ClearedAt)
+}
+
+func alarmIntervalsOverlap(a, b *AlarmHistoryEvent) bool {
+	aPoint := isZeroDurationAlarmEvent(a)
+	bPoint := isZeroDurationAlarmEvent(b)
+	if aPoint {
+		if bPoint {
+			return a.Opened.Equal(b.Opened)
+		}
+		return alarmPointInInterval(a.Opened, b)
+	}
+	if bPoint {
+		return alarmPointInInterval(b.Opened, a)
+	}
+	if b.Cleared {
+		if !a.Opened.Before(b.ClearedAt) {
+			return false
+		}
+	}
+	if a.Cleared {
+		if !b.Opened.Before(a.ClearedAt) {
+			return false
+		}
 	}
 	return true
+}
+
+// applyAlarmHistoryCauses derives Hidden, HiddenBehind, and HiddenUnknown at
+// query time for a device's retained open and closed history events. No hidden
+// state is persisted in storage. retainedSince is the effective lower bound of
+// complete closed-episode retention (max of the retention-day horizon and any
+// cap-eviction boundary); any caused event opened earlier than retainedSince
+// with no overlapping retained cause is marked HiddenUnknown.
+func applyAlarmHistoryCauses(reg *AlarmKindRegistry, events []AlarmHistoryEvent, retainedSince time.Time) {
+	for i := range events {
+		events[i].Hidden = false
+		events[i].HiddenBehind = ""
+		events[i].HiddenUnknown = false
+	}
+	if len(events) == 0 {
+		return
+	}
+	if reg == nil {
+		return
+	}
+
+	depthsByKind := make(map[string]map[string]int)
+	getDepths := func(kind string) map[string]int {
+		if d, ok := depthsByKind[kind]; ok {
+			return d
+		}
+		d := reg.CauseDepths(kind)
+		depthsByKind[kind] = d
+		return d
+	}
+
+	for i := range events {
+		ev := &events[i]
+		if ev.Device == "" {
+			continue
+		}
+		depths := getDepths(ev.Kind)
+		if len(depths) == 0 {
+			continue
+		}
+		bestDepth := 0
+		bestID := ""
+		for j := range events {
+			if i == j {
+				continue
+			}
+			cand := &events[j]
+			if cand.Device != ev.Device {
+				continue
+			}
+			depth, ok := depths[cand.Kind]
+			if !ok {
+				continue
+			}
+			if !alarmIntervalsOverlap(ev, cand) {
+				continue
+			}
+			if isBetterAlarmCause(depth, cand.ID, bestDepth, bestID) {
+				bestDepth = depth
+				bestID = cand.ID
+			}
+		}
+		if bestID != "" {
+			ev.Hidden = true
+			ev.HiddenBehind = bestID
+			continue
+		}
+		if !retainedSince.IsZero() {
+			if ev.Opened.Before(retainedSince) {
+				ev.HiddenUnknown = true
+			}
+		}
+	}
+}
+
+func matchesOpenFilters(occ *AlarmOccurrence, severity AlarmSeverity, kind, device string, hiddenFilter alarmHiddenFilter) bool {
+	if severity != AlarmSeverityUnspecified {
+		if occ.Severity != severity {
+			return false
+		}
+	}
+	if kind != "" {
+		if occ.Kind != kind {
+			return false
+		}
+	}
+	if device != "" {
+		if occ.Device != device {
+			return false
+		}
+	}
+	switch hiddenFilter {
+	case alarmHiddenFilterAny:
+		return true
+	case alarmHiddenFilterFalse:
+		return occ.HiddenBehind == ""
+	case alarmHiddenFilterTrue:
+		return occ.HiddenBehind != ""
+	default:
+		panic("BUG: server: unknown alarmHiddenFilter")
+	}
 }
 
 func computeAlarmCounts(rows []AlarmOccurrence) AlarmCounts {

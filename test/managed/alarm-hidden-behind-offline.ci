@@ -1,0 +1,15 @@
+# QUESTION: Does a real ze hub hide a device's open component-down alarm behind
+# device-offline while the device is disconnected, filter open alarms with
+# | hidden true and | hidden false while refusing invalid arguments, restore
+# visibility with the original ID and Since on reconnect, and mark the overlap
+# in alarm history?
+# WHY NOT A UNIT TEST: TLS managed-client disconnect/reconnect, offline-delay
+# expiry, hub-side alarm cause derivation, history overlap projection, and SSH
+# CLI pipe parsing and JSON rendering run end to end through the real ze hub
+# daemon and its disk ZeFS store.
+# VALIDATES: fleet-ui-8 AC-1, AC-2, AC-11.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/alarm-hidden-behind-offline $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: alarm hidden-behind-offline hid component-down behind device-offline while disconnected, supported hidden true/false pipes, and restored original Since on reconnect

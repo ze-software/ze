@@ -1372,7 +1372,7 @@ The store now has the cached config. On subsequent boots, the config itself prov
 | `bus/hub/history/retention-days` | uint8 (`1..7`, default `7`) | Maximum coarse history retention in days |
 | `bus/hub/history/device-budget-bytes` | uint64 (`4096..max`, default `1048576`) | Hard persisted byte cap per managed device |
 | `bus/hub/history/hub-budget-bytes` | uint64 (`4096..max`, default `2147483648`) | Hard total persisted byte cap across the hub |
-| `bus/hub/alarms` | container | Hub-derived fleet alarm thresholds, delays, and episode history retention ([fleet-alarms.md](fleet-alarms.md)) |
+| `bus/hub/alarms` | container | Hub-derived fleet alarm thresholds, delays, same-device cause hiding (`hidden-behind` and `\| hidden true\|false`), and episode history retention ([fleet-alarms.md](fleet-alarms.md)) |
 | `bus/hub/alarms/offline-delay` | uint32 (`1..86400`, default `300`) | Grace delay in seconds after declaration or disconnect before opening `device-offline` |
 | `bus/hub/alarms/resource-cpu-percent` | uint8 (`1..100`, default `90`) | CPU usage percent threshold at or above which sustained readings open `resource-high` |
 | `bus/hub/alarms/resource-memory-percent` | uint8 (`1..100`, default `90`) | Memory usage percent threshold at or above which sustained readings open `resource-high` |

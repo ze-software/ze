@@ -723,6 +723,8 @@ show fleet sample latest | label site=lon | reduce
 show fleet sample series | figure cpu-used | label site=lon | from 2026-11-24T00:00:00Z | until 2026-11-25T00:00:00Z | reduce | points 300
 show fleet sample storage
 show fleet alarm
+show fleet alarm | hidden false
+show fleet alarm | hidden true
 show fleet alarm | severity critical | limit 100
 show fleet alarm | kind device-offline | device edge-01
 show fleet alarm history device edge-01
@@ -755,14 +757,23 @@ Each open alarm carries a stable occurrence identifier and opening timestamp
 preserved across repeat reports, reads, disconnects, and hub restarts. For a
 declared device that has never connected, `offline-delay` runs from its
 declaration time across reloads and restarts; once a device connects, later
-disconnects start a fresh grace interval from disconnect time. Open
-`resource-high` occurrences stay open while a device is offline, close on
-reconnect, and require fresh post-reconnect samples spanning `resource-duration`
+disconnects start a fresh grace interval from disconnect time. While a device is
+offline, its stale `component-down`, `component-degraded`, and `resource-high`
+alarms stay open and carry `hidden-behind` naming the open `device-offline`
+alarm identifier, whereas `config-diverged`, `config-rejected`,
+`software-behind`, and `history-full` remain visible. Use
+`show fleet alarm | hidden false` to view only visible alarms and
+`show fleet alarm | hidden true` to view only alarms hidden behind an open
+cause. When the device reconnects and `device-offline` clears, `component-down`
+and `component-degraded` lose `hidden-behind` and keep their original `since` if
+the component is still unhealthy; open `resource-high` occurrences close on
+reconnect and require fresh post-reconnect samples spanning `resource-duration`
 to open a new occurrence. Both alarm commands return bounded pages (up to 1,024
 open rows or 512 history events) with snapshot-bound `cursor` tokens, full
-authorized totals and counts, and `retained-since` / `truncated` history bounds;
-see [fleet-alarms.md](../architecture/fleet-alarms.md) for the complete alarm
-model.
+authorized totals and counts (`visible` and `hidden`), and `retained-since` /
+`truncated` history bounds with derived `hidden`, `hidden-behind`, and
+`hidden-unknown` overlap markers; see
+[fleet-alarms.md](../architecture/fleet-alarms.md) for the complete alarm model.
 
 Devices that have not yet sent a report appear explicitly with `reported: false`
 and `status: not-reported` (and are counted separately under `unreported` in

@@ -1,8 +1,9 @@
-// VALIDATES: fleet-ui-5 AC-4, AC-8, AC-9, AC-13 and local device visibility
-// scoping for show fleet alarm and show fleet alarm history device.
+// VALIDATES: fleet-ui-5 AC-4, AC-8, AC-9, AC-13, fleet-ui-8 AC-10, AC-11, and
+// local device visibility scoping for show fleet alarm and show fleet alarm
+// history device.
 // Exercises command registration (shapes, columns, pipe filters, RPC handlers,
-// Tab completion), pipe parsing and validation refusals, pagination cursors,
-// generic pipe composition via command.ApplyPipes and
+// Tab completion), pipe parsing and validation refusals, hidden cause filtering,
+// pagination cursors, generic pipe composition via command.ApplyPipes and
 // command.ProcessPipesDefaultFormatChecked, and RBAC fail-closed device
 // scoping through a real pluginserver.Dispatcher and ManagedServer.
 // PREVENTS: missing command or pipe registration, parent pipe filter leakage
@@ -113,10 +114,11 @@ func TestFleetAlarmCommandRegistrationAndCompletion(t *testing.T) {
 	assert.Equal(t, command.ColumnOrder{
 		"id", "kind", "severity", "scope", "device",
 		"subject", "summary", "detail", "opened", "cleared", "cleared-at",
+		"hidden", "hidden-behind", "hidden-unknown",
 	}, histCols[1])
 
 	openFilters := command.PipeFiltersForCommand(fleetAlarmPath)
-	require.Len(t, openFilters, 5)
+	require.Len(t, openFilters, 6)
 	openFilterArgs := make(map[string]command.PipeArgKind, len(openFilters))
 	for _, f := range openFilters {
 		openFilterArgs[f.Name] = f.Argument
@@ -126,6 +128,7 @@ func TestFleetAlarmCommandRegistrationAndCompletion(t *testing.T) {
 		pipeOpSeverity: command.ArgText,
 		pipeOpKind:     command.ArgText,
 		pipeOpDevice:   command.ArgText,
+		pipeOpHidden:   command.ArgText,
 		pipeOpCursor:   command.ArgText,
 		pipeOpLimit:    command.ArgCount,
 	}, openFilterArgs)
@@ -154,11 +157,13 @@ func TestFleetAlarmCommandRegistrationAndCompletion(t *testing.T) {
 		{fleetAlarmPath + " | sev", []string{"severity"}},
 		{fleetAlarmPath + " | kin", []string{"kind"}},
 		{fleetAlarmPath + " | dev", []string{"device"}},
+		{fleetAlarmPath + " | hid", []string{"hidden"}},
 		{fleetAlarmPath + " | cur", []string{"cursor"}},
 		{fleetAlarmPath + " | lim", []string{"limit"}},
 		{fleetAlarmHistoryPath + " edge-01 | cur", []string{"cursor"}},
 		{fleetAlarmHistoryPath + " edge-01 | lim", []string{"limit"}},
 		{fleetAlarmHistoryPath + " edge-01 | sev", nil},
+		{fleetAlarmHistoryPath + " edge-01 | hid", nil},
 	} {
 		var got []string
 		for _, s := range completer.Complete(tc.line) {
@@ -686,4 +691,314 @@ func TestShowFleetAlarmHistoryValidationScopingAndGenericPipes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusError, nilHistResp.Status)
 	assert.Contains(t, nilHistResp.Error, "unknown device")
+}
+
+// TestAlarmShowHiddenFilter proves that show fleet alarm exposes hidden-behind
+// on open alarms hidden behind a same-device cause, filters cleanly with
+// | hidden true and | hidden false while keeping | kind queries intact, rejects
+// missing/invalid/conflicting hidden values and changed-filter cursors,
+// composes with generic pipes, preserves original Since when a cause clears,
+// and marks corresponding alarm history rows hidden.
+//
+// VALIDATES: fleet-ui-8 AC-10, AC-11.
+// PREVENTS: hidden pipe misregistration, invalid hidden values silently
+// returning unfiltered or empty rows, cursor reuse across changed hidden
+// filters, lost Since timestamps when a cause clears, or missing history hidden
+// annotations.
+func TestAlarmShowHiddenFilter(t *testing.T) {
+	const (
+		hiddenTrueLine  = fleetAlarmPath + " | hidden true"
+		hiddenFalseLine = fleetAlarmPath + " | hidden false"
+	)
+
+	base := time.Now().UTC().Truncate(time.Second)
+	clk := newTestStepClock(base)
+	addr := startAlarmCommandsServer(t, clk, "edge-01")
+	server := registryDispatcher(t)
+	ctx := &pluginserver.CommandContext{Server: server}
+
+	alarms, err := pluginserver.ManagedAlarms()
+	require.NoError(t, err)
+
+	// 1. Connect edge-01 and open component-down (bgp) while connected.
+	mcEdge1 := connectReportCommandClient(t, addr, "edge-01")
+	sendTestHealth(t, mcEdge1, fleet.HealthReport{
+		Status:    fleet.HealthStatusDown,
+		CheckedAt: base.Format(time.RFC3339),
+		Components: []fleet.HealthComponent{
+			{Name: "bgp", Status: fleet.HealthStatusDown, Reason: "session down", CheckedAt: base.Format(time.RFC3339)},
+		},
+	})
+
+	initialPage := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, fleetAlarmPath)
+	require.Equal(t, 1, initialPage.Total)
+	require.Len(t, initialPage.Alarms, 1)
+	compDownID := initialPage.Alarms[0].ID
+	compDownSince := initialPage.Alarms[0].Since
+	assert.Equal(t, pluginserver.AlarmKindComponentDown, initialPage.Alarms[0].Kind)
+	assert.Empty(t, initialPage.Alarms[0].HiddenBehind)
+
+	// 2. Disconnect edge-01 and advance past offline-delay so device-offline
+	// opens and hides component-down behind it.
+	clk.Advance(5 * time.Second)
+	require.NoError(t, mcEdge1.Close())
+	waitDeviceDisconnected(t, "edge-01")
+
+	offlineDelay := time.Duration(plugin.DefaultHubAlarmsConfig().OfflineDelaySeconds+1) * time.Second
+	clk.Advance(offlineDelay)
+	alarms.Tick(clk.Now())
+
+	// Unfiltered show fleet alarm returns both device-offline (shown) and
+	// component-down (hidden behind device-offline).
+	unfiltered := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, fleetAlarmPath)
+	require.Equal(t, 2, unfiltered.Total)
+	require.Len(t, unfiltered.Alarms, 2)
+	assert.Equal(t, 2, unfiltered.Counts.Total)
+	assert.Equal(t, 1, unfiltered.Counts.Visible)
+	assert.Equal(t, 1, unfiltered.Counts.Hidden)
+
+	var (
+		offlineOcc  pluginserver.AlarmOccurrence
+		compDownOcc pluginserver.AlarmOccurrence
+		foundOff    bool
+		foundComp   bool
+	)
+	for _, a := range unfiltered.Alarms {
+		switch a.Kind {
+		case pluginserver.AlarmKindDeviceOffline:
+			offlineOcc = a
+			foundOff = true
+		case pluginserver.AlarmKindComponentDown:
+			compDownOcc = a
+			foundComp = true
+		}
+	}
+	require.True(t, foundOff, "expected device-offline in unfiltered alarm list")
+	require.True(t, foundComp, "expected component-down in unfiltered alarm list")
+	assert.Empty(t, offlineOcc.HiddenBehind)
+	assert.Equal(t, compDownID, compDownOcc.ID)
+	assert.Equal(t, compDownSince, compDownOcc.Since)
+	assert.Equal(t, offlineOcc.ID, compDownOcc.HiddenBehind)
+
+	// 3. | hidden true returns only component-down with HiddenBehind == offline.ID.
+	hiddenOnly := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, hiddenTrueLine)
+	require.Equal(t, 1, hiddenOnly.Total)
+	require.Len(t, hiddenOnly.Alarms, 1)
+	assert.Equal(t, 1, hiddenOnly.Counts.Total)
+	assert.Equal(t, 1, hiddenOnly.Counts.Hidden)
+	assert.Equal(t, 0, hiddenOnly.Counts.Visible)
+	assert.Equal(t, pluginserver.AlarmKindComponentDown, hiddenOnly.Alarms[0].Kind)
+	assert.Equal(t, compDownID, hiddenOnly.Alarms[0].ID)
+	assert.Equal(t, offlineOcc.ID, hiddenOnly.Alarms[0].HiddenBehind)
+
+	// Repeated identical hidden filter is idempotent.
+	hiddenRepeat := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, hiddenTrueLine+" | hidden true")
+	assert.Equal(t, 1, hiddenRepeat.Total)
+	require.Len(t, hiddenRepeat.Alarms, 1)
+	assert.Equal(t, compDownID, hiddenRepeat.Alarms[0].ID)
+
+	// 4. | hidden false returns only device-offline with empty HiddenBehind.
+	shownOnly := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, hiddenFalseLine)
+	require.Equal(t, 1, shownOnly.Total)
+	require.Len(t, shownOnly.Alarms, 1)
+	assert.Equal(t, 1, shownOnly.Counts.Total)
+	assert.Equal(t, 1, shownOnly.Counts.Visible)
+	assert.Equal(t, 0, shownOnly.Counts.Hidden)
+	assert.Equal(t, pluginserver.AlarmKindDeviceOffline, shownOnly.Alarms[0].Kind)
+	assert.Equal(t, offlineOcc.ID, shownOnly.Alarms[0].ID)
+	assert.Empty(t, shownOnly.Alarms[0].HiddenBehind)
+
+	// 5. | kind component-down still returns component-down with HiddenBehind == offline.ID.
+	byKind := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, fleetAlarmPath+" | kind component-down")
+	require.Equal(t, 1, byKind.Total)
+	require.Len(t, byKind.Alarms, 1)
+	assert.Equal(t, compDownID, byKind.Alarms[0].ID)
+	assert.Equal(t, offlineOcc.ID, byKind.Alarms[0].HiddenBehind)
+	assert.Equal(t, 1, byKind.Counts.Hidden)
+	assert.Equal(t, 0, byKind.Counts.Visible)
+
+	// 6. Missing, invalid, and conflicting hidden arguments return actionable refusals.
+	missingResp, missingErr := dispatchWithContext(t, server, ctx, fleetAlarmPath+" | hidden")
+	if missingErr != nil {
+		assert.Contains(t, missingErr.Error(), "pipe filter hidden requires an argument")
+	} else {
+		require.NotNil(t, missingResp)
+		require.Equal(t, plugin.StatusError, missingResp.Status)
+		assert.Contains(t, missingResp.Error, "pipe filter hidden requires an argument")
+	}
+
+	for _, badVal := range []string{"yes", "1", "TRUE", "invalid"} {
+		line := fleetAlarmPath + " | hidden " + badVal
+		resp, dispatchErr := dispatchWithContext(t, server, ctx, line)
+		require.NoError(t, dispatchErr, line)
+		require.NotNil(t, resp, line)
+		require.Equal(t, plugin.StatusError, resp.Status, line)
+		assert.Contains(t, resp.Error, "invalid hidden filter value "+badVal, line)
+		assert.Contains(t, resp.Error, alarmHiddenTrue, line)
+		assert.Contains(t, resp.Error, alarmHiddenFalse, line)
+		assert.Contains(t, resp.Error, hiddenTrueLine, line)
+	}
+
+	conflictResp, conflictErr := dispatchWithContext(t, server, ctx, hiddenTrueLine+" | hidden false")
+	require.NoError(t, conflictErr)
+	require.NotNil(t, conflictResp)
+	require.Equal(t, plugin.StatusError, conflictResp.Status)
+	assert.Contains(t, conflictResp.Error, "conflicting alarm hidden filters true and false")
+
+	// Direct handler checks for missing, empty, or extra hidden arguments.
+	for _, tc := range []struct {
+		name string
+		ops  []command.PipeOperation
+		want string
+	}{
+		{
+			name: "missing hidden arg",
+			ops:  []command.PipeOperation{{Name: pipeOpHidden}},
+			want: "pipe filter hidden requires one argument",
+		},
+		{
+			name: "empty hidden arg",
+			ops:  []command.PipeOperation{{Name: pipeOpHidden, Args: []string{"   "}}},
+			want: "pipe filter hidden requires a non-empty argument",
+		},
+		{
+			name: "extra hidden args",
+			ops:  []command.PipeOperation{{Name: pipeOpHidden, Args: []string{alarmHiddenTrue, alarmHiddenFalse}}},
+			want: "pipe filter hidden requires one argument",
+		},
+	} {
+		var args command.ValidatedArgs
+		args = args.WithPipeOperations(tc.ops)
+		resp, handleErr := handleFleetAlarm(ctx, args)
+		require.NoError(t, handleErr, tc.name)
+		require.NotNil(t, resp, tc.name)
+		require.Equal(t, plugin.StatusError, resp.Status, tc.name)
+		assert.Contains(t, resp.Error, tc.want, tc.name)
+		assert.Contains(t, resp.Error, hiddenTrueLine, tc.name)
+	}
+
+	// 7. Cursor continuation with a changed | hidden filter is refused cleanly,
+	// while continuing with the same (unfiltered) query succeeds.
+	page1 := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, fleetAlarmPath+" | limit 1")
+	require.Equal(t, 2, page1.Total)
+	require.Len(t, page1.Alarms, 1)
+	require.True(t, page1.HasMore)
+	require.NotEmpty(t, page1.Cursor)
+
+	for _, changedLine := range []string{
+		fleetAlarmPath + " | limit 1 | hidden true | cursor " + page1.Cursor,
+		fleetAlarmPath + " | limit 1 | hidden false | cursor " + page1.Cursor,
+	} {
+		changedResp, changedErr := dispatchWithContext(t, server, ctx, changedLine)
+		require.NoError(t, changedErr, changedLine)
+		require.NotNil(t, changedResp, changedLine)
+		require.Equal(t, plugin.StatusError, changedResp.Status, changedLine)
+		assert.Contains(t, changedResp.Error, "alarm query filters changed between continuation pages", changedLine)
+	}
+
+	page2 := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, fleetAlarmPath+" | limit 1 | cursor "+page1.Cursor)
+	require.Equal(t, 2, page2.Total)
+	require.Len(t, page2.Alarms, 1)
+	assert.False(t, page2.HasMore)
+	assert.Equal(t, page1.SnapshotID, page2.SnapshotID)
+	assert.NotEqual(t, page1.Alarms[0].ID, page2.Alarms[0].ID)
+
+	// 8. Generic pipe composition works cleanly after | hidden.
+	hiddenCount := decodePipeData[map[string]any](t, server, ctx, hiddenTrueLine+" | count")
+	assert.Equal(t, float64(1), hiddenCount["count"])
+
+	shownMatched := decodePipeData[pluginserver.AlarmListPage](
+		t, server, ctx, hiddenFalseLine+" | match device-offline",
+	)
+	require.Len(t, shownMatched.Alarms, 1)
+	assert.Equal(t, pluginserver.AlarmKindDeviceOffline, shownMatched.Alarms[0].Kind)
+	assert.Empty(t, shownMatched.Alarms[0].HiddenBehind)
+
+	tableResp, err := dispatchWithContext(t, server, ctx, hiddenTrueLine+" | table")
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, tableResp.Status, tableResp.Error)
+	tableRaw, err := plugin.ResponseJSON(tableResp, nil)
+	require.NoError(t, err)
+	var tableText string
+	require.NoError(t, json.Unmarshal([]byte(tableRaw), &tableText))
+	assert.Contains(t, tableText, pluginserver.AlarmKindComponentDown)
+	assert.Contains(t, tableText, offlineOcc.ID)
+	assert.NotContains(t, tableText, pluginserver.AlarmKindDeviceOffline)
+
+	compactResp, err := dispatchWithContext(t, server, ctx, hiddenTrueLine+" | json compact")
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, compactResp.Status, compactResp.Error)
+	compactRaw, err := plugin.ResponseJSON(compactResp, nil)
+	require.NoError(t, err)
+	assert.NotContains(t, strings.TrimSpace(compactRaw), "\n", "json compact must be single-line")
+	assert.Contains(t, compactRaw, `"hidden-behind":"`+offlineOcc.ID+`"`)
+	assert.Contains(t, compactRaw, pluginserver.AlarmKindComponentDown)
+	assert.NotContains(t, compactRaw, pluginserver.AlarmKindDeviceOffline)
+
+	// 9. Reconnect edge-01 keeping bgp down: device-offline clears,
+	// component-down loses HiddenBehind while keeping its original ID and Since,
+	// and alarm history marks the component-down event hidden behind offline.ID.
+	clk.Advance(30 * time.Second)
+	mcEdge1Reconnected := connectReportCommandClient(t, addr, "edge-01")
+	sendTestHealth(t, mcEdge1Reconnected, fleet.HealthReport{
+		Status:    fleet.HealthStatusDown,
+		CheckedAt: clk.Now().Format(time.RFC3339),
+		Components: []fleet.HealthComponent{
+			{Name: "bgp", Status: fleet.HealthStatusDown, Reason: "session down", CheckedAt: clk.Now().Format(time.RFC3339)},
+		},
+	})
+
+	afterReconnect := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, fleetAlarmPath)
+	require.Equal(t, 1, afterReconnect.Total)
+	require.Len(t, afterReconnect.Alarms, 1)
+	assert.Equal(t, 1, afterReconnect.Counts.Visible)
+	assert.Equal(t, 0, afterReconnect.Counts.Hidden)
+	assert.Equal(t, pluginserver.AlarmKindComponentDown, afterReconnect.Alarms[0].Kind)
+	assert.Equal(t, compDownID, afterReconnect.Alarms[0].ID)
+	assert.Equal(t, compDownSince, afterReconnect.Alarms[0].Since)
+	assert.Empty(t, afterReconnect.Alarms[0].HiddenBehind)
+
+	afterHiddenTrue := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, hiddenTrueLine)
+	assert.Equal(t, 0, afterHiddenTrue.Total)
+	assert.NotNil(t, afterHiddenTrue.Alarms)
+	assert.Empty(t, afterHiddenTrue.Alarms)
+
+	afterHiddenFalse := decodePipeData[pluginserver.AlarmListPage](t, server, ctx, hiddenFalseLine)
+	require.Equal(t, 1, afterHiddenFalse.Total)
+	require.Len(t, afterHiddenFalse.Alarms, 1)
+	assert.Equal(t, compDownID, afterHiddenFalse.Alarms[0].ID)
+	assert.Empty(t, afterHiddenFalse.Alarms[0].HiddenBehind)
+
+	hist := decodePipeData[pluginserver.AlarmHistoryPage](t, server, ctx, fleetAlarmHistoryPath+" edge-01")
+	require.Equal(t, 2, hist.Total)
+	require.Len(t, hist.Events, 2)
+
+	var (
+		histOff       pluginserver.AlarmHistoryEvent
+		histComp      pluginserver.AlarmHistoryEvent
+		foundHistOff  bool
+		foundHistComp bool
+	)
+	for _, ev := range hist.Events {
+		switch ev.Kind {
+		case pluginserver.AlarmKindDeviceOffline:
+			histOff = ev
+			foundHistOff = true
+		case pluginserver.AlarmKindComponentDown:
+			histComp = ev
+			foundHistComp = true
+		}
+	}
+	require.True(t, foundHistOff, "expected device-offline in alarm history")
+	require.True(t, foundHistComp, "expected component-down in alarm history")
+	assert.Equal(t, offlineOcc.ID, histOff.ID)
+	assert.True(t, histOff.Cleared)
+	assert.False(t, histOff.Hidden)
+	assert.Empty(t, histOff.HiddenBehind)
+
+	assert.Equal(t, compDownID, histComp.ID)
+	assert.Equal(t, compDownSince, histComp.Opened)
+	assert.False(t, histComp.Cleared)
+	assert.True(t, histComp.Hidden)
+	assert.Equal(t, offlineOcc.ID, histComp.HiddenBehind)
 }

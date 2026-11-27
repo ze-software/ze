@@ -1,6 +1,6 @@
 # Fleet alarm conditions
 
-The first-release alarm design covers the conditions a fleet hub derives from device declarations, managed sessions, health reports, configuration state, inventory versions, metric samples, and history capacity. The hub alarm list, durable episode history, and read-only commands (`show fleet alarm`, `show fleet alarm history device <name>`) are implemented (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27). Fleet UI-8 adds same-device causes. [Alarm cause design](../../plan/release/features/spec-fleet-ui-8-alarm-causes.md)
+The first-release alarm design covers the conditions a fleet hub derives from device declarations, managed sessions, health reports, configuration state, inventory versions, metric samples, and history capacity. The hub alarm list, durable episode history, same-device alarm cause hierarchy, and read-only commands (`show fleet alarm`, `show fleet alarm history device <name>`) are implemented (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27; refined by `spec-fleet-ui-8-alarm-causes`).
 
 ## Design decisions
 
@@ -31,20 +31,37 @@ Alarm delays, resource thresholds, software-behind threshold, and episode retent
 
 An alarm is a derived condition true right now; nothing is acknowledged or silenced. Kinds register into an open hub registry so later features add a condition without editing a central list. Eight kinds ship in the first release; `relay-not-granted` joins through that same registration seam when `fleet-9` supplies relay capability and an explicit grant state (an unavailable provider or unknown grant opens no alarm).
 
-| Kind | Scope | Severity | Opens when |
-|------|-------|----------|------------|
-| `device-offline` | Device | Critical | No managed connection for longer than `offline-delay` since declaration or last disconnect |
-| `component-down` | Device | Critical | Latest device health report names a component down |
-| `component-degraded` | Device | Warning | Latest device health report names a component degraded |
-| `config-diverged` | Device | Warning | Device holds a locally edited configuration |
-| `config-rejected` | Device | Warning | Device refused the configuration the hub sent |
-| `resource-high` | Device | Warning | Fresh CPU, memory, or storage samples stay at or above threshold for `resource-duration` |
-| `software-behind` | Device | Informational | Device runs a version at least `software-behind-versions` behind the newest ordered estate version |
-| `history-full` | Hub | Warning | Metric history reached its size cap and is dropping samples early |
-| `relay-not-granted` (registered by `fleet-9`) | Device | Informational | A relay-capable device reports an explicit absent grant |
-<!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindRegistry, RegisterAlarmKind, registerBuiltinAlarmKinds -->
+| Kind | Scope | Severity | Caused by | Opens when |
+|------|-------|----------|-----------|------------|
+| `device-offline` | Device | Critical | - | No managed connection for longer than `offline-delay` since declaration or last disconnect |
+| `component-down` | Device | Critical | `device-offline` | Latest device health report names a component down |
+| `component-degraded` | Device | Warning | `device-offline` | Latest device health report names a component degraded |
+| `config-diverged` | Device | Warning | - | Device holds a locally edited configuration |
+| `config-rejected` | Device | Warning | - | Device refused the configuration the hub sent |
+| `resource-high` | Device | Warning | `device-offline` (settles) | Fresh CPU, memory, or storage samples stay at or above threshold for `resource-duration` |
+| `software-behind` | Device | Informational | - | Device runs a version at least `software-behind-versions` behind the newest ordered estate version |
+| `history-full` | Hub | Warning | - | Metric history reached its size cap and is dropping samples early |
+| `relay-not-granted` (registered by `fleet-9`) | Device | Informational | - | A relay-capable device reports an explicit absent grant |
+<!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindRegistry, RegisterAlarmKind, ValidateCauses, registerBuiltinAlarmKinds -->
 <!-- source: internal/component/plugin/server/managed_alarms_version.go -- parseSoftwareVersion, buildUniqueOrderedVersions -->
 <!-- source: internal/component/plugin/server/register_alarms.go -- init -->
+
+## Alarm causes
+
+An alarm kind declares its same-device causes (`Causes`) and settling flag (`Settles`) as pure values on its own `AlarmKindSpec` registration. No central cause list exists, so later features (such as `config-resync-failed`) declare `device-offline` in their own registration without editing the hub alarm engine. Among the first-release kinds, `component-down`, `component-degraded`, and `resource-high` declare `device-offline` as their cause; `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and the future `relay-not-granted` declare no cause because the hub holds those facts independently of connectivity.
+<!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindSpec, registerBuiltinAlarmKinds -->
+
+At hub alarm startup, `ValidateCauses` verifies the complete registered cause graph before serving. It refuses an unknown cause name, any cycle (self-reference or multi-hop), a cause with lower severity than the kind it would hide (so a warning never hides a critical alarm), or a hub-scoped kind declaring or named as a cause, naming both kinds and the defect.
+<!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindRegistry.ValidateCauses -->
+
+Hiding is computed per query from the authorized open alarms on the same device rather than stored as operator state or silencing. For each open alarm, `applyAlarmCauses` traverses declared `Causes` edges breadth first over open alarms on that same device; among open causes at the minimum hop distance, it selects the smallest stable alarm identifier in byte order and records it in `hidden-behind`. When the nearest cause clears while a farther cause remains open, `hidden-behind` advances to the remaining nearest cause while preserving the alarm's original identifier and `since`. A hidden alarm remains open, keeps its identity, counts toward `AlarmPageMax` and `counts.hidden` (while shown alarms count toward `counts.visible`), and omits `hidden-behind` once no declared cause is open.
+<!-- source: internal/component/plugin/server/managed_alarms.go -- AlarmOccurrence, AlarmCounts, applyAlarmCauses, ManagedAlarmStore.QueryOpen -->
+
+`show fleet alarm` accepts the command-owned pipe filter `| hidden true|false`: unfiltered returns every authorized open alarm (with `hidden-behind` populated on hidden rows and omitted on shown rows), `| hidden true` selects rows carrying `hidden-behind`, `| hidden false` selects rows without `hidden-behind`, and missing or unsupported values return an operator refusal naming `true` and `false`.
+<!-- source: internal/component/managed/cmd_alarms.go -- registerAlarmCommands, handleFleetAlarm, parseAlarmListPipeQuery -->
+
+Alarm history stores no separate hidden flag. On `show fleet alarm history device <name>`, `QueryHistory` projects each row's active interval against open and retained closed episodes of its declared cause kinds on the same device. Rows whose active interval overlapped a cause carry `hidden: true` and `hidden-behind` naming the selected cause identifier; when retention expiry or episode-cap truncation (`retained-since`) prevents proving whether a cause overlapped an older row, the row reports `hidden-unknown: true` instead of defaulting to unhidden.
+<!-- source: internal/component/plugin/server/managed_alarms.go -- AlarmHistoryEvent, ManagedAlarmStore.QueryHistory -->
 
 ## Device offline
 
@@ -83,8 +100,8 @@ Two read-only daemon commands publish the alarm model uniformly on CLI, SSH, RES
 
 | Command | Wire command | Contract |
 |---------|--------------|----------|
-| `show fleet alarm` | `ze-managed:show-fleet-alarm` | Returns bounded pages (up to 1,024 rows) of open alarms with stable occurrence IDs, full authorized totals and severity/visibility counts, and a snapshot-bound continuation cursor |
-| `show fleet alarm history device <name>` | `ze-managed:show-fleet-alarm-history` | Returns bounded pages (up to 512 rows) of one authorized device's alarm openings and clearings with earliest retained time, truncation flag, and continuation cursor |
+| `show fleet alarm` | `ze-managed:show-fleet-alarm` | Returns bounded pages (up to 1,024 rows) of open alarms with stable occurrence IDs, derived `hidden-behind` cause IDs on hidden rows, `\| hidden true\|false` filtering, full authorized totals and severity/visibility counts, and a snapshot-bound continuation cursor |
+| `show fleet alarm history device <name>` | `ze-managed:show-fleet-alarm-history` | Returns bounded pages (up to 512 rows) of one authorized device's alarm openings and clearings with derived cause-overlap fields (`hidden`, `hidden-behind`, `hidden-unknown`), earliest retained time, truncation flag, and continuation cursor |
 <!-- source: internal/component/managed/yang/ze-managed-cmd.yang -- container alarm -->
 <!-- source: internal/component/managed/cmd_alarms.go -- registerAlarmCommands, handleFleetAlarm, handleFleetAlarmHistory -->
 <!-- source: internal/component/plugin/server/managed_alarms.go -- ManagedAlarmStore.QueryOpen, ManagedAlarmStore.QueryHistory -->

@@ -208,6 +208,7 @@ func (s *ManagedAlarmStore) installLoadedHubShard(shard *persistedAlarmHubShard)
 	for i := range shard.Open {
 		occ := shard.Open[i]
 		occ.Since = occ.Since.UTC()
+		occ.HiddenBehind = ""
 		k := alarmKey{kind: occ.Kind, device: "", subject: occ.Subject}
 		cp := occ
 		s.hubOpen[k] = &cp
@@ -220,6 +221,9 @@ func (s *ManagedAlarmStore) installLoadedHubShard(shard *persistedAlarmHubShard)
 		ev := shard.Closed[i]
 		ev.Opened = ev.Opened.UTC()
 		ev.ClearedAt = ev.ClearedAt.UTC()
+		ev.Hidden = false
+		ev.HiddenBehind = ""
+		ev.HiddenUnknown = false
 		s.hubClosed[i] = ev
 		if seq, ok := parseAlarmSeqID(ev.ID); ok && seq > s.nextSeq {
 			s.nextSeq = seq
@@ -247,6 +251,7 @@ func (s *ManagedAlarmStore) installLoadedDeviceShard(shard *persistedAlarmDevice
 	for i := range shard.Open {
 		occ := shard.Open[i]
 		occ.Since = occ.Since.UTC()
+		occ.HiddenBehind = ""
 		k := alarmKey{kind: occ.Kind, device: shard.Device, subject: occ.Subject}
 		cp := occ
 		dev.open[k] = &cp
@@ -259,6 +264,9 @@ func (s *ManagedAlarmStore) installLoadedDeviceShard(shard *persistedAlarmDevice
 		ev := shard.Closed[i]
 		ev.Opened = ev.Opened.UTC()
 		ev.ClearedAt = ev.ClearedAt.UTC()
+		ev.Hidden = false
+		ev.HiddenBehind = ""
+		ev.HiddenUnknown = false
 		dev.closed[i] = ev
 		if seq, ok := parseAlarmSeqID(ev.ID); ok && seq > s.nextSeq {
 			s.nextSeq = seq

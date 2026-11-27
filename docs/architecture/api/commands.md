@@ -84,7 +84,7 @@ produce continuously-updating output.
 |----------|----------|
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
-| System | help, version, api version, show system triage (single-call bounded live triage snapshot) |
+| System | help, version, api version, show system triage (single-call bounded live triage snapshot), show system trace (flight-recorder status and snapshot fetch), request system trace snapshot (on-demand trace capture) |
 | Peer | list, detail, capabilities, statistics, set (add/save), delete, teardown, notify, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
@@ -100,6 +100,7 @@ produce continuously-updating output.
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 <!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
+<!-- source: internal/component/cmd/show/trace.go -- handleShowSystemTrace, handleRequestSystemTraceSnapshot -->
 <!-- source: internal/component/sysrib/register.go -- commandDecls, routeViewCommandHandler -->
 <!-- source: internal/plugins/fib/dummy/register.go -- commandDecls -->
 <!-- source: internal/plugins/fib/dummy/show.go -- routeRow, countersSnapshot -->
@@ -4681,8 +4682,8 @@ budgeting, and ranking are registered as command-specific pipe operations via
 | `show fleet sample latest` | table | `device <name>`, `label <key=value>`, `figure <name>`, `reduce`, `rank <figure>` | Authorized device scope is projected locally before filtering, ranking, or reducing. `rank` drops rows missing the named figure and sorts descending then by device name (combine with generic `first N` for top-N). `device`/`label` after `reduce` is refused. |
 | `show fleet sample series` | table | `device <name>`, `label <key=value>`, `figure <name>`, `from <RFC3339>`, `until <RFC3339>`, `reduce`, `points <1..2112>` | Half-open UTC range `[from, until)` crossing 1m fine (1d) and 15m coarse (up to 7d) resolutions with explicit gaps (`gap: true`) and aligned coarse set maxima. Bounded to 4,096 rows and 4 MiB serialized output per answer. |
 | `show fleet sample storage` | document | (generic pipes only) | Authorizes the exact storage path before exposing hub-wide capacity, retention, and checkpoint health; filters per-device `devices` rows through the caller's local device scope. |
-| `show fleet alarm` | tab (`ShapeTab`) | `severity <level>`, `kind <kind>`, `device <name>`, `cursor <token>`, `limit <1..1024>` | Authorizes caller device scope before filtering, counting, sorting, or issuing a snapshot-bound continuation cursor. Returns bounded pages (up to 1,024 rows) plus complete authorized `total` and severity/visibility `counts` across all pages. |
-| `show fleet alarm history device <name>` | tab (`ShapeTab`) | `cursor <token>`, `limit <1..512>` | Returns newest-first bounded pages (up to 512 events) of one authorized device's open and closed alarm episodes with `retained-since`, `truncated`, and snapshot-bound continuation cursor; refuses unauthorized or unknown devices uniformly. |
+| `show fleet alarm` | tab (`ShapeTab`) | `severity <level>`, `kind <kind>`, `device <name>`, `hidden <true\|false>`, `cursor <token>`, `limit <1..1024>` | Authorizes caller device scope before deriving same-device `hidden-behind` causes, filtering, counting, sorting, or issuing a snapshot-bound continuation cursor. Unfiltered returns all open alarms with `hidden-behind` on hidden rows (omitted on shown rows); `hidden true` selects hidden rows, `hidden false` selects shown rows, and other values are refused. Returns bounded pages (up to 1,024 rows) plus complete authorized `total` and severity/visibility `counts` (`visible`, `hidden`) across all pages. |
+| `show fleet alarm history device <name>` | tab (`ShapeTab`) | `cursor <token>`, `limit <1..512>` | Returns newest-first bounded pages (up to 512 events) of one authorized device's open and closed alarm episodes with derived cause-overlap fields (`hidden`, `hidden-behind`, `hidden-unknown`), `retained-since`, `truncated`, and snapshot-bound continuation cursor; refuses unauthorized or unknown devices uniformly. |
 
 On managed devices, each feature that contributes metric readings registers a
 hidden read-only command under `show fleet source <owner>` (`host`, `iface`,

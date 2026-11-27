@@ -328,6 +328,9 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		Clock:  cfg.Clock,
 		Now:    srv.currentTime,
 	})
+	if err := srv.alarms.ValidateRegistry(); err != nil {
+		return nil, err
+	}
 	srv.history = NewManagedHistoryStore(ManagedHistoryStoreConfig{
 		Config:          historyCfg,
 		Store:           cfg.Store,

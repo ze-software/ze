@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -135,8 +136,7 @@ type AlarmKindSpec struct {
 	// Scope indicates whether occurrences belong to a device or the hub.
 	Scope AlarmScope
 	// Causes lists other registered alarm kinds on the same device whose open
-	// occurrence hides this kind (consumed by fleet-ui-8). Hub-scoped kinds
-	// MUST NOT declare causes.
+	// occurrence hides this kind. Hub-scoped kinds MUST NOT declare causes.
 	Causes []string
 	// Settles indicates whether this kind requires a sustained qualifying window
 	// after reconnect before reopening (for example resource-high).
@@ -156,6 +156,19 @@ type AlarmKindRegistry struct {
 	mu           sync.RWMutex
 	kinds        map[string]AlarmKindSpec
 	externalEval atomic.Bool
+}
+
+type causeVisitState uint8
+
+const (
+	causeVisitUnvisited causeVisitState = 0
+	causeVisitVisiting  causeVisitState = 1
+	causeVisitVisited   causeVisitState = 2
+)
+
+type causeDepthItem struct {
+	kind  string
+	depth int
 }
 
 // String returns the canonical lowercase wire spelling of s. Compare typed
@@ -438,6 +451,169 @@ func (r *AlarmKindRegistry) List() []AlarmKindSpec {
 	return out
 }
 
+// ValidateCauses validates the complete registered alarm cause graph. It
+// rejects any hub-scoped kind declaring a cause or named as a cause, any cause
+// name that no registered kind holds, any cause less severe than the kind it
+// would hide, and any cycle of any length in the cause graph. Safe for
+// concurrent use.
+func (r *AlarmKindRegistry) ValidateCauses() error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	names := slices.Sorted(maps.Keys(r.kinds))
+	for _, name := range names {
+		spec := r.kinds[name]
+		if err := validateKindCauseEdges(r.kinds, &spec); err != nil {
+			return err
+		}
+	}
+	return detectAlarmCauseCycle(r.kinds, names)
+}
+
+func validateKindCauseEdges(kinds map[string]AlarmKindSpec, spec *AlarmKindSpec) error {
+	var tb textbuf.Buffer
+	for _, causeName := range spec.Causes {
+		if spec.Scope == AlarmScopeHub {
+			what := tb.Reset().Str("alarm kind ").Quoted(spec.Name).Str(" cannot declare cause ").Quoted(causeName).String()
+			fix := tb.Reset().Str("remove cause ").Quoted(causeName).Str(" from hub-scoped alarm kind ").Quoted(spec.Name).String()
+			return opererr.New(what,
+				"hub-scoped alarm kinds have no target device and cannot declare a cause",
+				fix)
+		}
+		causeSpec, exists := kinds[causeName]
+		if !exists {
+			what := tb.Reset().Str("alarm kind ").Quoted(spec.Name).Str(" declares unknown cause ").Quoted(causeName).String()
+			fix := tb.Reset().Str("register alarm kind ").Quoted(causeName).Str(" or fix the Causes list of ").Quoted(spec.Name).String()
+			return opererr.New(what,
+				"every declared cause must name a registered alarm kind so misspellings cannot silently disable hiding",
+				fix)
+		}
+		if causeSpec.Scope != AlarmScopeDevice {
+			what := tb.Reset().Str("alarm kind ").Quoted(spec.Name).Str(" cannot declare hub-scoped cause ").Quoted(causeName).String()
+			fix := tb.Reset().Str("remove hub-scoped cause ").Quoted(causeName).Str(" from the Causes list of ").Quoted(spec.Name).String()
+			return opererr.New(what,
+				"hub-scoped alarm kinds have no target device and cannot act as a same-device cause",
+				fix)
+		}
+		if causeSpec.Severity.Rank() > spec.Severity.Rank() {
+			what := tb.Reset().Str("alarm kind ").Quoted(spec.Name).Str(" (").Str(spec.Severity.String()).
+				Str(") cannot declare less severe cause ").Quoted(causeName).Str(" (").Str(causeSpec.Severity.String()).Byte(')').String()
+			fix := tb.Reset().Str("remove ").Quoted(causeName).Str(" from the Causes list of ").Quoted(spec.Name).Str(" or align their severities").String()
+			return opererr.New(what,
+				"a less severe alarm must never hide a more severe alarm",
+				fix)
+		}
+	}
+	return nil
+}
+
+func detectAlarmCauseCycle(kinds map[string]AlarmKindSpec, names []string) error {
+	state := make(map[string]causeVisitState, len(names))
+	path := make([]string, 0, len(names))
+	pathIndex := make(map[string]int, len(names))
+
+	// Bounded by len(names): each registered kind enters causeVisitVisiting at most once.
+	var visit func(node string) error
+	visit = func(node string) error {
+		state[node] = causeVisitVisiting
+		pathIndex[node] = len(path)
+		path = append(path, node)
+
+		causes := slices.Clone(kinds[node].Causes)
+		slices.Sort(causes)
+		for _, next := range causes {
+			switch state[next] {
+			case causeVisitVisiting:
+				startIdx := pathIndex[next]
+				var tb textbuf.Buffer
+				tb.Str("alarm cause graph contains a cycle between ").Quoted(node).Str(" and ").Quoted(next).Str(": ")
+				for _, step := range path[startIdx:] {
+					tb.Str(step).Str(" -> ")
+				}
+				tb.Str(next)
+				return opererr.New(tb.String(),
+					"cyclic alarm causes can hide alarms indefinitely with no root cause shown",
+					"break the cause cycle in the registered AlarmKindSpec Causes declarations")
+			case causeVisitUnvisited:
+				if err := visit(next); err != nil {
+					return err
+				}
+			case causeVisitVisited:
+				// Already explored with no cycle reachable from next.
+			default:
+				panic("BUG: server: unknown causeVisitState")
+			}
+		}
+
+		delete(pathIndex, node)
+		path = path[:len(path)-1]
+		state[node] = causeVisitVisited
+		return nil
+	}
+
+	for _, name := range names {
+		if state[name] != causeVisitUnvisited {
+			continue
+		}
+		if err := visit(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CauseDepths returns a map from every transitive cause kind of kind to its
+// minimum breadth-first distance (depth >= 1). It returns nil if kind is not
+// registered or declares no causes. Safe for concurrent use.
+func (r *AlarmKindRegistry) CauseDepths(kind string) map[string]int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	startSpec, ok := r.kinds[kind]
+	// refuse-by-default: guards applyAlarmCauses -- a persisted historical kind no longer registered has no declared causes and stays visible
+	if !ok {
+		return nil
+	}
+	if len(startSpec.Causes) == 0 {
+		return nil
+	}
+
+	depths := make(map[string]int)
+	queue := make([]causeDepthItem, 0, len(startSpec.Causes))
+	for _, cause := range startSpec.Causes {
+		if cause == kind {
+			continue
+		}
+		if _, seen := depths[cause]; seen {
+			continue
+		}
+		depths[cause] = 1
+		queue = append(queue, causeDepthItem{kind: cause, depth: 1})
+	}
+	for head := 0; head < len(queue); head++ {
+		cur := queue[head]
+		curSpec, exists := r.kinds[cur.kind]
+		if !exists {
+			continue
+		}
+		nextDepth := cur.depth + 1
+		for _, cause := range curSpec.Causes {
+			if cause == kind {
+				continue
+			}
+			if _, seen := depths[cause]; seen {
+				continue
+			}
+			depths[cause] = nextDepth
+			queue = append(queue, causeDepthItem{kind: cause, depth: nextDepth})
+		}
+	}
+	if len(depths) == 0 {
+		return nil
+	}
+	return depths
+}
+
 // Snapshot captures the current contents of r and returns a restore function
 // for test cleanup. Callers MUST invoke the returned function (for example via
 // t.Cleanup) to avoid contaminating subsequent tests. Safe for concurrent use.
@@ -501,7 +677,7 @@ func validateAlarmKindSpec(spec *AlarmKindSpec) error {
 	}
 	if spec.Scope == AlarmScopeHub {
 		if len(spec.Causes) > 0 {
-			return fmt.Errorf("alarm: hub-scoped kind %q cannot declare causes", spec.Name)
+			return fmt.Errorf("alarm: hub-scoped kind %q cannot declare cause %q", spec.Name, spec.Causes[0])
 		}
 	}
 	seenCauses := make(map[string]struct{}, len(spec.Causes))
@@ -564,12 +740,14 @@ func registerBuiltinAlarmKinds() {
 			Name:     AlarmKindComponentDown,
 			Severity: AlarmSeverityCritical,
 			Scope:    AlarmScopeDevice,
+			Causes:   []string{AlarmKindDeviceOffline},
 			Summary:  "Device component is down",
 		},
 		{
 			Name:     AlarmKindComponentDegraded,
 			Severity: AlarmSeverityWarning,
 			Scope:    AlarmScopeDevice,
+			Causes:   []string{AlarmKindDeviceOffline},
 			Summary:  "Device component is degraded",
 		},
 		{
@@ -588,6 +766,7 @@ func registerBuiltinAlarmKinds() {
 			Name:     AlarmKindResourceHigh,
 			Severity: AlarmSeverityWarning,
 			Scope:    AlarmScopeDevice,
+			Causes:   []string{AlarmKindDeviceOffline},
 			Settles:  true,
 			Summary:  "Device resource utilization stayed at or above threshold",
 		},

@@ -27,12 +27,15 @@ const (
 
 	pipeOpSeverity = "severity"
 	pipeOpKind     = "kind"
+	pipeOpHidden   = "hidden"
 	pipeOpCursor   = "cursor"
 	pipeOpLimit    = "limit"
 
 	alarmSeverityExample = "critical"
 	alarmDeviceExample   = "edge-01"
 	alarmLimitExample    = "100"
+	alarmHiddenTrue      = "true"
+	alarmHiddenFalse     = "false"
 
 	colAlarmTotal          = "total"
 	colAlarmHasMore        = "has-more"
@@ -44,6 +47,7 @@ const (
 	colAlarmSubject        = "subject"
 	colAlarmSummary        = "summary"
 	colAlarmDetail         = "detail"
+	colAlarmHiddenBehind   = "hidden-behind"
 )
 
 // fleetAlarmPageDoc is the structured response envelope answered by
@@ -79,7 +83,7 @@ func registerAlarmCommands() {
 		},
 		command.ColumnOrder{
 			colAlarmID, pipeOpKind, pipeOpSeverity, colAlarmScope, pipeOpDevice,
-			colAlarmSubject, colAlarmSummary, colAlarmDetail, "since", "hidden-behind",
+			colAlarmSubject, colAlarmSummary, colAlarmDetail, "since", colAlarmHiddenBehind,
 		},
 	)
 	command.RegisterColumns([]string{fleetAlarmHistoryPath},
@@ -90,6 +94,7 @@ func registerAlarmCommands() {
 		command.ColumnOrder{
 			colAlarmID, pipeOpKind, pipeOpSeverity, colAlarmScope, pipeOpDevice,
 			colAlarmSubject, colAlarmSummary, colAlarmDetail, "opened", "cleared", "cleared-at",
+			pipeOpHidden, colAlarmHiddenBehind, "hidden-unknown",
 		},
 	)
 
@@ -97,6 +102,7 @@ func registerAlarmCommands() {
 		command.PipeFilter{Name: pipeOpSeverity, Description: "Filter open alarms by severity: critical, warning, or informational", Argument: command.ArgText},
 		command.PipeFilter{Name: pipeOpKind, Description: "Filter open alarms by registered alarm kind", Argument: command.ArgText},
 		command.PipeFilter{Name: pipeOpDevice, Description: "Filter open alarms by managed device name", Argument: command.ArgText},
+		command.PipeFilter{Name: pipeOpHidden, Description: "Filter open alarms by hidden state: true or false", Argument: command.ArgText},
 		command.PipeFilter{Name: pipeOpCursor, Description: "Continue an open-alarm listing from a prior page cursor", Argument: command.ArgText},
 		command.PipeFilter{Name: pipeOpLimit, Description: "Limit open alarms returned per page (1 to 1024)", Argument: command.ArgCount},
 	)
@@ -217,6 +223,34 @@ func parseAlarmListPipeQuery(ops []command.PipeOperation) (pluginserver.AlarmLis
 				)
 			}
 			query.Device = raw
+		case pipeOpHidden:
+			raw, refusal := requireSinglePipeArg(fleetAlarmPath, pipeOpHidden, op.Args, alarmHiddenTrue)
+			if refusal != nil {
+				return pluginserver.AlarmListQuery{}, refusal
+			}
+			var parsed bool
+			switch raw {
+			case alarmHiddenTrue:
+				parsed = true
+			case alarmHiddenFalse:
+				parsed = false
+			default:
+				return pluginserver.AlarmListQuery{}, plugin.OperatorErrorResponse(opererr.New(
+					"invalid hidden filter value "+raw,
+					"hidden accepts only true (alarms hidden behind a cause) or false (shown alarms)",
+					fleetAlarmPath+" | "+pipeOpHidden+" "+alarmHiddenTrue,
+				))
+			}
+			if query.Hidden != nil && *query.Hidden != parsed {
+				first := alarmHiddenFalse
+				if *query.Hidden {
+					first = alarmHiddenTrue
+				}
+				return pluginserver.AlarmListQuery{}, conflictingAlarmFilterRefusal(
+					pipeOpHidden, first, raw,
+				)
+			}
+			query.Hidden = &parsed
 		case pipeOpCursor:
 			if query.Cursor != "" {
 				return pluginserver.AlarmListQuery{}, duplicateAlarmCursorRefusal(fleetAlarmPath)
@@ -239,7 +273,7 @@ func parseAlarmListPipeQuery(ops []command.PipeOperation) (pluginserver.AlarmLis
 		default:
 			return pluginserver.AlarmListQuery{}, plugin.OperatorErrorResponse(opererr.New(
 				"unknown fleet alarm pipe operation "+op.Name,
-				"show fleet alarm supports severity, kind, device, cursor, and limit filters",
+				"show fleet alarm supports severity, kind, device, hidden, cursor, and limit filters",
 				fleetAlarmPath+" | "+pipeOpSeverity+" "+alarmSeverityExample,
 			))
 		}
