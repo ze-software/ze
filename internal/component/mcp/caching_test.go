@@ -349,7 +349,7 @@ func TestStampCacheHintsPreservesPayload(t *testing.T) {
 			metaKey:       map[string]any{"x": 1},
 		},
 	}
-	stampCacheHints(methodToolsList, resp)
+	stampCacheHints(&request{Method: methodToolsList}, resp)
 
 	result, _ := resp.Result.(map[string]any)
 	if _, present := result["tools"]; !present {
@@ -395,7 +395,7 @@ func TestStampCacheHintsSkipsInterimResults(t *testing.T) {
 				JSONRPC: "2.0",
 				Result:  map[string]any{resultTypeKey: resultType},
 			}
-			stampCacheHints(methodResourcesRead, resp)
+			stampCacheHints(&request{Method: methodResourcesRead}, resp)
 
 			result, _ := resp.Result.(map[string]any)
 			for _, key := range []string{resultKeyTTLMs, resultKeyCacheScope} {
@@ -405,4 +405,80 @@ func TestStampCacheHintsSkipsInterimResults(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCacheHintsLiveStateVsEmbedded verifies the live-state freshness class
+// for ze:// resources while keeping ui:// embedded assets at 1 hour.
+//
+// VALIDATES: ttlLiveStateMs == 5000, stampCacheHints stamps 5000 ms for ze://
+// resources/read URIs and 3600000 ms for ui:// URIs and resources/list, and
+// skips error/interim responses and nil requests.
+// PREVENTS: caching live daemon state for an hour or introducing a second
+// hint-stamping site outside stampCacheHints.
+func TestCacheHintsLiveStateVsEmbedded(t *testing.T) {
+	if ttlLiveStateMs != 5000 {
+		t.Fatalf("ttlLiveStateMs = %d, want 5000", ttlLiveStateMs)
+	}
+
+	cases := []struct {
+		name   string
+		req    *request
+		wantMs int
+	}{
+		{
+			name:   "ze live-state read",
+			req:    &request{Method: methodResourcesRead, Params: json.RawMessage(`{"uri":"ze://triage"}`)},
+			wantMs: ttlLiveStateMs,
+		},
+		{
+			name:   "ui embedded asset read",
+			req:    &request{Method: methodResourcesRead, Params: json.RawMessage(`{"uri":"ui://bgp-peer/index.html"}`)},
+			wantMs: ttlEmbeddedAssetMs,
+		},
+		{
+			name:   "resources list stays embedded class",
+			req:    &request{Method: methodResourcesList},
+			wantMs: ttlEmbeddedAssetMs,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := &response{
+				JSONRPC: "2.0",
+				Result:  map[string]any{resultTypeKey: resultTypeComplete},
+			}
+			stampCacheHints(tc.req, resp)
+			result, _ := resp.Result.(map[string]any)
+			if result[resultKeyTTLMs] != tc.wantMs {
+				t.Errorf("%s = %v, want %d", resultKeyTTLMs, result[resultKeyTTLMs], tc.wantMs)
+			}
+			if result[resultKeyCacheScope] != cacheScopePrivate {
+				t.Errorf("%s = %v, want %q", resultKeyCacheScope, result[resultKeyCacheScope], cacheScopePrivate)
+			}
+		})
+	}
+
+	t.Run("nil request is a safe no-op", func(t *testing.T) {
+		resp := &response{
+			JSONRPC: "2.0",
+			Result:  map[string]any{resultTypeKey: resultTypeComplete},
+		}
+		stampCacheHints(nil, resp)
+		result, _ := resp.Result.(map[string]any)
+		if _, present := result[resultKeyTTLMs]; present {
+			t.Errorf("unexpected %s stamped for nil request", resultKeyTTLMs)
+		}
+	})
+
+	t.Run("ze live-state error carries no hints", func(t *testing.T) {
+		resp := &response{
+			JSONRPC: "2.0",
+			Error:   &rpcError{Code: rpcInternalError, Message: "failed"},
+		}
+		stampCacheHints(&request{Method: methodResourcesRead, Params: json.RawMessage(`{"uri":"ze://triage"}`)}, resp)
+		if resp.Result != nil {
+			t.Errorf("error response unexpectedly gained result: %v", resp.Result)
+		}
+	})
 }

@@ -118,6 +118,15 @@ func stage1Cases() map[string]stage1Case {
 				return "invalid doctor check: " + mustFail(t, validateDoctorCheckDecls(in.DoctorChecks))
 			},
 		},
+		"drift-subsystems": {
+			failing: &rpc.DeclareRegistrationInput{
+				ProtocolVersion: rpc.ProtocolVersion,
+				DriftSubsystems: []string{"Bad Subsystem"},
+			},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return "invalid drift subsystem: " + mustFail(t, validateDriftSubsystemDecls(in.DriftSubsystems))
+			},
+		},
 		"enrichers": {
 			failing: &rpc.DeclareRegistrationInput{
 				ProtocolVersion: rpc.ProtocolVersion,
@@ -342,7 +351,7 @@ func TestTheServerFillsTheDeclarationJudgeSeam(t *testing.T) {
 // PREVENTS: the table changing what a plugin reads when the daemon refuses it.
 func TestOnRegistrationRefusesWithTheSameText(t *testing.T) {
 	cases := stage1Cases()
-	sinkChecks := []string{"drain", "resolver-caches", "doctor-checks", "enrichers", "pipe-aliases", "answer-shapes", "help-texts", "participant-nodes", "bus-sends", "bus-receives"}
+	sinkChecks := []string{"drain", "resolver-caches", "doctor-checks", "drift-subsystems", "enrichers", "pipe-aliases", "answer-shapes", "help-texts", "participant-nodes", "bus-sends", "bus-receives"}
 
 	s, _ := newLifecycleStartupServer(t)
 	newSink := func() *engineStartupSink {

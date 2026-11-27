@@ -139,7 +139,7 @@ type Streamable struct {
 	// document. Computed once so ServeHTTP compares one identifier per request.
 	metadataPath string
 
-	cachedResources []map[string]any // immutable after construction; from embedded FS walk
+	cachedResources []map[string]any // immutable after construction; embedded UI assets plus read-only ze:// resources when Dispatch is set
 }
 
 // NewStreamable returns a configured Streamable HTTP MCP server. Returns an
@@ -170,6 +170,15 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 	if err != nil {
 		return nil, err
 	}
+	resources := listResources()
+	if cfg.Dispatch != nil {
+		resources = append(resources, map[string]any{
+			schemaFormatURI:      triageResourceURI,
+			toolKeyName:          "triage",
+			schemaKeyDescription: "Live bounded system triage snapshot (read-only)",
+			resourceKeyMIMEType:  mediaTypeJSON,
+		})
+	}
 	return &Streamable{
 		cfg:             cfg,
 		tasks:           newTaskRegistry(cfg.Tasks),
@@ -179,7 +188,7 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 		authMode:        mode,
 		oauthIssuer:     authRes.issuer,
 		metadataPath:    resourceMetadataPath(cfg.OAuth),
-		cachedResources: listResources(),
+		cachedResources: resources,
 	}, nil
 }
 

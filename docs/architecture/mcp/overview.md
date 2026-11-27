@@ -40,8 +40,8 @@ caller.
 | `headers.go` | Standard request header validation: `validateStandardHeaders`, `mcpNameSource`, the `=?base64?...?=` sentinel decoder, `Mcp-Param-*` field-value checks |
 | `discover.go` | `server/discover`: `serverCapabilities`, `instructions`, `serverInfo` |
 | `streamable_tools.go` | `runMethod` dispatch switch, `requestScope`, `callTool` (the server-directed task decision), `createTask`, the `tasks/get`, `tasks/update` and `tasks/cancel` handlers, the `ok()`/`fail()` response builders and the MCP error codes |
-| `resources.go` | MCP resources capability: `resources/list` (walks embedded FS), `resources/read` (serves `ui://` assets), MIME sniffer, URI validator |
-| `caching.go` | Cacheable-result hints: the per-method `ttlMs` table, the unconditional `"private"` cache scope, and the single stamp site |
+| `resources.go` | MCP resources capability: `resources/list` (embedded FS + read-only `ze://triage` when `Dispatch != nil`), `resources/read` (serves `ui://` assets and scope-checked `ze://triage`), MIME sniffer, URI validator |
+| `caching.go` | Cacheable-result hints: the per-method `ttlMs` table, live-state `ze://` TTL override (`ttlLiveStateMs`), the unconditional `"private"` cache scope, and the single stamp site |
 | `mrtr.go` | Multi Round-Trip Requests: the `InputRequiredResult` builder, the `inputRequests`/`inputResponses` keys, the form-mode capability gate, the unsolicited-`requestState` rejection, and `ze_execute`'s re-entrant command resolution |
 | `elicit.go` | Form-mode elicitation: the flat-primitive `requestedSchema` validator, the action sentinels, and the `ElicitRequest` builder whose value goes into `inputRequests` |
 | `apps.go` | The `io.modelcontextprotocol/ui` extension: its identifier, the client-settings gate, and the `_meta.ui` strip applied when the gate is closed |
@@ -213,7 +213,7 @@ own concurrency, retention, and TTL caps.
 | `tools/list` | The tool inventory, derived at call time | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `tools/call` | Run a tool. Answers `resultType: "task"` when the command is annotated `ze:task-support required` and the request declared the tasks extension | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `tasks/get`, `tasks/update`, `tasks/cancel` | Task lifecycle, scoped to the authenticated principal. `tasks/list` and `tasks/result` were removed this revision and now answer `-32601` |
-| `resources/list`, `resources/read` | Embedded UI assets under `ui://` |
+| `resources/list`, `resources/read` | Embedded UI assets under `ui://` and read-only live triage state at `ze://triage` (when `Dispatch != nil`) |
 
 `server/discover`, `tools/list`, `resources/list` and `resources/read` carry <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 caching hints. `tools/call` and every `tasks/*` method carry none (see Cacheable <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -258,7 +258,7 @@ schema the extension does not specify.
 
 ## Cacheable Results
 
-<!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, stampCacheHints, cacheScopePrivate -->
+<!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, stampCacheHints, cacheScopePrivate, ttlLiveStateMs, ttlRegistryDerivedMs, ttlEmbeddedAssetMs, resourceReadURI -->
 
 MCP 2026-07-28 requires caching hints on results with `resultType: "complete"`
 returned by six operations. Ze implements four of them. `prompts/list` and
@@ -268,10 +268,11 @@ breaches nothing.
 
 | Surface | `ttlMs` | Mutability class |
 |---------|---------|------------------|
-| `tools/list`, `server/discover` | `60000` (60 s) | Registry-derived: the command list is re-read from the dispatcher on every call, so it changes when a plugin registers or a config reload lands | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
-| `resources/list`, `resources/read` | `3600000` (1 h) | Embedded asset: `cachedResources` is built once at construction and the bytes come from `//go:embed`, so they are fixed for the binary's lifetime |
+| `resources/read` (`ze://` URIs) | `5000` (5 s) | Live state (`ttlLiveStateMs`): answered from live daemon state (`ze://triage`); prevents tight poll loops inside one diagnostic turn while bounding staleness during an active incident |
+| `tools/list`, `server/discover` | `60000` (60 s) | Registry-derived (`ttlRegistryDerivedMs`): the command list is re-read from the dispatcher on every call, so it changes when a plugin registers or a config reload lands | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+| `resources/list`, `resources/read` (`ui://` URIs) | `3600000` (1 h) | Embedded asset (`ttlEmbeddedAssetMs`): `cachedResources` is built once at construction (including the static `ze://triage` listing when `Dispatch != nil`) and `ui://` bytes come from `//go:embed`, so they are fixed for the binary's lifetime |
 
-Both are compile-time constants with no YANG leaf and no env var. The right
+All three are compile-time constants with no YANG leaf and no env var. The right
 lifetime is a function of how the underlying data changes. The code knows that,
 and an operator does not. Ze can neither detect nor reject a setting that
 contradicted the server's real invalidation behavior.
@@ -287,8 +288,12 @@ The auth modes already carry per-identity scopes, and `Identity.HasScope` is the
 exact hook a scope-filtered tool list would use. One unconditional value
 therefore removes a branch that a later change would have to get right.
 
-The hints are applied from ONE site, on the way out of dispatch, driven by
-`cacheTTLByMethod`. They are deliberately not folded into the shared `ok()`
+The hints are applied from ONE site (`stampCacheHints`), on the way out of
+dispatch, driven by the closed four-method `cacheTTLByMethod` table. For
+`resources/read`, `stampCacheHints` inspects `params.uri` (`resourceReadURI`)
+and selects `ttlLiveStateMs` (`5000` ms) for `ze://` URIs while keeping
+`ttlEmbeddedAssetMs` (`3600000` ms) for `ui://` assets; handlers never stamp
+cache hints themselves. They are deliberately not folded into the shared `ok()`
 responder. `tools/call` rides that responder and must carry no hints in either <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 result shape. Interim `input_required` results "are not cacheable and carry no
 caching hints", and MRTR retries "MUST NOT be cached".
@@ -683,7 +688,8 @@ because a wedged dispatch can miss the cancellation.
 
 ## Resources Capability and the MCP Apps Extension
 
-<!-- source: internal/component/mcp/resources.go -- resources/list, resources/read -->
+<!-- source: internal/component/mcp/resources.go -- listResources, readResource, resourcesList, resourcesRead, readTriageResource, triageResourceURI -->
+<!-- source: internal/component/mcp/streamable.go -- NewStreamable -->
 <!-- source: internal/component/mcp/ui/embed.go -- embedded UI assets -->
 <!-- source: internal/component/mcp/apps.go -- clientSupportsUIApps, gateUIMeta -->
 
@@ -695,11 +701,22 @@ caller, while `tools/list` advertised `_meta.ui.resourceUri` that points at the 
 very assets refused.
 
 UI assets are embedded at compile time via `//go:embed` in
-`internal/component/mcp/ui/embed.go`. `resources/list` derives the asset
+`internal/component/mcp/ui/embed.go`. `listResources` derives the `ui://` asset
 list from `fs.WalkDir` over the embedded FS (no hardcoded list).
 `resources/read` resolves `ui://` URIs to embedded files, validates
 against path traversal, and returns content as `text` (for text MIME
 types) or base64-encoded `blob` (for binary).
+
+When `NewStreamable` receives a non-nil command dispatcher (`cfg.Dispatch != nil`),
+it builds `s.cachedResources` once at construction by appending the read-only
+`ze://triage` (`application/json`) entry to `listResources()` so `resources/list`
+stays immutable for the server's lifetime. `resources/read` for `ze://triage`
+(`readTriageResource`) enforces the caller's command authorization via
+`checkCommandScope("show system triage")` before dispatching `"show system triage"`
+through `s.cfg.Dispatch` and returns the JSON payload without stamping cache
+hints itself (`stampCacheHints` stamps `ttlLiveStateMs = 5000` ms and
+`cacheScope: "private"`). Any other `ze://` URI (or `ze://triage` when
+`cfg.Dispatch == nil`) returns `resource not found`.
 
 Tool descriptors carry `_meta.ui.resourceUri` (plus optional `permissions`
 and `csp` fields) when the tool's YANG command group has a `ze:ui-resource`

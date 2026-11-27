@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/badpacket"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -179,6 +180,7 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 					s.logRFC7606Error(result.Action.String(), result.AttrCode, result.Description)
 				}
 				s.rfc7606Diagnostics(result.Action.String(), receivedWU, result.AttrCode, result.Description)
+				s.recordBadUpdate(result.Action.String(), result.Description, receivedWU.Payload())
 			}
 			return wu, message.RFC7606ActionTreatAsWithdraw, nil
 		case typedNLRIKept:
@@ -207,6 +209,7 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 		// sent it. Not wu: the Section 3.g and Section 5.4 rewrites above have already
 		// replaced that with bytes ze built.
 		validation.diagnosticWireHex = s.rfc7606Diagnostics("attribute-discard", receivedWU, result.AttrCode, result.Description)
+		s.recordBadUpdate("attribute-discard", result.Description, receivedWU.Payload())
 
 		// draft-mangin-idr-attr-tombstone-00 Section 5.1: "Implementations SHOULD log
 		// the upstream pairs separately before merging to preserve diagnostic
@@ -258,6 +261,7 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 		// which is the whole point of the requirement. Not wu, which the rewrites above may
 		// have replaced with bytes ze built.
 		s.rfc7606Diagnostics("treat-as-withdraw", receivedWU, result.AttrCode, result.Description)
+		s.recordBadUpdate("treat-as-withdraw", result.Description, receivedWU.Payload())
 		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
@@ -725,7 +729,14 @@ func (s *Session) rfc7606LateAttributeError(wu *wireu.WireUpdate, validation *rf
 	// RFC 7606 Section 6.
 	s.logRFC7606Error("treat-as-withdraw", attrCode, description)
 	s.rfc7606DiagnosticsWithWire("treat-as-withdraw", wu, attrCode, description, validation.diagnosticWireHex)
+	s.recordBadUpdate("treat-as-withdraw", description, wu.Payload())
 	return message.RFC7606ActionTreatAsWithdraw, nil
+}
+
+// recordBadUpdate records an offending received UPDATE payload in the bounded
+// bad-packet ring on cold RFC 7606 error paths.
+func (s *Session) recordBadUpdate(action, reason string, raw []byte) {
+	badpacket.Record("bgp", s.settings.Address.String(), "UPDATE", action, reason, raw)
 }
 
 // rfc7606SessionReset performs the session-reset action: NOTIFICATION, FSM event, close.
@@ -750,6 +761,7 @@ func (s *Session) rfc7606ResetNotification(wu *wireu.WireUpdate, description str
 	// RFC 7606 Section 6. A session reset is the most damaging outcome and the one an
 	// operator most needs to diagnose, so it carries the same detail as the other two.
 	s.rfc7606DiagnosticsWithWire("session-reset", wu, 0, description, wireHex)
+	s.recordBadUpdate("session-reset", description, wu.Payload())
 
 	s.mu.RLock()
 	conn := s.conn
@@ -792,6 +804,9 @@ func (s *Session) rfc7606NLRISyntaxAction(
 	// wrong with it.
 	s.logRFC7606Error("nlri-syntax", result.AttrCode, result.Description)
 	s.rfc7606Diagnostics("nlri-syntax", wu, result.AttrCode, result.Description)
+	if result.Action != message.RFC7606ActionNone {
+		s.recordBadUpdate(result.Action.String(), result.Description, wu.Payload())
+	}
 	return wu, result.Action, nil
 }
 

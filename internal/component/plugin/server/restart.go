@@ -255,6 +255,7 @@ func (s *Server) releasePluginRegistrations(proc *process.Process) {
 		s.registry.Unregister(proc.Name())
 	}
 	s.unregisterDeclaredBusSends(proc.Name())
+	s.unregisterPluginDriftSubsystems(proc)
 	if s.capInjector != nil {
 		s.capInjector.RemovePluginCapabilities(proc.Name())
 	}

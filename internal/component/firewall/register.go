@@ -8,6 +8,7 @@ import (
 
 	firewallyang "github.com/ze-software/ze/internal/component/firewall/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -103,4 +104,10 @@ func init() { //nolint:gochecknoinits // plugin registration
 	if err := registry.Register(reg); err != nil {
 		panic("BUG: firewall: registration failed: " + err.Error())
 	}
+	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-firewall:show-trace",
+			Handler:    handleShowFirewallTrace,
+		},
+	)
 }

@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/badpacket"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/env"
@@ -107,6 +108,7 @@ func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (receivedFra
 
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
+		badpacket.Record("bgp", s.settings.Address.String(), "HEADER", "header-error", err.Error(), buf.Buf[:message.HeaderLen])
 		// RFC 4271 Section 6.1 and Section 8.2.2 (Event 21)
 		s.notifyHeaderErr(conn, buf.Buf[:message.HeaderLen], err)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
@@ -118,6 +120,7 @@ func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (receivedFra
 	// messages, if the receiver has advertised the BGP Extended Message
 	// Capability, this document raises that limit to 65,535."
 	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
+		badpacket.Record("bgp", s.settings.Address.String(), "HEADER", "header-error", err.Error(), buf.Buf[:message.HeaderLen])
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
 		var lengthBuf [2]byte
 		binary.BigEndian.PutUint16(lengthBuf[:], hdr.Length)
@@ -174,7 +177,8 @@ func (f *receivedFrame) wire() []byte { return f.buffer.Buf[:f.header.Length] }
 
 func (s *Session) dispatchFrame(frame receivedFrame) error {
 	kept := false
-	defer s.finishReadBuffer(frame.buffer, &kept)
+	frameLen := int(frame.header.Length)
+	defer s.finishReadBuffer(frame.buffer, &frameLen, &kept)
 	if err := s.beginAdmission(); err != nil {
 		return err
 	}
@@ -194,26 +198,64 @@ type transferredReadBufferPanic struct {
 }
 
 // finishReadBuffer is deferred by every selected read-buffer owner, including
-// the coalesced synthetic body. Its kept pointer belongs to that read call.
+// the coalesced synthetic body. Its kept and frameLen pointers belong to that
+// read call so defers installed before the header is read see the final frame
+// length without heap-allocating on the happy path.
 // A callback can already have adopted (and aborted) this buffer when it panics;
-// returning it again here would free a slot still owned by an active forward.
-func (s *Session) finishReadBuffer(buf BufHandle, kept *bool) {
+// returning or reading it here would touch a slot owned by an active forward.
+func (s *Session) finishReadBuffer(buf BufHandle, frameLen *int, kept *bool) {
 	cause := recover()
 	if transferred, ok := cause.(transferredReadBufferPanic); ok {
 		if len(buf.Buf) > 0 {
 			if len(transferred.buffer.Buf) > 0 {
 				if &buf.Buf[0] == &transferred.buffer.Buf[0] {
 					*kept = true
+					s.panicFrameSuppressed.Store(true)
 				}
 			}
 		}
 		cause = transferred.cause
+	}
+	if cause != nil {
+		if !*kept {
+			// Owned exclusively by the read goroutine; copy BEFORE returnReadBuffer
+			// recycles or memguard.Poisons the slot. Never reads transferred buffers.
+			s.capturePanicFrame(buf.Buf, frameLen)
+		}
 	}
 	if !*kept {
 		s.returnReadBuffer(buf)
 	}
 	if cause != nil {
 		panic(cause)
+	}
+}
+
+// capturePanicFrame detaches up to badpacket.MaxPayloadBytes from an owned read
+// buffer during a panic unwind so describeRead can hand it to taskguard.
+// Uses CompareAndSwap(nil, ...) so an inner flushCoalesce panic frame is not
+// overwritten by an outer readAndProcessCoalesced defer, and honors
+// panicFrameSuppressed so an outer defer never misattributes an unrelated frame
+// after an inner transferredReadBufferPanic.
+func (s *Session) capturePanicFrame(buf []byte, frameLen *int) {
+	if s.panicFrameSuppressed.Load() {
+		return
+	}
+	if frameLen == nil {
+		return
+	}
+	if *frameLen <= 0 {
+		return
+	}
+	if len(buf) == 0 {
+		return
+	}
+	if s.panicFrame.Load() != nil {
+		return
+	}
+	n := min(*frameLen, len(buf))
+	if copied := badpacket.CopyBounded(buf[:n]); len(copied) > 0 {
+		s.panicFrame.CompareAndSwap(nil, &copied)
 	}
 }
 

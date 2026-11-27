@@ -40,6 +40,7 @@ const (
 	callbackValidateOpen     = "ze-plugin-callback:validate-open"
 	callbackFilterUpdate     = "ze-plugin-callback:filter-update"
 	callbackDoctorCheck      = "ze-plugin-callback:doctor-check"
+	callbackDriftCheck       = "ze-plugin-callback:drift-check"
 	callbackEnrichShow       = "ze-plugin-callback:enrich-show"
 	// callbackPostStartup is sent by the engine after all startup phases
 	// complete and both the plugin registry and dispatcher command registry

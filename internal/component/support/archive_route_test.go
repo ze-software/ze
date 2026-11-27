@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/supportreg"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -256,7 +257,7 @@ func TestSupportArchiveOverBoundRefused(t *testing.T) {
 // may be held by a running daemon, and a test never waits on it.
 func TestRealArchiveFitsTheRemoteBound(t *testing.T) {
 	t.Setenv("ze.config.dir", t.TempDir())
-	_, archive, err := collectToMemory(context.Background(), moduleRegistry, &collectOptions{}, "")
+	_, archive, err := collectToMemory(context.Background(), supportreg.Snapshot(), &collectOptions{}, "")
 	if err != nil {
 		t.Fatalf("collect: %v", err)
 	}

@@ -1003,6 +1003,10 @@ func runEngine(conn net.Conn) int {
 		return executeCommand(command, args)
 	})
 
+	p.OnDriftCheck(func(_ string) (rpc.DriftCheckOutput, error) {
+		return checkIfaceDrift(activeCfg.Load()), nil
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, &sdk.Registration{
@@ -1013,6 +1017,7 @@ func runEngine(conn net.Conn) int {
 		Commands:         commandDecls(),
 		Sends:            ifaceSends(),
 		DoctorChecks:     []sdk.DoctorCheckDecl{pppoeCleanupDoctorDeclaration()},
+		DriftSubsystems:  []string{componentNameInterface},
 	}); err != nil {
 		log.Error("interface plugin failed", "error", err)
 		return 1

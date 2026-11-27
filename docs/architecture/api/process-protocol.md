@@ -984,6 +984,23 @@ readiness; any other severity is shown as a warning.
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC doctor checks, validateDoctorCheckDecls -->
 <!-- source: internal/component/plugin/registration.go -- DoctorCheckRegistration -->
 
+**Dataplane Drift Declaration (Stage 1):**
+
+Plugins may include a `drift-subsystems` list (`DeclareRegistrationInput.DriftSubsystems`)
+in Stage 1 to declare read-only dataplane drift checkers (`firewall`, `fib-kernel`,
+`interface`). `validateDriftSubsystemDecls` enforces Stage 1 bounds: at most 16
+subsystems per plugin, each 1..64 ASCII `[a-z0-9-]+` characters, with no
+duplicates within a plugin or across running plugins. On `show system drift` and
+the runtime `dataplane-drift` doctor check, `Server.collectPluginDrift` queries
+live plugins via `ze-plugin-callback:drift-check` (`DriftCheckInput` ->
+`DriftCheckOutput`, bounded to `5s` per plugin, answered via `sdk.OnDriftCheck`
+identically over `DirectBridge` and TLS `MuxConn`).
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, DriftCheckInput, DriftCheckOutput, DriftFinding -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDriftCheck -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackDriftCheck -->
+<!-- source: internal/component/plugin/server/drift.go -- validateDriftSubsystemDecls, registerPluginDriftSubsystems, collectPluginDrift, queryPluginDrift -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks -->
+
 **Enricher Declaration (Stage 1):**
 
 Plugins may include an `enrichers` list in their `declare-registration` to provide
@@ -1836,6 +1853,7 @@ site.
 | `drain` | `DrainInput` | `DrainOutput` or error | Stop drain before whole-daemon shutdown ("The stop drain") |
 | `filter-update` | `FilterUpdateBatchInput` | `FilterUpdateBatchOutput` | Route filter request: a batch of routes, one verdict each |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
+| `drift-check` | `DriftCheckInput` | `DriftCheckOutput` | Read-only dataplane intent-vs-actual drift check for a Stage 1 `drift-subsystems` entry |
 | `resolver-cache-clear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear one declared resolver cache |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
 | `runtime-inspect` | `RuntimeInspectInput` | `RuntimeInspectOutput` | Read-only Go runtime inspection on an independent worker (`goroutines`, `profile`, `log-recent`, `runtime-stats`) |

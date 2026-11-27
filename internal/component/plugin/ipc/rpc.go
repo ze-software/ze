@@ -834,6 +834,28 @@ func (pc *PluginConn) SendDoctorCheck(ctx context.Context, name string) (*rpc.Do
 	return &out, nil
 }
 
+// SendDriftCheck invokes a plugin's read-only dataplane drift check callback
+// for one declared subsystem over whichever transport is active (DirectBridge
+// or MuxConn).
+func (pc *PluginConn) SendDriftCheck(ctx context.Context, subsystem string) (*rpc.DriftCheckOutput, error) {
+	input := rpc.DriftCheckInput{Subsystem: subsystem}
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:drift-check", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.DriftCheckOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal drift-check result: %w", err)
+	}
+	if out.Subsystem == "" {
+		out.Subsystem = subsystem
+	}
+	if out.Findings == nil {
+		out.Findings = []rpc.DriftFinding{}
+	}
+	return &out, nil
+}
+
 // SendResolverCacheClear asks the plugin to clear one of the resolver caches
 // it declared at Stage 1 and returns how many entries it removed.
 func (pc *PluginConn) SendResolverCacheClear(ctx context.Context, input *rpc.ResolverCacheClearInput) (*rpc.ResolverCacheClearOutput, error) {

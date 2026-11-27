@@ -165,6 +165,8 @@ func (p *Plugin) initCallbackDefaults() {
 		callbackDoctorCheck: func(json.RawMessage) (json.RawMessage, error) {
 			return json.Marshal(&rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{}})
 		},
+		// Drift check: unavailable with empty findings when no handler registered.
+		callbackDriftCheck: defaultDriftCheck,
 		// Enrich-show: empty data when no handler registered.
 		callbackEnrichShow: func(json.RawMessage) (json.RawMessage, error) {
 			return json.Marshal(&rpc.EnrichShowOutput{})
@@ -952,6 +954,51 @@ func (p *Plugin) OnDoctorCheck(fn DoctorCheckHandler) {
 			diags = []rpc.DoctorCheckDiagnostic{}
 		}
 		return json.Marshal(&rpc.DoctorCheckOutput{Diagnostics: diags})
+	}
+}
+
+// defaultDriftCheck answers drift-check when no handler is registered.
+func defaultDriftCheck(params json.RawMessage) (json.RawMessage, error) {
+	var input rpc.DriftCheckInput
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal drift-check: %w", err)
+		}
+	}
+	return json.Marshal(&rpc.DriftCheckOutput{
+		Subsystem: input.Subsystem,
+		Status:    "unavailable",
+		Findings:  []rpc.DriftFinding{},
+	})
+}
+
+// OnDriftCheck sets the handler for read-only dataplane drift check requests.
+// The handler receives the declared subsystem name and returns a bounded drift
+// output. If no handler is registered (or fn is nil), drift-check returns
+// status "unavailable" with empty findings. Safe for concurrent use.
+func (p *Plugin) OnDriftCheck(fn func(subsystem string) (rpc.DriftCheckOutput, error)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if fn == nil {
+		p.callbacks[callbackDriftCheck] = defaultDriftCheck
+		return
+	}
+	p.callbacks[callbackDriftCheck] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.DriftCheckInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal drift-check: %w", err)
+		}
+		out, err := fn(input.Subsystem)
+		if err != nil {
+			return nil, err
+		}
+		if out.Subsystem == "" {
+			out.Subsystem = input.Subsystem
+		}
+		if out.Findings == nil {
+			out.Findings = []rpc.DriftFinding{}
+		}
+		return json.Marshal(&out)
 	}
 }
 

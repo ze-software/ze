@@ -97,8 +97,10 @@ ze-cmd:show-event-recent
 ze-cmd:show-health
 ze-cmd:show-metrics-query
 ze-cmd:show-policy-list
+ze-cmd:show-system-bad-packets
 ze-cmd:show-system-cpu
 ze-cmd:show-system-date
+ze-cmd:show-system-drift
 ze-cmd:show-system-file-descriptors
 ze-cmd:show-system-goroutines
 ze-cmd:show-system-memory
@@ -205,6 +207,7 @@ ze-firewall:show-irr-prefix
 ze-firewall:show-irr-status
 ze-firewall:show-ruleset
 ze-firewall:show-system-conntrack
+ze-firewall:show-trace
 ze-firewall:update-domain-group
 ze-flowexport:show-flow-export
 ze-flowexport:show-flow-recent

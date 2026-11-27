@@ -2673,6 +2673,14 @@ that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables
 operations. The kernel firewall backend lowers abstract types to nftables expressions internally. The
 VPP backend maps them directly to ACL rules and policers.
 
+Because `firewall.LastApplied()` retains the complete abstract `Table`/`Chain`/`Term`/`Set`
+model, `firewall.EvaluatePacket` (`internal/component/firewall/explain.go`) can trace a
+synthetic packet read-only without calling nftables or VPP, powering `show firewall trace`
+(`ze-firewall:show-trace`) uniformly across both backends. Kernel-runtime-only predicates
+that cannot be decided offline mark their step `unevaluated: true` and set `incomplete: true`.
+<!-- source: internal/component/firewall/explain.go -- EvaluatePacket, TraceQuery, TraceStep, TraceResult -->
+<!-- source: internal/component/firewall/cmd_trace.go -- handleShowFirewallTrace -->
+
 The firewall configuration parser refuses a literal `source-address` or
 `destination-address` prefix with host bits set. It reports the effective
 network and the corrected configuration statement instead of changing the
@@ -4096,6 +4104,24 @@ SA's owner loop over a channel, so no caller touches SA state.
 
 <!-- source: internal/core/ikeprobe/registry.go -- Register, Probe, Request, Result -->
 <!-- source: internal/component/ike/engine/probe.go -- probePeer -->
+
+**Support bundle and dataplane drift registries are core leaves, keeping
+`plugin/server` decoupled from `support` and dataplane components.**
+`internal/core/supportreg` imports the standard library only and exposes
+`Register(name, fn) func()`, `Names`, and `Snapshot`. `internal/component/support`
+registers its 20 static modules and 7 core live runtime modules in `init()`,
+while `internal/component/plugin/server` registers and unregisters 3
+daemon-backed live modules (`event-ring`, `plugins`, `reload-history`) during
+`StartWithContext` / `Stop` without importing `support`. Similarly,
+`internal/core/drift` exposes local registration (`Register`) and a daemon
+remote fan-out hook (`RegisterRemoteCollector`, `RegisterRemoteLister`) wired by
+`plugin/server` so `show system drift` and `show doctor` reach internal and
+forked plugins over `ze-plugin-callback:drift-check` without upward imports.
+
+<!-- source: internal/core/supportreg/registry.go -- Register, Names, Snapshot, Collector, CollectOptions -->
+<!-- source: internal/component/plugin/server/support_modules.go -- registerSupportModules, unregisterSupportModules -->
+<!-- source: internal/core/drift/drift.go -- Register, RegisterRemoteCollector, RegisterRemoteLister, CheckAll -->
+<!-- source: internal/component/plugin/server/drift.go -- collectPluginDrift, listPluginDriftSubsystems -->
 
 **Local authentication data** and the base `system.authentication.user` schema
 live in `authz`, not `ssh`. `ze-ssh-conf` owns the SSH listener settings and

@@ -298,6 +298,32 @@ recent automatically captured stall records with bounded goroutine stacks.";
                 ze:help "Show daemon liveness watchdog status, probes, and stall records.";
             }
 
+            container drift {
+                config false;
+                ze:command "ze-cmd:show-system-drift";
+                description "Runs read-only dataplane drift checks comparing Ze's intended state against
+live programmed kernel or VPP state across every registered subsystem. Pipe
+through '| subsystem <name>' to inspect one registered subsystem.";
+                ze:help "Check intended state against live dataplane state for drift.";
+            }
+
+            container bad-packets {
+                config false;
+                ze:command "ze-cmd:show-system-bad-packets";
+                description "Returns the bounded in-memory ring of recent offending wire frames captured
+on malformed-message, RFC 7606, and task-panic recovery paths (newest first,
+up to 16 records, each payload capped at 4096 bytes). Pipe through
+'| protocol <name>' to filter to one protocol.";
+                ze:help "Show recently captured malformed or offending wire packets.";
+                leaf count {
+                    type uint8 {
+                        range "1..16";
+                    }
+                    description "Maximum number of bad packet records to return (1 to 16, default 16).";
+                    ze:help "Maximum number of bad packet records to return (1-16).";
+                }
+            }
+
         }
 
         // NOTE: `show host` subtree is owned by the host-cmd plugin.

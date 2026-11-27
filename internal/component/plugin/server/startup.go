@@ -987,6 +987,18 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 			"code", diagnostic.CodeDoctorPluginStopped)
 		return fmt.Errorf("bus send registration: %w", err)
 	}
+	if err := s.registerPluginDriftSubsystems(proc, input.DriftSubsystems); err != nil {
+		s.unregisterDeclaredBusSends(reg.Name)
+		family.UnregisterFamilyBatch(addedFamilies)
+		command.UnregisterPluginShapes(reg.Name)
+		command.UnregisterPluginAliases(reg.Name)
+		command.UnregisterPluginPipeFilters(reg.Name)
+		s.registry.Unregister(reg.Name)
+		startupRegistrationMu.Unlock()
+		logger().Error("plugin drift subsystem conflict", "plugin", reg.Name, "error", err,
+			"code", diagnostic.CodeDoctorPluginStopped)
+		return fmt.Errorf("drift subsystem registration: %w", err)
+	}
 	s.rememberPluginFamilies(reg.Name, addedFamilies)
 	startupRegistrationMu.Unlock()
 

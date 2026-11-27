@@ -342,12 +342,15 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
 
+	p.OnDriftCheck(f.handleDriftCheck)
+
 	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{configRoot},
-		VerifyBudget: 1,
-		ApplyBudget:  1,
-		Commands:     commandDecls(),
-		Sends:        fibKernelSends(),
+		WantsConfig:     []string{configRoot},
+		VerifyBudget:    1,
+		ApplyBudget:     1,
+		Commands:        commandDecls(),
+		Sends:           fibKernelSends(),
+		DriftSubsystems: []string{pluginName},
 	})
 	if err != nil {
 		logger().Error("fib-kernel plugin failed", "error", err)

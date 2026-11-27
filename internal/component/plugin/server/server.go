@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/drift"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/ipc"
@@ -244,6 +245,12 @@ type Server struct {
 	// so retired *process.Process pointers never leak.
 	inspectMu       sync.Mutex
 	inspectInFlight map[*process.Process]int
+
+	// Per-process Stage 1 declared drift subsystems (drift.go).
+	// Keyed by live *process.Process and pruned against ProcessManager so
+	// stopped or restarted generations never leak or shadow live plugins.
+	driftMu         sync.Mutex
+	driftSubsystems map[*process.Process][]string
 }
 
 // wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.
@@ -1053,7 +1060,13 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		// Config load places a compiled-in plugin's insertions only where this
 		// daemon runs that plugin.
 		registry.SetRuntimeLoadedPlugins(s.loadedPluginNames),
+		// Dataplane drift checks fan out to running internal and forked plugins
+		// over ze-plugin-callback:drift-check (drift.go).
+		drift.RegisterRemoteCollector(s.collectPluginDrift),
+		drift.RegisterRemoteLister(s.listPluginDriftSubsystems),
+		s.clearPluginDriftSubsystems,
 	}
+	s.releaseRuntimeSeams = append(s.releaseRuntimeSeams, s.registerSupportModules()...)
 	s.watchdogUnregs = s.registerWatchdogProbes()
 
 	// Start plugin phases asynchronously (non-blocking)

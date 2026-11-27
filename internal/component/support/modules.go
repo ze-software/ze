@@ -1,12 +1,13 @@
-// Design: docs/architecture/core-design.md — module registry for support bundle
+// Design: docs/architecture/core-design.md -- module registry for support bundle
+// Related: register.go -- static and core runtime support module registrations
+// Related: runtime_collectors.go -- core live runtime support bundle collectors
 
 package support
 
 import (
 	"maps"
-	"slices"
-	"time"
 
+	"github.com/ze-software/ze/internal/core/supportreg"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -14,51 +15,14 @@ import (
 // It returns a JSON-serializable value and any error encountered.
 // Errors are non-fatal: the orchestrator records the error in the
 // module result and continues with the next module.
-type moduleCollector func(opts *collectOptions) (any, error)
+type moduleCollector = supportreg.Collector
 
 // collectOptions carries flags that affect collection behavior.
-type collectOptions struct {
-	ConfigPath string
-	Since      string
-	Sensitive  bool
-	SinceTime  time.Time
-}
-
-// moduleRegistry is the SINGLE SOURCE OF TRUTH for the set of
-// modules available in `ze request support archive`. Adding a new module means one
-// entry here; all consumers (help text, --list-modules, validation,
-// collection) DERIVE from this map.
-var moduleRegistry = map[string]moduleCollector{
-	"version":    collectVersion,
-	"doctor":     collectDoctor,
-	"host":       collectHost,
-	"config":     collectConfig,
-	"crashes":    collectCrashes,
-	"disk":       collectDisk,
-	"interfaces": collectInterfaces,
-	"routes":     collectRoutes,
-	"neighbors":  collectNeighbors,
-	"env":        collectEnv,
-	"sysctl":     collectSysctl,
-	"platform":   collectPlatform,
-	"runtime":    collectRuntime,
-	"dmesg":      collectDmesg,
-	"sockets":    collectSockets,
-	"modules":    collectModules,
-	"conntrack":  collectConntrack,
-	"fds":        collectFDs,
-	"dns":        collectDNS,
-	"firewall":   collectFirewall,
-}
+type collectOptions = supportreg.CollectOptions
 
 // ModuleNames returns the sorted list of registered module names.
 func ModuleNames() []string {
-	names := make([]string, 0, len(moduleRegistry))
-	for k := range moduleRegistry {
-		names = append(names, k)
-	}
-	slices.Sort(names)
-	return names
+	return supportreg.Names()
 }
 
 // ModuleList returns the sorted module names joined with ", ".
@@ -66,14 +30,15 @@ func ModuleList() string {
 	return textbuf.Join(ModuleNames(), ", ")
 }
 
-// filterModules returns the subset of moduleRegistry matching the
+// filterModules returns the subset of registered modules matching the
 // include/exclude filters. Empty include means all modules. Returns
 // an error string if any requested name is unknown.
 func filterModules(include, exclude []string) (map[string]moduleCollector, string) {
+	reg := supportreg.Snapshot()
 	if len(include) > 0 {
 		result := make(map[string]moduleCollector, len(include))
 		for _, name := range include {
-			fn, ok := moduleRegistry[name]
+			fn, ok := reg[name]
 			if !ok {
 				return nil, "unknown module: " + name + " (valid: " + ModuleList() + ")"
 			}
@@ -82,11 +47,11 @@ func filterModules(include, exclude []string) (map[string]moduleCollector, strin
 		return result, ""
 	}
 
-	result := make(map[string]moduleCollector, len(moduleRegistry))
-	maps.Copy(result, moduleRegistry)
+	result := make(map[string]moduleCollector, len(reg))
+	maps.Copy(result, reg)
 
 	for _, name := range exclude {
-		if _, ok := moduleRegistry[name]; !ok {
+		if _, ok := reg[name]; !ok {
 			return nil, "unknown module: " + name + " (valid: " + ModuleList() + ")"
 		}
 		delete(result, name)

@@ -531,12 +531,15 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnDriftCheck(handleDriftCheck)
+
 	ctx := context.Background()
 	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:  []string{ConfigRoot, configRootConntrack},
-		Sends:        firewallSends(),
-		VerifyBudget: 2,
-		ApplyBudget:  10,
+		WantsConfig:     []string{ConfigRoot, configRootConntrack},
+		Sends:           firewallSends(),
+		DriftSubsystems: []string{driftSubsystemFirewall},
+		VerifyBudget:    2,
+		ApplyBudget:     10,
 	}); err != nil {
 		log.Error("firewall plugin failed", "error", err)
 		return 1

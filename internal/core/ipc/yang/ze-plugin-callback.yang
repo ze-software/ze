@@ -12,7 +12,7 @@ module ze-plugin-callback {
          registry, and at runtime to deliver events and request encoding.";
 
     revision 2026-11-27 {
-        description "Add runtime-inspect independent read-only diagnostic callback RPC";
+        description "Add runtime-inspect and drift-check read-only diagnostic callback RPCs";
     }
 
     revision 2026-02-01 {
@@ -1310,6 +1310,97 @@ to the single document the record path would have carried.";
                 leaf num-cpu { type int32; ze:help "Logical CPU count"; }
                 leaf max-procs { type int32; ze:help "Active GOMAXPROCS value"; }
                 leaf go-version { type string; ze:help "Go runtime version string"; }
+            }
+        }
+    }
+
+    // Runtime: Read-only dataplane drift inspection.
+
+    rpc drift-check {
+        ze:method "ze-plugin-callback:drift-check";
+        ze:help "Inspect intended versus actual dataplane state for one declared subsystem.";
+        description "Called by the daemon to compare a plugin's intended configuration or in-memory state against programmed kernel or dataplane state. The callback is strictly read-only and must not mutate runtime state or raise report warnings.";
+        input {
+            leaf subsystem {
+                type string;
+                mandatory true;
+                ze:help "Declared drift subsystem name";
+                description "One of the drift-subsystems names declared by this plugin at Stage 1.";
+            }
+        }
+        output {
+            leaf subsystem {
+                type string;
+                mandatory true;
+                ze:help "Checked drift subsystem name";
+                description "Echoes the checked subsystem name.";
+            }
+            leaf status {
+                type enumeration {
+                    enum clean { ze:help "Intended and actual dataplane state match"; }
+                    enum drifted { ze:help "One or more divergences detected"; }
+                    enum unavailable { ze:help "Subsystem has no active checker or dataplane backend"; }
+                    enum error { ze:help "Inspection failed before comparison completed"; }
+                }
+                mandatory true;
+                ze:help "Drift check outcome";
+                description "Summarizes whether intended and actual dataplane state agree.";
+            }
+            leaf checked {
+                type int32;
+                ze:help "Number of intended or programmed objects inspected";
+                description "Total count of objects evaluated during this drift check.";
+            }
+            leaf drifted {
+                type int32;
+                ze:help "Total number of divergences detected";
+                description "Total count of findings before truncation.";
+            }
+            leaf truncated {
+                type boolean;
+                ze:help "Whether findings were capped at the per-subsystem limit";
+                description "True when more divergences existed than returned in findings.";
+            }
+            list findings {
+                ordered-by user;
+                ze:help "Bounded list of detected divergences";
+                description "Individual missing, extra, or mismatched dataplane entries.";
+                leaf subject {
+                    type string;
+                    mandatory true;
+                    ze:help "Divergent object identifier";
+                    description "Human-readable key naming the table, route, interface, or entry.";
+                }
+                leaf kind {
+                    type enumeration {
+                        enum missing { ze:help "Intended object is absent from the dataplane"; }
+                        enum extra { ze:help "Unexpected Ze-owned object is present in the dataplane"; }
+                        enum mismatch { ze:help "Dataplane object differs from intended attributes"; }
+                    }
+                    mandatory true;
+                    ze:help "Divergence classification";
+                    description "Classifies the difference between intended and actual state.";
+                }
+                leaf expected {
+                    type string;
+                    ze:help "Intended value";
+                    description "Expected attribute or state when applicable.";
+                }
+                leaf actual {
+                    type string;
+                    ze:help "Observed dataplane value";
+                    description "Actual attribute or state read from the dataplane when applicable.";
+                }
+                leaf detail {
+                    type string;
+                    ze:help "Additional diagnostic context";
+                    description "Optional plain-text explanation of the divergence.";
+                }
+            }
+            leaf error {
+                type string;
+                ze:help "Inspection error message";
+                description "Populated when status is error to explain why the check could not complete.";
             }
         }
     }

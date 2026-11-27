@@ -58,9 +58,9 @@ Over CLI:
 ze cli -c "show system triage | json"
 ```
 
-Over MCP, call `ze_show_system` with `action: "triage"` (or `ze_execute` with `"show system triage"`).
+Over MCP, call `ze_show_system` with `action: "triage"` (or `ze_execute` with `"show system triage"`), or discover and read the read-only `ze://triage` resource via `resources/list` and `resources/read` (scope-checked against `"show system triage"`, 5s live-state TTL).
 
-One round-trip returns build provenance (`version`), component `health`, daemon `doctor` findings, recent `errors`, active `warnings`, saved `crashes`, unhealthy `plugins`, `reload` status (including `last-operation-id` when a reload has run), `recent-logs` (warn and error), and process `runtime` vitals (including `watchdog-running`, `stall-count`, and `hung-handler-count`). Sections whose runtime source is unreachable report `available: false` with a reason; capped lists report `total-count` and `truncated` so you know when to fetch full details.
+One round-trip returns build provenance (`version`), component `health`, daemon `doctor` findings, recent `errors`, active `warnings`, saved `crashes`, unhealthy `plugins`, `reload` status (including `last-operation-id` when a reload has run), `recent-logs` (warn and error), and process `runtime` vitals (including `watchdog-running`, `stall-count`, `hung-handler-count`, and `bad-packet-count`). Sections whose runtime source is unreachable report `available: false` with a reason; capped lists report `total-count` and `truncated` so you know when to fetch full details.
 
 ### 2. Drill Down Based on What Triage Flags
 
@@ -92,13 +92,27 @@ One round-trip returns build provenance (`version`), component `health`, daemon 
   - `show log recent level err | plugin <name>` (queries the plugin's own process-local `slogutil` ring; also supports `level`, `component`, and `count`)
   - Over MCP, pass structured pipe entries with the exact `"args"` list syntax: `pipe: [{"name": "plugin", "args": ["<name>"]}]` (or `pipe: [{"name": "plugin", "args": ["<name>"]}, {"name": "summary"}]` on `show system profile`).
   - **Interpreting responses**: every answer includes `plugin`, `process-mode` (`"internal"` for in-daemon goroutines or `"external"` for forked subprocesses), and `pid`. When a forked external plugin is wedged, timed out, disconnected, or non-Go, the daemon never sends `SIGQUIT` or any terminating signal; instead it returns `fallback: true` with `fallback-reason` (`"timeout"`, `"unsupported"`, or `"transport-error"`), `rpc-error`, `host` Linux `/proc/<pid>` metrics (`state`, `wchan`, `threads`, `vm-rss-kb`, `fd-count`), and up to 32 recent `stderr-tail` lines.
+- **Dataplane drift (`show system drift`, `doctor-dataplane-drift`)**: detect silent divergence between Ze's intended state and live programmed kernel/dataplane state across both internal and forked plugins (`firewall`, `fib-kernel`, `interface`):
+  - Run `show system drift` for all registered subsystems, or narrow to one subsystem with `show system drift | subsystem <name>` (e.g., `show system drift | subsystem firewall`).
+  - Over MCP, pass `pipe: [{"name": "subsystem", "args": ["firewall"]}]`.
+  - `show doctor` runs the runtime `dataplane-drift` check and surfaces drifted or errored subsystems under `doctor-dataplane-drift` with fix `ze show system drift`.
+- **Decision-trace suite (firewall and BGP)**:
+  - **Firewall packet trace**: evaluate a synthetic packet read-only against `firewall.LastApplied()` (works across kernel and VPP without touching nftables/VPP) with `show firewall trace table <t> [chain <c>] [protocol tcp|udp|icmp|icmpv6] [source-address <ip>] [destination-address <ip>] [source-port <1..65535>] [destination-port <1..65535>] [input-interface <if>] [output-interface <if>] [connection-state new|established|related|invalid]`. The response returns per-term `steps`, `verdict`, `matched-chain`, `matched-term`, and `default-policy`; kernel-only match predicates report `unevaluated: true` and `incomplete: true` instead of guessing.
+  - **BGP explain**: inspect BGP best-path selection steps with `show bgp rib best | reason` and dry-run import/export filter chains without mutating sessions via `show policy test peer <sel> <direction> update <hex>`.
+- **Bad-packet reproducers (`show system bad-packets`)**: inspect the always-on 16-slot x 4 KiB circular ring of malformed wire frames and task-panic frames (captured on BGP RFC 7606 actions, BGP header/length parse errors, and recovered `taskguard` panics):
+  - Check `show system triage` `runtime.bad-packet-count` to see whether any offending frames were recorded.
+  - Fetch frames newest-first with `show system bad-packets [count <N>]` (`count` `1..16`, default `16`) or filter by protocol with `show system bad-packets | protocol bgp` (over MCP: `pipe: [{"name": "protocol", "args": ["bgp"]}]`). Each entry returns `id`, `captured-at`, `protocol`, `peer`, `message-type`, `action`, `reason`, `length`, `truncated`, and lowercase `hex` payload suitable for test reproducers.
+- **Live support bundle modules (`request support archive`)**: alongside the 20 static modules, collect bounded live daemon runtime modules in one archive:
+  - `request support archive module log-ring,report,health,watchdog,bad-packets,drift,goroutines,event-ring,plugins,reload-history`
+  - Over the daemon route (CLI/SSH/MCP/REST/gRPC), the archive is saved under `support/archive/<name>` and retrieved with `show data cat <key>`.
 
 ### 3. Bug Report Essentials
 
 Include these facts from triage and drill-down when reporting a runtime bug:
 
 - Exact `version` identity (`release`, `build-date`, `commit`, `modified`, `go`, `os`, `arch`, and `image` when present)
-- Failing `doctor` and `errors` codes (including `doctor-internal-defect`) and their messages
+- Failing `doctor` and `errors` codes (including `doctor-internal-defect` and `doctor-dataplane-drift`) and their messages
 - Relevant `crashes` file name and stack trace when any crash or recovered panic occurred
+- Captured `bad-packets` `hex` payload and metadata when malformed wire input or a protocol panic was involved
 - Recent warn and error log entries and relevant `show event recent` history
 - Concrete steps and config that triggered the behavior

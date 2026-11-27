@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/badpacket"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/health"
 	"github.com/ze-software/ze/internal/core/report"
@@ -487,6 +488,7 @@ func triageRuntime(ctx *pluginserver.CommandContext) map[string]any {
 		"watchdog-running":   st.Running,
 		"stall-count":        st.StallCount,
 		"hung-handler-count": hungCount,
+		"bad-packet-count":   badpacket.Count(),
 	}
 	if ctx == nil {
 		return out

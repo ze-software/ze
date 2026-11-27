@@ -383,6 +383,9 @@ type DeclareRegistrationInput struct {
 	// (FilterInsertion).
 	FilterInsertions []FilterInsertion `json:"filter-insertions,omitempty"`
 	DoctorChecks     []DoctorCheckDecl `json:"doctor-checks,omitempty"`
+	// DriftSubsystems names the dataplane drift subsystems this plugin inspects
+	// when the daemon invokes ze-plugin-callback:drift-check.
+	DriftSubsystems []string `json:"drift-subsystems,omitempty"`
 	// ResolverCaches names the resolver caches (rpc.ResolverCachePeeringDB,
 	// ResolverCacheIRR, ResolverCacheCymru) this plugin holds clients for. The
 	// engine asks it to clear each one through MethodResolverCacheClear when
@@ -680,6 +683,32 @@ type DoctorCheckDiagnostic struct {
 // DoctorCheckOutput is the output for ze-plugin-callback:doctor-check.
 type DoctorCheckOutput struct {
 	Diagnostics []DoctorCheckDiagnostic `json:"diagnostics"`
+}
+
+// DriftFinding describes a single divergence between intended and actual
+// dataplane state reported by ze-plugin-callback:drift-check.
+type DriftFinding struct {
+	Subject  string `json:"subject"`
+	Kind     string `json:"kind"`
+	Expected string `json:"expected,omitempty"`
+	Actual   string `json:"actual,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+}
+
+// DriftCheckInput is the input for ze-plugin-callback:drift-check.
+type DriftCheckInput struct {
+	Subsystem string `json:"subsystem"`
+}
+
+// DriftCheckOutput is the output for ze-plugin-callback:drift-check.
+type DriftCheckOutput struct {
+	Subsystem string         `json:"subsystem"`
+	Status    string         `json:"status"`
+	Checked   int            `json:"checked"`
+	Drifted   int            `json:"drifted"`
+	Truncated bool           `json:"truncated,omitempty"`
+	Findings  []DriftFinding `json:"findings"`
+	Error     string         `json:"error,omitempty"`
 }
 
 // FamilyDecl declares an address family the plugin handles.

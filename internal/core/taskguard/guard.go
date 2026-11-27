@@ -10,7 +10,8 @@
 // the message type where the task tracks one, the panic value, the stack, what
 // restarts the unit and the `show crashes` command; it counts the panic in
 // ze_task_panics_total{component,task}; it captures a flight-recorder trace
-// snapshot when flight recording is enabled; it writes a crash record through
+// snapshot when flight recording is enabled; it records any attached offending
+// wire frame in internal/core/badpacket; it writes a crash record through
 // crashlog; and it raises a bounded error event on internal/core/report under
 // doctor-internal-defect so show errors, show doctor and show system triage
 // surface the defect. It then hands control to the caller's end function,
@@ -28,6 +29,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/badpacket"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -142,6 +144,10 @@ type Context struct {
 	// MessageType names the message the task was handling. Empty means the task
 	// tracks no message type, and the log line then carries no such field.
 	MessageType string
+	// RawFrame holds an owned copy of the wire frame being handled when the
+	// task panicked, if captured before the read buffer was released. Empty
+	// means no frame was attached and no bad-packet record is written.
+	RawFrame []byte
 }
 
 // Contain is the boundary. It MUST be deferred directly at the top of the task,
@@ -212,6 +218,11 @@ func (g *Guard) record(restart string, p *Panic) {
 	}
 	if p.MessageType != "" {
 		detail["message-type"] = p.MessageType
+	}
+	if len(p.RawFrame) > 0 {
+		pktID := badpacket.Record(p.Component, p.Unit, p.MessageType, "task-panic", panicText, p.RawFrame)
+		detail["bad-packet-id"] = pktID
+		attrs = append(attrs, slog.String("bad-packet-id", pktID))
 	}
 
 	fix := fallbackFixCommand

@@ -234,6 +234,15 @@ var stage1Checks = []stage1Check{
 		},
 	},
 	{
+		name: "drift-subsystems", section: sectionStage1, phase: stage1PhaseSink,
+		isolated: func(_ string, input *rpc.DeclareRegistrationInput, _ stage1Site) error {
+			return validateDriftSubsystemDecls(input.DriftSubsystems)
+		},
+		wrap: func(_ string, err error) error {
+			return fmt.Errorf("invalid drift subsystem: %w", err)
+		},
+	},
+	{
 		name: "doctor-check-declared-twice", section: sectionStage1, phase: stage1PhaseSink,
 		live: func(e *engineStartupSink, input *rpc.DeclareRegistrationInput) error {
 			return refuseDoctorCheckDeclaredTwice(e.proc.Config().Name,

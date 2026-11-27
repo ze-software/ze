@@ -159,7 +159,7 @@ type requestScope struct {
 // runs FIRST, so an illegal interim result becomes an error before any cache
 // hint is considered for it.
 func (s *Streamable) runMethod(ctx context.Context, scope requestScope, req *request, remoteAddr string) *response {
-	return stampCacheHints(req.Method, s.guardInputRequired(req.Method, s.dispatchMethod(ctx, scope, req, remoteAddr)))
+	return stampCacheHints(req, s.guardInputRequired(req.Method, s.dispatchMethod(ctx, scope, req, remoteAddr)))
 }
 
 // dispatchMethod routes one JSON-RPC method to its handler. Split from
@@ -187,7 +187,7 @@ func (s *Streamable) dispatchMethod(ctx context.Context, scope requestScope, req
 	case methodResourcesList:
 		return s.resourcesList(req)
 	case methodResourcesRead:
-		return s.resourcesRead(req)
+		return s.resourcesRead(ctx, scope, req, remoteAddr)
 	case initializeMethod:
 		// An initialize POST that carried conformant headers reaches dispatch
 		// rather than header validation. MCP 2026-07-28 basic/versioning asks a

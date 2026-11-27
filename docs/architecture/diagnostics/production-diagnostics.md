@@ -25,12 +25,17 @@ is the reason none of them needed a bespoke transport.
 | Active probes | ping, traceroute, route lookup (`active-probes.md`) |
 | Health | component health registry, HTTP `/health` returning 200 or 503 |
 | Log query | slog ring handler split into `general` (512 `debug`/`info`) and `faults` (256 `warn`/`error`) buffers filtered by level, component and count |
-| Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime (including watchdog and hung-handler counts) |
+| Live triage | single-call bounded daemon snapshot (`show system triage`) across version, health, doctor, reports, crashes, plugins, reload, recent logs and runtime (including watchdog, hung-handler, and bad-packet counts) |
 | Execution trace | always-on Go flight recorder, on-demand snapshot capture, and snapshot retrieval (`show system trace`, `request system trace snapshot`) |
 | Plugin runtime | cross-process `\| plugin <name>` inspection on goroutines, profiles (`\| summary`), Go memory, OS `/proc/<pid>` memory, and plugin log rings with non-destructive host fallback |
 | Operation correlation | process-scoped `op-<N>` IDs (`internal/core/opid`) propagated across commands, reloads, logs, events, report-bus issues, and audit records, queried with `\| operation <id>` |
 | Reload history | 32-entry leaf-locked reload transaction journal (`show system reload history`) with per-plugin verify/apply/rollback timings and errors |
 | Liveness & wedge survival | bounded 60s operator handler timeouts (`doctor-command-handler-hung`) and always-on daemon liveness watchdog (`internal/core/watchdog`, `show system watchdog`, `doctor-daemon-stall-detected`) |
+| Dataplane drift | read-only intent-vs-actual checks (`internal/core/drift`, `ze-plugin-callback:drift-check`) across internal and forked plugins (`firewall`, `fib-kernel`, `interface`), exposed via `show system drift [\| subsystem <name>]` and `show doctor` (`doctor-dataplane-drift`) |
+| Decision trace | read-only offline firewall packet evaluation over `firewall.LastApplied()` (`show firewall trace`), alongside existing BGP best-path (`show bgp rib best \| reason`) and policy dry-run (`show policy test`) |
+| Bad-packet ring | always-on 16-slot x 4 KiB circular ring (`internal/core/badpacket`) of malformed wire and panic-unwind frames queried via `show system bad-packets [count <N>] [\| protocol <name>]` |
+| Support bundle modules | registrable `internal/core/supportreg` leaf combining 20 static modules with 7 core and 3 daemon-registered bounded live runtime modules in `request support archive` |
+| MCP state resources | read-only `ze://triage` live snapshot over MCP `resources/list` and `resources/read` with command-scope authorization and a 5s live-state cache TTL |
 
 ### Single-call live triage (`show system triage`)
 
@@ -39,13 +44,15 @@ is the reason none of them needed a bespoke transport.
 `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, and `runtime`.
 Because it registers under the shared `show system` YANG tree, CLI, SSH, web,
 REST, gRPC, and MCP all expose it automatically with no MCP-specific code.
+MCP also publishes the same read-only snapshot as `ze://triage` (see below).
 
 List sections cap their payloads newest-first (`32` errors, `64` warnings, `16`
 crashes, `32` warn/error log entries) and report `total-count` and `truncated`
 so operators and agents know when to drill into full listings. `plugins`
 reports summary counts and expands only unhealthy or fault-bearing plugins.
-`runtime` also reports `watchdog-running`, `stall-count`, and
-`hung-handler-count` under leaf locks without acquiring `Server.txLock`.
+`runtime` also reports `watchdog-running`, `stall-count`,
+`hung-handler-count`, and `bad-packet-count` (`badpacket.Count()`) under leaf
+locks or atomics without acquiring `Server.txLock`.
 When an optional runtime source (`doctor`, `plugins`, or `reload`) cannot
 answer, that section returns `"available": false` with its `reason` or `error`
 while every other section still succeeds. `version` reads structured build and
@@ -53,6 +60,7 @@ appliance provenance from `version.BuildIdentity`.
 
 <!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage, triageRuntime -->
 <!-- source: internal/core/version/version.go -- BuildIdentity -->
+<!-- source: internal/core/badpacket/badpacket.go -- Count -->
 
 ### Execution flight recorder (`show system trace`)
 
@@ -214,6 +222,104 @@ disconnected transport, or non-Go binary), `Server.InspectPlugin` never sends
 <!-- source: internal/component/plugin/server/runtime_inspect.go -- Server.InspectPlugin, Server.InspectPluginHost -->
 <!-- source: internal/component/cmd/show/plugin_inspect.go -- plugin pipe filters and fallback builders -->
 <!-- source: internal/plugins/log/cmd/handlers.go -- handleLogRecent -->
+
+### Dataplane drift (`show system drift`)
+
+`internal/core/drift` provides a core leaf registry (`drift.Register`,
+`drift.RegisterRemoteCollector`, `drift.RegisterRemoteLister`) for read-only
+intent-vs-actual dataplane drift checks bounded to `5s` per subsystem and `64`
+findings per subsystem (`MaxFindingsPerSubsystem`). On `Server.StartWithContext`,
+`plugin/server` wires `collectPluginDrift` and `listPluginDriftSubsystems` into
+`internal/core/drift` and fans out `ze-plugin-callback:drift-check` (`sdk.OnDriftCheck`)
+across both internal (`DirectBridge`) and forked (`MuxConn`) plugins declaring
+Stage 1 `drift-subsystems` (`firewall`, `fib-kernel`, `interface`).
+
+`show system drift` (`ze-cmd:show-system-drift`) exposes every registered
+subsystem under one uniform JSON shape (`status`, `subsystems`, `count`,
+`drifted-count`) and registers the command-owned `| subsystem <name>` pipe
+filter. `internal/core/drift/register.go` also registers the `dataplane-drift`
+`DoctorPhaseRuntime` check under `doctor-dataplane-drift` (fix
+`ze show system drift`). No drift checker mutates dataplane state or report-bus
+warnings.
+
+<!-- source: internal/core/drift/drift.go -- Register, RegisterRemoteCollector, CheckAll, Check, Subsystems, MaxFindingsPerSubsystem -->
+<!-- source: internal/core/drift/register.go -- CodeDoctorDataplaneDrift, checkDataplaneDrift -->
+<!-- source: internal/component/plugin/server/drift.go -- collectPluginDrift, queryPluginDrift, listPluginDriftSubsystems -->
+<!-- source: internal/component/cmd/show/drift.go -- handleShowSystemDrift, subsystemPipeFilter -->
+
+### Firewall decision trace (`show firewall trace`)
+
+Alongside BGP's existing `show bgp rib best | reason` (`SelectBestExplain`) and
+`show policy test` dry-run evaluators, `firewall.EvaluatePacket` provides a pure
+read-only decision-trace evaluator over `firewall.LastApplied()`. Exposed as
+`show firewall trace` (`ze-firewall:show-trace`, backend-independent across
+kernel and VPP), it accepts `table` (mandatory), `chain`, `protocol`,
+`source-address`, `destination-address`, `source-port`, `destination-port`,
+`input-interface`, `output-interface`, and `connection-state`, walking terms
+with a bounded call-stack depth (`maxTraceDepth = 16`) across jumps, gotos,
+named sets, modifiers, and default policies. Predicates that require live kernel
+runtime state (such as `MatchDestinationLocal`, `MatchIPsecTransform`, or
+`MatchTCPFlags`) mark the step `unevaluated: true` and set `incomplete: true`
+rather than fabricating a match or verdict.
+
+<!-- source: internal/component/firewall/explain.go -- EvaluatePacket, TraceQuery, TraceStep, TraceResult, maxTraceDepth -->
+<!-- source: internal/component/firewall/cmd_trace.go -- handleShowFirewallTrace, parseTraceQuery -->
+
+### Bad-packet ring (`show system bad-packets`)
+
+`internal/core/badpacket` is an always-on 16-slot (`MaxRecords`) circular ring
+storing offending wire frames capped at `4096` bytes (`MaxPayloadBytes`, 64 KiB
+max total memory) with monotonic `pkt-<N>` IDs, protocol, peer, message type,
+action, reason, original length, truncation flag, and lowercase hex payload. It
+runs only on cold error and panic paths — BGP RFC 7606 actions
+(`session_validation.go`), BGP header/length parse errors on both standard
+(`session_read.go`) and coalesced (`session_coalesce.go`) read paths, and
+`taskguard` panic recovery (`taskguard.Context.RawFrame`, captured inside
+`finishReadBuffer` via `capturePanicFrame` only when `!*kept` before
+`returnReadBuffer` recycles the buffer) — adding zero allocations on happy
+paths.
+
+`show system bad-packets [count <N>]` (`ze-cmd:show-system-bad-packets`,
+`count` `1..16`) returns captured records newest-first with command-owned pipe
+filter `| protocol <name>`, and `show system triage` reports `bad-packet-count`
+in `runtime`.
+
+<!-- source: internal/core/badpacket/badpacket.go -- Record, Snapshot, Count, CopyBounded, MaxRecords, MaxPayloadBytes -->
+<!-- source: internal/component/cmd/show/bad_packets.go -- handleShowSystemBadPackets, protocolPipeFilter -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- finishReadBuffer, capturePanicFrame -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- recordBadUpdate -->
+
+### Registrable support bundle modules (`internal/core/supportreg`)
+
+`internal/core/supportreg` replaces the hardcoded central module map in
+`internal/component/support/modules.go` with a stdlib-only core leaf registry
+(`supportreg.Register(name, fn) func()`, `Names`, `Snapshot`).
+`internal/component/support/register.go` registers all 20 existing static
+modules plus 7 bounded core live runtime modules (`log-ring`, `report`,
+`health`, `watchdog`, `bad-packets`, `drift`, `goroutines`). During
+`Server.StartWithContext` / `Server.Stop`, `internal/component/plugin/server`
+registers and unregisters 3 daemon-backed live modules (`event-ring`,
+`plugins`, `reload-history`) through `internal/core/supportreg` without
+importing `internal/component/support`.
+
+<!-- source: internal/core/supportreg/registry.go -- Register, Names, Snapshot, Collector, CollectOptions -->
+<!-- source: internal/component/support/modules.go -- ModuleNames, ModuleList, filterModules -->
+<!-- source: internal/component/support/runtime_collectors.go -- collectLogRing, collectReport, collectHealth, collectWatchdog, collectBadPackets, collectDrift, collectGoroutines -->
+<!-- source: internal/component/plugin/server/support_modules.go -- registerSupportModules, unregisterSupportModules -->
+
+### MCP live triage resource (`ze://triage`)
+
+When constructed with a non-nil command dispatcher (`cfg.Dispatch != nil`), the
+MCP Streamable HTTP server appends read-only `ze://triage` to `cachedResources`
+for `resources/list`. `resources/read` on `ze://triage` enforces caller command
+authorization via `checkCommandScope("show system triage")` and dispatches
+`"show system triage"` through `cfg.Dispatch`. Single-site `stampCacheHints`
+stamps `ttlLiveStateMs` (`5000` ms) and `cacheScope: "private"` on `ze://`
+reads while keeping `3600000` ms (1 h) on embedded `ui://` assets and
+`resources/list` (`docs/architecture/mcp/overview.md`).
+
+<!-- source: internal/component/mcp/resources.go -- triageResourceURI, resourcesList, resourcesRead, readTriageResource -->
+<!-- source: internal/component/mcp/caching.go -- ttlLiveStateMs, stampCacheHints, resourceReadURI -->
 
 ### Structured log fields
 

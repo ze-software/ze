@@ -15,10 +15,16 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/core/supportreg"
 )
 
 func TestModuleRegistry_AllRegistered(t *testing.T) {
-	expected := []string{"config", "conntrack", "crashes", "disk", "dmesg", "dns", "doctor", "env", "fds", "firewall", "host", "interfaces", "modules", "neighbors", "platform", "routes", "runtime", "sockets", "sysctl", "version"}
+	expected := []string{
+		"bad-packets", "config", "conntrack", "crashes", "disk", "dmesg", "dns",
+		"doctor", "drift", "env", "fds", "firewall", "goroutines", "health",
+		"host", "interfaces", "log-ring", "modules", "neighbors", "platform",
+		"report", "routes", "runtime", "sockets", "sysctl", "version", "watchdog",
+	}
 	names := ModuleNames()
 	if !slices.Equal(names, expected) {
 		t.Errorf("ModuleNames() = %v, want %v", names, expected)
@@ -26,8 +32,9 @@ func TestModuleRegistry_AllRegistered(t *testing.T) {
 }
 
 func TestModuleRegistry_NoDuplicates(t *testing.T) {
-	seen := make(map[string]bool, len(moduleRegistry))
-	for name := range moduleRegistry {
+	names := ModuleNames()
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
 		if seen[name] {
 			t.Errorf("duplicate module: %s", name)
 		}
@@ -52,6 +59,7 @@ func TestModuleSelection_IncludeFilter(t *testing.T) {
 }
 
 func TestModuleSelection_ExcludeFilter(t *testing.T) {
+	reg := supportreg.Snapshot()
 	modules, errMsg := filterModules(nil, []string{"crashes"})
 	if errMsg != "" {
 		t.Fatal(errMsg)
@@ -59,8 +67,8 @@ func TestModuleSelection_ExcludeFilter(t *testing.T) {
 	if _, ok := modules["crashes"]; ok {
 		t.Error("crashes should be excluded")
 	}
-	if len(modules) != len(moduleRegistry)-1 {
-		t.Errorf("got %d modules, want %d", len(modules), len(moduleRegistry)-1)
+	if len(modules) != len(reg)-1 {
+		t.Errorf("got %d modules, want %d", len(modules), len(reg)-1)
 	}
 }
 
@@ -223,12 +231,13 @@ func TestArchiveManifest_ValidJSON(t *testing.T) {
 }
 
 func TestListModules_DerivedFromRegistry(t *testing.T) {
+	reg := supportreg.Snapshot()
 	names := ModuleNames()
-	if len(names) != len(moduleRegistry) {
-		t.Errorf("ModuleNames() returned %d names, registry has %d", len(names), len(moduleRegistry))
+	if len(names) != len(reg) {
+		t.Errorf("ModuleNames() returned %d names, registry has %d", len(names), len(reg))
 	}
 	for _, name := range names {
-		if _, ok := moduleRegistry[name]; !ok {
+		if _, ok := reg[name]; !ok {
 			t.Errorf("ModuleNames() returned %q not in registry", name)
 		}
 	}

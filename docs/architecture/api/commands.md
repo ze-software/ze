@@ -206,7 +206,9 @@ passes it into audit logging and downstream handlers. Following "the pipe wins",
 command-owned `| operation <id>` pipe filter to narrow results to a single
 `operation-id`. Over MCP, REST, and gRPC, the structured pipe list carries it as
 `pipe: [{"name": "operation", "args": ["<id>"]}]`. Duplicate or blank
-`| operation` filters return a structured operator error (`opererr`).
+`| operation` filters return a structured operator error (`opererr`). Following
+the same pattern, `show system drift` registers `| subsystem <name>` and
+`show system bad-packets` registers `| protocol <name>`.
 
 For operator/external builtin dispatches (`ctx == nil || ctx.Process == nil`),
 `Dispatcher` bounds handler execution to a `60s` default timeout (configurable
@@ -233,6 +235,8 @@ raising `doctor-command-handler-hung`.
 <!-- source: internal/component/plugin/server/command_timeout.go -- HungHandlerRecord, HungHandlers -->
 <!-- source: internal/component/cmd/show/profile.go -- profileHandlerTimeout -->
 <!-- source: internal/component/cmd/show/op_pipe.go -- operation pipe filter registration and parsing -->
+<!-- source: internal/component/cmd/show/drift.go -- subsystemPipeFilter, handleShowSystemDrift -->
+<!-- source: internal/component/cmd/show/bad_packets.go -- protocolPipeFilter, handleShowSystemBadPackets -->
 <!-- source: internal/plugins/log/cmd/register.go -- RegisterPipeFilters for show log recent -->
 
 ### Offline fallback (read-only commands without a daemon)
@@ -1008,6 +1012,9 @@ address; neither zero nor an address lookup substitutes a different peer.
 | `ze-resolve:show-rir` (args: `<asn>`) | `handleRIRASN` in `internal/component/resolve/cmd/rir.go` | `{"asn": N, "registry": "ARIN", "whois": "whois.arin.net", "range-start": N, "range-end": N}`. Two distinct errors: `AS<n> is in no delegated range` for a table that was read, `RIR delegation table unreadable: ...` for one that was not |
 | `ze-resolve:update-rir` (no args) | `handleRIRRefresh` in `internal/component/resolve/cmd/rir.go` | `{"key": "meta/rir/delegation", "ranges": N, "generated": "YYYY-MM-DD"}`. `ranges` is how many ranges the stored table holds and `generated` is the date it stored. All or nothing: a fetch that failed, a parse that refused, a run that read no ASN record, and a write that stored nothing each answer an error and change no stored table |
 | `ze-cmd:show-system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
+| `ze-cmd:show-system-drift` | `handleShowSystemDrift` in `internal/component/cmd/show/drift.go` | `{"status": "clean\|drifted\|error", "subsystems": [Report, ...], "count": N, "drifted-count": M}`; supports command-owned pipe filter `\| subsystem <name>` (`subsystemPipeFilter`, MCP `pipe: [{"name": "subsystem", "args": ["<name>"]}]`) <!-- source: internal/component/cmd/show/drift.go -- handleShowSystemDrift, subsystemPipeFilter --> |
+| `ze-cmd:show-system-bad-packets` | `handleShowSystemBadPackets` in `internal/component/cmd/show/bad_packets.go` | `{"packets": [PacketRecord, ...], "count": N, "total-recorded": N, "capacity": 16}` (newest-first, optional `count <1..16>`); supports command-owned pipe filter `\| protocol <name>` (`protocolPipeFilter`, MCP `pipe: [{"name": "protocol", "args": ["<name>"]}]`) <!-- source: internal/component/cmd/show/bad_packets.go -- handleShowSystemBadPackets, protocolPipeFilter --> |
+| `ze-firewall:show-trace` | `handleShowFirewallTrace` in `internal/component/firewall/cmd_trace.go` | `{"table": "...", "family": "...", "chain": "...", "verdict": "...", "steps": [TraceStep, ...], "matched-chain"?: "...", "matched-term"?: "...", "default-policy"?: true, "incomplete"?: true}` (read-only offline trace over `firewall.LastApplied()`, backend-independent across kernel and VPP) <!-- source: internal/component/firewall/cmd_trace.go -- handleShowFirewallTrace, parseTraceQuery --> |
 | `ze-cmd:show-system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
 | `ze-update:show-system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"\|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
 | `ze-update:show-system-update-history` | `handleShowSystemUpdateHistory` in `internal/plugins/update-cmd/cmd/show.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
@@ -1040,7 +1047,8 @@ address; neither zero nor an address lookup substitutes a different peer.
 | `ze-pki:show-certificate-fingerprint` (args: `<name> [sha256\|sha384\|sha512]`) | `handleShowPKICertificateFingerprint` in `internal/component/pki/show.go` | `{"name": "...", "algorithm": "sha256", "fingerprint": "aa:bb:..."}`. |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
-errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
+errors accepts `count <N>` limit and the command-owned `| operation <id>` pipe
+filter. Return a non-nil empty slice when empty.
 
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
 <!-- source: internal/plugins/static/cmd_show.go -- ForwardToPlugin proxy -->

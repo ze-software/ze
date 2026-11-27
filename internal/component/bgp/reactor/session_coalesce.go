@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/badpacket"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -70,7 +71,8 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	}
 
 	kept := false
-	defer s.finishReadBuffer(buf, &kept)
+	frameLen := 0
+	defer s.finishReadBuffer(buf, &frameLen, &kept)
 
 	_, err := io.ReadFull(bufReader, buf.Buf[:message.HeaderLen])
 	if err != nil {
@@ -87,6 +89,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
+		badpacket.Record("bgp", s.settings.Address.String(), "HEADER", "header-error", err.Error(), buf.Buf[:message.HeaderLen])
 		s.resetCoalesce()
 		// RFC 4271 Section 6.1 and Section 8.2.2 (Event 21)
 		s.notifyHeaderErr(conn, buf.Buf[:message.HeaderLen], err)
@@ -96,6 +99,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	}
 
 	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
+		badpacket.Record("bgp", s.settings.Address.String(), "HEADER", "header-error", err.Error(), buf.Buf[:message.HeaderLen])
 		s.resetCoalesce()
 		var lengthBuf [2]byte
 		binary.BigEndian.PutUint16(lengthBuf[:], hdr.Length)
@@ -117,6 +121,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 			return fmt.Errorf("read body: %w", err)
 		}
 	}
+	frameLen = int(hdr.Length)
 
 	// Protocol event capture tee (capture_replay.go), at the same logical point
 	// as the standard read path's: the complete wire message, before anything
@@ -275,8 +280,9 @@ func (s *Session) flushCoalesce() error {
 
 	coalBuf := coal.buf
 	kept := false
-	defer s.finishReadBuffer(coalBuf, &kept)
 	body := coal.body
+	frameLen := len(body)
+	defer s.finishReadBuffer(coalBuf, &frameLen, &kept)
 	validation := coal.validation
 
 	coal.buf = BufHandle{}

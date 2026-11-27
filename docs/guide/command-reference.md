@@ -794,6 +794,8 @@ ze show system triage              # single-call bounded live triage snapshot (1
 ze show system reload status       # reload generation fence, last outcome, and last-operation-id
 ze show system reload history      # bounded 32-entry reload transaction journal (optional count <N> and | operation <id>)
 ze show system watchdog            # daemon liveness watchdog status, probes, hung handlers, and recent stalls
+ze show system drift               # read-only dataplane drift check across registered subsystems (| subsystem <name>)
+ze show system bad-packets         # recent malformed or task-panic wire frames (count <1..16>, | protocol <name>)
 ```
 
 Each response is a flat JSON map with kebab-case keys:
@@ -806,10 +808,12 @@ Each response is a flat JSON map with kebab-case keys:
 | `show system dns` | `records` (each learned record: `origin`, `rank`, `interface`, `unit`, `addresses`, `received`, `expires`, and when set `fallback`, `priority`, `name`, `transport`, `port`, `path`), `consumers` (each: `consumer`, `selections` with `path`, `instance`, `sources`, `mode`, `default`, `received-interfaces`, `used`, `servers`, `self`, `serves`); the router is first, as consumer `system` (`docs/features/dns-resolver.md`) |
 | `show system platform` | `type` (gokrazy, systemd, container, plain-linux, darwin), `read-only-root`, `perm-available`, `systemd-available`, `gokrazy-update-socket`, `gokrazy-ui-available`, `reboot-allowed`, `persistent-storage-writable`, `fd-limit-soft-current`, `fd-limit-hard-max`, `fd-limit-raisable` |
 | `show system conntrack` | `count`, `max`, `buckets`, `expect-max`, `accounting`, `timestamp`, `checksum`, `log-invalid`, `modules` (loaded nf_conntrack_* list), `helpers` (one row per assigned kernel helper: `module`, `kernel-helper`, `protocol`, `ports`, `families`), `timeouts` (per-protocol), `tcp-behavior` (be-liberal, loose, max-retrans, ignore-invalid-rst) |
-| `show system triage` | `version`, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, `runtime` (includes `watchdog-running`, `stall-count`, and `hung-handler-count`; bounded newest-first lists with `total-count` and `truncated`; unavailable sources return `available: false`) |
+| `show system triage` | `version`, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, `runtime` (includes `watchdog-running`, `stall-count`, `hung-handler-count`, and `bad-packet-count`; bounded newest-first lists with `total-count` and `truncated`; unavailable sources return `available: false`) |
 | `show system reload status` | `generation`, `last-outcome`, `last-reload-at`, `last-operation-id` (optional) |
 | `show system reload history` | `entries` (newest-first, up to 32: `generation`, `operation-id`, `trigger`, `outcome`, `started-at`, `finished-at`, `duration-ms`, `changed-roots`, `tx-state`, `plugins`, `error`), `count`; accepts `count <N>` and `\| operation <id>` |
 | `show system watchdog` | `running`, `interval-ms`, `stall-threshold-ms`, `ticks`, `stall-count`, `last-tick-at`, `probes`, `hung-handlers`, `recent-stalls` |
+| `show system drift` | `status` (`clean`, `drifted`, or `error`), `subsystems` (per-subsystem `subsystem`, `status`, `checked`, `drifted`, `truncated`, `findings`, `error`), `count`, `drifted-count`; accepts `\| subsystem <name>` |
+| `show system bad-packets` | `packets` (newest-first, up to 16: `id`, `captured-at`, `protocol`, `peer`, `message-type`, `action`, `reason`, `length`, `truncated`, `hex`), `count`, `total-recorded`, `capacity`; accepts `count <1..16>` and `\| protocol <name>` |
 
 `show system date` refuses when the NTP state provider is unavailable, including
 a build without NTP support. Install a build with NTP support and retry
@@ -843,7 +847,9 @@ correct; pick `show system *` when you want runtime-first with hardware
 as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
-<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage -->
+<!-- source: internal/component/cmd/show/triage.go -- handleShowSystemTriage, triageRuntime -->
+<!-- source: internal/component/cmd/show/drift.go -- handleShowSystemDrift, subsystemPipeFilter -->
+<!-- source: internal/component/cmd/show/bad_packets.go -- handleShowSystemBadPackets, protocolPipeFilter -->
 
 ### show plugin list
 
@@ -1572,7 +1578,7 @@ health checks, configuration, logs, and diagnostics into a compressed tar.gz
 with one JSON file per module. No shell-outs; gokrazy-safe.
 
 ```
-ze request support archive                             # Full bundle, all 20 modules
+ze request support archive                             # Full bundle, all registered modules (20 static + live runtime)
 ze request support archive --module version,doctor     # Only named modules
 ze request support archive --exclude dmesg             # All except named modules
 ze request support archive --json                      # Output manifest JSON to stdout
@@ -1582,6 +1588,12 @@ ze request support archive --sensitive                 # Include passwords (defa
 ze request support archive --since 2h                  # Time scope for log collection
 ze request support archive --output /var/support/      # Output directory (default: cwd)
 ```
+
+Alongside the 20 static host/config modules, `internal/core/supportreg`
+registers 10 bounded live runtime modules: 7 core modules (`log-ring`,
+`report`, `health`, `watchdog`, `bad-packets`, `drift`, `goroutines`) always
+present, plus 3 daemon-backed modules (`event-ring`, `plugins`,
+`reload-history`) registered while the plugin server is running.
 
 Through the daemon (SSH, `ze cli -c`, MCP, REST, gRPC, the web), the caller's
 host is not the router, so no directory of the caller's can be named. The
@@ -1595,12 +1607,16 @@ the local command on the router.
 
 ```
 ze cli -c "request support archive module version,doctor reason 'BGP flap'"
+ze cli -c "request support archive module log-ring,report,health,watchdog,bad-packets,drift,goroutines,event-ring,plugins,reload-history"
 ze cli -c "show data cat support/archive/ze-support-router1-20261102-101500.tar.gz"
 ```
 
 <!-- source: internal/component/support/support.go -- Run, Answer, storeAnswer, collect, SupportManifest -->
 <!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
-<!-- source: internal/component/support/modules.go -- moduleRegistry, ModuleNames, ModuleList -->
+<!-- source: internal/core/supportreg/registry.go -- Register, Names, Snapshot -->
+<!-- source: internal/component/support/modules.go -- ModuleNames, ModuleList, filterModules -->
+<!-- source: internal/component/support/runtime_collectors.go -- collectLogRing, collectReport, collectHealth, collectWatchdog, collectBadPackets, collectDrift, collectGoroutines -->
+<!-- source: internal/component/plugin/server/support_modules.go -- registerSupportModules, unregisterSupportModules -->
 
 ### ze thanks / ze thanks licence
 
@@ -2192,6 +2208,7 @@ without it the handlers reject under exact-or-reject.
 ze show firewall ruleset <name>         # Rules + per-term counters for table <name>
 ze show firewall group                  # List all known group names (applied sets)
 ze show firewall group <name>           # Elements of a named group
+ze show firewall trace table <name> ... # Read-only synthetic packet trace against applied rules
 ```
 
 **`show firewall ruleset`** joins the applied desired state (chains +
@@ -2210,7 +2227,20 @@ state the operator typed into config. Calling with no argument returns
 `{ name, tables[], members }` per group; a positional name returns the
 raw elements.
 
+**`show firewall trace`** evaluates a synthetic packet read-only against
+`firewall.LastApplied()` across both kernel and VPP backends without touching
+nftables or VPP. Accepts mandatory `table <name>` (bare table name without
+`ze_`) and optional `chain <name>`, `protocol <tcp|udp|icmp|icmpv6>`,
+`source-address <ip>`, `destination-address <ip>`, `source-port <1..65535>`,
+`destination-port <1..65535>`, `input-interface <if>`, `output-interface <if>`,
+and `connection-state <new|established|related|invalid>`. Returns `table`,
+`family`, `chain`, `verdict`, `steps`, and optional `matched-chain`,
+`matched-term`, `default-policy`, and `incomplete` (set when a term relies on a
+kernel-only predicate marked `unevaluated: true`).
+
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
+<!-- source: internal/component/firewall/cmd_trace.go -- handleShowFirewallTrace, parseTraceQuery -->
+<!-- source: internal/component/firewall/explain.go -- EvaluatePacket, TraceQuery, TraceStep, TraceResult -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
 

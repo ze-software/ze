@@ -123,6 +123,14 @@ func init() {
 			Handler:    handleShowSystemWatchdog,
 		},
 		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:show-system-drift",
+			Handler:    handleShowSystemDrift,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-cmd:show-system-bad-packets",
+			Handler:    handleShowSystemBadPackets,
+		},
+		pluginserver.RPCRegistration{
 			WireMethod: "ze-cmd:show-metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},
@@ -146,6 +154,14 @@ func init() {
 	command.RegisterPipeFilters(
 		[]string{"show event recent", "show errors", "show audit", "show system reload history"},
 		operationPipeFilter,
+	)
+	command.RegisterPipeFilters(
+		[]string{"show system drift"},
+		subsystemPipeFilter,
+	)
+	command.RegisterPipeFilters(
+		[]string{"show system bad-packets"},
+		protocolPipeFilter,
 	)
 }
 

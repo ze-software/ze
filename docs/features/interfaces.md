@@ -13,6 +13,14 @@ callback. Config restoration also restores the active interface configuration
 and reconciles its DHCP, PPPoE and Router Advertisement workers.
 <!-- source: internal/component/iface/register.go -- runEngine -->
 
+The `interface` plugin declares `DriftSubsystems: ["interface"]` at Stage 1 and
+answers `OnDriftCheck` (`ze-plugin-callback:drift-check`) read-only by comparing
+the last applied configuration (`desiredState`, configured non-zero MTUs, and
+`desiredAddrs`) against `Backend.ListInterfaces()`, without mutating links,
+addresses, or report-bus warnings.
+<!-- source: internal/component/iface/drift.go -- checkIfaceDrift, configuredDriftMTUs -->
+<!-- source: internal/component/iface/register.go -- runEngine -->
+
 ## Capability Table
 
 | Category | Feature | Status | Priority |

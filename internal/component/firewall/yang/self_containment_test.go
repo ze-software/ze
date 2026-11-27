@@ -9,9 +9,11 @@ func TestFirewallCmdSchemaOwnsShowCommands(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-firewall:show-ruleset"`,
 		`ze:command "ze-firewall:show-group"`,
+		`ze:command "ze-firewall:show-trace"`,
 		`ze:command "ze-firewall:show-system-conntrack"`,
 		"container show {",
 		"container firewall {",
+		"container trace {",
 		"container conntrack {",
 		"container system {",
 	} {

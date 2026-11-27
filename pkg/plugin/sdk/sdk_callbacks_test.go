@@ -238,6 +238,143 @@ func TestOnDoctorCheckDefaultNoOp(t *testing.T) {
 	assert.NoError(t, <-errCh)
 }
 
+func runPluginAsync(ctx context.Context, p *Plugin, reg *Registration, errCh chan<- error) {
+	errCh <- p.Run(ctx, reg)
+}
+
+// TestOnDriftCheckCallback verifies drift-check dispatch over MuxConn for a
+// registered handler (with findings and with nil-findings normalization) and
+// for an unregistered default.
+//
+// VALIDATES: ze-plugin-callback:drift-check dispatches OnDriftCheck and returns
+// normalized non-nil findings and status "unavailable" when unregistered.
+// PREVENTS: SDK drift-check callback dispatch or normalization regressions.
+func TestOnDriftCheckCallback(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "ze-plugin-callback:drift-check", callbackDriftCheck)
+
+	t.Run("registered handler with findings", func(t *testing.T) {
+		t.Parallel()
+		p, engine := newTestPair(t)
+
+		p.OnDriftCheck(func(subsystem string) (rpc.DriftCheckOutput, error) {
+			return rpc.DriftCheckOutput{
+				Status:  "drifted",
+				Checked: 3,
+				Drifted: 1,
+				Findings: []rpc.DriftFinding{
+					{
+						Subject:  "table ze_filter",
+						Kind:     "missing",
+						Expected: "present",
+						Actual:   "absent",
+						Detail:   "table missing from nftables",
+					},
+				},
+			}, nil
+		})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		errCh := make(chan error, 1)
+		go runPluginAsync(ctx, p, &Registration{}, errCh)
+		completeStartup(t, ctx, engine)
+
+		raw, err := engine.mux.CallRPC(ctx, callbackDriftCheck,
+			rpc.DriftCheckInput{Subsystem: "firewall"})
+		require.NoError(t, err)
+
+		var out rpc.DriftCheckOutput
+		require.NoError(t, json.Unmarshal(raw, &out))
+		assert.Equal(t, "firewall", out.Subsystem)
+		assert.Equal(t, "drifted", out.Status)
+		assert.Equal(t, 3, out.Checked)
+		assert.Equal(t, 1, out.Drifted)
+		require.Len(t, out.Findings, 1)
+		assert.Equal(t, "table ze_filter", out.Findings[0].Subject)
+		assert.Equal(t, "missing", out.Findings[0].Kind)
+		assert.Equal(t, "present", out.Findings[0].Expected)
+		assert.Equal(t, "absent", out.Findings[0].Actual)
+		assert.Equal(t, "table missing from nftables", out.Findings[0].Detail)
+
+		cancel()
+		assert.NoError(t, <-errCh)
+	})
+
+	t.Run("registered handler normalizes nil findings", func(t *testing.T) {
+		t.Parallel()
+		p, engine := newTestPair(t)
+
+		p.OnDriftCheck(func(subsystem string) (rpc.DriftCheckOutput, error) {
+			return rpc.DriftCheckOutput{
+				Status:  "clean",
+				Checked: 2,
+			}, nil
+		})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		errCh := make(chan error, 1)
+		go runPluginAsync(ctx, p, &Registration{}, errCh)
+		completeStartup(t, ctx, engine)
+
+		raw, err := engine.mux.CallRPC(ctx, callbackDriftCheck,
+			rpc.DriftCheckInput{Subsystem: "fib-kernel"})
+		require.NoError(t, err)
+
+		var rawMap map[string]any
+		require.NoError(t, json.Unmarshal(raw, &rawMap))
+		findingsRaw, ok := rawMap["findings"].([]any)
+		require.True(t, ok, "findings must serialize as [] rather than null")
+		assert.Empty(t, findingsRaw)
+
+		var out rpc.DriftCheckOutput
+		require.NoError(t, json.Unmarshal(raw, &out))
+		assert.Equal(t, "fib-kernel", out.Subsystem)
+		assert.Equal(t, "clean", out.Status)
+		assert.Equal(t, 2, out.Checked)
+		assert.NotNil(t, out.Findings)
+		assert.Empty(t, out.Findings)
+
+		cancel()
+		assert.NoError(t, <-errCh)
+	})
+
+	t.Run("unregistered default returns unavailable", func(t *testing.T) {
+		t.Parallel()
+		p, engine := newTestPair(t)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		errCh := make(chan error, 1)
+		go runPluginAsync(ctx, p, &Registration{}, errCh)
+		completeStartup(t, ctx, engine)
+
+		raw, err := engine.mux.CallRPC(ctx, callbackDriftCheck,
+			rpc.DriftCheckInput{Subsystem: "interface"})
+		require.NoError(t, err)
+
+		var rawMap map[string]any
+		require.NoError(t, json.Unmarshal(raw, &rawMap))
+		findingsRaw, ok := rawMap["findings"].([]any)
+		require.True(t, ok, "unregistered default findings must serialize as [] rather than null")
+		assert.Empty(t, findingsRaw)
+
+		var out rpc.DriftCheckOutput
+		require.NoError(t, json.Unmarshal(raw, &out))
+		assert.Equal(t, "interface", out.Subsystem)
+		assert.Equal(t, "unavailable", out.Status)
+		assert.NotNil(t, out.Findings)
+		assert.Empty(t, out.Findings)
+
+		cancel()
+		assert.NoError(t, <-errCh)
+	})
+}
+
 // TestOnEnrichShowCallback verifies the enrich-show callback dispatches correctly.
 //
 // VALIDATES: AC-2 (external plugin receives base map, returns enrichment)

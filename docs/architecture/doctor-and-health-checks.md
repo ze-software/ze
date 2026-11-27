@@ -284,6 +284,20 @@ There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.
 
+`internal/core/drift` also registers a `DoctorPhaseRuntime` check,
+`dataplane-drift` (`Order: 860`, component `drift`), under code
+`doctor-dataplane-drift`. It calls `drift.CheckAll`, which runs local drift
+checkers and fans out over `ze-plugin-callback:drift-check` to every live
+internal or forked plugin that declared Stage 1 `drift-subsystems` (`firewall`,
+`fib-kernel`, `interface`), each bounded to 5 seconds. Every subsystem reporting
+`drifted` or `error` emits a warning `Diagnostic` with fix
+`ze show system drift`; clean and `unavailable` subsystems emit nothing.
+`CodeDoctorDataplaneDrift` registers only with `diagnostic.Register` (not as a
+transient report-bus event code) because the check is read-only on demand.
+<!-- source: internal/core/drift/register.go -- CodeDoctorDataplaneDrift, checkDataplaneDrift -->
+<!-- source: internal/core/drift/drift.go -- CheckAll, Register, RegisterRemoteCollector -->
+<!-- source: internal/component/plugin/server/drift.go -- collectPluginDrift, queryPluginDrift -->
+
 The system RIB declares `rib-routing-view` through its SDK registration. It
 reports initialization, reconstruction and retained failure with
 `doctor-rib-routing-view-unavailable`. A complete selected snapshot or local
@@ -1566,6 +1580,8 @@ Each line carries its code and its site raises an error event under it, with
 <!-- source: internal/component/plugin/server/managed_serve.go -- noteConfigFetchDeliveryFailure -->
 <!-- source: internal/component/plugin/server/dispatch.go -- noteReplyDeliveryFailure -->
 <!-- source: internal/component/plugin/server/request_runtime.go -- noteCollisionAbortFailure -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorCommandHandlerHung -->
+<!-- source: internal/component/plugin/server/register.go -- serverEventCodes -->
 <!-- source: internal/component/plugin/server/command_timeout.go -- HungHandlerRecord, HungHandlers -->
 <!-- source: internal/core/watchdog/doctor_codes.go -- CodeDoctorDaemonStallDetected -->
 <!-- source: internal/core/watchdog/watchdog.go -- Start, Stop, RegisterProbe, Status -->

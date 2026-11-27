@@ -523,3 +523,118 @@ func TestDoctorCheckDiagnosticFix(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &raw))
 	assert.NotContains(t, raw, "fix")
 }
+
+// TestDeclareRegistrationInputDriftSubsystems verifies Stage 1 drift-subsystems
+// serialization under its kebab-case wire key and omitempty behavior when unset.
+//
+// VALIDATES: DeclareRegistrationInput.DriftSubsystems round-trips under "drift-subsystems".
+// PREVENTS: Stage 1 drift subsystem declarations being dropped or misnamed on the wire.
+func TestDeclareRegistrationInputDriftSubsystems(t *testing.T) {
+	t.Parallel()
+
+	input := DeclareRegistrationInput{
+		DriftSubsystems: []string{"firewall", "interface"},
+	}
+
+	data, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.Contains(t, raw, "drift-subsystems")
+	assert.NotContains(t, raw, "DriftSubsystems")
+
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, []string{"firewall", "interface"}, decoded.DriftSubsystems)
+
+	emptyData, err := json.Marshal(DeclareRegistrationInput{Commands: []CommandDecl{{Name: "show test"}}})
+	require.NoError(t, err)
+	var emptyRaw map[string]any
+	require.NoError(t, json.Unmarshal(emptyData, &emptyRaw))
+	assert.NotContains(t, emptyRaw, "drift-subsystems")
+}
+
+// TestDriftCheckInputOutputJSON verifies JSON round-trip and omitempty keys for
+// DriftCheckInput, DriftCheckOutput, and DriftFinding.
+//
+// VALIDATES: drift-check RPC wire types round-trip with exact kebab/lowercase keys.
+// PREVENTS: Malformed or mismatched drift-check RPC payloads across process boundaries.
+func TestDriftCheckInputOutputJSON(t *testing.T) {
+	t.Parallel()
+
+	in := DriftCheckInput{Subsystem: "fib-kernel"}
+	inBytes, err := json.Marshal(in)
+	require.NoError(t, err)
+	var inRaw map[string]any
+	require.NoError(t, json.Unmarshal(inBytes, &inRaw))
+	assert.Equal(t, "fib-kernel", inRaw["subsystem"])
+	var inDecoded DriftCheckInput
+	require.NoError(t, json.Unmarshal(inBytes, &inDecoded))
+	assert.Equal(t, in, inDecoded)
+
+	out := DriftCheckOutput{
+		Subsystem: "firewall",
+		Status:    "drifted",
+		Checked:   5,
+		Drifted:   2,
+		Truncated: true,
+		Findings: []DriftFinding{
+			{
+				Subject:  "table ze_filter",
+				Kind:     "missing",
+				Expected: "present",
+				Actual:   "absent",
+				Detail:   "table missing from nftables",
+			},
+			{
+				Subject: "table ze_stale",
+				Kind:    "extra",
+			},
+		},
+		Error: "partial",
+	}
+
+	outBytes, err := json.Marshal(out)
+	require.NoError(t, err)
+
+	var outRaw map[string]any
+	require.NoError(t, json.Unmarshal(outBytes, &outRaw))
+	assert.Equal(t, "firewall", outRaw["subsystem"])
+	assert.Equal(t, "drifted", outRaw["status"])
+	assert.Equal(t, float64(5), outRaw["checked"])
+	assert.Equal(t, float64(2), outRaw["drifted"])
+	assert.Equal(t, true, outRaw["truncated"])
+	assert.Equal(t, "partial", outRaw["error"])
+
+	findingsRaw, ok := outRaw["findings"].([]any)
+	require.True(t, ok)
+	require.Len(t, findingsRaw, 2)
+	secondFinding, ok := findingsRaw[1].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "table ze_stale", secondFinding["subject"])
+	assert.Equal(t, "extra", secondFinding["kind"])
+	assert.NotContains(t, secondFinding, "expected")
+	assert.NotContains(t, secondFinding, "actual")
+	assert.NotContains(t, secondFinding, "detail")
+
+	var outDecoded DriftCheckOutput
+	require.NoError(t, json.Unmarshal(outBytes, &outDecoded))
+	assert.Equal(t, out, outDecoded)
+
+	cleanOut := DriftCheckOutput{
+		Subsystem: "interface",
+		Status:    "clean",
+		Checked:   4,
+		Findings:  []DriftFinding{},
+	}
+	cleanBytes, err := json.Marshal(cleanOut)
+	require.NoError(t, err)
+	var cleanRaw map[string]any
+	require.NoError(t, json.Unmarshal(cleanBytes, &cleanRaw))
+	assert.NotContains(t, cleanRaw, "truncated")
+	assert.NotContains(t, cleanRaw, "error")
+	cleanFindings, ok := cleanRaw["findings"].([]any)
+	require.True(t, ok)
+	assert.Empty(t, cleanFindings)
+}

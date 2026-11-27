@@ -1,0 +1,283 @@
+# Test: dataplane drift command, live bad-packet wire capture (`show system bad-packets`), `show firewall trace` RPC wiring, `request support archive` live runtime modules (`internal/core/supportreg` on both local and daemon routes), live MCP `ze://triage` resource (`ttlMs: 5000`), and `doctor-dataplane-drift` work end-to-end on a live daemon.
+# QUESTION: on a live `ze start` daemon, does `show system drift` return structured JSON and refuse unknown `| subsystem <name>`, does sending a corrupt BGP header over TCP populate `show system bad-packets`, `show system bad-packets | protocol bgp`, `show system triage` `runtime.bad-packet-count`, and MCP `resources/read` (`ze://triage`, `ttlMs: 5000`, `cacheScope: "private"`), does `show firewall trace` route through YANG dispatch, does daemon-routed `request support archive` via MCP collect all 10 live runtime modules (7 core + 3 daemon-backed `event-ring`, `plugins`, `reload-history`) while local `ze request support archive` collects the 7 core modules, and is `doctor-dataplane-drift` explainable via `ze show diagnostic`?
+# A unit test cannot decide this because the path spans live `ze start` daemon startup (`Server.StartWithContext` registering drift remote collectors and daemon live support modules), real TCP BGP ingress header rejection into `internal/core/badpacket`, SSH CLI dispatch with command-owned `| subsystem` and `| protocol` pipes, live HTTP MCP `resources/list` + `resources/read` (`ze://triage`) + `tools/call` daemon-routed support archive collection, and local support archive collection.
+#
+# VALIDATES: spec-ai-diagnostics-5-drift-explain-and-support-registry AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8.
+# PREVENTS: unwired `Server.StartWithContext` drift/support registration, broken BGP cold-path bad-packet recording on live TCP reads, broken `| subsystem`/`| protocol` CLI pipe filters, broken MCP `ze://triage` live-state caching/dispatch, or missing live support modules on daemon or local routes.
+
+option=storage:value=disk
+option=timeout:value=120s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=running.conf:terminator=EOF_CONF
+environment {
+	ssh {
+		enabled true;
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+	mcp {
+		enabled true;
+		auth-mode bearer;
+		token "diag5-test-token";
+		server main {
+			ip 127.0.0.1;
+			port $PORT3;
+		}
+	}
+}
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+	dns {
+		resolv-conf-path "";
+	}
+	dns-source {
+		source [ received ];
+	}
+}
+bgp {
+	router-id 192.0.2.254;
+	session {
+		asn { local 65000; }
+	}
+	peer edge1 {
+		filter {
+			import { final accept; }
+			export { final accept; }
+		}
+		connection {
+			remote { ip 127.0.0.1; connect false; }
+			local { ip 127.0.0.1; port $PORT; accept true; }
+		}
+		session {
+			asn { remote 65001; }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable; }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=verify-diag5.py:mode=755:terminator=EOF_VERIFY
+#!/usr/bin/env python3
+import json
+import os
+import socket
+import subprocess
+import urllib.request
+
+
+def cli_json(cmd):
+    out = subprocess.check_output(["ze", "cli", "-c", cmd + " | json"], text=True)
+    return json.loads(out)
+
+
+def must(cond, msg):
+    if not cond:
+        raise SystemExit("FAIL: " + msg)
+
+
+def mcp_call(mcp_port, method, params=None, mcp_name=None):
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": {
+            "_meta": {
+                "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                "io.modelcontextprotocol/clientCapabilities": {},
+            },
+            **(params or {}),
+        },
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer diag5-test-token",
+        "Mcp-Protocol-Version": "2026-07-28",
+        "Mcp-Method": method,
+    }
+    if mcp_name is not None:
+        headers["Mcp-Name"] = mcp_name
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{mcp_port}/mcp",
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        must(resp.status == 200, f"MCP {method} HTTP status={resp.status}")
+        return json.loads(resp.read().decode("utf-8"))
+
+
+# 1. Verify show system drift returns structured JSON and unknown | subsystem refuses.
+drift = cli_json("show system drift")
+must(drift.get("status") in ("clean", "drifted", "error"), f"unexpected drift status: {drift}")
+must(isinstance(drift.get("subsystems"), list), f"drift subsystems not list: {drift}")
+must(drift.get("count") == len(drift["subsystems"]), f"drift count mismatch: {drift}")
+
+bad_sub = subprocess.run(
+    ["ze", "cli", "-c", "show system drift | subsystem nonexistent-dp"],
+    capture_output=True,
+    text=True,
+)
+bad_sub_out = (bad_sub.stdout + "\n" + bad_sub.stderr).lower()
+must(bad_sub.returncode != 0 or "nonexistent-dp" in bad_sub_out, f"unknown subsystem should refuse: {bad_sub_out}")
+
+# 2. Send a real malformed BGP header (invalid 16-byte marker + length 19 + type 1) over TCP.
+# Reading until EOF synchronizes on s.closeConn(), which runs strictly after badpacket.Record().
+bgp_port = int(os.environ["BGP_PORT"])
+bad_hdr = bytes([0x11] * 16 + [0x00, 0x13, 0x01])
+bad_hdr_hex = bad_hdr.hex()
+
+with socket.create_connection(("127.0.0.1", bgp_port), timeout=5.0) as sock:
+    sock.sendall(bad_hdr)
+    sock.settimeout(5.0)
+    while True:
+        try:
+            chunk = sock.recv(64)
+            if not chunk:
+                break
+        except OSError:
+            break
+
+bp_all = cli_json("show system bad-packets")
+pkts = bp_all.get("packets") or []
+must(len(pkts) >= 1, f"expected >=1 bad packet: {bp_all}")
+must(bp_all.get("capacity") == 16, f"expected capacity 16: {bp_all}")
+matched_hdr = [p for p in pkts if p.get("hex") == bad_hdr_hex]
+must(len(matched_hdr) >= 1, f"expected hex {bad_hdr_hex} in {pkts}")
+rec = matched_hdr[0]
+must(rec.get("protocol") == "bgp", f"protocol != bgp: {rec}")
+must(rec.get("message-type") == "HEADER", f"message-type != HEADER: {rec}")
+must(rec.get("action") == "header-error", f"action != header-error: {rec}")
+must(rec.get("length") == 19, f"length != 19: {rec}")
+
+# Verify | protocol bgp returns the record and | protocol ospf returns empty non-nil list.
+bp_bgp = cli_json("show system bad-packets | protocol bgp")
+must(bp_bgp.get("count", 0) >= 1 and all(p.get("protocol") == "bgp" for p in bp_bgp["packets"]), f"protocol bgp filter: {bp_bgp}")
+bp_ospf = cli_json("show system bad-packets | protocol ospf")
+must(bp_ospf.get("count") == 0 and bp_ospf.get("packets") == [], f"protocol ospf filter: {bp_ospf}")
+
+# Verify count leaf bounds.
+bp_one = cli_json("show system bad-packets count 1")
+must(bp_one.get("count") == 1 and len(bp_one["packets"]) == 1, f"count 1: {bp_one}")
+bad_cnt = subprocess.run(["ze", "cli", "-c", "show system bad-packets count 17"], capture_output=True, text=True)
+must(bad_cnt.returncode != 0 or "16" in (bad_cnt.stdout + bad_cnt.stderr), f"count 17 should refuse: {bad_cnt.stdout}{bad_cnt.stderr}")
+
+# Verify show system triage runtime.bad-packet-count reflects the capture.
+triage = cli_json("show system triage")
+rt = triage.get("runtime") or {}
+must(rt.get("bad-packet-count", 0) >= 1, f"triage bad-packet-count missing/zero: {rt}")
+
+# 3. Verify show firewall trace routes cleanly through YANG/RPC dispatch.
+fw_trace = subprocess.run(
+    [
+        "ze",
+        "cli",
+        "-c",
+        "show firewall trace table nonexistent protocol tcp source-address 192.0.2.1 destination-address 198.51.100.1 destination-port 443",
+    ],
+    capture_output=True,
+    text=True,
+)
+fw_out = (fw_trace.stdout + "\n" + fw_trace.stderr).lower()
+must(fw_trace.returncode != 0 or "not found" in fw_out, f"firewall trace unknown table should refuse: {fw_out}")
+
+# 4. Verify live MCP resources/list and resources/read for ze://triage (ttlMs: 5000, cacheScope: "private").
+mcp_port = int(os.environ["MCP_PORT"])
+res_list = mcp_call(mcp_port, "resources/list")
+list_result = res_list.get("result") or {}
+must(list_result.get("ttlMs") == 3600000, f"resources/list ttlMs != 3600000: {list_result}")
+uris = [r.get("uri") for r in (list_result.get("resources") or [])]
+must("ze://triage" in uris, f"ze://triage missing from MCP resources/list: {uris}")
+
+res_read = mcp_call(mcp_port, "resources/read", {"uri": "ze://triage"}, mcp_name="ze://triage")
+read_result = res_read.get("result") or {}
+must(read_result.get("resultType") == "complete", f"ze://triage resultType != complete: {read_result}")
+must(read_result.get("ttlMs") == 5000, f"ze://triage ttlMs != 5000: {read_result}")
+must(read_result.get("cacheScope") == "private", f"ze://triage cacheScope != private: {read_result}")
+contents = read_result.get("contents") or []
+must(len(contents) == 1 and contents[0].get("uri") == "ze://triage", f"ze://triage contents: {contents}")
+mcp_triage = json.loads(contents[0]["text"])
+must((mcp_triage.get("runtime") or {}).get("bad-packet-count", 0) >= 1, f"MCP ze://triage bad-packet-count: {mcp_triage}")
+
+# 5. Verify daemon-routed request support archive (via MCP tools/call) collects all 10 live runtime modules.
+core_live_modules = [
+    "log-ring",
+    "report",
+    "health",
+    "watchdog",
+    "bad-packets",
+    "drift",
+    "goroutines",
+]
+daemon_live_modules = core_live_modules + [
+    "event-ring",
+    "plugins",
+    "reload-history",
+]
+archive_call = mcp_call(
+    mcp_port,
+    "tools/call",
+    {
+        "name": "ze_execute",
+        "arguments": {
+            "command": "request support archive module " + ",".join(daemon_live_modules),
+        },
+    },
+    mcp_name="ze_execute",
+)
+archive_res = archive_call.get("result") or {}
+must(archive_res.get("isError") is not True, f"MCP support archive failed: {archive_res}")
+archive_text = (archive_res.get("content") or [{}])[0].get("text", "")
+manifest = json.loads(archive_text)
+mods = manifest.get("modules") or {}
+for name in daemon_live_modules:
+    entry = mods.get(name)
+    must(entry is not None and entry.get("collected") is True and not entry.get("error"), f"daemon support module {name} failed: {entry}")
+must(bool(manifest.get("archive-key")), f"daemon support archive missing archive-key: {manifest}")
+must(manifest.get("archive-octets", 0) > 0, f"daemon support archive missing octets: {manifest}")
+
+# Also verify local route collects all 7 core runtime modules into a file cleanly.
+local_out = subprocess.check_output(
+    ["ze", "request", "support", "archive", "--module", ",".join(core_live_modules), "--json", "--output", "."],
+    text=True,
+)
+local_manifest = json.loads(local_out)
+local_mods = local_manifest.get("modules") or {}
+for name in core_live_modules:
+    entry = local_mods.get(name)
+    must(entry is not None and entry.get("collected") is True and not entry.get("error"), f"local support module {name} failed: {entry}")
+must(bool(local_manifest.get("archive-path")), f"local support archive missing archive-path: {local_manifest}")
+
+# 6. Verify doctor-dataplane-drift diagnostic code is registered and explainable.
+diag_out = subprocess.check_output(["ze", "show", "diagnostic", "doctor-dataplane-drift"], text=True)
+must("doctor-dataplane-drift" in diag_out, f"diagnostic output missing code: {diag_out}")
+
+print(
+    f"OK: verified drift count={drift['count']} bad_packets={bp_all['total-recorded']} "
+    f"mcp_triage_ttl={read_result['ttlMs']} daemon_support_modules={len(daemon_live_modules)} "
+    f"local_support_modules={len(core_live_modules)}"
+)
+EOF_VERIFY
+
+cmd=background:seq=1:name=daemon:exec=ze start running.conf:ready=Ze running.
+reject=stderr:pattern=panic
+
+cmd=foreground:seq=2:exec=env BGP_PORT=$PORT MCP_PORT=$PORT3 python3 verify-diag5.py:exit=0
+expect=stdout:contains=OK: verified drift count=
+
+cmd=stop:seq=3:name=daemon:signal=term

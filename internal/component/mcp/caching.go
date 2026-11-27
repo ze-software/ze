@@ -1,7 +1,7 @@
 // Design: docs/architecture/mcp/overview.md -- cacheable result hints (ttlMs, cacheScope)
 // Related: streamable_tools.go -- runMethod stamps every dispatched result through this table
 // Related: discover.go -- server/discover is one of the four cacheable surfaces
-// Related: resources.go -- resources/list and resources/read are the embedded-asset surfaces
+// Related: resources.go -- resources/list and resources/read serve embedded ui:// assets and live ze:// state
 
 // Cacheable results for MCP 2026-07-28 (SEP-2549).
 //
@@ -62,6 +62,11 @@
 
 package mcp
 
+import (
+	"encoding/json"
+	"strings"
+)
+
 // Result keys for the two CacheableResult fields. MCP wire keys are camelCase,
 // so these are the specification's spellings verbatim rather than Ze names.
 const (
@@ -111,7 +116,7 @@ const (
 // construction.
 const cacheScopePrivate = "private"
 
-// The two freshness classes, one per surface mutability class. Both are
+// The three freshness classes, one per surface mutability class. All three are
 // compile-time constants on purpose. The right lifetime is a function of how
 // the underlying data changes, and the code knows that where an operator does
 // not.
@@ -122,6 +127,13 @@ const cacheScopePrivate = "private"
 // reject that contradiction, which is the failure ai/rules/protocol.md
 // exists to prevent.
 const (
+	// ttlLiveStateMs is the freshness of a read-only ze:// state resource
+	// (such as ze://triage) answered from live daemon state. Five seconds
+	// prevents tight poll loops inside one diagnostic turn from re-running
+	// triage on every tool call while bounding staleness during an active
+	// incident.
+	ttlLiveStateMs = 5000
+
 	// ttlRegistryDerivedMs is the freshness of a surface assembled from the
 	// command registry. Ze re-reads that registry from the dispatcher on every
 	// call. The surface therefore changes when a plugin registers, and it
@@ -172,18 +184,25 @@ var cacheTTLByMethod = map[string]int{
 //
 // One place calls stampCacheHints, as dispatch returns. No handler can
 // therefore forget it, and no handler can add hints the table does not
-// sanction.
+// sanction. For resources/read, ze:// live-state URIs receive ttlLiveStateMs
+// while ui:// embedded assets keep ttlEmbeddedAssetMs.
 //
 // Errors are skipped: an error response carries no `result` object at all, and
 // the caching page's requirement is on results. The result map is mutated in
 // place. That is safe because ok() already copied the map away from whatever
 // the handler owned before it returned.
-func stampCacheHints(method string, resp *response) *response {
-	ttlMs, cacheable := cacheTTLByMethod[method]
+func stampCacheHints(req *request, resp *response) *response {
+	if req == nil {
+		return resp
+	}
+	ttlMs, cacheable := cacheTTLByMethod[req.Method]
 	if !cacheable {
 		return resp
 	}
-	if resp == nil || resp.Error != nil {
+	if resp == nil {
+		return nil
+	}
+	if resp.Error != nil {
 		return resp
 	}
 	// Always true on the success path: ok() is the only constructor of a
@@ -210,7 +229,22 @@ func stampCacheHints(method string, resp *response) *response {
 	if kind, _ := result[resultTypeKey].(string); kind != resultTypeComplete {
 		return resp
 	}
+	if req.Method == methodResourcesRead {
+		if strings.HasPrefix(resourceReadURI(req.Params), zeScheme) {
+			ttlMs = ttlLiveStateMs
+		}
+	}
 	result[resultKeyTTLMs] = ttlMs
 	result[resultKeyCacheScope] = cacheScopePrivate
 	return resp
+}
+
+// resourceReadURI extracts params.uri from a resources/read request.
+func resourceReadURI(raw json.RawMessage) string {
+	params := decodeParamsObject(raw)
+	if params == nil {
+		return ""
+	}
+	uri, _ := params[schemaFormatURI].(string)
+	return uri
 }

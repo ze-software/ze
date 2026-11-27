@@ -905,6 +905,17 @@ type Session struct {
 	// Accessed only from the read goroutine (no lock).
 	receivedType msgtype.MessageType
 
+	// panicFrame carries an owned copy of the offending wire frame captured by
+	// finishReadBuffer on a read-path panic unwind (only when !*kept, before
+	// returnReadBuffer recycles or poisons the slot). Stored atomically so
+	// describeRead can swap it out without racing any other goroutine.
+	// panicFrameSuppressed is set when an inner finishReadBuffer observed a
+	// transferredReadBufferPanic (buffer already handed off), preventing an
+	// enclosing readAndProcessCoalesced defer from misattributing an unrelated
+	// outer packet as the panicking frame.
+	panicFrame           atomic.Pointer[[]byte]
+	panicFrameSuppressed atomic.Bool
+
 	// readBufferStarved is set while the read loop waits for a read buffer
 	// (awaitReadBuffer), so one wait episode logs once. Accessed only from the
 	// read goroutine (no lock).
@@ -1484,14 +1495,25 @@ func (s *Session) logFSMEvent(event fsm.Event) {
 // describeRead names the unit a contained read-task panic ended: the peer, and
 // the message being processed when the read loop got that far. It runs on the
 // goroutine that panicked, after the panic, and reads only the read goroutine's
-// own field and the immutable address.
+// own field, the atomic panicFrame, and the immutable address.
 func (s *Session) describeRead() taskguard.Context {
 	described := taskguard.Context{Unit: s.settings.Address.String()}
 	// Zero is "no message yet": RFC 4271 Section 4.1 assigns type codes from 1.
 	if s.receivedType != 0 {
 		described.MessageType = s.receivedType.String()
 	}
+	if pf := s.panicFrame.Swap(nil); pf != nil {
+		described.RawFrame = *pf
+	}
+	s.panicFrameSuppressed.Store(false)
 	return described
+}
+
+// describeCancel names the unit a contained cancel-goroutine panic ended. It
+// reads only the immutable peer address and never touches read-goroutine
+// fields (receivedType, panicFrame), avoiding cross-goroutine data races.
+func (s *Session) describeCancel() taskguard.Context {
+	return taskguard.Context{Unit: s.settings.Address.String()}
 }
 
 // Run is the main session loop. It processes messages until context is
@@ -1551,7 +1573,7 @@ func (s *Session) Run(ctx context.Context) (runErr error) {
 	// can distinguish cancel from hold timer from teardown.
 	go func() {
 		// Its panic closes the connection, which unblocks the read loop.
-		defer bgpPanics().cancel.Contain(s.describeRead, func(*taskguard.Panic) { s.closeConn() })
+		defer bgpPanics().cancel.Contain(s.describeCancel, func(*taskguard.Panic) { s.closeConn() })
 		var reason error
 		select {
 		case <-ctx.Done():

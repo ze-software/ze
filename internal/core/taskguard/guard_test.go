@@ -11,6 +11,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/badpacket"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/flightrec"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -507,4 +508,116 @@ func TestGuardTriggersFlightRecorderCapture(t *testing.T) {
 	if snaps[0].Bytes <= 0 {
 		t.Errorf("snapshot bytes = %d, want > 0", snaps[0].Bytes)
 	}
+}
+
+// TestTaskGuardRecordsBadPacketRawFrame verifies that a panic whose Context
+// carries RawFrame records the frame in internal/core/badpacket and attaches
+// "bad-packet-id" to both the report detail and the structured error log, while
+// callers leaving RawFrame nil do not write a bad-packet record or field.
+//
+// VALIDATES: AC-6 -- Context.RawFrame triggers badpacket.Record with action
+// "task-panic" and attaches "bad-packet-id"; nil RawFrame leaves badpacket
+// untouched and omits "bad-packet-id".
+// PREVENTS: panic-triggering wire frames being lost or nil-RawFrame callers
+// polluting the bad-packet ring with empty records.
+func TestTaskGuardRecordsBadPacketRawFrame(t *testing.T) {
+	t.Run("with RawFrame records badpacket and attaches bad-packet-id", func(t *testing.T) {
+		report.ResetForTest()
+		t.Cleanup(report.ResetForTest)
+		restore := crashlog.SetCrashDirForTest(t.TempDir())
+		t.Cleanup(restore)
+
+		beforeCount := badpacket.Count()
+
+		var logs bytes.Buffer
+		guard := New("bgp", slog.New(slog.NewJSONHandler(&logs, nil)))
+		task := guard.Task("read", testRestart)
+
+		raw := []byte{0xff, 0xff, 0x00, 0x13, 0x02}
+		func() {
+			defer task.Contain(func() Context {
+				return Context{
+					Unit:        "192.0.2.10",
+					MessageType: "UPDATE",
+					RawFrame:    raw,
+				}
+			}, nil)
+			panic("bad wire attribute")
+		}()
+
+		if got := badpacket.Count(); got != beforeCount+1 {
+			t.Fatalf("badpacket.Count() = %d, want %d", got, beforeCount+1)
+		}
+
+		snaps := badpacket.Snapshot(1, "bgp")
+		if len(snaps) != 1 {
+			t.Fatalf("badpacket.Snapshot(1, bgp) len = %d, want 1", len(snaps))
+		}
+		pkt := snaps[0]
+		if pkt.Protocol != "bgp" || pkt.Peer != "192.0.2.10" || pkt.MessageType != "UPDATE" {
+			t.Errorf("packet identity = {Protocol:%q Peer:%q MessageType:%q}, want bgp/192.0.2.10/UPDATE",
+				pkt.Protocol, pkt.Peer, pkt.MessageType)
+		}
+		if pkt.Action != "task-panic" || pkt.Reason != "bad wire attribute" {
+			t.Errorf("packet outcome = {Action:%q Reason:%q}, want task-panic / bad wire attribute",
+				pkt.Action, pkt.Reason)
+		}
+		if pkt.Length != len(raw) || pkt.Truncated || pkt.Hex != "ffff001302" {
+			t.Errorf("packet payload = {Length:%d Truncated:%v Hex:%q}, want %d false ffff001302",
+				pkt.Length, pkt.Truncated, pkt.Hex, len(raw))
+		}
+
+		records := logRecords(t, &logs)
+		if len(records) != 1 {
+			t.Fatalf("got %d log lines, want 1", len(records))
+		}
+		if got := records[0]["bad-packet-id"]; got != pkt.ID {
+			t.Errorf("log bad-packet-id = %v, want %q", got, pkt.ID)
+		}
+
+		errs := report.Errors(0)
+		if len(errs) != 1 {
+			t.Fatalf("report.Errors(0) len = %d, want 1", len(errs))
+		}
+		if got := errs[0].Detail["bad-packet-id"]; got != pkt.ID {
+			t.Errorf("report detail bad-packet-id = %v, want %q", got, pkt.ID)
+		}
+	})
+
+	t.Run("nil RawFrame leaves badpacket untouched", func(t *testing.T) {
+		report.ResetForTest()
+		t.Cleanup(report.ResetForTest)
+		restore := crashlog.SetCrashDirForTest(t.TempDir())
+		t.Cleanup(restore)
+
+		beforeCount := badpacket.Count()
+
+		var logs bytes.Buffer
+		guard := New("bgp", slog.New(slog.NewJSONHandler(&logs, nil)))
+		task := guard.Task("read", testRestart)
+
+		_, err := guardedTask(task, "no frame panic")
+		var p *Panic
+		if !errors.As(err, &p) {
+			t.Fatalf("task returned %v, want *Panic", err)
+		}
+
+		if got := badpacket.Count(); got != beforeCount {
+			t.Fatalf("badpacket.Count() = %d, want unchanged %d", got, beforeCount)
+		}
+		records := logRecords(t, &logs)
+		if len(records) != 1 {
+			t.Fatalf("got %d log lines, want 1", len(records))
+		}
+		if _, has := records[0]["bad-packet-id"]; has {
+			t.Errorf("log unexpectedly carries bad-packet-id: %v", records[0]["bad-packet-id"])
+		}
+		errs := report.Errors(0)
+		if len(errs) != 1 {
+			t.Fatalf("report.Errors(0) len = %d, want 1", len(errs))
+		}
+		if _, has := errs[0].Detail["bad-packet-id"]; has {
+			t.Errorf("report detail unexpectedly carries bad-packet-id: %v", errs[0].Detail["bad-packet-id"])
+		}
+	})
 }
