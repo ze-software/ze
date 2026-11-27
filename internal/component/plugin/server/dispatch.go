@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net"
 	"reflect"
 	"slices"
 	"strconv"
@@ -113,7 +115,7 @@ func (s *Server) dispatchPluginRPCContext(ctx context.Context, proc *process.Pro
 		},
 		func(p *taskguard.Panic) {
 			if err := conn.SendError(s.replyContext(), req.ID, engineOpPanicMessage(req.Method, p)); err != nil {
-				logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
+				s.noteReplyDeliveryFailure(proc, req.Method, replyKindError, err)
 			}
 		},
 	)
@@ -131,8 +133,89 @@ func (s *Server) dispatchPluginRPCContext(ctx context.Context, proc *process.Pro
 
 	var tb textbuf.Buffer
 	if err := conn.SendError(s.replyContext(), req.ID, tb.Str("unknown method: ").Str(req.Method).String()); err != nil {
-		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
+		s.noteReplyDeliveryFailure(proc, req.Method, replyKindError, err)
 	}
+}
+
+const (
+	replyKindError  = "error"
+	replyKindResult = "result"
+)
+
+// isClosedConnErr reports whether err indicates the peer connection or pipe is
+// already closed.
+func isClosedConnErr(err error) bool {
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	if errors.Is(err, io.ErrClosedPipe) {
+		return true
+	}
+	return errors.Is(err, rpc.ErrMuxConnClosed)
+}
+
+// replySessionEnded reports whether the server is stopping, the plugin process
+// has already ended, or err indicates the peer connection is closed.
+func (s *Server) replySessionEnded(proc *process.Process, err error) bool {
+	if ctx := s.Context(); ctx != nil {
+		if ctx.Err() != nil {
+			return true
+		}
+	}
+	if proc != nil {
+		if proc.PluginEnded() {
+			return true
+		}
+	}
+	return isClosedConnErr(err)
+}
+
+// pluginRestartFix builds the executable YANG restart command for pluginName,
+// falling back to fixShowErrors when no plugin name is available.
+func pluginRestartFix(pluginName string) string {
+	if pluginName == "" {
+		return fixShowErrors
+	}
+	var tb textbuf.Buffer
+	return tb.Str("ze request plugin restart ").Str(pluginName).String()
+}
+
+// noteReplyDeliveryFailure records a failed RPC reply write to proc. When the
+// server is stopping, the plugin has ended, or the connection is already closed,
+// it logs only at Debug because process supervision handles teardown; when the
+// plugin is still live, it warns under CodeDoctorPluginAnswerUndelivered and
+// raises a rate-limited report-bus event.
+func (s *Server) noteReplyDeliveryFailure(proc *process.Process, method, operation string, err error) {
+	pluginName := ""
+	if proc != nil {
+		pluginName = proc.Name()
+	}
+	displayName := pluginName
+	if displayName == "" {
+		displayName = "unknown-plugin"
+	}
+	if s.replySessionEnded(proc, err) {
+		// refuse-by-default: guards handleSingleProcessCommandsRPC -- connection closed or plugin/server stopping; process supervision reports plugin exit
+		logger().Debug("rpc runtime: reply not sent to closed or stopping plugin",
+			"plugin", displayName, "method", method, "operation", operation, "error", err)
+		return
+	}
+	fix := pluginRestartFix(pluginName)
+	var msg textbuf.Buffer
+	msg.Str("daemon could not deliver its ").Str(operation).Str(" reply for ").Str(method).
+		Str(" to live plugin ").Str(displayName).Str(": ").Err(err).
+		Str("; the plugin may wait until its request times out or continue without the answer; ze raises one such event per plugin in ").
+		Str(rpc.ReportRaiseWindow.String())
+	logger().Warn("daemon could not deliver reply to live plugin; the plugin may wait until its request times out",
+		"code", CodeDoctorPluginAnswerUndelivered,
+		"plugin", displayName,
+		"method", method,
+		"operation", operation,
+		"error", err,
+		"fix", fix)
+	report.RaiseErrorFixOnce(serverEventSource, CodeDoctorPluginAnswerUndelivered,
+		fitSubject(displayName), report.FitMessage(msg.String()),
+		busFix(fix, fixShowErrors), rpc.ReportRaiseWindow)
 }
 
 // responseToDispatchOutput converts a dispatcher Response to DispatchCommandOutput.
@@ -676,13 +759,13 @@ func (s *Server) handleCodecRPC(proc *process.Process, conn *plugipc.PluginConn,
 	reply := s.replyContext()
 	if err != nil {
 		if sendErr := conn.SendError(reply, req.ID, err.Error()); sendErr != nil {
-			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+			s.noteReplyDeliveryFailure(proc, req.Method, replyKindError, sendErr)
 		}
 		return
 	}
 
 	if sendErr := conn.SendResult(reply, req.ID, result); sendErr != nil {
-		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+		s.noteReplyDeliveryFailure(proc, req.Method, replyKindResult, sendErr)
 	}
 }
 

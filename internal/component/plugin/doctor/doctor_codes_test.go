@@ -25,10 +25,13 @@ func TestPluginInfraDoctorCodesDescribed(t *testing.T) {
 	// The spellings are the spec's, and a renamed constant must not pass by
 	// carrying its old meaning under a new spelling.
 	spelled := map[string]string{
-		server.CodeDoctorPluginConfigUnapplied:  "doctor-plugin-config-unapplied",
-		codeDoctorPluginSetupFailed:             "doctor-plugin-setup-failed",
-		process.CodeDoctorPluginStopCleanupLate: "doctor-plugin-stop-cleanup-late",
-		server.CodeDoctorConfigReloadRefused:    "doctor-config-reload-refused",
+		server.CodeDoctorPluginConfigUnapplied:         "doctor-plugin-config-unapplied",
+		codeDoctorPluginSetupFailed:                    "doctor-plugin-setup-failed",
+		process.CodeDoctorPluginStopCleanupLate:        "doctor-plugin-stop-cleanup-late",
+		process.CodeDoctorPluginGroupSignalFailed:      "doctor-plugin-group-signal-failed",
+		process.CodeDoctorPluginStderrDrainUnbounded:   "doctor-plugin-stderr-drain-unbounded",
+		server.CodeDoctorConfigReloadRefused:           "doctor-config-reload-refused",
+		server.CodeDoctorManagedConfigFetchUndelivered: "doctor-managed-config-fetch-undelivered",
 	}
 	for constant, want := range spelled {
 		if constant != want {
@@ -55,12 +58,15 @@ func TestPluginInfraDoctorCodesDescribed(t *testing.T) {
 		process.CodeDoctorPluginDeliveryFailed,
 		process.CodeDoctorPluginStopCleanupLate,
 		process.CodeDoctorPluginShutdownOrder,
+		process.CodeDoctorPluginGroupSignalFailed,
+		process.CodeDoctorPluginStderrDrainUnbounded,
 
 		// Owned by plugin/server.
 		server.CodeDoctorPluginAnswerUndelivered,
 		server.CodeDoctorPluginDrainIncomplete,
 		server.CodeDoctorPluginSchemaChanged,
 		server.CodeDoctorManagedClientNotifyDropped,
+		server.CodeDoctorManagedConfigFetchUndelivered,
 		server.CodeDoctorCommandEnsureRollbackFailed,
 		server.CodeDoctorCommandDeprecatedUsed,
 		server.CodeDoctorConfigReloadRefused,

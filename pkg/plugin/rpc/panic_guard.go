@@ -69,6 +69,7 @@ func (c *Conn) describeConn() taskguard.Context {
 func (c *Conn) endAfterPanic(p *taskguard.Panic) {
 	var err error = p
 	c.readerErr.Store(&err)
+	// refuse-by-default: guards Conn.readLoop -- panic is already logged, counted, and crash-recorded by taskguard and stored in readerErr; readLoop closes readerDone next
 	if closeErr := c.Close(); closeErr != nil {
 		slogutil.Logger("plugin.rpc").Debug("plugin connection close after a contained panic", "error", closeErr)
 	}
@@ -82,6 +83,7 @@ func (c *Conn) endAfterPanic(p *taskguard.Panic) {
 func (m *MuxConn) endAfterPanic(p *taskguard.Panic) {
 	var err error = p
 	m.readerErr.Store(&err)
+	// refuse-by-default: guards MuxConn.readLoop -- panic is already logged, counted, and crash-recorded by taskguard and stored in readerErr; readLoop ends pending answers and closes done next
 	if closeErr := m.Close(); closeErr != nil {
 		slogutil.Logger("plugin.rpc").Debug("plugin connection close after a contained panic", "error", closeErr)
 	}

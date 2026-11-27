@@ -16,6 +16,8 @@ const (
 	CodeDoctorPluginSchemaChanged = "doctor-plugin-schema-changed"
 	// CodeDoctorManagedClientNotifyDropped is the doctor diagnostic code "doctor-managed-client-notify-dropped".
 	CodeDoctorManagedClientNotifyDropped = "doctor-managed-client-notify-dropped"
+	// CodeDoctorManagedConfigFetchUndelivered is the doctor diagnostic code "doctor-managed-config-fetch-undelivered".
+	CodeDoctorManagedConfigFetchUndelivered = "doctor-managed-config-fetch-undelivered"
 	// CodeDoctorCommandEnsureRollbackFailed is the doctor diagnostic code "doctor-command-ensure-rollback-failed".
 	CodeDoctorCommandEnsureRollbackFailed = "doctor-command-ensure-rollback-failed"
 	// CodeDoctorCommandDeprecatedUsed is the doctor diagnostic code "doctor-command-deprecated-used".
@@ -119,6 +121,15 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"so the client keeps the configuration it had until it fetches again. A client that did not accept the notice is disconnected, and it fetches when it reconnects. " +
 			"The event names the client and the cause.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-managed-client-notify-dropped"},
+	},
+	{
+		Code:  CodeDoctorManagedConfigFetchUndelivered,
+		Title: "Managed client config-fetch answer not delivered",
+		Description: "The hub built a configuration response for a connected managed client's config-fetch request, but sending that response over the live connection failed, " +
+			"so the client does not receive the updated configuration until it retries or reconnects. " +
+			"The event names the client and the transport error without exposing any client secret.",
+		Examples:     []string{exampleShowDoctor, exampleShowErrors, managedConfigFetchFix, "ze show diagnostic doctor-managed-config-fetch-undelivered"},
+		RelatedCodes: []string{CodeDoctorManagedClientNotifyDropped, CodeDoctorManagedClientRejected},
 	},
 	{
 		Code:  CodeDoctorCommandEnsureRollbackFailed,

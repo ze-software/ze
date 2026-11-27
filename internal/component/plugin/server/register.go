@@ -20,13 +20,14 @@ import (
 // state only a defect produces, a refused plugin request, an answer or a
 // queue that never reached its plugin, a config parent left behind, a
 // deprecated command name, a managed client never told of a change, a
-// managed configuration hash chain that did not converge after resync, a
-// configuration reload the server refused, a restarted external plugin whose
-// YANG modules are not the ones ze started with (stage1_schema.go), an external
-// plugin that gave boot no config schema and a module boot refused at the join
-// (external_schema_report.go), and an external plugin's connect-back refused by
-// the acceptor the server starts (plugin/ipc tls.go; ipc cannot import
-// diagnostic without a cycle).
+// managed client whose config-fetch answer could not be sent over a live
+// connection, a managed configuration hash chain that did not converge after
+// resync, a configuration reload the server refused, a restarted external
+// plugin whose YANG modules are not the ones ze started with
+// (stage1_schema.go), an external plugin that gave boot no config schema and a
+// module boot refused at the join (external_schema_report.go), and an external
+// plugin's connect-back refused by the acceptor the server starts (plugin/ipc
+// tls.go; ipc cannot import diagnostic without a cycle).
 var serverEventCodes = []diagnostic.EventCode{
 	{Code: ipc.ConnectBackRefusedCode},
 	{Code: diagnostic.CodeDoctorInternalDefect},
@@ -36,6 +37,7 @@ var serverEventCodes = []diagnostic.EventCode{
 	{Code: CodeDoctorCommandEnsureRollbackFailed},
 	{Code: CodeDoctorCommandDeprecatedUsed},
 	{Code: CodeDoctorManagedClientNotifyDropped},
+	{Code: CodeDoctorManagedConfigFetchUndelivered},
 	{Code: CodeDoctorManagedChainDrift},
 	{Code: CodeDoctorConfigReloadRefused},
 	{Code: CodeDoctorPluginSchemaChanged},

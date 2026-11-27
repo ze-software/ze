@@ -11,8 +11,11 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net"
+	"net/netip"
 	"slices"
 	"strings"
 	"testing"
@@ -800,4 +803,120 @@ func sendAuthFrame(conn net.Conn, token, name string) error {
 	buf := make([]byte, 256)
 	_, err := conn.Read(buf)
 	return err
+}
+
+func captureManagedWarnLogs(t *testing.T) *lockedWarnBuffer {
+	t.Helper()
+	buf := &lockedWarnBuffer{}
+	orig := managedLogger
+	captured := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	managedLogger = func() *slog.Logger { return captured }
+	t.Cleanup(func() { managedLogger = orig })
+	return buf
+}
+
+// TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode verifies that a live
+// config-fetch SendResult failure logs at WARN with
+// CodeDoctorManagedConfigFetchUndelivered and raises a report-bus event naming
+// the client, why, and fix without leaking any client secret, while a closed
+// client connection or stopping hub stays silent.
+//
+// VALIDATES: AC-2 and AC-3 for ManagedServer.handleRequest config-fetch replies.
+// PREVENTS: a failed config-fetch reply to a live managed client dropping below
+// WARN, leaking the client's authentication secret, or warning on normal close.
+func TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode(t *testing.T) {
+	const writeCause = "write deadline exceeded"
+
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+	logs := captureManagedWarnLogs(t)
+
+	t.Run("live config-fetch SendResult failure warns and raises doctor code without leaking secret", func(t *testing.T) {
+		report.ResetForTest()
+		logs.Reset()
+
+		srv, _ := startTestManagedServer(t)
+		clientEnd, serverEnd := net.Pipe()
+		t.Cleanup(func() {
+			_ = clientEnd.Close()
+			_ = serverEnd.Close()
+		})
+		wrapped := &failingWriteConn{Conn: serverEnd, writeErr: errors.New(writeCause)}
+		mc := rpc.NewMuxConn(rpc.NewConn(wrapped, wrapped))
+		t.Cleanup(func() { _ = mc.Close() })
+		require.NoError(t, srv.admitOnListener(testClientName, netip.MustParseAddr("127.0.0.1"), mc, nil, testClientSecret))
+
+		srv.handleRequest(testClientName, mc, &rpc.Request{
+			ID:     7,
+			Method: fleet.VerbConfigFetch,
+		}, &managedSession{})
+
+		gotLog := logs.String()
+		require.Contains(t, gotLog, "level=WARN", "live config-fetch send failure must log at WARN")
+		require.Contains(t, gotLog, "code="+CodeDoctorManagedConfigFetchUndelivered)
+		require.Contains(t, gotLog, testClientName)
+		require.Contains(t, gotLog, writeCause)
+		require.NotContains(t, gotLog, testClientSecret, "WARN log must never leak the managed client secret")
+
+		events := reportIssuesByCode(CodeDoctorManagedConfigFetchUndelivered)
+		require.Len(t, events, 1, "live config-fetch send failure must raise one report-bus event")
+		require.Equal(t, testClientName, events[0].Subject)
+		require.Contains(t, events[0].Message, testClientName)
+		require.Contains(t, events[0].Message, writeCause)
+		require.NotEmpty(t, events[0].Fix)
+		require.NotContains(t, events[0].Message, testClientSecret, "report message must never leak the client secret")
+		require.NotContains(t, events[0].Fix, testClientSecret, "report fix must never leak the client secret")
+	})
+
+	t.Run("closed client connection stays silent", func(t *testing.T) {
+		report.ResetForTest()
+		logs.Reset()
+
+		srv, _ := startTestManagedServer(t)
+		clientEnd, serverEnd := net.Pipe()
+		mc := rpc.NewMuxConn(rpc.NewConn(serverEnd, serverEnd))
+		require.NoError(t, srv.admitOnListener(testClientName, netip.MustParseAddr("127.0.0.1"), mc, nil, testClientSecret))
+		_ = clientEnd.Close()
+		_ = mc.Close()
+		select {
+		case <-mc.Done():
+		case <-time.After(2 * time.Second):
+			t.Fatal("closed MuxConn did not finish")
+		}
+
+		srv.handleRequest(testClientName, mc, &rpc.Request{
+			ID:     8,
+			Method: fleet.VerbConfigFetch,
+		}, &managedSession{})
+
+		require.Empty(t, logs.String(), "closed managed client must not emit a WARN log")
+		require.Empty(t, reportIssuesByCode(CodeDoctorManagedConfigFetchUndelivered),
+			"closed managed client must not raise a report event")
+	})
+
+	t.Run("stopping hub stays silent", func(t *testing.T) {
+		report.ResetForTest()
+		logs.Reset()
+
+		srv, _ := startTestManagedServer(t)
+		clientEnd, serverEnd := net.Pipe()
+		t.Cleanup(func() {
+			_ = clientEnd.Close()
+			_ = serverEnd.Close()
+		})
+		wrapped := &failingWriteConn{Conn: serverEnd, writeErr: errors.New(writeCause)}
+		mc := rpc.NewMuxConn(rpc.NewConn(wrapped, wrapped))
+		t.Cleanup(func() { _ = mc.Close() })
+		require.NoError(t, srv.admitOnListener(testClientName, netip.MustParseAddr("127.0.0.1"), mc, nil, testClientSecret))
+		srv.cancel()
+
+		srv.handleRequest(testClientName, mc, &rpc.Request{
+			ID:     9,
+			Method: fleet.VerbConfigFetch,
+		}, &managedSession{})
+
+		require.Empty(t, logs.String(), "stopping hub must not emit a WARN log")
+		require.Empty(t, reportIssuesByCode(CodeDoctorManagedConfigFetchUndelivered),
+			"stopping hub must not raise a report event")
+	})
 }

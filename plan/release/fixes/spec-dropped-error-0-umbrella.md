@@ -82,7 +82,7 @@ child owns the instances under its door's base paths and the zero for them:
 | `spec-dropped-error-4-system-plugins` (closed 2026-11-27) | `system-plugins.md` | closed | 0 (was 50) | release fixes |
 | `spec-dropped-error-5-forwarding` (closed 2026-11-27) | `forwarding.md` | closed | 0 (was 36) | release fixes |
 | `spec-dropped-error-6-routing-protocols` (closed 2026-11-15 in `f126ead44e`) | `routing-protocols.md` | closed | 0 (was 28) | release fixes |
-| `plan/release/fixes/spec-dropped-error-7-plugin-infra.md` | `plugin-infra.md` | `ready` | 16 (was 20) | release fixes |
+| `spec-dropped-error-7-plugin-infra` (closed 2026-11-27) | `plugin-infra.md` | closed | 0 (was 20) | release fixes |
 | `spec-dropped-error-8-core-hub-appliance` (closed 2026-11-27) | `core.md`, `hub-engine.md`, `appliance.md` | closed | 0 (was 11: core 7, hub-engine 2, appliance 2) | release fixes |
 | `plan/release/fixes/spec-dropped-error-9-api-cli-config.md` | `api-surfaces.md`, `commands-cli.md`, `config-yang.md` | `ready` | 8 (was 8: api-surfaces 6, commands-cli 1, config-yang 1) | release fixes |
 | `plan/post-release/engineering/spec-dropped-error-10-dev-tooling.md` | `system.md` (`internal/chaos`), `le-tooling.md` (`internal/test`) | `ready` | 3 (was 3) | post-release engineering: no shipped binary links them |

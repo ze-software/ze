@@ -304,6 +304,9 @@ When a configuration drops a client, its last named rejection clears.
 | A client's SHA-1 configuration hash chain fails to converge after both diff resync and full replay (non-verify failure) | per-client drift entry (`ManagedChainDoctorEntry`) with UTC failure time, client and expected chain hashes, and bounded failure reason; cleared when chains agree again or the client holds | `doctor-managed-chain-drift` (warning) |
 | A persisted hub chain key (`meta/managed/client/<name>/chain`) fails read, strict JSON decode, or write | per-client unreadable entry (`ManagedChainUnreadableEntry`) naming the key and error; never treated as absent and healed on the next confirmed full replay | `doctor-managed-chain-unreadable` (warning) |
 | A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
+| A `config-fetch` answer that failed to send over a live managed connection | an event on the report bus naming the client and the transport error, with no secret | `doctor-managed-config-fetch-undelivered` |
+<!-- source: internal/component/plugin/server/managed_serve.go -- noteConfigFetchDeliveryFailure -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorManagedConfigFetchUndelivered -->
 
 ### Config Storage (Hub Side)
 

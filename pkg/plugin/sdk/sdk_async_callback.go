@@ -6,9 +6,12 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"maps"
 	"time"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // asyncCallbackAnswer answers one admitted request. The callback MUST NOT wait
@@ -72,18 +75,41 @@ func (workers asyncCallbackWorkers) failure() error {
 
 // answerAsyncCallback preserves a worker's own request deadline while permitting
 // a bounded failure receipt after loop cancellation. A vanished reader cannot
-// consume that receipt; its send error is recorded and never treated as success.
-func (p *Plugin) answerAsyncCallback(ctx context.Context, id uint64, deadline time.Time, receipt json.RawMessage, answerErr error) {
-	ctx, cancel := workerAnswerContext(ctx, deadline)
+// consume that receipt; a live-connection send failure is logged at WARN so the
+// engine log records why the caller did not receive its callback receipt.
+func (p *Plugin) answerAsyncCallback(loopCtx context.Context, id uint64, deadline time.Time, receipt json.RawMessage, answerErr error) {
+	answerCtx, cancel := workerAnswerContext(loopCtx, deadline)
 	defer cancel()
 	var err error
 	if answerErr != nil {
-		err = p.sendCallbackError(ctx, id, answerErr.Error())
+		err = p.sendCallbackError(answerCtx, id, answerErr.Error())
 	} else {
-		err = p.sendCallbackResult(ctx, id, receipt)
+		err = p.sendCallbackResult(answerCtx, id, receipt)
 	}
-	if err != nil {
-		// A completed callback can outlive its caller at cancellation or stop.
-		slog.Debug("worker callback answer not sent", "plugin", p.name, "error", err)
+	if err == nil {
+		return
 	}
+	if loopCtx.Err() != nil {
+		// refuse-by-default: guards Plugin.eventLoop -- worker callback completed after event loop cancellation; eventLoop stops workers and exits
+		return
+	}
+	if isConnectionClosed(err) {
+		// refuse-by-default: guards Plugin.eventLoop -- engine connection already closed; eventLoop observes connection end and exits
+		return
+	}
+	if errors.Is(err, rpc.ErrMuxConnClosed) {
+		// refuse-by-default: guards Plugin.eventLoop -- mux connection already closed; eventLoop observes connection end and exits
+		return
+	}
+	if p.engineMux != nil {
+		select {
+		case <-p.engineMux.Done():
+			// refuse-by-default: guards Plugin.eventLoop -- mux reader already exited; eventLoop observes connection end and exits
+			return
+		default:
+		}
+	}
+	slog.Warn("could not send async callback answer to engine; the engine is left waiting for the callback receipt",
+		"plugin", p.name, "request-id", id, "error", err,
+		"fix", "ze show log recent component plugin.relay")
 }

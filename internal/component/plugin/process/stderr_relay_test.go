@@ -3,13 +3,18 @@ package process
 import (
 	"bufio"
 	"errors"
+	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // TestStderrRelayKeepsTheLineWrittenJustBeforeExit drives the same three
@@ -505,4 +510,118 @@ func TestRelayStderrIsQuietOnAWholeStream(t *testing.T) {
 	if !strings.Contains(got, "a whole line") {
 		t.Fatalf("the relayed line is missing:\n%s", got)
 	}
+}
+
+type failingCloser struct {
+	err error
+}
+
+func (f failingCloser) Close() error {
+	return f.err
+}
+
+func stderrDrainUnboundedEvents() []report.Issue {
+	var events []report.Issue
+	for _, issue := range report.Errors(0) {
+		if issue.Code == CodeDoctorPluginStderrDrainUnbounded {
+			events = append(events, issue)
+		}
+	}
+	return events
+}
+
+// TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode exercises both stderr
+// drain bound failures: a non-closed SetReadDeadline failure in
+// stderrRelayReader.extendDeadline (bounded to one WARN per reader across
+// repeated reads, with os.ErrClosed staying silent) and a parent stderr
+// write-end close failure in closeParentStderrWrite.
+//
+// VALIDATES: AC-2 and AC-3 for CodeDoctorPluginStderrDrainUnbounded and the
+// once-per-reader WARN boundary on repeated reads of a non-deadline fd.
+// PREVENTS: an unarmed post-reap stderr drain bound or leaked parent write fd
+// dropping below WARN, or repeated reads flooding logs and the error ring.
+func TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+	logs := captureProcessWarnLogs(t)
+
+	t.Run("extendDeadline non-closed error warns once per reader", func(t *testing.T) {
+		const pluginName = "test-stderr-deadline"
+		report.ResetForTest()
+		logs.Reset()
+
+		// A regular file does not support read deadlines (os.ErrNoDeadline),
+		// so SetReadDeadline fails with a non-closed error on every call.
+		file, err := os.CreateTemp(t.TempDir(), "stderr-nodeadline-*")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = file.Close() })
+		_, err = file.WriteString("line1\nline2\nline3\n")
+		require.NoError(t, err)
+		_, err = file.Seek(0, io.SeekStart)
+		require.NoError(t, err)
+
+		reader := newStderrRelayReader(file, time.Second)
+		reader.plugin = pluginName
+		reader.markReaped()
+
+		chunk := make([]byte, 4)
+		for {
+			_, readErr := reader.Read(chunk)
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			require.NoError(t, readErr)
+		}
+
+		gotLog := logs.String()
+		require.Equal(t, 1, strings.Count(gotLog, "level=WARN"),
+			"extendDeadline must emit exactly one WARN per reader across repeated reads:\n%s", gotLog)
+		require.Contains(t, gotLog, "code="+CodeDoctorPluginStderrDrainUnbounded)
+		require.Contains(t, gotLog, pluginName)
+
+		events := stderrDrainUnboundedEvents()
+		require.Len(t, events, 1, "extendDeadline must raise one report-bus event per reader")
+		require.Equal(t, pluginName, events[0].Subject)
+		require.Contains(t, events[0].Message, pluginName)
+		require.NotEmpty(t, events[0].Fix)
+	})
+
+	t.Run("extendDeadline os.ErrClosed stays silent", func(t *testing.T) {
+		report.ResetForTest()
+		logs.Reset()
+
+		readEnd, writeEnd, err := os.Pipe()
+		require.NoError(t, err)
+		require.NoError(t, writeEnd.Close())
+		require.NoError(t, readEnd.Close())
+
+		reader := newStderrRelayReader(readEnd, time.Second)
+		reader.plugin = "test-stderr-closed"
+		reader.markReaped()
+
+		require.Empty(t, logs.String(), "os.ErrClosed during teardown must not emit a WARN log")
+		require.Empty(t, stderrDrainUnboundedEvents(), "os.ErrClosed during teardown must not raise a report event")
+	})
+
+	t.Run("closeParentStderrWrite error warns and raises doctor code", func(t *testing.T) {
+		const pluginName = "test-stderr-write-close"
+		const closeCause = "bad file descriptor"
+		report.ResetForTest()
+		logs.Reset()
+
+		closeParentStderrWrite(pluginName, failingCloser{err: errors.New(closeCause)})
+
+		gotLog := logs.String()
+		require.Contains(t, gotLog, "level=WARN", "closeParentStderrWrite failure must log at WARN")
+		require.Contains(t, gotLog, "code="+CodeDoctorPluginStderrDrainUnbounded)
+		require.Contains(t, gotLog, pluginName)
+		require.Contains(t, gotLog, closeCause)
+
+		events := stderrDrainUnboundedEvents()
+		require.Len(t, events, 1, "closeParentStderrWrite failure must raise one report-bus event")
+		require.Equal(t, pluginName, events[0].Subject)
+		require.Contains(t, events[0].Message, pluginName)
+		require.Contains(t, events[0].Message, closeCause)
+		require.NotEmpty(t, events[0].Fix)
+	})
 }

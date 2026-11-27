@@ -229,6 +229,7 @@ func (s *Server) unconfigureFailedReloadStart(proc *process.Process) bool {
 
 func (s *Server) stopRemovedProcess(proc *process.Process) {
 	s.takeAndStopProcess(proc)
+	// refuse-by-default: guards Server.Stop -- proc.Wait(s.Context()) returns an error only when server context cancels during shutdown; releaseStoppedProcess runs next
 	if err := proc.Wait(s.Context()); err != nil {
 		logger().Debug("wait for removed plugin", "plugin", proc.Name(), "error", err)
 	}

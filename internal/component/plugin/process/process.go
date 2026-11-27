@@ -24,6 +24,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -32,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -756,6 +758,7 @@ func (p *Process) startInternal() error {
 		// the runner did not return one: the runner panicked.
 		defer p.exit.record("a panic in the plugin; its crash record names the cause")
 		defer func() {
+			// refuse-by-default: guards closeConns -- teardown close of in-process net.Pipe after runner returned or panicked; closeConns and endSelectedEngine drive shutdown and supervision
 			if err := bridgedPluginSide.Close(); err != nil {
 				logger().Debug("close plugin side", "error", err)
 			}
@@ -946,9 +949,7 @@ func (p *Process) startChildCmd(cmd *exec.Cmd, usesShell bool) error {
 	}
 	// The child holds its own descriptor now. Closing the parent's copy of the
 	// write end is what turns the child's exit into EOF for the reader below.
-	if closeErr := stderrWrite.Close(); closeErr != nil {
-		logger().Debug("close plugin stderr write end", "plugin", p.config.Name, "error", closeErr)
-	}
+	closeParentStderrWrite(p.config.Name, stderrWrite)
 
 	startedCmd := p.cmd
 	if startedCmd.Process != nil && startedCmd.Process.Pid > 0 && startedCmd.Process.Pid <= math.MaxInt32 {
@@ -959,6 +960,7 @@ func (p *Process) startChildCmd(cmd *exec.Cmd, usesShell bool) error {
 	relayDone := make(chan struct{})
 	reaped := make(chan struct{})
 	relayRead := newStderrRelayReader(stderrRead, stderrDrainGrace)
+	relayRead.plugin = p.config.Name
 	p.wg.Go(func() {
 		defer close(relayDone)
 		p.relayStderrFrom(relayRead)
@@ -1045,15 +1047,43 @@ func (p *Process) StopJoinBound() time.Duration {
 	return p.stopExitGrace() + respawnJoinMargin
 }
 
+// boundPluginSubject returns a non-empty, UTF-8-bounded report-bus subject for
+// a plugin name so report.RaiseErrorFix never rejects an empty or oversized subject.
+func boundPluginSubject(name string) string {
+	if name == "" {
+		return "unknown"
+	}
+	return boundDoctorText(name, report.SubjectMax)
+}
+
+// closeParentStderrWrite closes the parent's copy of a forked plugin's stderr
+// write pipe end so the child's exit delivers EOF to the relay.
+func closeParentStderrWrite(pluginName string, w io.Closer) {
+	if closeErr := w.Close(); closeErr != nil {
+		var message textbuf.Buffer
+		message.Str("could not close parent stderr write pipe for forked plugin ").Str(pluginName).
+			Str(", so child exit hits the stderr drain grace instead of EOF: ").Err(closeErr)
+		msg := report.FitMessage(message.String())
+		logger().Warn("could not close parent stderr write pipe for forked plugin; child exit will wait for stderr drain grace instead of EOF",
+			"plugin", pluginName, "error", closeErr,
+			"fix", restartOverlapRelayLogFix,
+			"code", CodeDoctorPluginStderrDrainUnbounded)
+		report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginStderrDrainUnbounded,
+			boundPluginSubject(pluginName), msg, restartOverlapRelayLogFix)
+	}
+}
+
 // stderrRelayReader is the read end of a plugin's stderr pipe, as the relay
 // reads it. Until the plugin is reaped a read waits as long as it must. After
 // that, each read waits at most grace for data, so a descendant holding the
 // write end open cannot hold the relay forever, while data already in the pipe
 // is always read.
 type stderrRelayReader struct {
-	file   *os.File
-	grace  time.Duration
-	reaped atomic.Bool
+	plugin         string
+	file           *os.File
+	grace          time.Duration
+	reaped         atomic.Bool
+	deadlineWarned atomic.Bool
 }
 
 func newStderrRelayReader(file *os.File, grace time.Duration) *stderrRelayReader {
@@ -1076,10 +1106,38 @@ func (r *stderrRelayReader) markReaped() {
 	r.extendDeadline()
 }
 
-func (r *stderrRelayReader) extendDeadline() {
-	if err := r.file.SetReadDeadline(time.Now().Add(r.grace)); err != nil {
-		logger().Debug("set plugin stderr read deadline", "error", err)
+// isStderrClosed reports whether err came from a closed stderr pipe descriptor.
+// os.File.SetReadDeadline on a closed pipe returns internal/poll.ErrFileClosing
+// ("use of closed file") directly without wrapping os.ErrClosed.
+func isStderrClosed(err error) bool {
+	if errors.Is(err, os.ErrClosed) {
+		return true
 	}
+	return strings.Contains(err.Error(), "use of closed file")
+}
+
+func (r *stderrRelayReader) extendDeadline() {
+	err := r.file.SetReadDeadline(time.Now().Add(r.grace))
+	if err == nil {
+		return
+	}
+	if isStderrClosed(err) {
+		// refuse-by-default: guards drainStderrRelay -- teardown close raced with post-reap idle read deadline
+		return
+	}
+	if !r.deadlineWarned.CompareAndSwap(false, true) {
+		return
+	}
+	var message textbuf.Buffer
+	message.Str("could not arm post-reap stderr read deadline for forked plugin ").Str(r.plugin).
+		Str(", so a lingering child holding stderr open can delay stop or restart: ").Err(err)
+	msg := report.FitMessage(message.String())
+	logger().Warn("could not arm post-reap stderr read deadline for forked plugin; a lingering child holding stderr open can delay stop or restart",
+		"plugin", r.plugin, "error", err,
+		"fix", restartOverlapRelayLogFix,
+		"code", CodeDoctorPluginStderrDrainUnbounded)
+	report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginStderrDrainUnbounded,
+		boundPluginSubject(r.plugin), msg, restartOverlapRelayLogFix)
 }
 
 // attachStderrRelay gives cmd a stderr pipe whose read end THIS process owns,
@@ -1109,6 +1167,7 @@ func attachStderrRelay(cmd *exec.Cmd) (read, write *os.File, err error) {
 func drainStderrRelay(relayDone <-chan struct{}, read *stderrRelayReader) {
 	read.markReaped()
 	<-relayDone
+	// refuse-by-default: guards monitorCmd -- teardown close of read-only stderr pipe end after child was reaped and relayDone completed
 	if err := read.file.Close(); err != nil {
 		logger().Debug("close plugin stderr read end", "error", err)
 	}
@@ -1378,6 +1437,10 @@ func (g *pluginGroup) exit(stopped bool) {
 	}
 }
 
+// killProcessGroup signals a forked plugin's process group. Swapped in unit
+// tests to exercise ESRCH and non-ESRCH kernel errors without targeting a live PID.
+var killProcessGroup = plugin.KillProcessGroup
+
 // signalLocked sends the group SIGKILL. The caller MUST hold mu.
 //
 // A pid that is not positive is a guard, not a value: KillProcessGroup(0)
@@ -1388,9 +1451,24 @@ func (g *pluginGroup) signalLocked() {
 	if g.pid < 1 {
 		panic("BUG: pluginGroup with no started process")
 	}
-	if err := plugin.KillProcessGroup(g.pid); err != nil {
-		logger().Debug("signal a plugin's process group", "plugin", g.name, "error", err)
+	err := killProcessGroup(g.pid)
+	if err == nil {
+		return
 	}
+	if errors.Is(err, syscall.ESRCH) {
+		// refuse-by-default: guards pluginGroup.exit -- ESRCH means the process group already exited with no surviving descendants
+		return
+	}
+	var message textbuf.Buffer
+	message.Str("could not send SIGKILL to process group of forked plugin ").Str(g.name).
+		Str(", so child processes may still be running and holding host resources: ").Err(err)
+	msg := report.FitMessage(message.String())
+	logger().Warn("could not send SIGKILL to forked plugin process group; child processes may still be running and holding host resources",
+		"plugin", g.name, "error", err,
+		"fix", restartOverlapRelayLogFix,
+		"code", CodeDoctorPluginGroupSignalFailed)
+	report.RaiseErrorFix(reportSourcePlugin, CodeDoctorPluginGroupSignalFailed,
+		boundPluginSubject(g.name), msg, restartOverlapRelayLogFix)
 }
 
 // monitorCmd waits for the process to exit.

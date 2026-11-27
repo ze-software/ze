@@ -9,6 +9,8 @@ import (
 
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // serveRuntimeRequests owns this connection's dispatch lifetimes. It MUST
@@ -35,14 +37,14 @@ func (s *Server) serveRuntimeRequests(proc *process.Process, conn *plugipc.Plugi
 				// Never answer under an ID another handler still owns: that
 				// would release its caller before the original writer joins.
 				if closeErr := conn.AbortRuntime(requests.cancelAll); closeErr != nil {
-					logger().Debug("rpc runtime: close collided connection failed", "plugin", proc.Name(), "error", closeErr)
+					noteCollisionAbortFailure(proc, closeErr)
 				}
 				return
 			}
 			workers.Go(func() {
 				defer admission.finish()
 				if sendErr := conn.SendError(s.replyContext(), request.ID, rpcErrMessage(err)); sendErr != nil {
-					logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+					s.noteReplyDeliveryFailure(proc, request.Method, replyKindError, sendErr)
 				}
 			})
 			continue
@@ -52,4 +54,36 @@ func (s *Server) serveRuntimeRequests(proc *process.Process, conn *plugipc.Plugi
 			s.dispatchPluginRPCContext(admission.ctx, proc, conn, request)
 		})
 	}
+}
+
+// noteCollisionAbortFailure records a failure from conn.AbortRuntime after a
+// duplicate in-flight request ID collision. Already-closed connection errors
+// stay at Debug because cleanupProcess tears down the plugin; any other error
+// warns under CodeDoctorPluginRequestRefused and raises on the report bus,
+// since MuxConn.Close runs via sync.Once and teardown will not retry the close.
+func noteCollisionAbortFailure(proc *process.Process, closeErr error) {
+	pluginName := ""
+	if proc != nil {
+		pluginName = proc.Name()
+	}
+	displayName := pluginName
+	if displayName == "" {
+		displayName = "unknown-plugin"
+	}
+	if isClosedConnErr(closeErr) {
+		// refuse-by-default: guards cleanupProcess -- connection already closed; cleanupProcess tears down the plugin
+		logger().Debug("rpc runtime: collided connection already closed", "plugin", displayName, "error", closeErr)
+		return
+	}
+	fix := pluginRestartFix(pluginName)
+	var msg textbuf.Buffer
+	msg.Str("daemon could not close connection for plugin ").Str(displayName).
+		Str(" after a duplicate in-flight request ID collision: ").Err(closeErr).
+		Str("; teardown will not retry the close, so the plugin session may remain stuck")
+	logger().Warn("daemon could not close collided plugin connection; teardown will not retry the close",
+		"code", diagnostic.CodeDoctorPluginRequestRefused,
+		"plugin", displayName,
+		"error", closeErr,
+		"fix", fix)
+	refusePluginRequestWithFix(fitSubject(displayName), msg.String(), busFix(fix, fixShowErrors))
 }

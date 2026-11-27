@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -865,7 +866,7 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 			}
 		}
 		if err := mc.SendResult(s.ctx, req.ID, resp); err != nil {
-			managedLogger().Debug("send config-fetch result failed", "name", name, "error", err)
+			s.noteConfigFetchDeliveryFailure(name, mc, err)
 		}
 
 	case fleet.VerbConfigAck:
@@ -926,6 +927,59 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		tb.Str("unknown method: ").Str(req.Method)
 		_ = mc.SendError(s.ctx, req.ID, tb.String())
 	}
+}
+
+// managedConfigFetchFix is the executable YANG command operators run to inspect
+// a managed client whose config-fetch reply could not be delivered.
+const managedConfigFetchFix = "ze show fleet devices"
+
+// configFetchSessionEnded reports whether the managed hub is stopping or the
+// client's MuxConn is already closed.
+func (s *ManagedServer) configFetchSessionEnded(mc *rpc.MuxConn, err error) bool {
+	if s.ctx != nil {
+		if s.ctx.Err() != nil {
+			return true
+		}
+	}
+	if mc != nil {
+		select {
+		case <-mc.Done():
+			return true
+		default:
+		}
+	}
+	return isClosedConnErr(err)
+}
+
+// noteConfigFetchDeliveryFailure records a failed config-fetch SendResult to
+// managed client name. When the hub is stopping or the client connection is
+// already closed, it logs at Debug because serve tears down the session; when
+// the client connection is still live, it warns under
+// CodeDoctorManagedConfigFetchUndelivered and raises a rate-limited report-bus
+// event without exposing any client secret.
+func (s *ManagedServer) noteConfigFetchDeliveryFailure(name string, mc *rpc.MuxConn, err error) {
+	clientName := name
+	if clientName == "" {
+		clientName = "unknown-managed-client"
+	}
+	if s.configFetchSessionEnded(mc, err) {
+		// refuse-by-default: guards ManagedServer.serve -- hub stopping or managed client connection already closed; serve tears down the client session
+		managedLogger().Debug("send config-fetch result skipped on closed or stopping session",
+			"name", clientName, "error", err)
+		return
+	}
+	var msg textbuf.Buffer
+	msg.Str("hub could not deliver config-fetch reply to live managed client ").Str(clientName).
+		Str(": ").Err(err).
+		Str("; the client keeps its previous configuration until it retries or reconnects")
+	managedLogger().Warn("hub could not deliver config-fetch reply to live managed client; the client keeps its previous configuration until it retries or reconnects",
+		"code", CodeDoctorManagedConfigFetchUndelivered,
+		"name", clientName,
+		"error", err,
+		"fix", managedConfigFetchFix)
+	report.RaiseErrorFixOnce(managedReportSource, CodeDoctorManagedConfigFetchUndelivered,
+		fitSubject(clientName), report.FitMessage(msg.String()),
+		busFix(managedConfigFetchFix, fixShowErrors), rpc.ReportRaiseWindow)
 }
 
 // handleConfigAck records what client name's config-ack says and returns the

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | 16 remaining errors across 7 files in the plugin process manager, the plugin server, the managed config server, the public RPC transport and the SDK are caught and logged only below WARN: a plugin process group that cannot be signalled, an unbounded stderr drain, an RPC reply or managed config-fetch answer that never reaches a live peer, and a failed runtime connection abort on request-ID collision, each with no trace at the default level |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -222,6 +222,8 @@ logs at `WARN`).
 | `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-23 on `tls-listeners.md` | "The looking glass may serve plain HTTP, because what it publishes is public, and one looking glass serves HTTP and HTTPS at the same time. Thomas's words, as voice-transcribed: "We should allow the looking glass to be HTTP. The information is public." and "We should be able to serve on both HTTP and HTTPS, not either." Asked where the choice lives and what happens to `ze.looking-glass.tls`, he answered "1a 2a": the choice is the `tls` leaf of each `server` entry, default true, and the environment variable is removed. The no-store rule applies to each entry: an entry that left `tls` unset serves HTTP with a warning on a daemon with no `database/` store and no named certificate, an entry that says `tls true` there is refused at start and at reload, and a reload does what a restart with the same config does" | agrees | Does not touch looking-glass HTTP/HTTPS listener configuration or startup. |
 | `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-23 on `tls-listeners.md` | "The web and looking glass use the shared `listenerTLSMaterial` precedence. The approved Fleet reload design shares `managedCertificate` with startup because the daemon authority issues its unnamed leaf." | agrees | Does not modify `managedCertificate` or `listenerTLSMaterial` precedence. |
 | `docs/architecture/pki/tls-listeners.md` | Design decisions | decision of 2026-11-26 on `tls-listeners.md` | "A certificate that cannot be presented never stops ze from starting. A web server whose certificate name does not resolve is not started. The looking glass is judged one `server` entry at a time: an entry that says `tls true` with no certificate to present stays down, every entry that asks for TLS stays down when the named certificate does not resolve, and the other entries serve. Each is reported with its fix by an error line in the log under a doctor code and by `ze doctor`. A reload whose config cannot be served stays refused. This supersedes the start half of the row of 2026-11-23 above, which says a `tls true` entry "is refused at start": at start that entry stays down and the others serve, and at reload the config is still refused. Thomas's words, as voice-transcribed: "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; "reload stay refused"; "Should only that endpoint stay down while the others serve: yes"" | agrees | Does not modify TLS certificate startup or reload behavior on web, looking glass, or managed listeners. |
+| `docs/architecture/fleet-alarms.md` | Alarm kinds | anchored to `internal/component/plugin/server/managed_serve.go` | N/A | silent | Page specifies fleet alarm conditions, causes, storage keys, and commands; silent on below-WARN error logging of `config-fetch` `SendResult` failures in `ManagedServer.handleRequest`. |
+| `docs/architecture/fleet-alarms.md` | Design decisions | decision of 2026-11-25 on `fleet-alarms.md` | "For a declared device that has never connected, Thomas chose “After the configured offline grace period from declaration”." | agrees | Does not touch fleet alarm grace timers, declaration timing, or `device-offline` alarm evaluation. |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -236,9 +238,9 @@ logs at `WARN`).
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ plugin | RPC error/result replies over `PluginConn` and `MuxConn`; SDK stderr relayed via `relayStderrFrom` | No |
-| Hub ↔ managed edge | `pkg/fleet` `config-fetch` reply over `MuxConn` | No |
-| Plugin infra ↔ `ze doctor` | `diagnostic.Register`, `diagnostic.RegisterEventCode`, and `report.RaiseErrorFix` / `raiseServerEvent` | No |
+| Engine ↔ plugin | RPC error/result replies over `PluginConn` and `MuxConn`; SDK stderr relayed via `relayStderrFrom` | Yes |
+| Hub ↔ managed edge | `pkg/fleet` `config-fetch` reply over `MuxConn` | Yes |
+| Plugin infra ↔ `ze doctor` | `diagnostic.Register`, `diagnostic.RegisterEventCode`, and `report.RaiseErrorFix` / `raiseServerEvent` | Yes |
 
 ### Changed-Wire Census
 
@@ -310,13 +312,13 @@ No wire format changes. **Search evidence:** inspected all 16 remaining `error-d
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPluginGroupSignalFailureLogsWarnAndRaisesDoctorCode` | `internal/component/plugin/process/process_signal_test.go` | AC-2, AC-3 (non-`ESRCH` warns with `CodeDoctorPluginGroupSignalFailed` and raises report event; `ESRCH` is silent) | |
-| `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode` | `internal/component/plugin/process/stderr_relay_test.go` | AC-2, AC-3 (`SetReadDeadline` non-closed error warns once per reader with `CodeDoctorPluginStderrDrainUnbounded` and raises event; `os.ErrClosed` stays silent; `closeParentStderrWrite` error warns and raises event) | |
-| `TestDispatchReplyFailureOnLivePluginLogsWarnWithDoctorCode` | `internal/component/plugin/server/dispatch_reply_warn_test.go` | AC-2, AC-3 (live `SendError`/`SendResult` failure warns with `CodeDoctorPluginAnswerUndelivered` and raises rate-limited event; ended/stopping plugin stays silent) | |
-| `TestServeRuntimeRequestsCollisionAbortErrorLogsWarnWithDoctorCode` | `internal/component/plugin/server/dispatch_reply_warn_test.go` | AC-2, AC-3 (non-closed `AbortRuntime` error on ID collision warns with `CodeDoctorPluginRequestRefused` and raises event; `net.ErrClosed` stays silent) | |
-| `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode` | `internal/component/plugin/server/managed_serve_test.go` | AC-2, AC-3 (live `config-fetch` `SendResult` failure warns with `CodeDoctorManagedConfigFetchUndelivered` and raises event naming client, why and fix; closed/stopping client stays silent) | |
-| `TestPluginInfraDoctorCodesDescribed` | `internal/component/plugin/doctor/doctor_codes_test.go` | AC-2 (`CodeDoctorPluginGroupSignalFailed`, `CodeDoctorPluginStderrDrainUnbounded`, `CodeDoctorManagedConfigFetchUndelivered` carry title, description, examples) | |
-| `TestAnswerAsyncCallbackLiveSendFailureLogsWarn` | `pkg/plugin/sdk/sdk_async_callback_test.go` | AC-3 (live send failure logs `slog.Warn` naming plugin, request ID, why and fix; stopped loop or closed connection stays silent) | |
+| `TestPluginGroupSignalFailureLogsWarnAndRaisesDoctorCode` | `internal/component/plugin/process/process_signal_test.go` | AC-2, AC-3 (non-`ESRCH` warns with `CodeDoctorPluginGroupSignalFailed` and raises report event; `ESRCH` is silent) | PASS |
+| `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode` | `internal/component/plugin/process/stderr_relay_test.go` | AC-2, AC-3 (`SetReadDeadline` non-closed error warns once per reader with `CodeDoctorPluginStderrDrainUnbounded` and raises event; `os.ErrClosed` stays silent; `closeParentStderrWrite` error warns and raises event) | PASS |
+| `TestDispatchReplyFailureOnLivePluginLogsWarnWithDoctorCode` | `internal/component/plugin/server/dispatch_reply_warn_test.go` | AC-2, AC-3 (live `SendError`/`SendResult` failure warns with `CodeDoctorPluginAnswerUndelivered` and raises rate-limited event; ended/stopping plugin stays silent) | PASS |
+| `TestServeRuntimeRequestsCollisionAbortErrorLogsWarnWithDoctorCode` | `internal/component/plugin/server/dispatch_reply_warn_test.go` | AC-2, AC-3 (non-closed `AbortRuntime` error on ID collision warns with `CodeDoctorPluginRequestRefused` and raises event; `net.ErrClosed` stays silent) | PASS |
+| `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode` | `internal/component/plugin/server/managed_serve_test.go` | AC-2, AC-3 (live `config-fetch` `SendResult` failure warns with `CodeDoctorManagedConfigFetchUndelivered` and raises event naming client, why and fix; closed/stopping client stays silent) | PASS |
+| `TestPluginInfraDoctorCodesDescribed` | `internal/component/plugin/doctor/doctor_codes_test.go` | AC-2 (`CodeDoctorPluginGroupSignalFailed`, `CodeDoctorPluginStderrDrainUnbounded`, `CodeDoctorManagedConfigFetchUndelivered` carry title, description, examples) | PASS |
+| `TestAnswerAsyncCallbackLiveSendFailureLogsWarn` | `pkg/plugin/sdk/sdk_async_callback_test.go` | AC-3 (live send failure logs `slog.Warn` naming plugin, request ID, why and fix; stopped loop or closed connection stays silent) | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -328,7 +330,7 @@ No wire format changes. **Search evidence:** inspected all 16 remaining `error-d
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Plugin and managed `.ci` suites reached by `./le repo changed scope print both` | `test/plugin/`, `test/managed/` | Normal plugin startup, dispatch, shutdown, and managed client config sync run with zero spurious WARN lines | |
+| Plugin and managed `.ci` suites reached by `./le repo changed scope print both` (`as112-doh.ci`, `decode-update.ci`, `client-first-boot.ci`) | `test/plugin/`, `test/managed/` | Normal plugin startup, dispatch, shutdown, and managed client config sync run with zero spurious WARN lines | PASS |
 
 ## Files to Modify
 - `internal/component/plugin/process/process.go` - 5 sites: `Process.startInternal.func.func` 750; `Process.startChildCmd` 939; `stderrRelayReader.extendDeadline` 1068; `drainStderrRelay` 1100; `pluginGroup.signalLocked` 1378
@@ -474,10 +476,6 @@ none
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
-## Review Gate
-
-Pending implementation: `/ze-review` and `/ze-review-spec` run in an independent context after implementation and before closure, with the clean review artifact recorded via `./le spec review record`.
-
 ## Design Insights
 
 - 2026-11-26 HEAD audit: 4 of the original 20 instances (2026-11-02) were already resolved or consolidated on `main` (`ManagedServer.pushConfigChanged` via `notifyDropped`, `dispatch_registry.go` via `answerEngineOpJSON`, and `sdk_dispatch.go`/`sdk_source_policy.go` consolidated into `sdk_async_callback.go`), while 2 new instances landed in `request_runtime.go`, bringing the exact HEAD population to **16 instances across 7 files**.
@@ -529,3 +527,171 @@ The class row for the whole population is owned by the umbrella.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-7-plugin-infra.md` only, in the same `./le commit create` script
+
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Registered 3 new doctor event codes with metadata (`Title`, `Description`, `Examples`, `RelatedCodes`) and `diagnostic.RegisterEventCode` declarations: `CodeDoctorPluginGroupSignalFailed` and `CodeDoctorPluginStderrDrainUnbounded` in `internal/component/plugin/process/doctor_codes.go` and `register.go`; `CodeDoctorManagedConfigFetchUndelivered` in `internal/component/plugin/server/doctor_codes.go` and `register.go`; verified spellings and descriptions in `internal/component/plugin/doctor/doctor_codes_test.go`.
+- Resolved all 5 `internal/component/plugin/process/process.go` sites: extracted `closeParentStderrWrite` (Answer 2 under `CodeDoctorPluginStderrDrainUnbounded`), split `stderrRelayReader.extendDeadline` into `isStderrClosed` (Answer 3 `guards drainStderrRelay`) vs once-per-reader WARN (`deadlineWarned` atomic, `CodeDoctorPluginStderrDrainUnbounded`), split `pluginGroup.signalLocked` into `syscall.ESRCH` (Answer 3 `guards pluginGroup.exit`) vs non-`ESRCH` WARN (`CodeDoctorPluginGroupSignalFailed`), and annotated teardown closes in `startInternal` (`guards closeConns`) and `drainStderrRelay` (`guards monitorCmd`).
+- Resolved all 4 `internal/component/plugin/server/dispatch.go` sites and 2 `internal/component/plugin/server/request_runtime.go` sites via shared `Server.noteReplyDeliveryFailure` (`replySessionEnded` -> Answer 3 `guards handleSingleProcessCommandsRPC`; live -> WARN under `CodeDoctorPluginAnswerUndelivered` + rate-limited `report.RaiseErrorFixOnce` with `ze request plugin restart <plugin>`) and `noteCollisionAbortFailure` (`isClosedConnErr` -> Answer 3 `guards cleanupProcess`; non-closed -> WARN under `diagnostic.CodeDoctorPluginRequestRefused` + `refusePluginRequestWithFix`).
+- Resolved the remaining `internal/component/plugin/server/managed_serve.go` `config-fetch` `SendResult` site via `ManagedServer.noteConfigFetchDeliveryFailure` (`configFetchSessionEnded` -> Answer 3 `guards ManagedServer.serve`; live -> WARN under `CodeDoctorManagedConfigFetchUndelivered` + rate-limited `report.RaiseErrorFixOnce` with `ze show fleet devices`, exposing no client secret), and annotated `Server.stopRemovedProcess` in `internal/component/plugin/server/startup_removal.go` (`guards Server.Stop`).
+- Resolved all 3 public `pkg/` sites with zero exported signature or wire changes: annotated `Conn.endAfterPanic` (`guards Conn.readLoop`) and `MuxConn.endAfterPanic` (`guards MuxConn.readLoop`) in `pkg/plugin/rpc/panic_guard.go`, and updated `Plugin.answerAsyncCallback` in `pkg/plugin/sdk/sdk_async_callback.go` to separate stopped/closed sessions (`guards Plugin.eventLoop`) from live send failures (`slog.Warn` naming plugin, request ID, error, and `ze show log recent component plugin.relay`).
+- Added unit tests proving both live-failure WARN + doctor-code/report-bus raises and benign/closed/stopping silence in `internal/component/plugin/process/process_signal_test.go`, `internal/component/plugin/process/stderr_relay_test.go`, `internal/component/plugin/server/dispatch_reply_warn_test.go`, `internal/component/plugin/server/managed_serve_test.go`, and `pkg/plugin/sdk/sdk_async_callback_test.go`.
+- Created operator news fragment `website/changes/fragments/dropped-error-7-plugin-infra.md` and closed row 85 in `plan/release/fixes/spec-dropped-error-0-umbrella.md`.
+
+### Bugs Found/Fixed
+- `os.File.SetReadDeadline` on a closed pipe returns `internal/poll.ErrFileClosing` (`"use of closed file"`) directly without wrapping `os.ErrClosed`; added `isStderrClosed` in `internal/component/plugin/process/process.go` covered by `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode/extendDeadline_os.ErrClosed_stays_silent`.
+- Added source anchors immediately after the updated tables in `docs/architecture/doctor-and-health-checks.md` and `docs/architecture/fleet-config.md` during closure documentation review.
+
+### Documentation Updates
+- `docs/architecture/doctor-and-health-checks.md` (`### Event codes`): added `doctor-plugin-group-signal-failed`, `doctor-plugin-stderr-drain-unbounded`, and `doctor-managed-config-fetch-undelivered` rows plus source anchors for `closeParentStderrWrite`, `extendDeadline`, `signalLocked`, `noteConfigFetchDeliveryFailure`, `noteReplyDeliveryFailure`, and `noteCollisionAbortFailure`.
+- `docs/architecture/fleet-config.md` (`### What doctor reads from the managed listener`): added `doctor-managed-config-fetch-undelivered` row plus source anchors for `noteConfigFetchDeliveryFailure` and `CodeDoctorManagedConfigFetchUndelivered`.
+- `website/changes/fragments/dropped-error-7-plugin-infra.md`: added operator release note fragment; `./le doc ste check` passed cleanly on all 3 markdown files (`ste check: OK`).
+- `./le doc check all`: zero issues in any file modified or added by this spec (pre-existing/sibling-session unrelated `plugin format` catalog drift and unrelated anchors only).
+
+### Deviations from Plan
+- None. Every one of the 16 HEAD instances, 3 new doctor codes, 7 unit tests, and 2 architecture doc updates matched the approved design.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Resolve all 5 `process.go` sites (`startInternal`, `startChildCmd`, `extendDeadline`, `drainStderrRelay`, `signalLocked`) | Done | `internal/component/plugin/process/process.go` (`startInternal`, `closeParentStderrWrite`, `stderrRelayReader.extendDeadline`, `drainStderrRelay`, `pluginGroup.signalLocked`) | Answer 2 with `CodeDoctorPluginGroupSignalFailed` / `CodeDoctorPluginStderrDrainUnbounded` + report raises; Answer 3 annotations on benign/teardown branches |
+| Resolve all 4 `dispatch.go` sites and 2 `request_runtime.go` sites | Done | `internal/component/plugin/server/dispatch.go` (`noteReplyDeliveryFailure`), `request_runtime.go` (`noteCollisionAbortFailure`, `serveRuntimeRequests`) | Live failures warn + raise rate-limited events under `CodeDoctorPluginAnswerUndelivered` / `CodeDoctorPluginRequestRefused`; closed/stopping annotated |
+| Resolve `managed_serve.go` `config-fetch` site without leaking client secret | Done | `internal/component/plugin/server/managed_serve.go` (`handleRequest`, `noteConfigFetchDeliveryFailure`) | Live failures warn + raise under `CodeDoctorManagedConfigFetchUndelivered` with `ze show fleet devices`; closed/stopping annotated |
+| Resolve `startup_removal.go` wait site | Done | `internal/component/plugin/server/startup_removal.go` (`stopRemovedProcess`) | Annotated `guards Server.Stop` |
+| Resolve 2 `panic_guard.go` sites and 1 `sdk_async_callback.go` site with zero exported `pkg/` changes | Done | `pkg/plugin/rpc/panic_guard.go` (`Conn.endAfterPanic`, `MuxConn.endAfterPanic`), `pkg/plugin/sdk/sdk_async_callback.go` (`Plugin.answerAsyncCallback`) | Zero exported symbol or wire changes; live SDK failure logs `slog.Warn` |
+| Register 3 new doctor codes with metadata and `EventCode` declarations | Done | `internal/component/plugin/process/doctor_codes.go`, `process/register.go`, `server/doctor_codes.go`, `server/register.go`, `doctor/doctor_codes_test.go` | Verified by `TestPluginInfraDoctorCodesDescribed` and `./le arch doctor-coverage check` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Filtered `./le arch refuse-by-default report '|' json` under `internal/component/plugin/`, `pkg/plugin/`, `pkg/ze/`: 0 `error-dropped-below-warn` findings, 0 `annotation-names-no-guard` findings | All benign teardown/closed branches annotated with valid guards |
+| AC-2 | Done | `./le arch doctor-coverage check` OK; `TestPluginInfraDoctorCodesDescribed` PASS (`1.05s` `-race`); all `"fix"` strings verified against YANG `ze:command` definitions | Every new `Warn` under `internal/component/plugin/` emits its registered `code` and raises on `internal/core/report` |
+| AC-3 | Done | `-race` PASS on `TestPluginGroupSignalFailureLogsWarnAndRaisesDoctorCode`, `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode`, `TestDispatchReplyFailureOnLivePluginLogsWarnWithDoctorCode`, `TestServeRuntimeRequestsCollisionAbortErrorLogsWarnWithDoctorCode`, `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode`, `TestAnswerAsyncCallbackLiveSendFailureLogsWarn` | Proves both live WARN+raise and closed/stopping/`ESRCH` silence |
+| AC-4 | Done | `./le arch refuse-by-default check` OK; 0 `annotation-names-no-guard` findings | Every guard names a visible non-enclosing supervision symbol |
+| AC-5 | Done | Main-thread `-race` tests across all 5 packages (`doctor`, `process`, `server`, `rpc`, `sdk`), `./le plugin declarations check` OK, `./le arch refuse-by-default check` OK, `./le arch doctor-coverage check` OK, `./le go style check` OK, scoped lint 0 issues, functional `.ci` `plugin` (`as112-doh`, `decode-update`) 2/2 PASS and `managed` (`client-first-boot`) 1/1 PASS | Complete scoped main-checkout verification green |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPluginGroupSignalFailureLogsWarnAndRaisesDoctorCode` | Done | `internal/component/plugin/process/process_signal_test.go` | PASS under `-race` |
+| `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode` | Done | `internal/component/plugin/process/stderr_relay_test.go` | PASS under `-race`; proves once-per-reader boundary |
+| `TestDispatchReplyFailureOnLivePluginLogsWarnWithDoctorCode` | Done | `internal/component/plugin/server/dispatch_reply_warn_test.go` | PASS under `-race`; proves per-plugin rate limit |
+| `TestServeRuntimeRequestsCollisionAbortErrorLogsWarnWithDoctorCode` | Done | `internal/component/plugin/server/dispatch_reply_warn_test.go` | PASS under `-race` |
+| `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode` | Done | `internal/component/plugin/server/managed_serve_test.go` | PASS under `-race`; asserts client secret never leaks |
+| `TestPluginInfraDoctorCodesDescribed` | Done | `internal/component/plugin/doctor/doctor_codes_test.go` | PASS under `-race` |
+| `TestAnswerAsyncCallbackLiveSendFailureLogsWarn` | Done | `pkg/plugin/sdk/sdk_async_callback_test.go` | PASS under `-race` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/process/process.go` | Done | 5 sites resolved |
+| `internal/component/plugin/process/doctor_codes.go` | Done | 2 codes registered |
+| `internal/component/plugin/process/register.go` | Done | 2 event codes added to `processEventCodes` |
+| `internal/component/plugin/process/process_signal_test.go` | Done | Created |
+| `internal/component/plugin/process/stderr_relay_test.go` | Done | Updated with `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode` |
+| `internal/component/plugin/server/dispatch.go` | Done | 4 sites resolved via `noteReplyDeliveryFailure` |
+| `internal/component/plugin/server/dispatch_reply_warn_test.go` | Done | Created |
+| `internal/component/plugin/server/request_runtime.go` | Done | 2 sites resolved |
+| `internal/component/plugin/server/managed_serve.go` | Done | `config-fetch` site resolved via `noteConfigFetchDeliveryFailure` |
+| `internal/component/plugin/server/managed_serve_test.go` | Done | Updated with `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode` |
+| `internal/component/plugin/server/doctor_codes.go` | Done | `CodeDoctorManagedConfigFetchUndelivered` registered |
+| `internal/component/plugin/server/register.go` | Done | Event code added to `serverEventCodes` |
+| `internal/component/plugin/server/startup_removal.go` | Done | Guard annotation added |
+| `internal/component/plugin/doctor/doctor_codes_test.go` | Done | Updated with 3 new codes |
+| `pkg/plugin/rpc/panic_guard.go` | Done | 2 guard annotations added |
+| `pkg/plugin/sdk/sdk_async_callback.go` | Done | `answerAsyncCallback` updated |
+| `pkg/plugin/sdk/sdk_async_callback_test.go` | Done | Created |
+| `docs/architecture/doctor-and-health-checks.md` | Done | Event codes table and source anchors updated |
+| `docs/architecture/fleet-config.md` | Done | Managed doctor table and source anchors updated |
+
+### Audit Summary
+- **Total items:** 19 files, 16 dropped-error sites, 5 ACs, 7 unit tests, 3 `.ci` functional tests
+- **Done:** All
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero remaining unannotated `error-dropped-below-warn` findings under `internal/component/plugin/`, `pkg/plugin/`, `pkg/ze/` | static analysis gate | Filtered `./le arch refuse-by-default report '|' json` reports 0 `error-dropped-below-warn` and 0 `annotation-names-no-guard`; `./le arch refuse-by-default check` OK |
+| Every actionable failure under `internal/component/plugin/` logs at `WARN` with registered doctor `code` + fix and raises on report bus without flooding | unit tests (`-race`) + gate | `./le arch doctor-coverage check` OK; `TestPluginInfraDoctorCodesDescribed`, `TestPluginGroupSignalFailureLogsWarnAndRaisesDoctorCode`, `TestStderrDrainUnboundedLogsWarnAndRaisesDoctorCode`, `TestDispatchReplyFailureOnLivePluginLogsWarnWithDoctorCode`, `TestServeRuntimeRequestsCollisionAbortErrorLogsWarnWithDoctorCode`, `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode` all PASS under `-race` |
+| Live SDK async callback send failures log at `WARN` while preserving published `pkg/` contracts | unit test (`-race`) + contract check | `TestAnswerAsyncCallbackLiveSendFailureLogsWarn` PASS under `-race`; `./le plugin declarations check` OK; zero exported symbol changes in `pkg/plugin/rpc/` and `pkg/plugin/sdk/` |
+| Normal plugin and managed client lifecycles run cleanly with zero regressions | functional `.ci` tests | `./le --name b3ci` functional suites PASS: `test/plugin/as112-doh.ci` (`1.2s`), `test/plugin/decode-update.ci` (`1.2s`), `test/managed/client-first-boot.ci` (`1.8s`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All 16 HEAD instances under `internal/component/plugin/`, `pkg/plugin/`, and `pkg/ze/` are resolved | N/A |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-7-plugin-infra-b4a10001-1111-4000-8000-000000000001.md` |
+| `./le spec review check` | clean (`review_gate: OK (17 code files, clean, hashes match tmp/review/dropped-error-7-plugin-infra-b4a10001-1111-4000-8000-000000000001.md)`) |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, user-facing-errors+YANG-fix-contract, design-documents, ze-go-style, spec-completeness (`/ze-review` + `/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | - | 0 BLOCKER, 0 ISSUE, 0 NOTE on Round 1 across all 17 code/test files (doc source anchors added in `doctor-and-health-checks.md` and `fleet-config.md` during Step 4 docs check) | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/process/process_signal_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 3819 Nov 27 13:28 internal/component/plugin/process/process_signal_test.go` |
+| `internal/component/plugin/server/dispatch_reply_warn_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 10656 Nov 27 12:46 internal/component/plugin/server/dispatch_reply_warn_test.go` |
+| `pkg/plugin/sdk/sdk_async_callback_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 4051 Nov 27 12:46 pkg/plugin/sdk/sdk_async_callback_test.go` |
+| `website/changes/fragments/dropped-error-7-plugin-infra.md` | Yes | `-rw-r--r-- 1 thomas thomas 2650 Nov 27 13:57 website/changes/fragments/dropped-error-7-plugin-infra.md` |
+| `test/plugin/as112-doh.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1671 Nov 24 19:37 test/plugin/as112-doh.ci` |
+| `test/plugin/decode-update.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1527 Nov 24 19:37 test/plugin/decode-update.ci` |
+| `test/managed/client-first-boot.ci` | Yes | `-rw-r--r-- 1 thomas thomas 300 Sep 25 11:57 test/managed/client-first-boot.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 unannotated `error-dropped-below-warn` findings under `internal/component/plugin/`, `pkg/plugin/`, `pkg/ze/` | Main-thread filtered `./le arch refuse-by-default report '|' json`: 0 `error-dropped-below-warn`, 0 `annotation-names-no-guard` |
+| AC-2 | Every new `Warn` under `internal/component/plugin/` emits registered doctor `code`, fix, and report-bus raise | `./le arch doctor-coverage check` OK; `TestPluginInfraDoctorCodesDescribed` PASS (`1.05s` `-race`); YANG `ze:command` verified for `show log recent`, `request plugin restart`, `show fleet devices`, `show errors` |
+| AC-3 | Live failures warn + raise; closed/stopping/`ESRCH` stay silent | `-race` PASS in `process` (`1.21s`), `server` (`1.62s`), `rpc` (`1.07s`), `sdk` (`30.72s` + `1.06s`) |
+| AC-4 | All added guard annotations resolve to visible non-enclosing symbols | `./le arch refuse-by-default check` OK; 0 `annotation-names-no-guard` |
+| AC-5 | Scoped unit tests, gates, style, lint, and `.ci` suites green | All 5 package `-race` runs PASS; `./le plugin declarations check` OK; `./le go style check` OK; scoped lint 0 issues; `.ci` `as112-doh`, `decode-update`, `client-first-boot` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Forked plugin startup, RPC decode-update dispatch, and clean teardown | `test/plugin/decode-update.ci` | Yes (read file: runs external fixture `le test fixture plugin/decode-update` over plugin RPC; PASS `1.2s`) |
+| Plugin configuration apply and command dispatch through live `ze` binary | `test/plugin/as112-doh.ci` | Yes (read file: configures `as112` DoH via `bus` endpoint and queries `show as112`; PASS `1.2s`) |
+| Managed client bootstrap and hub sync path | `test/managed/client-first-boot.ci` | Yes (read file: executes `le test fixture managed/client-first-boot`; PASS `1.8s`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Filtered `./le arch refuse-by-default report '|' json` confirmed the exact 16-instance population across 7 files before edits and 0 findings after edits |
+| A-2 | confirmed | `TestDispatchReplyFailureOnLivePluginLogsWarnWithDoctorCode`, `TestManagedConfigFetchSendFailureLogsWarnWithDoctorCode`, and `TestAnswerAsyncCallbackLiveSendFailureLogsWarn` prove live send failures warn while closed/stopping sessions stay silent |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/doctor-and-health-checks.md` (`### Event codes`) | Matches `process/doctor_codes.go`, `process/register.go`, `server/doctor_codes.go`, `server/register.go`, `process.go`, `managed_serve.go`; source anchors added; `./le doc ste check` OK | Yes |
+| `docs/architecture/fleet-config.md` (`### What doctor reads from the managed listener`) | Matches `server/managed_serve.go` (`noteConfigFetchDeliveryFailure`) and `server/doctor_codes.go` (`CodeDoctorManagedConfigFetchUndelivered`); source anchors added; `./le doc ste check` OK | Yes |
+| `website/changes/fragments/dropped-error-7-plugin-infra.md` | Operator-facing Before/After fragment matching all 6 failure classes and 3 new doctor codes; `./le doc ste check` OK | Yes |
+| `plan/release/fixes/spec-dropped-error-0-umbrella.md` row 85 | External citer updated to bare stem `spec-dropped-error-7-plugin-infra` (closed 2026-11-27), status `closed`, count `0 (was 20)`; `git grep dropped-error-7-plugin-infra` confirms zero remaining live path citers | Yes |
+| Other categories (config, CLI, API/RPC, wire format, SDK contract) | `git diff -- pkg/plugin/rpc/panic_guard.go pkg/plugin/sdk/sdk_async_callback.go` confirms zero exported or wire changes; zero YANG files modified | Yes |

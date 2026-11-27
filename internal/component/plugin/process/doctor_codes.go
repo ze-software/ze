@@ -18,8 +18,12 @@ const (
 	CodeDoctorPluginStopCleanupLate = "doctor-plugin-stop-cleanup-late"
 	// CodeDoctorPluginShutdownOrder is the doctor diagnostic code "doctor-plugin-shutdown-order".
 	CodeDoctorPluginShutdownOrder = "doctor-plugin-shutdown-order"
-	exampleShowDoctor             = "ze show doctor"
-	exampleShowErrors             = "ze show errors"
+	// CodeDoctorPluginGroupSignalFailed is the doctor diagnostic code "doctor-plugin-group-signal-failed".
+	CodeDoctorPluginGroupSignalFailed = "doctor-plugin-group-signal-failed"
+	// CodeDoctorPluginStderrDrainUnbounded is the doctor diagnostic code "doctor-plugin-stderr-drain-unbounded".
+	CodeDoctorPluginStderrDrainUnbounded = "doctor-plugin-stderr-drain-unbounded"
+	exampleShowDoctor                    = "ze show doctor"
+	exampleShowErrors                    = "ze show errors"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -78,6 +82,24 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"A provider may therefore have stopped before its consumers finished cleanup. This does not mean cleanup ran late or installed state was left behind. " +
 			"The report event names the cause, and the daemon writes it to its last-stop record so local doctor can report it after the stop. Read journalctl -u ze before correcting the plugin declarations or server wiring.",
 		Examples: []string{"ze doctor --json", exampleShowErrors, "ze show diagnostic doctor-plugin-shutdown-order"},
+	},
+	{
+		Code:  CodeDoctorPluginGroupSignalFailed,
+		Title: "Plugin process group could not be signaled",
+		Description: "When ze stopped or aborted a forked plugin, sending SIGKILL to its process group failed with an error other than ESRCH, " +
+			"so the plugin or child processes it started may still be running and holding sockets or other host resources. " +
+			"The event names the plugin and the kernel error. Inspect the plugin's relayed output and recent errors before restarting it.",
+		Examples:     []string{exampleShowDoctor, exampleShowErrors, restartOverlapRelayLogFix, "ze show diagnostic doctor-plugin-group-signal-failed"},
+		RelatedCodes: []string{CodeDoctorPluginRestartOverlap, CodeDoctorPluginStopUnfinished},
+	},
+	{
+		Code:  CodeDoctorPluginStderrDrainUnbounded,
+		Title: "Plugin stderr drain bound could not be armed",
+		Description: "After forking or reaping a forked plugin, ze could not close its parent copy of the stderr write pipe or set the post-reap idle read deadline on the stderr pipe, " +
+			"so a lingering child holding stderr open can delay stop or restart waiting on the stderr relay. " +
+			"The event names the plugin and the operating system error. Inspect recent errors and relayed plugin output.",
+		Examples:     []string{exampleShowDoctor, exampleShowErrors, restartOverlapRelayLogFix, "ze show diagnostic doctor-plugin-stderr-drain-unbounded"},
+		RelatedCodes: []string{CodeDoctorPluginStderrRelayStopped, CodeDoctorPluginRestartOverlap},
 	},
 }
 
