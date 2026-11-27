@@ -229,7 +229,13 @@ After substantial additions or moves, reread the whole document. Individually ap
 
 ## Final check
 
-First read the complete draft as someone who has not seen the conversation. State its message, then check how each section develops it and how each sentence explains its part. Check the relationships as well as the claims: can the reader explain why the problem occurs and how the proposed technique addresses that cause? Repair missing reasoning, unexplained terms, repetition and misleading actors before checking style. The reader must be able to follow the explanation without opening its evidence links.
+Before showing a draft to Thomas, stop and read every sentence aloud as an outside reader who has never seen this repository or this conversation. Ask yourself how each sentence actually reads:
+
+- Would a network engineer outside the project understand it on the first pass, without knowing internal module names, counts or Go package layouts?
+- Does any phrase sound awkward, wordy or oddly phrased when read aloud (such as hardcoded internal counts like "20 static host modules" or a 50-word list stuffed into one sentence)?
+- Is every claim about other routers, operating systems or tools genuinely true and backed by a primary source, rather than a convenient strawman?
+
+Fix everything that fails that read-aloud pass first. Then state the draft's message and check how each section develops it and how each sentence explains its part. Check the relationships as well as the claims: can the reader explain why the problem occurs and how the proposed technique addresses that cause? Repair missing reasoning, unexplained terms, repetition and misleading actors before checking style. The reader must be able to follow the explanation without opening its evidence links.
 
 Then check the wording. These checks catch some habits; passing them is not evidence that the text is clear:
 
