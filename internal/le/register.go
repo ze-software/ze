@@ -36,6 +36,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/build/preview"
 	_ "github.com/ze-software/ze/internal/le/build/vpp"
 	_ "github.com/ze-software/ze/internal/le/chaos"
+	_ "github.com/ze-software/ze/internal/le/chaos/fuzz"
 	_ "github.com/ze-software/ze/internal/le/chaos/run"
 	_ "github.com/ze-software/ze/internal/le/chaos/selftest"
 	_ "github.com/ze-software/ze/internal/le/cli"

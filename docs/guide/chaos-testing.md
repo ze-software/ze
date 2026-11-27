@@ -72,6 +72,44 @@ ze start chaos.conf
 ./le chaos run --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
 ```
 
+### Swarm Fuzzing and Wire-Level Faults (VOPR-style)
+
+In `--in-process` mode, `le chaos` supports deterministic wire-level TCP stream
+faults on mocknet connections and online reactor invariant checks inspired by
+TigerBeetle's VOPR simulator:
+
+- **Wire-level stream faults (`mocknet.FaultConn`)**: `--stream-fragment-rate`
+  splits BGP reads and writes into chunks up to 19 bytes (splitting headers and
+  UPDATE payloads mid-frame), `--stream-blackhole-rate` stalls one direction on
+  the virtual clock to simulate half-open blackholes, and `--stream-reset-rate`
+  writes truncated frames before abruptly resetting the connection.
+- **Online `StateChecker`**: samples every live reactor peer on each virtual
+  tick and at settle, checking all recorded `Peer.FSMHistory()` transitions
+  against RFC 4271 Section 8.2.2, checking non-zero `RemoteRouterID` while
+  Established (RFC 4271 Section 4.2), and computing a deterministic FNV-64a
+  checkpoint hash.
+- **Multi-seed swarm runner (`./le chaos fuzz`)**: sweeps N random seeds in fast
+  in-process mode, randomizing peer topology, v2 fault subsets, and stream fault
+  rates per seed (swarm testing), checking all BGP properties and online reactor
+  invariants, and printing a copy-paste `./le chaos run --in-process ...`
+  reproducer for any failure.
+
+```bash
+# Sweep 20 random seeds with randomized fault profiles
+./le chaos fuzz --seeds 20 --duration 15s
+
+# Reproducible sweep starting at seed 1000, verifying run-to-run state hash determinism
+./le chaos fuzz --base-seed 1000 --seeds 10 --check-determinism --out-dir tmp/fuzz-failures
+
+# Reproduce a single seed with wire-level fragmentation enabled
+./le chaos run --in-process --seed 1000 --duration 15s --stream-fragment-rate 0.5 --properties all
+```
+<!-- source: internal/chaos/mocknet/fault_conn.go -- StreamFaultConfig, NewFaultConn, FaultConn -->
+<!-- source: internal/chaos/inprocess/state_checker.go -- StateChecker, IsLegalFSMTransition -->
+<!-- source: internal/chaos/fuzz/swarm.go -- SwarmProfile, Profile.ReproCommand -->
+<!-- source: internal/chaos/fuzz/runner.go -- Run, CLIRun -->
+<!-- source: internal/le/chaos/fuzz/fuzz.go -- Answer -->
+
 ### Interface Faults (Linux netns)
 
 `iface-link-flap` and `iface-addr-remove` manipulate a Linux interface through
@@ -318,6 +356,7 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 | `./le chaos selftest unit` | Run chaos simulator unit tests |
 | `./le chaos selftest cli-unit` | Run the orchestrator's command-line tests through `le chaos run` |
 | `./le chaos run <options>` | Run the chaos orchestrator |
+| `./le chaos fuzz <options>` | Run VOPR-style multi-seed in-process swarm fuzzing |
 
 ## When to Use
 

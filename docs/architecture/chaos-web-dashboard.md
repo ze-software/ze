@@ -972,6 +972,15 @@ on two peers prints twice.
 ### Per-Family Convergence
 
 The convergence tracker (`internal/chaos/validation/convergence.go`) supports per-family latency breakdown alongside the aggregate stats. When `RecordAnnounce` receives a family parameter, resolved latencies are stored per-family. `StatsByFamily()` returns independent min/max/avg/p99 per family.
+
+### In-Process Wire Faults, Online StateChecker, and Swarm Fuzzing
+
+In `--in-process` mode, `mocknet.NewFaultConn` wraps mocknet connection pairs with seeded read/write fragmentation (default chunk bound 19 bytes to split BGP headers), virtual-clock asymmetric blackholes, and mid-frame resets. `inprocess.StateChecker` samples every peer's `FSMHistory()` (`internal/component/bgp/reactor/peer_history.go`) on every virtual tick and at settle to assert RFC 4271 Section 8.2.2 transition legality, non-zero `RemoteRouterID`, and an FNV-64a checkpoint hash. `internal/chaos/fuzz` drives multi-seed swarm sweeps through `./le chaos fuzz`, varying topology, v2 action subsets, and stream fault rates per seed and printing exact `./le chaos run --in-process` reproducers on failure.
+<!-- source: internal/chaos/mocknet/fault_conn.go -- StreamFaultConfig, FaultConn, NewFaultConn -->
+<!-- source: internal/chaos/inprocess/state_checker.go -- StateChecker, IsLegalFSMTransition -->
+<!-- source: internal/component/bgp/reactor/peer_history.go -- Peer.FSMHistory -->
+<!-- source: internal/chaos/fuzz/swarm.go -- SwarmProfile -->
+<!-- source: internal/chaos/fuzz/runner.go -- Run, CLIRun -->
 <!-- source: internal/chaos/web/dashboard.go -- Dashboard implementation -->
 <!-- source: internal/chaos/web/state.go -- state management -->
 <!-- source: internal/chaos/web/handlers_test.go -- handler tests -->

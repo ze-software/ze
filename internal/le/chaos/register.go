@@ -13,6 +13,6 @@ import (
 
 func init() {
 	leroot.RegisterNamespace("chaos",
-		"chaos testing against ze, FRR or BIRD",
-		"Chaos testing: run the orchestrator against ze, FRR or BIRD, and self-test the simulator.")
+		"chaos testing and swarm fuzzing against ze, FRR or BIRD",
+		"Chaos testing: run the orchestrator against ze, FRR or BIRD, sweep multi-seed in-process swarm fuzzing, and self-test the simulator.")
 }
