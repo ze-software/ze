@@ -93,6 +93,15 @@ The old posts contain rhetorical questions ("But how can 2737504257 be in the AS
 
 NOTE: "AI objections, a story I have heard before", "What Neurodivergence Really Means", and "The lack of AI control plane" were authored by Claude from Thomas's input. Do NOT use these as style references. They are examples of what to improve.
 
+## Hero and inline SVG diagrams
+
+Every blog article MUST include a relevant hero SVG pair in `website/assets/blog/` (`<slug>.svg` for light mode and `<slug>-dark.svg` for dark mode), referenced in YAML front matter with `image`, `image-dark`, and `image-alt`. Add inline SVGs in the body as well when a specific chart, data flow, or failure boundary is clearer visually than in prose.
+
+An SVG is part of the technical explanation, not decoration:
+- It MUST illustrate a concrete workflow, architecture, or verified measurement from the article accurately, with commands, paths, limits, and arrows checked against the code and prose.
+- Match the site's existing blog SVG style (`viewBox="0 0 1200 675"`, light and dark palettes as in `website/assets/blog/one-engine-any-plugin.svg` and `-dark.svg`, clean `title` and `desc` accessibility tags, and text sized to fit comfortably inside boxes with no clipping or overlap).
+- Because `./le site build producer blog` does not copy new static files from `website/assets/blog/` on its own, make sure the new SVG files are staged into `../gh-pages/assets/blog/` (for example via `./le site build partial`) so Thomas can inspect them on the rendered page.
+
 ## Independent sceptical review before showing Thomas
 
 Before presenting a new blog post or major rewrite to Thomas, run two checks on the source file:
@@ -102,4 +111,4 @@ Before presenting a new blog post or major rewrite to Thomas, run two checks on 
 
 ## Done when
 
-Done when the source post in `website/blog/posts/` passes the `ze-author` final check, the advisory `./le doc ste readability file <post>` and sceptical network-engineer review have run and their findings are addressed, and `./le site build` has regenerated its pages.
+Done when the source post in `website/blog/posts/` has its relevant, accurate light and dark SVG diagram(s) in `website/assets/blog/` linked from front matter, passes the `ze-author` final check, the advisory `./le doc ste readability file <post>` and sceptical network-engineer review have run and their findings are addressed, and `./le site build` (or `./le site build partial` during review) has regenerated its pages and staged its SVG assets into `../gh-pages`.
