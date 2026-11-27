@@ -172,10 +172,9 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 // RunDecode implements the stdin/stdout decode protocol for in-process use.
 // Reads lines like "decode nlri <family> <hex>", writes "decoded json <json>".
 func RunDecode(input io.Reader, output io.Writer) int {
-	write := func(s string) {
-		if _, err := fmt.Fprintln(output, s); err != nil { //nolint:errcheck // output
-			logger.Debug("write error", "err", err)
-		}
+	write := func(s string) error {
+		_, err := fmt.Fprintln(output, s)
+		return err
 	}
 
 	scanner := bufio.NewScanner(input)
@@ -195,18 +194,22 @@ func RunDecode(input io.Reader, output io.Writer) int {
 			data, err := DecodeNLRIHex(fam, hexData, false, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
-					write("decoded json " + string(raw))
+					if werr := write("decoded json " + string(raw)); werr != nil {
+						return 1
+					}
 					continue
 				}
 			}
 		}
-		write("decoded unknown")
+		if err := write("decoded unknown"); err != nil {
+			return 1
+		}
 	}
 	// bufio.Scanner reports a read failure and an over-long line through Err(),
 	// never through Scan(). Without this the caller sees a clean, complete decode.
 	if err := scanner.Err(); err != nil {
 		var eb textbuf.Buffer
-		write(eb.Str("decoded error ").Err(err).String())
+		_ = write(eb.Str("decoded error ").Err(err).String())
 		return 1
 	}
 	return 0

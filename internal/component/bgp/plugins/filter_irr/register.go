@@ -40,6 +40,11 @@ func init() {
 			panic("BUG: bgp-filter-irr: diagnostic code " + meta.Code + " registration failed: " + err.Error())
 		}
 	}
+	for _, ev := range irrEventCodes {
+		if err := diagnostic.RegisterEventCode(ev); err != nil {
+			panic("BUG: bgp-filter-irr: doctor event code " + ev.Code + " registration failed: " + err.Error())
+		}
+	}
 
 	reg := registry.Registration{
 		Name:        pluginName,

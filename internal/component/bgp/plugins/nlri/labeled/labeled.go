@@ -145,10 +145,9 @@ func formatLabeledText(jsonStr string) string {
 // It reads "decode nlri <family> <hex>" requests from input and writes
 // "decoded json <json>" or "decoded unknown" responses to output.
 func RunDecode(input io.Reader, output io.Writer) int {
-	write := func(s string) {
-		if _, err := fmt.Fprintln(output, s); err != nil { //nolint:errcheck // output
-			logger.Debug("write error", "err", err)
-		}
+	write := func(s string) error {
+		_, err := fmt.Fprintln(output, s)
+		return err
 	}
 
 	scanner := bufio.NewScanner(input)
@@ -169,19 +168,23 @@ func RunDecode(input io.Reader, output io.Writer) int {
 			data, err := DecodeNLRIHex(fam, hexData, false, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
-					write("decoded json " + string(raw))
+					if werr := write("decoded json " + string(raw)); werr != nil {
+						return 1
+					}
 					continue
 				}
 			}
 		}
 
-		write("decoded unknown")
+		if err := write("decoded unknown"); err != nil {
+			return 1
+		}
 	}
 	// bufio.Scanner reports a read failure and an over-long line through Err(),
 	// never through Scan(). Without this the caller sees a clean, complete decode.
 	if err := scanner.Err(); err != nil {
 		var eb textbuf.Buffer
-		write(eb.Str("decoded error ").Err(err).String())
+		_ = write(eb.Str("decoded error ").Err(err).String())
 		return 1
 	}
 	return 0

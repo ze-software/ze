@@ -4,8 +4,9 @@
 package adj_rib_in
 
 import (
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"net/netip"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // sourceLive is the captured current physical connection for one original
@@ -30,6 +31,7 @@ func (r *AdjRIBInManager) recordSourceStateLocked(address netip.Addr, up bool, o
 			return true
 		}
 		r.removeObservedRoutesLocked(address)
+		r.pruneNLRIKeyWarnedPeerLocked(receivedPeer{address: address})
 		r.peerUp[address] = false
 		for _, live := range r.sourceLive {
 			if live.address == address {
@@ -78,6 +80,7 @@ func (r *AdjRIBInManager) recordSourceStateLocked(address netip.Addr, up bool, o
 	r.retireValidationConnectionLocked(receivedPeer{address: address, owner: owner}, connectionID, retained)
 	delete(r.sourceLive, owner)
 	r.pruneValidationMetadataLocked(receivedPeer{address: address, owner: owner})
+	r.pruneNLRIKeyWarnedPeerLocked(receivedPeer{address: address, owner: owner})
 	r.peerUp[address] = false
 	for _, live := range r.sourceLive {
 		if live.address == address {
@@ -179,6 +182,7 @@ func (r *AdjRIBInManager) endSourceOwner(owner uint64) {
 		delete(r.validationPeers, key)
 	}
 	r.dropSourcePolicyLocked(owner)
+	r.pruneNLRIKeyWarnedOwnerLocked(owner)
 	current, live := r.sourceLive[owner]
 	if !live {
 		return

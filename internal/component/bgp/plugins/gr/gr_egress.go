@@ -49,7 +49,7 @@ type egressFilterState struct {
 // hasLLGR reports whether this original destination advertised LLGR.
 // Missing runtime identity MUST NOT borrow another neighbor's capability.
 func (s *egressFilterState) hasLLGR(peerOwner, connectionID uint64) bool {
-	// refuse-by-default: guards capability lookup -- no original owner was supplied.
+	// refuse-by-default: guards LLGREgressFilter -- missing original owner fails closed as LLGR-incapable instead of borrowing another peer's capability
 	if peerOwner == 0 {
 		return false
 	}

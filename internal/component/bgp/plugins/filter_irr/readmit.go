@@ -14,6 +14,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 const (
@@ -22,6 +26,11 @@ const (
 	// it is re-evaluated only when its peer sends it again, as before the set
 	// existed, and the first refusal logs a warning.
 	heldPrefixMax = 100_000
+
+	// readmitWarnedMax bounds per-peer deduplication entries in readmitter.warned.
+	readmitWarnedMax = 256
+
+	readmitWarnReasonConfirm = "confirm"
 
 	// readmitInterval is the worker's timer. Each tick drops what a peer that
 	// is no longer established holds, and asks again for what the published
@@ -92,6 +101,7 @@ type readmitSource interface {
 type readmitter struct {
 	engine   readmitEngine
 	source   readmitSource
+	issues   *issuequeue.Queue
 	interval time.Duration
 
 	// wake has depth 1: a burst of list changes collapses into one pass, and a
@@ -205,6 +215,18 @@ func (r *readmitter) retain(owners map[heldOwner]struct{}) {
 	for key, asn := range r.taking {
 		if _, kept := owners[heldOwner{peer: key.peer, asn: asn}]; !kept {
 			delete(r.taking, key)
+		}
+	}
+	for peer := range r.warned {
+		kept := false
+		for owner := range owners {
+			if owner.peer == peer {
+				kept = true
+				break
+			}
+		}
+		if !kept {
+			delete(r.warned, peer)
 		}
 	}
 	r.changed()
@@ -351,8 +373,7 @@ func (r *readmitter) readmit(pf peerFamily, keys []heldKey) {
 		// The request went out and only its confirmation failed. What the peer
 		// sends back runs through the filter, which holds again what it still
 		// rejects, so nothing the peer holds is dropped on a guess.
-		logger().Info("irr: asked the peer to send again routes the IRR list now authorizes, and could not confirm its session",
-			"peer", pf.peer, "family", pf.family, "prefixes", len(keys), "error", err)
+		r.reportReadmitConfirmFailed(pf, len(keys), err)
 		return
 	}
 	if !sess.established {
@@ -491,6 +512,63 @@ func (r *readmitter) clearWarning(peer netip.Addr) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.warned, peer)
+}
+
+// shouldWarn records reason for peer and reports true when this is a new or
+// changed warning condition for that peer. The map is bounded to
+// readmitWarnedMax entries and cleared by clearWarning, dropPeer, and retain.
+func (r *readmitter) shouldWarn(peer netip.Addr, reason string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.warned == nil {
+		r.warned = make(map[netip.Addr]string)
+	}
+	if r.warned[peer] == reason {
+		return false
+	}
+	if _, exists := r.warned[peer]; !exists {
+		if len(r.warned) >= readmitWarnedMax {
+			for k := range r.warned {
+				delete(r.warned, k)
+				break
+			}
+		}
+	}
+	r.warned[peer] = reason
+	return true
+}
+
+// reportReadmitConfirmFailed emits one deduplicated WARN and report-bus error
+// event under codeIRRReadmitConfirmFailed when confirming a peer's session
+// after a ROUTE-REFRESH fails.
+func (r *readmitter) reportReadmitConfirmFailed(pf peerFamily, prefixCount int, err error) {
+	if !r.shouldWarn(pf.peer, readmitWarnReasonConfirm) {
+		return
+	}
+	peer := pf.peer.String()
+	var fixBuf textbuf.Buffer
+	fix := fixBuf.Str("ze show bgp peer ").Str(peer).Str(" detail").String()
+	var msgBuf textbuf.Buffer
+	msg := fitReportText(
+		msgBuf.Str("irr: asked peer ").Str(peer).Str(" to re-send ").Str(pf.family).Str(" routes now authorized by IRR, but confirming peer session state failed: ").Err(err).Str("; held prefixes of other families were kept and any still-rejected prefix will be held again").String(),
+		rpc.ReportMessageMax,
+	)
+	reportErr := r.issues.RaiseError(codeIRRReadmitConfirmFailed, fitReportText(peer, rpc.ReportSubjectMax), msg, fix, func(cbErr error) {
+		logger().Warn("irr: failed to report readmission session confirmation failure to daemon",
+			"code", codeIRRReadmitConfirmFailed,
+			"fix", fix,
+			"peer", pf.peer,
+			"family", pf.family,
+			"error", cbErr)
+	})
+	logger().Warn(msg,
+		"code", codeIRRReadmitConfirmFailed,
+		"fix", fix,
+		"peer", pf.peer,
+		"family", pf.family,
+		"prefixes", prefixCount,
+		"error", err,
+		issuequeue.Outcome(reportErr))
 }
 
 // isStopped reports whether stop has closed, without blocking.

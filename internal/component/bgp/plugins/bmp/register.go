@@ -73,9 +73,11 @@ func init() {
 		ConfigureEventBus: func(eb ze.EventBus) {
 			setEventBus(eb)
 		},
-		// The receiver's panic boundary counts in ze_task_panics_total.
+		// The receiver's panic boundary counts in ze_task_panics_total, and
+		// BMP's own error counters register alongside it.
 		ConfigureMetrics: func(reg metrics.Registry) {
 			bmpPanics().guard.SetMetricsRegistry(reg)
+			SetMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

@@ -88,9 +88,9 @@ func DecodeNLRIHex(family, hexStr string, addPath, _ bool) (any, error) {
 		return nil, err
 	}
 
-	result := decodeFlowSpecNLRI(family, data)
-	if result == nil {
-		return nil, errNoValidFlowspecDecoded
+	result, err := decodeFlowSpecNLRI(family, data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errNoValidFlowspecDecoded, err)
 	}
 
 	if addPath {
@@ -142,9 +142,10 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 1
 	}
 
-	result := decodeFlowSpecNLRI(family, data)
-	if result == nil {
-		_, _ = fmt.Fprintln(errOut, "error: no valid FlowSpec decoded") //nolint:errcheck // output
+	result, err := decodeFlowSpecNLRI(family, data)
+	if err != nil {
+		var eb textbuf.Buffer
+		_, _ = io.WriteString(errOut, eb.Str("error: ").Err(errNoValidFlowspecDecoded).Str(": ").Err(err).Byte('\n').String())
 		return 1
 	}
 

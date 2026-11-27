@@ -886,6 +886,23 @@ func (m *grStateManager) removePeer(source grPeer) {
 	m.clearPeerLocked(source)
 }
 
+// stopAll stops every active GR restart timer and LLST timer and drops all
+// tracked peer state. Called on plugin shutdown before draining issuequeue.
+func (m *grStateManager) stopAll() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for owner, state := range m.peers {
+		if state.restartTimer != nil {
+			state.restartTimer.Stop()
+		}
+		m.stopLLSTTimersLocked(state)
+		delete(m.peers, owner)
+	}
+}
+
 // clearPeerLocked removes GR/LLGR state for a peer, stopping all active timers.
 // Must be called with m.mu held.
 func (m *grStateManager) clearPeerLocked(source grPeer) {

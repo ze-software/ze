@@ -221,7 +221,19 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   sessions continue. Ze logs it at ERROR with the router, the message type and
   the stack, counts it in `ze_task_panics_total{component="bmp",task="receive"}`,
   and writes a crash record that `ze show crashes` lists
+- If reading a BMP message body fails on an active session, Ze logs a warning
+  with the router address and cause, closes that session, and raises
+  `doctor-bmp-receiver-session-error` under `doctor-recent-events` with
+  `ze show bmp sessions` as the fix
+- If injecting a Route Monitoring UPDATE into the BMP RIB fails, Ze increments
+  `ze_bmp_route_inject_errors_total{peer}`. It logs a warning at most once per
+  minute for each peer key and raises `doctor-bmp-rib-sync-failed` with
+  `ze show bmp peers` as the fix. Failed RIB route withdrawals during peer down,
+  termination, or session end also log a warning and raise
+  `doctor-bmp-rib-sync-failed`. Clean plugin shutdown skips these warnings
 <!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin.handleSession; internal/component/bgp/plugins/bmp/panic_guard.go -- bmpPanics -->
+<!-- source: internal/component/bgp/plugins/bmp/error_report.go -- reportReceiverRIBSyncFailure, reportReceiverSessionError -->
+<!-- source: internal/component/bgp/plugins/bmp/metrics.go -- SetMetricsRegistry, incRouteInjectErrorMetric -->
 
 
 ### Sender Behavior
@@ -234,6 +246,19 @@ that event even if the collector later reconnects. Run `ze show bmp collectors`
 to inspect the collector sessions.
 <!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- BMPPlugin.handleBestChange -->
 <!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents, recentEventsDiagnostic -->
+
+If writing or queuing a BMP sender message fails for a collector, Ze increments
+`ze_bmp_message_drops_total{collector,message,reason}`. This covers Peer Up,
+Peer Down, Route Monitoring, Route Mirroring, Loc-RIB Peer Up, Loc-RIB
+End-of-RIB, Loc-RIB Peer Down, Statistics Report, and drain writes. Ze logs a
+warning at most once per minute for each collector and message kind, and raises
+`doctor-bmp-sender-delivery-failed` under `doctor-recent-events` with
+`ze show bmp collectors` as the fix. During a configuration bounce, a failed
+Peer Down write aborts the incomplete Adj-RIB replay for that collector instead
+of continuing to the next peer. Clean plugin shutdown skips these warnings.
+<!-- source: internal/component/bgp/plugins/bmp/error_report.go -- reportSenderWriteFailure -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- BMPPlugin.bounceMonitoredPeers -->
+<!-- source: internal/component/bgp/plugins/bmp/metrics.go -- SetMetricsRegistry, incMessageDropMetric -->
 
 - Sends Initiation with the system identity on each connection
 - Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB

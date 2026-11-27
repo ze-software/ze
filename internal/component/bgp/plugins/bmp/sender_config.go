@@ -350,6 +350,7 @@ func (bp *BMPPlugin) syncSenders(cfg *senderConfig) []*senderSession {
 		// them), then a full fresh dump.
 		ss.onPrimed = func() { bp.primeSender(ss) }
 		ss.onConnected = func() { bp.requestLocRIBDump(ss) }
+		ss.reportWriteFailure = bp.reportSenderWriteFailure
 		live = append(live, ss)
 		bp.sessions.Go(ss.run)
 		logger().Info("bmp: sender started", "collector", name, "address", col.Address, "port", col.Port)
@@ -359,6 +360,7 @@ func (bp *BMPPlugin) syncSenders(cfg *senderConfig) []*senderSession {
 
 	for _, ss := range stale {
 		ss.stop()
+		bp.pruneSenderDeliveryWarn(ss.name)
 		logger().Info("bmp: sender stopped", "collector", ss.name, "reason", "collector no longer configured at this address")
 	}
 
@@ -396,4 +398,5 @@ func (bp *BMPPlugin) stopSenders() {
 	for _, ss := range senders {
 		ss.stop()
 	}
+	bp.clearSenderDeliveryWarn()
 }

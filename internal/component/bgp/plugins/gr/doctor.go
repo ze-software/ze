@@ -29,7 +29,17 @@ import (
 // omission of an address family in OPEN capability codes 64 or 71.
 const codeDoctorBGPGRCapability = "doctor-bgp-gr-capability"
 
-const grDoctorFix = "ze config validate"
+// codeDoctorBGPGRCapabilityDecode fires when a received or sent BGP OPEN
+// carries an undecodable Graceful Restart (code 64) or Long-Lived Graceful
+// Restart (code 71) capability payload or hex string.
+const codeDoctorBGPGRCapabilityDecode = "doctor-bgp-gr-capability-decode"
+
+const (
+	grDoctorFix           = "ze config validate"
+	exampleDoctorJSON     = "ze doctor --json"
+	exampleShowErrors     = "ze show errors"
+	exampleShowDiagPrefix = "ze show diagnostic "
+)
 
 var errGRInvalidBGPConfigJSON = errors.New("bgp-gr: invalid bgp configuration JSON")
 
@@ -43,14 +53,34 @@ var grDoctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"an address family that is unknown or not stored by the RIB. Ze clamps out-of-range timers and omits " +
 			"unsupported or overflowing tuples from codes 64 and 71. Remedy: adjust `short-lived` and `long-lived` " +
 			"timers and family lists under `session capability graceful-restart`, then run `ze config validate`.",
-		Examples: []string{"ze doctor --json", "ze show diagnostic doctor-bgp-gr-capability"},
+		Examples: []string{exampleDoctorJSON, exampleShowDiagPrefix + codeDoctorBGPGRCapability},
 	},
+	{
+		Code:  codeDoctorBGPGRCapabilityDecode,
+		Title: "Graceful Restart or LLGR capability in BGP OPEN could not be decoded",
+		Description: "A received or sent BGP OPEN message carried a malformed Graceful Restart (code 64) or Long-Lived Graceful " +
+			"Restart (code 71) capability payload, or its OPEN optional parameters could not be unpacked. bgp-gr ignored the " +
+			"undecodable capability, so GR or LLGR route retention may not activate for that peer. Warnings are rate-limited per " +
+			"peer and capability kind. Remedy: inspect the peer session and negotiated capabilities with " +
+			"`ze show bgp peer <peer> detail`.",
+		Examples: []string{exampleDoctorJSON, exampleShowErrors, exampleShowDiagPrefix + codeDoctorBGPGRCapabilityDecode},
+	},
+}
+
+// grDoctorEventCodes declares the transient report-bus event codes this package raises.
+var grDoctorEventCodes = []diagnostic.EventCode{
+	{Code: codeDoctorBGPGRCapabilityDecode},
 }
 
 func registerGRDoctorCodes() {
 	for _, meta := range grDoctorDiagnosticCodes {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: bgp-gr: doctor code registration refused: " + err.Error())
+		}
+	}
+	for _, ev := range grDoctorEventCodes {
+		if err := diagnostic.RegisterEventCode(ev); err != nil {
+			panic("BUG: bgp-gr: doctor event code registration refused: " + err.Error())
 		}
 	}
 }

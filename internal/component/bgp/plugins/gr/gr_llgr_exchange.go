@@ -103,7 +103,7 @@ func (gp *grPlugin) handleStructuredSentOpen(source grSource, msg *bgptypes.RawM
 	}
 	open, err := message.UnpackOpen(msg.RawBytes)
 	if err != nil {
-		logger().Debug("gr: failed to unpack sent OPEN", "peer", source, "err", err)
+		gp.reportOpenDecodeFailure(source, openDecodeKindSentOpenUnpack, "failed to unpack sent BGP OPEN message", err)
 		gp.recordSentLLGR(source, declared)
 		return
 	}
@@ -119,7 +119,7 @@ func (gp *grPlugin) handleStructuredSentOpen(source grSource, msg *bgptypes.RawM
 			break
 		}
 		if paramType == openParamCapabilities {
-			addSentLLGRFamilies(source, params[offset:offset+paramLen], declared)
+			gp.addSentLLGRFamilies(source, params[offset:offset+paramLen], declared)
 		}
 		offset += paramLen
 	}
@@ -128,7 +128,7 @@ func (gp *grPlugin) handleStructuredSentOpen(source grSource, msg *bgptypes.RawM
 
 // addSentLLGRFamilies walks one capabilities parameter and adds to declared every
 // family of each LLGR Capability it holds.
-func addSentLLGRFamilies(source grSource, data []byte, declared map[family.Family]bool) {
+func (gp *grPlugin) addSentLLGRFamilies(source grSource, data []byte, declared map[family.Family]bool) {
 	offset := 0
 	// Bounded by the parameter length, checked before each read.
 	for offset+2 <= len(data) {
@@ -139,7 +139,7 @@ func addSentLLGRFamilies(source grSource, data []byte, declared map[family.Famil
 			break
 		}
 		if code == llgrCapabilityCode {
-			addLLGRFamilies(source, data[offset:offset+capLen], declared)
+			gp.addLLGRFamilies(source, data[offset:offset+capLen], declared)
 		}
 		offset += capLen
 	}
@@ -163,19 +163,19 @@ func (gp *grPlugin) handleSentOpenEvent(source grSource, payload map[string]any)
 		hexValue, _ := capObj["value"].(string)
 		data, err := hex.DecodeString(hexValue)
 		if err != nil {
-			logger().Debug("gr: invalid sent cap 71 hex", "peer", source, "err", err)
+			gp.reportOpenDecodeFailure(source, openDecodeKindSentLLGRCap71Hex, "invalid hex in sent Long-Lived Graceful Restart capability (code 71)", err)
 			continue
 		}
-		addLLGRFamilies(source, data, declared)
+		gp.addLLGRFamilies(source, data, declared)
 	}
 	gp.recordSentLLGR(source, declared)
 }
 
 // addLLGRFamilies decodes one LLGR Capability value and adds its families to declared.
-func addLLGRFamilies(source grSource, value []byte, declared map[family.Family]bool) {
+func (gp *grPlugin) addLLGRFamilies(source grSource, value []byte, declared map[family.Family]bool) {
 	result, err := decodeLLGR(value)
 	if err != nil {
-		logger().Debug("gr: failed to decode sent cap 71", "peer", source, "err", err)
+		gp.reportOpenDecodeFailure(source, openDecodeKindSentLLGRCap71, "failed to decode sent Long-Lived Graceful Restart capability (code 71)", err)
 		return
 	}
 	for _, f := range llgrResultToPeerCap(result).Families {

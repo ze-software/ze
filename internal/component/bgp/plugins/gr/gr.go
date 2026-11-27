@@ -26,11 +26,14 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -92,10 +95,33 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
+const (
+	openDecodeWarnWindow = time.Minute
+	openDecodeWarnMax    = 1024
+
+	openDecodeKindReceivedOpenUnpack = "received-open-unpack"
+	openDecodeKindReceivedOpenParams = "received-open-params"
+	openDecodeKindGRCap64            = "gr-capability-64"
+	openDecodeKindGRCap64Hex         = "gr-capability-64-hex"
+	openDecodeKindLLGRCap71          = "llgr-capability-71"
+	openDecodeKindLLGRCap71Hex       = "llgr-capability-71-hex"
+	openDecodeKindSentOpenUnpack     = "sent-open-unpack"
+	openDecodeKindSentLLGRCap71      = "sent-llgr-capability-71"
+	openDecodeKindSentLLGRCap71Hex   = "sent-llgr-capability-71-hex"
+)
+
+// openDecodeWarnKey scopes GR/LLGR OPEN decode rate-limiting to one peer owner
+// and failure kind.
+type openDecodeWarnKey struct {
+	owner uint64
+	kind  string
+}
+
 // grPlugin holds runtime state for the GR plugin during the event loop.
 // Created in runGRPlugin after the 5-stage handshake completes.
 type grPlugin struct {
-	sdk *sdk.Plugin
+	sdk    *sdk.Plugin
+	issues *issuequeue.Queue
 
 	mu           sync.Mutex
 	peerCaps     map[uint64]*grPeerCap   // original owner -> last seen GR capability from OPEN
@@ -110,6 +136,10 @@ type grPlugin struct {
 	// restart during the LLGR period (gr_consecutive.go). Guarded by mu; a nil
 	// map and a missing owner both read as "no earlier connection".
 	earlierRetained map[uint64]grEarlierRetained
+	// openDecodeWarned rate-limits OPEN capability decode warnings per
+	// (owner, kind), capped at openDecodeWarnMax and pruned in onPeerRemoved.
+	// Guarded by mu.
+	openDecodeWarned map[openDecodeWarnKey]time.Time
 
 	// answerHook, when non-nil and dispatchHook is nil, answers a dispatched
 	// command in tests with the registered RIB's own answer, in place of the
@@ -144,6 +174,8 @@ func runGRPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
+	issues := issuequeue.Start(p)
+
 	// The LLGR procedures run in this process (evaluateGRFilter), beside
 	// the capability state they read, on both transports, and the retention
 	// verdict travels as the bgp-gr/retention event, so bgp-gr runs internal
@@ -151,11 +183,16 @@ func runGRPlugin(conn net.Conn) int {
 
 	gp := &grPlugin{
 		sdk:          p,
+		issues:       issues,
 		peerCaps:     make(map[uint64]*grPeerCap),
 		peerLLGRCaps: make(map[uint64]*llgrPeerCap),
 	}
 
 	gp.wireStateCallbacks()
+	defer func() {
+		gp.state.stopAll()
+		issues.Stop()
+	}()
 
 	// The same refusal at the two points a configuration arrives, because
 	// only one of them is in front of the operator.
@@ -366,7 +403,7 @@ func (gp *grPlugin) handleStructuredOpen(source grSource, msg *bgptypes.RawMessa
 	}
 	open, err := message.UnpackOpen(msg.RawBytes)
 	if err != nil {
-		logger().Debug("gr: failed to unpack OPEN", "peer", source, "err", err)
+		gp.reportOpenDecodeFailure(source, openDecodeKindReceivedOpenUnpack, "failed to unpack received BGP OPEN message", err)
 		return
 	}
 
@@ -382,7 +419,7 @@ func (gp *grPlugin) handleStructuredOpen(source grSource, msg *bgptypes.RawMessa
 	if err != nil {
 		// The reactor refuses the same OPEN (rejectOpenCapabilityError), so no
 		// session follows it and the earlier capability is left as it was.
-		logger().Debug("gr: failed to read OPEN optional parameters", "peer", source, "err", err)
+		gp.reportOpenDecodeFailure(source, openDecodeKindReceivedOpenParams, "failed to read received BGP OPEN optional parameters", err)
 		return
 	}
 
@@ -431,7 +468,7 @@ func (gp *grPlugin) extractGRCaps(source grSource, data []byte, foundGR bool) bo
 		case 64: // GR capability
 			result, err := decodeGR(capValue)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 64", "peer", source, "err", err)
+				gp.reportOpenDecodeFailure(source, openDecodeKindGRCap64, "failed to decode received Graceful Restart capability (code 64)", err)
 				continue
 			}
 			peerCap := grResultToPeerCap(result)
@@ -448,7 +485,7 @@ func (gp *grPlugin) extractGRCaps(source grSource, data []byte, foundGR bool) bo
 		case 71: // LLGR capability
 			result, err := decodeLLGR(capValue)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 71", "peer", source, "err", err)
+				gp.reportOpenDecodeFailure(source, openDecodeKindLLGRCap71, "failed to decode received Long-Lived Graceful Restart capability (code 71)", err)
 				continue
 			}
 			peerCap := llgrResultToPeerCap(result)
@@ -690,12 +727,12 @@ func (gp *grPlugin) handleOpenEvent(source grSource, payload map[string]any) {
 		case 64:
 			data, err := hex.DecodeString(hexValue)
 			if err != nil {
-				logger().Debug("gr: invalid cap 64 hex", "peer", source, "err", err)
+				gp.reportOpenDecodeFailure(source, openDecodeKindGRCap64Hex, "invalid hex in received Graceful Restart capability (code 64)", err)
 				continue
 			}
 			result, err := decodeGR(data)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 64", "peer", source, "err", err)
+				gp.reportOpenDecodeFailure(source, openDecodeKindGRCap64, "failed to decode received Graceful Restart capability (code 64)", err)
 				continue
 			}
 			peerCap := grResultToPeerCap(result)
@@ -712,12 +749,12 @@ func (gp *grPlugin) handleOpenEvent(source grSource, payload map[string]any) {
 		case 71:
 			data, err := hex.DecodeString(hexValue)
 			if err != nil {
-				logger().Debug("gr: invalid cap 71 hex", "peer", source, "err", err)
+				gp.reportOpenDecodeFailure(source, openDecodeKindLLGRCap71Hex, "invalid hex in received Long-Lived Graceful Restart capability (code 71)", err)
 				continue
 			}
 			result, err := decodeLLGR(data)
 			if err != nil {
-				logger().Debug("gr: failed to decode cap 71", "peer", source, "err", err)
+				gp.reportOpenDecodeFailure(source, openDecodeKindLLGRCap71, "failed to decode received Long-Lived Graceful Restart capability (code 71)", err)
 				continue
 			}
 			peerCap := llgrResultToPeerCap(result)
@@ -952,7 +989,7 @@ func grResultToPeerCap(r *grResult) *grPeerCap {
 func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		writeOut(stderr, fmt.Sprintf("error: invalid hex: %v\n", err))
+		_ = writeOut(stderr, textbuf.New().Str("error: invalid hex: ").Err(err).Byte('\n').String())
 		return 1
 	}
 
@@ -973,31 +1010,42 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 	return runCLIDecodeLLGR(hexData, textOutput, stdout, stderr)
 }
 
-// runCLIDecodeGR decodes GR capability (code 64) hex from CLI arguments.
-func runCLIDecodeGR(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+// runCLIDecodeCap decodes a capability payload from CLI hex arguments and
+// writes text or JSON output to stdout, returning exit code 1 on any error.
+func runCLIDecodeCap[T any](hexData string, textOutput bool, decode func([]byte) (T, error), formatText func(T) string, stdout, stderr io.Writer) int {
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		writeOut(stderr, fmt.Sprintf("error: invalid hex: %v\n", err))
+		_ = writeOut(stderr, textbuf.New().Str("error: invalid hex: ").Err(err).Byte('\n').String())
 		return 1
 	}
 
-	result, err := decodeGR(data)
+	result, err := decode(data)
 	if err != nil {
-		writeOut(stderr, fmt.Sprintf("error: %v\n", err))
+		_ = writeOut(stderr, textbuf.New().Str("error: ").Err(err).Byte('\n').String())
 		return 1
 	}
 
+	var out string
 	if textOutput {
-		writeOut(stdout, formatGRText(result)+"\n")
+		out = formatText(result) + "\n"
 	} else {
 		jsonBytes, jsonErr := json.Marshal(result)
 		if jsonErr != nil {
-			writeOut(stderr, fmt.Sprintf("error: JSON encoding: %v\n", jsonErr))
+			_ = writeOut(stderr, textbuf.New().Str("error: JSON encoding: ").Err(jsonErr).Byte('\n').String())
 			return 1
 		}
-		writeOut(stdout, string(jsonBytes)+"\n")
+		out = string(jsonBytes) + "\n"
+	}
+	if err := writeOut(stdout, out); err != nil {
+		_ = writeOut(stderr, textbuf.New().Str("error: write output: ").Err(err).Byte('\n').String())
+		return 1
 	}
 	return 0
+}
+
+// runCLIDecodeGR decodes GR capability (code 64) hex from CLI arguments.
+func runCLIDecodeGR(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+	return runCLIDecodeCap(hexData, textOutput, decodeGR, formatGRText, stdout, stderr)
 }
 
 // grFamily represents an AFI/SAFI entry in GR capability.
@@ -1080,12 +1128,109 @@ func GetYANG() string {
 	return yang.ZeGracefulRestartYANG
 }
 
-// writeOut writes a string to the output writer, discarding errors.
-// Decode mode writes to an in-memory buffer; write failures are not actionable.
-func writeOut(w io.Writer, s string) {
-	if _, err := io.WriteString(w, s); err != nil {
-		logger().Debug("decode write failed", "err", err)
+// reportOpenDecodeFailure emits a rate-limited WARN and report-bus error event
+// under codeDoctorBGPGRCapabilityDecode when a received or sent BGP OPEN
+// carries an undecodable GR (code 64) or LLGR (code 71) capability.
+// Callers MUST NOT hold gp.mu.
+func (gp *grPlugin) reportOpenDecodeFailure(source grSource, kind, detail string, err error) {
+	if !gp.shouldWarnOpenDecode(source.owner, kind, time.Now()) {
+		return
 	}
+	peer := source.peer()
+	var fixBuf textbuf.Buffer
+	fix := fixBuf.Str("ze show bgp peer ").Str(peer).Str(" detail").String()
+	var msgBuf textbuf.Buffer
+	msg := fitReportText(
+		msgBuf.Str("gr: ").Str(detail).Str(" for peer ").Str(peer).Str(": ").Err(err).Str("; undecodable capability ignored for this OPEN").String(),
+		rpc.ReportMessageMax,
+	)
+	var subjBuf textbuf.Buffer
+	subject := fitReportText(subjBuf.Str(peer).Byte('/').Str(kind).String(), rpc.ReportSubjectMax)
+	reportErr := gp.issues.RaiseError(codeDoctorBGPGRCapabilityDecode, subject, msg, fix, func(cbErr error) {
+		logger().Warn("gr: failed to report OPEN capability decode error to daemon",
+			"code", codeDoctorBGPGRCapabilityDecode,
+			"fix", fix,
+			"peer", peer,
+			"peer-owner", source.owner,
+			"kind", kind,
+			"error", cbErr)
+	})
+	logger().Warn(msg,
+		"code", codeDoctorBGPGRCapabilityDecode,
+		"fix", fix,
+		"peer", peer,
+		"peer-owner", source.owner,
+		"kind", kind,
+		"error", err,
+		issuequeue.Outcome(reportErr))
+}
+
+func fitReportText(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	const suffix = "..."
+	if maxBytes <= len(suffix) {
+		cut := maxBytes
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		return s[:cut]
+	}
+	cut := maxBytes - len(suffix)
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + suffix
+}
+
+// shouldWarnOpenDecode enforces a 1-minute per-(owner, kind) warn window inside
+// a bounded openDecodeWarnMax-entry map. Callers MUST NOT hold gp.mu.
+func (gp *grPlugin) shouldWarnOpenDecode(owner uint64, kind string, now time.Time) bool {
+	key := openDecodeWarnKey{owner: owner, kind: kind}
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
+	if gp.openDecodeWarned == nil {
+		gp.openDecodeWarned = make(map[openDecodeWarnKey]time.Time)
+	}
+	if last, ok := gp.openDecodeWarned[key]; ok {
+		if now.Sub(last) < openDecodeWarnWindow {
+			return false
+		}
+	}
+	if _, exists := gp.openDecodeWarned[key]; !exists {
+		if len(gp.openDecodeWarned) >= openDecodeWarnMax {
+			for k, t := range gp.openDecodeWarned {
+				if now.Sub(t) >= openDecodeWarnWindow {
+					delete(gp.openDecodeWarned, k)
+				}
+			}
+		}
+		if len(gp.openDecodeWarned) >= openDecodeWarnMax {
+			var oldestKey openDecodeWarnKey
+			var oldestTime time.Time
+			first := true
+			for k, t := range gp.openDecodeWarned {
+				if first {
+					oldestKey, oldestTime, first = k, t, false
+				} else if t.Before(oldestTime) {
+					oldestKey, oldestTime = k, t
+				}
+			}
+			delete(gp.openDecodeWarned, oldestKey)
+		}
+	}
+	gp.openDecodeWarned[key] = now
+	return true
+}
+
+// writeOut writes a string to the output writer and returns any write error.
+func writeOut(w io.Writer, s string) error {
+	_, err := io.WriteString(w, s)
+	return err
 }
 
 // Decode format constants used by RunDecodeMode and helpers.
@@ -1097,9 +1242,9 @@ const (
 // RunDecodeMode runs the plugin in decode mode for ze bgp decode.
 // Handles capability code 64 (GR, RFC 4724) and code 71 (LLGR, RFC 9494).
 func RunDecodeMode(input io.Reader, output io.Writer) int {
-	writeUnknown := func() { writeOut(output, "decoded unknown\n") }
-	writeJSON := func(j []byte) { writeOut(output, "decoded json "+string(j)+"\n") }
-	writeText := func(t string) { writeOut(output, "decoded text "+t+"\n") }
+	writeUnknown := func() error { return writeOut(output, "decoded unknown\n") }
+	writeJSON := func(j []byte) error { return writeOut(output, "decoded json "+string(j)+"\n") }
+	writeText := func(t string) error { return writeOut(output, "decoded text "+t+"\n") }
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -1110,7 +1255,9 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 
 		parts := strings.Fields(line)
 		if len(parts) < 4 || parts[0] != "decode" {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
@@ -1120,61 +1267,67 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			format = parts[1]
 			capIdx = 2
 			if len(parts) < 5 {
-				writeUnknown()
+				if err := writeUnknown(); err != nil {
+					return 1
+				}
 				continue
 			}
 		}
 
 		if parts[capIdx] != "capability" {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
 		capCode := parts[capIdx+1]
 		if capCode != "64" && capCode != "71" {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
 		hexData := parts[capIdx+2]
 		if capCode == "64" {
-			decodeGRMode(format, hexData, writeJSON, writeText, writeUnknown)
+			if err := decodeGRMode(format, hexData, writeJSON, writeText, writeUnknown); err != nil {
+				return 1
+			}
 		} else {
-			decodeLLGRMode(format, hexData, writeJSON, writeText, writeUnknown)
+			if err := decodeLLGRMode(format, hexData, writeJSON, writeText, writeUnknown); err != nil {
+				return 1
+			}
 		}
 	}
 	// bufio.Scanner reports a read failure and an over-long line through Err(),
 	// never through Scan(). Without this the caller sees a clean, complete decode.
 	if err := scanner.Err(); err != nil {
 		var eb textbuf.Buffer
-		writeOut(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
+		_ = writeOut(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
 		return 1
 	}
 	return 0
 }
 
 // decodeGRMode handles "decode capability 64 <hex>" in decode mode.
-func decodeGRMode(format, hexData string, writeJSON func([]byte), writeText func(string), writeUnknown func()) {
+func decodeGRMode(format, hexData string, writeJSON func([]byte) error, writeText func(string) error, writeUnknown func() error) error {
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	result, decErr := decodeGR(data)
 	if decErr != nil {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	if format == decodeFormatText {
-		writeText(formatGRText(result))
-	} else {
-		jsonBytes, jsonErr := json.Marshal(result)
-		if jsonErr != nil {
-			writeUnknown()
-			return
-		}
-		writeJSON(jsonBytes)
+		return writeText(formatGRText(result))
 	}
+	jsonBytes, jsonErr := json.Marshal(result)
+	if jsonErr != nil {
+		return writeUnknown()
+	}
+	return writeJSON(jsonBytes)
 }

@@ -270,13 +270,11 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 
 // runVPNDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
 func runVPNDecode(input io.Reader, output io.Writer) int {
-	write := func(s string) {
-		_, err := fmt.Fprintln(output, s) //nolint:errcheck // output
-		if err != nil {
-			vpnLogger.Debug("write error", "err", err)
-		}
+	write := func(s string) error {
+		_, err := fmt.Fprintln(output, s)
+		return err
 	}
-	writeUnknown := func() { write("decoded unknown") }
+	writeUnknown := func() error { return write(respDecodedUnk) }
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -287,7 +285,9 @@ func runVPNDecode(input io.Reader, output io.Writer) int {
 
 		parts := strings.Fields(line)
 		if len(parts) < 3 {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
@@ -299,7 +299,9 @@ func runVPNDecode(input io.Reader, output io.Writer) int {
 		if objType == fmtJSON || objType == fmtText {
 			format = objType
 			if len(parts) < 4 {
-				writeUnknown()
+				if err := writeUnknown(); err != nil {
+					return 1
+				}
 				continue
 			}
 			objType = parts[2]
@@ -307,40 +309,41 @@ func runVPNDecode(input io.Reader, output io.Writer) int {
 		}
 
 		if cmd == cmdDecode && objType == objTypeNLRI {
-			handleDecodeNLRI(parts, format, output, writeUnknown)
+			if err := handleDecodeNLRI(parts, format, write, writeUnknown); err != nil {
+				return 1
+			}
 		} else if cmd == cmdDecode {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 		}
 	}
 	// bufio.Scanner reports a read failure and an over-long line through Err(),
 	// never through Scan(). Without this the caller sees a clean, complete decode.
 	if err := scanner.Err(); err != nil {
 		var eb textbuf.Buffer
-		write(eb.Str("decoded error ").Err(err).String())
+		_ = write(eb.Str("decoded error ").Err(err).String())
 		return 1
 	}
 	return 0
 }
 
 // handleDecodeNLRI handles: decode nlri <family> <hex>.
-func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnknown func()) {
+func handleDecodeNLRI(parts []string, format string, write func(string) error, writeUnknown func() error) error {
 	if len(parts) < 4 {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	fam := strings.ToLower(parts[2])
 	hexData := parts[3]
 
 	if !isValidVPNFamily(fam) {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	// The CLI and the plugin text command both hand over NLRI octets with no
@@ -348,8 +351,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
 	results := decodeVPNNLRI(fam, data, false, false)
 	if len(results) == 0 {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	if format == fmtText {
@@ -357,11 +359,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		for _, r := range results {
 			texts = append(texts, formatVPNTextSingle(r))
 		}
-		_, err := fmt.Fprintln(output, "decoded text "+textbuf.Join(texts, "; ")) //nolint:errcheck // output
-		if err != nil {
-			vpnLogger.Debug("write error", "err", err)
-		}
-		return
+		return write("decoded text " + textbuf.Join(texts, "; "))
 	}
 
 	// Single object for single NLRI, array for multiple
@@ -372,13 +370,9 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		jsonBytes, err = json.Marshal(results)
 	}
 	if err != nil {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
-	_, err = fmt.Fprintln(output, "decoded json "+string(jsonBytes)) //nolint:errcheck // output
-	if err != nil {
-		vpnLogger.Debug("write error", "err", err)
-	}
+	return write(respDecodedJSON + string(jsonBytes))
 }
 
 // familyDecl declares fam to the plugin server, taking its name and its AFI and
@@ -419,6 +413,7 @@ func decodeVPNNLRI(family string, data []byte, addPath, withdraw bool) []map[str
 		// the Path Identifier field, which is of four octets." parseVPN consumes
 		// that field, and vpnToJSON publishes it, so the walk stays one call.
 		v, rest, err := parseVPN(afi, SAFIVPN, remaining, addPath, withdraw)
+		// refuse-by-default: guards DecodeNLRIHex -- unparseable VPN NLRI is explicitly emitted with parsed:false and raw hex per the decode JSON contract
 		if err != nil {
 			vpnLogger.Debug("parse vpn failed", "err", err)
 			// Add as unparsed

@@ -3,6 +3,7 @@ package vpls
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -125,5 +126,29 @@ func TestDecodeNLRIHex(t *testing.T) {
 				t.Errorf("key %q = %v, want %v", tt.wantKey, got, tt.wantValue)
 			}
 		})
+	}
+}
+
+type vplsFailWriter struct {
+	err error
+}
+
+func (w vplsFailWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// TestSimpleNLRIDecodeReturnsExitOneOnWriteError verifies that RunDecode
+// returns exit code 1 when writing decoded output to stdout fails.
+//
+// VALIDATES: AC-3 (vpls.go RunDecode stdout write failure).
+// PREVENTS: broken stdout pipes exiting 0 with lost NLRI decode output.
+func TestSimpleNLRIDecodeReturnsExitOneOnWriteError(t *testing.T) {
+	t.Parallel()
+	fw := vplsFailWriter{err: errors.New("broken pipe")}
+	if code := RunDecode(strings.NewReader("decode nlri l2vpn/vpls 00110000fde9000000640005006400c803e801\n"), fw); code != 1 {
+		t.Fatalf("RunDecode exit code = %d, want 1 on stdout write error", code)
+	}
+	if code := RunDecode(strings.NewReader("invalid command\n"), fw); code != 1 {
+		t.Fatalf("RunDecode unknown exit code = %d, want 1 on stdout write error", code)
 	}
 }

@@ -141,8 +141,8 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	result := decodeFlowSpecNLRI(famName, data)
-	if result == nil {
+	result, err := decodeFlowSpecNLRI(famName, data)
+	if err != nil {
 		writeUnknown()
 		return
 	}

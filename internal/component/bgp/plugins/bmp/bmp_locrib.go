@@ -858,7 +858,7 @@ func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 			// this session's first Route Monitoring, so the next batch has to
 			// try again rather than assume it was announced.
 			ss.locRIBUpSent.Store(false)
-			logger().Debug("bmp: loc-rib peer up failed", "collector", ss.name, "error", err)
+			bp.reportSenderWriteFailure(ss.name, bmpMsgKindLocRIBPeerUp, err)
 			continue
 		}
 		announced = true
@@ -907,7 +907,7 @@ func (bp *BMPPlugin) primeLocRIBPeerUp(ss *senderSession) {
 	peer := locRIBPeerHeader(id, time.Time{}) // a Peer Up encapsulates no route
 	if err := ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open, []TLV{locRIBTableNameTLV()}); err != nil {
 		ss.locRIBUpSent.Store(false) // nothing reached the collector; let the next batch retry
-		logger().Debug("bmp: loc-rib peer up failed", "collector", ss.name, "error", err)
+		bp.reportSenderWriteFailure(ss.name, bmpMsgKindLocRIBPeerUp, err)
 		return
 	}
 
@@ -924,7 +924,7 @@ func (bp *BMPPlugin) sendLocRIBEndOfRIB(senders []*senderSession, fam family.Fam
 	body := buildEndOfRIBBody(fam)
 	for _, ss := range senders {
 		if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); err != nil {
-			logger().Debug("bmp: loc-rib end-of-rib failed", "collector", ss.name, "error", err)
+			bp.reportSenderWriteFailure(ss.name, bmpMsgKindLocRIBEOR, err)
 		}
 	}
 }
@@ -1021,7 +1021,9 @@ func (bp *BMPPlugin) sendLocRIBPeerDown() {
 	tlv := locRIBTableNameTLVBytes()
 	for _, ss := range senders {
 		if err := ss.writePeerDown(peer, PeerDownTLVData, tlv); err != nil {
-			logger().Debug("bmp: loc-rib peer down failed", "collector", ss.name, "error", err)
+			if !bp.isStopping() {
+				bp.reportSenderWriteFailure(ss.name, bmpMsgKindLocRIBPeerDown, err)
+			}
 		}
 		ss.locRIBUpSent.Store(false)
 	}

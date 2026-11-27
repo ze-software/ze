@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri/bgpls"
 )
 
 // TestBGPLSPluginDecodeMode verifies the plugin's decode mode protocol.
@@ -454,4 +455,46 @@ func TestBGPLSCLIDecodeVPNFamily(t *testing.T) {
 	err := json.Unmarshal(output.Bytes(), &result)
 	require.NoError(t, err)
 	assert.Equal(t, "bgpls-node", result["ls-nlri-type"])
+}
+
+type bgplsFailWriter struct {
+	err error
+}
+
+func (w bgplsFailWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// TestBGPLSDecodeReturnsExitOneOnWriteError verifies that runBGPLSDecode
+// returns exit code 1 when writing decoded output (JSON or unknown) fails.
+//
+// VALIDATES: AC-3 (ls/plugin.go runBGPLSDecode and handleDecodeNLRI write errors).
+// PREVENTS: broken stdout pipes exiting 0 with lost BGP-LS decode output.
+func TestBGPLSDecodeReturnsExitOneOnWriteError(t *testing.T) {
+	t.Parallel()
+	fw := bgplsFailWriter{err: errors.New("broken pipe")}
+
+	node := bgpls.NewBGPLSNode(bgpls.ProtoOSPFv2, 0x100, bgpls.NodeDescriptor{
+		ASN:         65001,
+		IGPRouterID: []byte{1, 1, 1, 1},
+	})
+	hexData := strings.ToUpper(hex.EncodeToString(node.Bytes()))
+
+	t.Run("valid_nlri_write_error", func(t *testing.T) {
+		t.Parallel()
+		code := runBGPLSDecode(strings.NewReader("decode nlri bgp-ls/bgp-ls "+hexData+"\n"), fw)
+		assert.Equal(t, 1, code)
+	})
+
+	t.Run("unknown_hex_write_error", func(t *testing.T) {
+		t.Parallel()
+		code := runBGPLSDecode(strings.NewReader("decode nlri bgp-ls/bgp-ls not-hex\n"), fw)
+		assert.Equal(t, 1, code)
+	})
+
+	t.Run("short_line_write_error", func(t *testing.T) {
+		t.Parallel()
+		code := runBGPLSDecode(strings.NewReader("decode nlri\n"), fw)
+		assert.Equal(t, 1, code)
+	})
 }

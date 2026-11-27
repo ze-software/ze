@@ -371,54 +371,28 @@ func familyEntryMode(entry any) string {
 }
 
 // decodeLLGRMode handles "decode capability 71 <hex>" in decode mode.
-func decodeLLGRMode(format, hexData string, writeJSON func([]byte), writeText func(string), writeUnknown func()) {
+func decodeLLGRMode(format, hexData string, writeJSON func([]byte) error, writeText func(string) error, writeUnknown func() error) error {
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	result, decErr := decodeLLGR(data)
 	if decErr != nil {
-		writeUnknown()
-		return
+		return writeUnknown()
 	}
 
 	if format == decodeFormatText {
-		writeText(formatLLGRText(result))
-	} else {
-		jsonBytes, jsonErr := json.Marshal(result)
-		if jsonErr != nil {
-			writeUnknown()
-			return
-		}
-		writeJSON(jsonBytes)
+		return writeText(formatLLGRText(result))
 	}
+	jsonBytes, jsonErr := json.Marshal(result)
+	if jsonErr != nil {
+		return writeUnknown()
+	}
+	return writeJSON(jsonBytes)
 }
 
 // runCLIDecodeLLGR decodes LLGR capability hex from CLI arguments.
 func runCLIDecodeLLGR(hexData string, textOutput bool, stdout, stderr io.Writer) int {
-	data, err := hex.DecodeString(hexData)
-	if err != nil {
-		writeOut(stderr, fmt.Sprintf("error: invalid hex: %v\n", err))
-		return 1
-	}
-
-	result, decErr := decodeLLGR(data)
-	if decErr != nil {
-		writeOut(stderr, fmt.Sprintf("error: %v\n", decErr))
-		return 1
-	}
-
-	if textOutput {
-		writeOut(stdout, formatLLGRText(result)+"\n")
-	} else {
-		jsonBytes, jsonErr := json.Marshal(result)
-		if jsonErr != nil {
-			writeOut(stderr, fmt.Sprintf("error: JSON encoding: %v\n", jsonErr))
-			return 1
-		}
-		writeOut(stdout, string(jsonBytes)+"\n")
-	}
-	return 0
+	return runCLIDecodeCap(hexData, textOutput, decodeLLGR, formatLLGRText, stdout, stderr)
 }

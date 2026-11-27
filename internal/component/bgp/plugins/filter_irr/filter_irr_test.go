@@ -1,16 +1,22 @@
 package filter_irr
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"log/slog"
 	"net/netip"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -605,4 +611,247 @@ func mustPrefixListFromIRR(t *testing.T, pl irr.PrefixList) []prefixEntry {
 		t.Fatalf("prefixListFromIRR: %v", err)
 	}
 	return entries
+}
+
+type irrTestPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+}
+
+func (p *irrTestPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	p.raises = append(p.raises, issue)
+	p.mu.Unlock()
+	return nil
+}
+
+func (p *irrTestPublisher) ClearIssue(_ context.Context, _, _ string) error {
+	return nil
+}
+
+type irrSyncWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *irrSyncWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *irrSyncWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
+}
+
+// TestFilterIRRInvalidPeerAndReadmitConfirmRaiseDoctorCodes verifies that an
+// invalid peer address in trackVerdict and a post-refresh session confirmation
+// failure in readmitter.readmit both emit WARN logs with their registered
+// doctor codes and enqueue report-issue RPCs via issuequeue.
+//
+// VALIDATES: AC-2, AC-4 (filter_irr.go trackVerdict, readmit.go readmit).
+// PREVENTS: invalid peer names and unconfirmed readmission refreshes hiding below WARN.
+func TestFilterIRRInvalidPeerAndReadmitConfirmRaiseDoctorCodes(t *testing.T) {
+	logs := &irrSyncWriter{}
+	testLog := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	prevLogger := logger
+	logger = func() *slog.Logger { return testLog }
+	t.Cleanup(func() { logger = prevLogger })
+
+	pub := &irrTestPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	eng := newFakeReadmitEngine()
+	eng.afterRefreshErr = errors.New("session query timed out")
+
+	allowed := mustPrefixListFromIRR(t, irr.PrefixList{
+		IPv4: []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")},
+	})
+	plug := &irrPlugin{
+		issues: q,
+		byASN: map[uint32]*asnState{
+			65001: {asn: 65001, list: &irrPrefixList{entries: allowed}},
+		},
+	}
+	plug.readmit = newReadmitter(eng, plug, time.Hour)
+	plug.readmit.issues = q
+
+	// 1. Invalid peer address in trackVerdict (called twice -> rate-limited to 1 WARN/raise).
+	judged := &routeNLRI{rejected: 1}
+	plug.trackVerdict("not-an-ip", 65001, true, judged)
+	plug.trackVerdict("not-an-ip", 65001, true, judged)
+
+	// 2. Post-refresh session confirmation failure in readmitter.readmit.
+	peerAddr := netip.MustParseAddr("192.0.2.50")
+	pfx := netip.MustParsePrefix("203.0.113.0/24")
+	plug.readmit.track(peerAddr, 65001, true, &familyNLRI{
+		family:   "ipv4/unicast",
+		prefixes: []netip.Prefix{pfx},
+		admitted: []bool{false},
+	})
+	plug.readmit.readmit(peerFamily{peer: peerAddr, family: "ipv4/unicast"}, []heldKey{{
+		peer: peerAddr, family: "ipv4/unicast", prefix: pfx,
+	}})
+
+	q.Flush()
+
+	out := logs.String()
+	for _, want := range []string{
+		"level=WARN",
+		"code=" + codeIRRInvalidPeer,
+		"code=" + codeIRRReadmitConfirmFailed,
+		fixShowBGPPeerList,
+		"ze show bgp peer 192.0.2.50 detail",
+		"report=queued",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("WARN log missing %q:\n%s", want, out)
+		}
+	}
+
+	pub.mu.Lock()
+	raises := append([]sdk.Issue(nil), pub.raises...)
+	pub.mu.Unlock()
+	if len(raises) != 2 {
+		t.Fatalf("issuequeue raises = %d, want 2 (1 invalid-peer, 1 readmit-confirm): %+v", len(raises), raises)
+	}
+	var sawInvalidPeer, sawReadmitConfirm bool
+	for _, issue := range raises {
+		if issue.Severity != rpc.ReportError {
+			t.Errorf("issue %q severity = %v, want error", issue.Code, issue.Severity)
+		}
+		switch issue.Code {
+		case codeIRRInvalidPeer:
+			sawInvalidPeer = true
+			if issue.Fix != fixShowBGPPeerList {
+				t.Errorf("invalid-peer fix = %q, want %q", issue.Fix, fixShowBGPPeerList)
+			}
+		case codeIRRReadmitConfirmFailed:
+			sawReadmitConfirm = true
+			if issue.Fix != "ze show bgp peer 192.0.2.50 detail" {
+				t.Errorf("readmit-confirm fix = %q, want %q", issue.Fix, "ze show bgp peer 192.0.2.50 detail")
+			}
+		}
+	}
+	if !sawInvalidPeer {
+		t.Errorf("missing issuequeue raise for %s", codeIRRInvalidPeer)
+	}
+	if !sawReadmitConfirm {
+		t.Errorf("missing issuequeue raise for %s", codeIRRReadmitConfirmFailed)
+	}
+}
+
+// TestFilterIRRInvalidPeerBoundsLongAndControlInput verifies that an oversized
+// peer identifier carrying control bytes stays sanitized and within
+// rpc.ReportSubjectMax and rpc.ReportMessageMax in both WARN logs and
+// report-issue payloads (never echoing raw netip.ParseAddr input).
+//
+// VALIDATES: Security Review Checklist (bounded/sanitized report payloads) and AC-4.
+// PREVENTS: raw netip.ParseAddr errors bypassing sanitizePeerLabel and exceeding rpc.ReportMessageMax.
+func TestFilterIRRInvalidPeerBoundsLongAndControlInput(t *testing.T) {
+	logs := &irrSyncWriter{}
+	testLog := slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	prevLogger := logger
+	logger = func() *slog.Logger { return testLog }
+	t.Cleanup(func() { logger = prevLogger })
+
+	pub := &irrTestPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	plug := &irrPlugin{
+		issues: q,
+		byASN:  make(map[uint32]*asnState),
+	}
+	plug.readmit = newReadmitter(newFakeReadmitEngine(), plug, time.Hour)
+	plug.readmit.issues = q
+
+	sentinel := "UNBOUNDED_TAIL_MARKER"
+	oversized := "bad\x00\x1b\npeer-" + strings.Repeat("A", 2048) + sentinel
+	plug.trackVerdict(oversized, 65001, true, &routeNLRI{rejected: 1})
+	q.Flush()
+
+	pub.mu.Lock()
+	raises := append([]sdk.Issue(nil), pub.raises...)
+	pub.mu.Unlock()
+	if len(raises) != 1 {
+		t.Fatalf("issuequeue raises = %d, want 1", len(raises))
+	}
+	issue := raises[0]
+	if err := rpc.ValidateReportIssue(&rpc.ReportIssueInput{
+		Action:   rpc.ReportRaise,
+		Severity: issue.Severity,
+		Code:     issue.Code,
+		Subject:  issue.Subject,
+		Message:  issue.Message,
+		Fix:      issue.Fix,
+	}); err != nil {
+		t.Fatalf("ValidateReportIssue rejected oversized invalid-peer report: %v", err)
+	}
+	if strings.Contains(issue.Message, sentinel) || strings.Contains(logs.String(), sentinel) {
+		t.Fatalf("unbounded peer input leaked past sanitizePeerLabel:\nmsg=%s\nlog=%s", issue.Message, logs.String())
+	}
+	if strings.ContainsAny(issue.Message, "\x00\x1b\n") {
+		t.Fatalf("raw control byte leaked into report message: %q", issue.Message)
+	}
+	if !utf8.ValidString(issue.Subject) || !utf8.ValidString(issue.Message) {
+		t.Fatalf("report contains invalid UTF-8: subject=%q msg=%q", issue.Subject, issue.Message)
+	}
+
+	// Case 2: IPv6-like malformed peer hitting netip.ParseAddr's "(at ...)" suffix
+	// containing `"): ` + sentinel must neither leak sentinel nor drop the static reason.
+	atSentinel := "AT_SUFFIX_LEAK_SENTINEL"
+	withAt := "1:2:3:4:5:6:7:8" + strings.Repeat("A", 2048) + `"): ` + atSentinel
+	plug.trackVerdict(withAt, 65001, true, &routeNLRI{rejected: 1})
+
+	// Case 3: C1 control (\u009b) inside the first 64 bytes AND multi-byte UTF-8 rune
+	// straddling byte 64 must produce strictly valid printable ASCII with no C1 control
+	// or mid-rune UTF-8 split.
+	utf8AndC1 := "a\u009b" + strings.Repeat("x", 60) + "é"
+	plug.trackVerdict(utf8AndC1, 65001, true, &routeNLRI{rejected: 1})
+	q.Flush()
+
+	pub.mu.Lock()
+	raises = append([]sdk.Issue(nil), pub.raises...)
+	pub.mu.Unlock()
+	if len(raises) != 3 {
+		t.Fatalf("issuequeue raises = %d, want 3", len(raises))
+	}
+	if strings.Contains(raises[1].Message, atSentinel) || strings.Contains(raises[1].Subject, atSentinel) || strings.Contains(logs.String(), atSentinel) {
+		t.Fatalf("err.at suffix leaked sentinel:\nsubject=%q\nmsg=%q\nlog=%s", raises[1].Subject, raises[1].Message, logs.String())
+	}
+	if strings.Contains(raises[1].Message, "(at ") {
+		t.Fatalf("raw netip.ParseAddr (at ...) suffix leaked into report message: %q", raises[1].Message)
+	}
+	if !strings.Contains(raises[1].Message, "(each group must have 4 or less digits)") || strings.Contains(raises[1].Message, "(unable to parse IP)") {
+		t.Fatalf("parseAddrReason dropped static IPv6 reason and fell back: %q", raises[1].Message)
+	}
+	for idx, got := range raises {
+		if !utf8.ValidString(got.Subject) || !utf8.ValidString(got.Message) {
+			t.Fatalf("raise[%d] contains invalid UTF-8: subject=%q msg=%q", idx, got.Subject, got.Message)
+		}
+		for i := range len(got.Subject) {
+			if b := got.Subject[i]; b < 0x20 || b >= 0x7f {
+				t.Fatalf("raise[%d] subject contains non-printable-ASCII byte 0x%02x: %q", idx, b, got.Subject)
+			}
+		}
+	}
+
+	// Case 4: fitReportText handles negative and small maxBytes on multi-byte UTF-8 without panicking or splitting runes.
+	multiByte := "éééé"
+	for _, bound := range []int{-1, 0, 1, 2, 3, 4} {
+		got := fitReportText(multiByte, bound)
+		if bound <= 0 && got != "" {
+			t.Fatalf("fitReportText(%q, %d) = %q, want empty", multiByte, bound, got)
+		}
+		if bound > 0 && len(got) > bound {
+			t.Fatalf("fitReportText(%q, %d) len = %d > %d (%q)", multiByte, bound, len(got), bound, got)
+		}
+		if !utf8.ValidString(got) {
+			t.Fatalf("fitReportText(%q, %d) split UTF-8 rune: %q", multiByte, bound, got)
+		}
+	}
 }

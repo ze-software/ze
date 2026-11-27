@@ -2,6 +2,7 @@ package flowspec
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -906,4 +907,50 @@ func TestIPv4FlowSpecNegotiatesMultiprotocolCapability(t *testing.T) {
 	assert.Equal(t, capability.CodeMultiprotocol, mp.Code(), "must be a Multiprotocol capability (Code 1)")
 	assert.Equal(t, capability.AFI(1), mp.AFI, "IPv4 FlowSpec MP capability AFI must be 1")
 	assert.Equal(t, capability.SAFI(133), mp.SAFI, "IPv4 FlowSpec MP capability SAFI must be 133")
+}
+
+// TestFlowSpecDecodeSurfacesParseCause verifies that DecodeNLRIHex and
+// RunCLIDecode surface the underlying FlowSpec / FlowSpec-VPN parse error while
+// preserving errNoValidFlowspecDecoded, and that the stdin/stdout decode
+// protocol still writes "decoded unknown".
+//
+// VALIDATES: AC-3 (plugin_decode.go decodeFlowSpecNLRI, plugin.go DecodeNLRIHex/RunCLIDecode, plugin_protocol.go).
+// PREVENTS: FlowSpec parse causes disappearing behind a generic error with no detail.
+func TestFlowSpecDecodeSurfacesParseCause(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ipv4_flow_wraps_parse_cause", func(t *testing.T) {
+		t.Parallel()
+		// Length octet 0x05 declares 5 bytes of components, but only 1 byte follows.
+		_, err := DecodeNLRIHex("ipv4/flow", "0501", false, false)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, errNoValidFlowspecDecoded), "must keep wrapping errNoValidFlowspecDecoded")
+		assert.NotEqual(t, errNoValidFlowspecDecoded.Error(), err.Error(), "must include the underlying FlowSpec parse error")
+	})
+
+	t.Run("ipv4_flow_vpn_wraps_parse_cause", func(t *testing.T) {
+		t.Parallel()
+		// Too short to hold length + 8-byte RD.
+		_, err := DecodeNLRIHex("ipv4/flow-vpn", "0501", false, false)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, errNoValidFlowspecDecoded), "must keep wrapping errNoValidFlowspecDecoded")
+		assert.NotEqual(t, errNoValidFlowspecDecoded.Error(), err.Error(), "must include the underlying FlowSpec VPN parse error")
+	})
+
+	t.Run("cli_decode_prints_parse_cause", func(t *testing.T) {
+		t.Parallel()
+		var out, errOut bytes.Buffer
+		code := RunCLIDecode("0501", "ipv4/flow", false, &out, &errOut)
+		assert.Equal(t, 1, code)
+		assert.Contains(t, errOut.String(), "no valid FlowSpec")
+		assert.NotEqual(t, "error: no valid FlowSpec decoded\n", errOut.String(), "CLI error must include parse cause")
+	})
+
+	t.Run("protocol_preserves_decoded_unknown", func(t *testing.T) {
+		t.Parallel()
+		var out bytes.Buffer
+		code := RunFlowSpecDecode(strings.NewReader("decode nlri ipv4/flow 0501\n"), &out)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "decoded unknown\n", out.String())
+	})
 }

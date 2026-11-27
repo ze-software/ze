@@ -133,8 +133,7 @@ func (ss *senderSession) drainLoop(q *txQueue) {
 		}
 
 		if err := ss.writeRaw(c, buf); err != nil {
-			logger().Info("bmp: sender write failed, resetting session",
-				"collector", ss.name, "queued-bytes", q.bytesPending(), "error", err)
+			queued := q.bytesPending()
 			closeLog(c, "sender-drain-write-failed")
 			// Compare-and-clear, and drop the queue ONLY if this write was
 			// still the current connection's. A write can block for up to
@@ -152,6 +151,21 @@ func (ss *senderSession) drainLoop(q *txQueue) {
 			// could publish and prime the next connection in between and the
 			// reset would throw those primed Peer Ups away.
 			ss.clearConnAndResetIf(c, q)
+			if !ss.isStopping() {
+				if ss.reportWriteFailure != nil {
+					ss.reportWriteFailure(ss.name, bmpMsgKindDrain, err)
+				} else {
+					incMessageDropMetric(ss.name, bmpMsgKindDrain, senderDropReason(err))
+					logger().Warn("BMP sender socket write failed; resetting collector session",
+						"code", codeDoctorBMPSenderDeliveryFailed,
+						"collector", ss.name,
+						"message", bmpMsgKindDrain,
+						"queued-bytes", queued,
+						"error", err,
+						"fix", fixShowBMPCollectors,
+					)
+				}
+			}
 			continue
 		}
 		q.advance(len(buf))

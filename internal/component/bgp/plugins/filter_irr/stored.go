@@ -100,6 +100,7 @@ func (r *storeReader) notice(event string) {
 		r.generations = append(r.generations, decoded.Generation)
 	}
 	r.mu.Unlock()
+	// refuse-by-default: guards readEvery -- unreadable notice already sets r.all so pass runs readEvery to reconcile every stored list and report any unreadable store copy
 	if err != nil {
 		logger().Debug("irr: a dataset notice could not be read, every stored list is read again", "error", err)
 	}

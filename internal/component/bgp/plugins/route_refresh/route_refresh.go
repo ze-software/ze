@@ -64,6 +64,7 @@ func capabilityName(codeStr string) (string, bool) {
 func RunRouteRefreshPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-route-refresh", conn)
 	defer func() {
+		// refuse-by-default: guards sdk.NewWithConn -- teardown close after p.Run returns has no caller recovery
 		if err := p.Close(); err != nil {
 			logger().Debug("close failed", "err", err)
 		}
@@ -91,21 +92,29 @@ func RunRouteRefreshPlugin(conn net.Conn) int {
 	return 0
 }
 
-// writeOut writes a string to the output writer, discarding errors.
-// Decode mode writes to an in-memory buffer; write failures are not actionable.
-func writeOut(w io.Writer, s string) {
-	if _, err := io.WriteString(w, s); err != nil {
-		logger().Debug("decode write failed", "err", err)
+// formatCapText left-aligns a capability name in a 20-column text field.
+func formatCapText(name string) string {
+	var tb textbuf.Buffer
+	tb.Str(name)
+	for tb.Len() < 20 {
+		tb.Byte(' ')
 	}
+	return tb.String()
+}
+
+// writeOut writes a string to the output writer and returns any write error.
+func writeOut(w io.Writer, s string) error {
+	_, err := io.WriteString(w, s)
+	return err
 }
 
 // RunDecodeMode runs the plugin in decode mode for ze bgp decode.
 // RFC 2918: Route Refresh capability code 2 (zero payload).
 // RFC 7313: Enhanced Route Refresh capability code 70 (zero payload).
 func RunDecodeMode(input io.Reader, output io.Writer) int {
-	writeUnknown := func() { writeOut(output, "decoded unknown\n") }
-	writeJSON := func(j []byte) { writeOut(output, "decoded json "+string(j)+"\n") }
-	writeText := func(t string) { writeOut(output, "decoded text "+t+"\n") }
+	writeUnknown := func() error { return writeOut(output, "decoded unknown\n") }
+	writeJSON := func(j []byte) error { return writeOut(output, "decoded json "+string(j)+"\n") }
+	writeText := func(t string) error { return writeOut(output, "decoded text "+t+"\n") }
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -116,7 +125,9 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 
 		parts := strings.Fields(line)
 		if len(parts) < 3 || parts[0] != "decode" {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
@@ -126,20 +137,26 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			format = parts[1]
 			capIdx = 2
 			if len(parts) < 4 {
-				writeUnknown()
+				if err := writeUnknown(); err != nil {
+					return 1
+				}
 				continue
 			}
 		}
 
 		if parts[capIdx] != "capability" {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
 		codeStr := parts[capIdx+1]
 		name, ok := capabilityName(codeStr)
 		if !ok {
-			writeUnknown()
+			if err := writeUnknown(); err != nil {
+				return 1
+			}
 			continue
 		}
 
@@ -147,24 +164,30 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 		// The hex data field is present but empty or ignored.
 
 		if format == "text" {
-			writeText(fmt.Sprintf("%-20s", name))
+			if err := writeText(formatCapText(name)); err != nil {
+				return 1
+			}
 		} else {
 			result := map[string]any{
 				"name": name,
 			}
 			jsonBytes, jsonErr := json.Marshal(result)
 			if jsonErr != nil {
-				writeUnknown()
+				if err := writeUnknown(); err != nil {
+					return 1
+				}
 				continue
 			}
-			writeJSON(jsonBytes)
+			if err := writeJSON(jsonBytes); err != nil {
+				return 1
+			}
 		}
 	}
 	// bufio.Scanner reports a read failure and an over-long line through Err(),
 	// never through Scan(). Without this the caller sees a clean, complete decode.
 	if err := scanner.Err(); err != nil {
 		var eb textbuf.Buffer
-		writeOut(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
+		_ = writeOut(output, eb.Str("decoded error ").Err(err).Byte('\n').String())
 		return 1
 	}
 	return 0
@@ -184,6 +207,7 @@ func RunCLIDecodeWithCode(capCode uint8, hexData string, textOutput bool, stdout
 	// The capability code determines the name; payload is empty.
 	name, ok := capNames[capCode]
 	if !ok {
+		// refuse-by-default: guards capNames -- already returning exit code 1 for unsupported capability code; a broken stderr write has no recovery
 		if _, err := fmt.Fprintf(stderr, "error: unsupported route-refresh capability code %d\n", capCode); err != nil { //nolint:errcheck // output
 			logger().Debug("write failed", "err", err)
 		}
@@ -191,8 +215,8 @@ func RunCLIDecodeWithCode(capCode uint8, hexData string, textOutput bool, stdout
 	}
 
 	if textOutput {
-		if _, err := fmt.Fprintf(stdout, "%-20s\n", name); err != nil { //nolint:errcheck // output
-			logger().Debug("write failed", "err", err)
+		if err := writeOut(stdout, formatCapText(name)+"\n"); err != nil {
+			return 1
 		}
 	} else {
 		result := map[string]any{
@@ -201,13 +225,14 @@ func RunCLIDecodeWithCode(capCode uint8, hexData string, textOutput bool, stdout
 		}
 		jsonBytes, jsonErr := json.Marshal(result)
 		if jsonErr != nil {
+			// refuse-by-default: guards capNames -- already returning exit code 1 after JSON marshal failure; a broken stderr write has no recovery
 			if _, err := fmt.Fprintf(stderr, "error: JSON encoding: %v\n", jsonErr); err != nil { //nolint:errcheck // output
 				logger().Debug("write failed", "err", err)
 			}
 			return 1
 		}
-		if _, err := fmt.Fprintln(stdout, string(jsonBytes)); err != nil { //nolint:errcheck // output
-			logger().Debug("write failed", "err", err)
+		if _, err := fmt.Fprintln(stdout, string(jsonBytes)); err != nil {
+			return 1
 		}
 	}
 	return 0

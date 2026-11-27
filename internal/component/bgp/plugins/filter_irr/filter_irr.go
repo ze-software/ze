@@ -11,19 +11,31 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
 
-const configRootBGP = "bgp"
+const (
+	configRootBGP = "bgp"
+
+	invalidPeerWarnWindow = time.Minute
+	invalidPeerWarnMax    = 256
+	invalidPeerLabelMax   = 64
+)
 
 var logger = slogutil.LazyLogger("bgp.filter.irr")
 
@@ -123,6 +135,7 @@ type interestFailure struct {
 
 type irrPlugin struct {
 	plugin *sdk.Plugin
+	issues *issuequeue.Queue
 	// started is set by OnStarted, after the startup handshake. Configure runs
 	// inside that handshake, where no state RPC is served, so the first
 	// configure leaves the store read to OnStarted, and only a reload
@@ -147,18 +160,29 @@ type irrPlugin struct {
 	// authorize them yet (readmit.go). Nil in tests that build the plugin as a
 	// literal, where nothing is held.
 	readmit *readmitter
+
+	// invalidPeerCount counts filter UPDATE verdicts whose peer identifier
+	// could not be parsed as an IP address. invalidPeerWarned rate-limits
+	// warnings per sanitized peer string, capped at invalidPeerWarnMax.
+	invalidPeerCount  atomic.Uint64
+	invalidPeerMu     sync.Mutex
+	invalidPeerWarned map[string]time.Time
 }
 
 func runFilterIRR(conn net.Conn) int {
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
+	issues := issuequeue.Start(p)
+
 	plug := &irrPlugin{
 		plugin: p,
+		issues: issues,
 		byASN:  make(map[uint32]*asnState),
 	}
 	plug.reader = newStoreReader(plug, p)
 	plug.readmit = newReadmitter(dispatchEngine{plugin: p}, plug, readmitInterval)
+	plug.readmit.issues = issues
 
 	// A plugin holding OnConfigure alone answers every config-apply OK and
 	// changes nothing, so a live IRR edit was accepted and ignored. The reload
@@ -183,17 +207,22 @@ func runFilterIRR(conn net.Conn) int {
 	})
 
 	ctx, cancel := sdk.SignalContext()
-	defer cancel()
 	stop := make(chan struct{})
-	defer close(stop)
+	var workers sync.WaitGroup
+	defer func() {
+		cancel()
+		close(stop)
+		workers.Wait()
+		issues.Stop()
+	}()
 	p.OnStarted(func(_ context.Context) error {
 		plug.mu.Lock()
 		plug.started = true
 		plug.mu.Unlock()
 		// Both workers live as long as the plugin, across every configure
 		// cycle: the readmitter stops with stop, the reader with ctx.
-		go plug.readmit.run(stop)
-		go plug.reader.run(ctx)
+		workers.Go(func() { plug.readmit.run(stop) })
+		workers.Go(func() { plug.reader.run(ctx) })
 		plug.reader.readAll()
 		return nil
 	})
@@ -556,12 +585,163 @@ func (plug *irrPlugin) trackVerdict(peerAddr string, asn uint32, enrolled bool, 
 	if err != nil {
 		// The engine names the peer by its address; a name that is not one
 		// identifies nothing the worker could ask a ROUTE-REFRESH of.
-		logger().Debug("irr: filter UPDATE names no peer address, nothing held", "peer", peerAddr)
+		plug.reportInvalidPeer(peerAddr, asn, err)
 		return
 	}
 	for i := range judged.families {
 		plug.readmit.track(peer, asn, enrolled, &judged.families[i])
 	}
+}
+
+// reportInvalidPeer counts an unparseable peer address from a filter UPDATE
+// verdict and emits a rate-limited WARN plus report-bus error event under
+// codeIRRInvalidPeer.
+func (plug *irrPlugin) reportInvalidPeer(peerAddr string, asn uint32, err error) {
+	plug.invalidPeerCount.Add(1)
+	safePeer := sanitizePeerLabel(peerAddr)
+	if !plug.shouldWarnInvalidPeer(safePeer, time.Now()) {
+		return
+	}
+	// netip.ParseAddr embeds the full raw input string in err.Error(); extract
+	// only the static reason suffix so logs and report-issue payloads stay
+	// sanitized and within rpc.ReportMessageMax.
+	reason := parseAddrReason(err)
+	var msgBuf textbuf.Buffer
+	msg := fitReportText(
+		msgBuf.Str("irr: filter UPDATE for AS").Uint32(asn).Str(" carried invalid peer address \"").Str(safePeer).Str("\" (").Str(reason).Str("); rejected prefixes cannot be held for automatic ROUTE-REFRESH re-admission").String(),
+		rpc.ReportMessageMax,
+	)
+	reportErr := plug.issues.RaiseError(codeIRRInvalidPeer, safePeer, msg, fixShowBGPPeerList, func(cbErr error) {
+		logger().Warn("irr: failed to report invalid peer address to daemon",
+			"code", codeIRRInvalidPeer,
+			"fix", fixShowBGPPeerList,
+			"peer", safePeer,
+			"asn", asn,
+			"error", cbErr)
+	})
+	logger().Warn(msg,
+		"code", codeIRRInvalidPeer,
+		"fix", fixShowBGPPeerList,
+		"peer", safePeer,
+		"asn", asn,
+		"reason", reason,
+		issuequeue.Outcome(reportErr))
+}
+
+// shouldWarnInvalidPeer enforces a 1-minute per-peer-string warn window within
+// a bounded invalidPeerWarnMax-entry map.
+func (plug *irrPlugin) shouldWarnInvalidPeer(peer string, now time.Time) bool {
+	plug.invalidPeerMu.Lock()
+	defer plug.invalidPeerMu.Unlock()
+	if plug.invalidPeerWarned == nil {
+		plug.invalidPeerWarned = make(map[string]time.Time)
+	}
+	if last, ok := plug.invalidPeerWarned[peer]; ok {
+		if now.Sub(last) < invalidPeerWarnWindow {
+			return false
+		}
+	}
+	if _, exists := plug.invalidPeerWarned[peer]; !exists {
+		if len(plug.invalidPeerWarned) >= invalidPeerWarnMax {
+			for k, t := range plug.invalidPeerWarned {
+				if now.Sub(t) >= invalidPeerWarnWindow {
+					delete(plug.invalidPeerWarned, k)
+				}
+			}
+		}
+		if len(plug.invalidPeerWarned) >= invalidPeerWarnMax {
+			var oldestKey string
+			var oldestTime time.Time
+			first := true
+			for k, t := range plug.invalidPeerWarned {
+				if first {
+					oldestKey, oldestTime, first = k, t, false
+				} else if t.Before(oldestTime) {
+					oldestKey, oldestTime = k, t
+				}
+			}
+			delete(plug.invalidPeerWarned, oldestKey)
+		}
+	}
+	plug.invalidPeerWarned[peer] = now
+	return true
+}
+
+// sanitizePeerLabel bounds and sanitizes a peer identifier from a filter
+// UPDATE before logging or using it as a rate-limit key. Peer addresses are
+// strictly printable ASCII, so non-ASCII and control bytes become '?'.
+func sanitizePeerLabel(raw string) string {
+	if raw == "" {
+		return "<empty>"
+	}
+	limit := min(len(raw), invalidPeerLabelMax)
+	var tb textbuf.Buffer
+	for i := range limit {
+		b := raw[i]
+		if b < 0x20 || b >= 0x7f {
+			tb.Byte('?')
+		} else {
+			tb.Byte(b)
+		}
+	}
+	return tb.String()
+}
+
+// parseAddrReason returns the short static failure reason from a netip.ParseAddr
+// error without echoing the raw input string or its trailing "(at ...)" suffix.
+func parseAddrReason(err error) string {
+	const fallback = "unable to parse IP"
+	if err == nil {
+		return fallback
+	}
+	msg := err.Error()
+	rest, ok := strings.CutPrefix(msg, "ParseAddr(")
+	if !ok {
+		rest, ok = strings.CutPrefix(msg, "netip.ParseAddr(")
+		if !ok {
+			return fallback
+		}
+	}
+	quoted, qErr := strconv.QuotedPrefix(rest)
+	if qErr != nil {
+		return fallback
+	}
+	reason, ok := strings.CutPrefix(rest[len(quoted):], "): ")
+	if !ok {
+		return fallback
+	}
+	if at := strings.Index(reason, " (at "); at >= 0 {
+		reason = reason[:at]
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return fallback
+	}
+	return sanitizePeerLabel(reason)
+}
+
+// fitReportText bounds s to maxBytes on a UTF-8 rune boundary so report-issue
+// payloads stay within rpc.ReportMessageMax / rpc.ReportSubjectMax.
+func fitReportText(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	const suffix = "..."
+	if maxBytes <= len(suffix) {
+		cut := maxBytes
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		return s[:cut]
+	}
+	cut := maxBytes - len(suffix)
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + suffix
 }
 
 // heldList serves the re-admission worker the ASN's current list, nil when it

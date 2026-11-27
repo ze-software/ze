@@ -35,6 +35,18 @@ const (
 	// codeIRRInterestUnsaved fires when the filter's interest key was not
 	// written, so the irr plugin may not fetch a newly configured AS-SET.
 	codeIRRInterestUnsaved = "doctor-bgp-irr-interest-unsaved"
+	// codeIRRInvalidPeer fires when a filter UPDATE verdict carries a peer
+	// identifier that does not parse as an IP address, so rejected prefixes
+	// cannot be tracked for ROUTE-REFRESH re-admission.
+	codeIRRInvalidPeer = "doctor-bgp-irr-invalid-peer"
+	// codeIRRReadmitConfirmFailed fires when the re-admission worker sent a
+	// ROUTE-REFRESH for newly authorized prefixes but could not confirm the
+	// peer session state afterward.
+	codeIRRReadmitConfirmFailed = "doctor-bgp-irr-readmit-confirm-failed"
+
+	fixShowBGPPeerList  = "ze show bgp peer list"
+	exampleShowErrors   = "ze show errors"
+	exampleShowDiagPref = "ze show diagnostic "
 )
 
 // storedCopyCheckName names the runtime check in the Stage 1 registration and
@@ -68,14 +80,14 @@ var irrDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "The irr plugin stored a list for an AS-SET bgp-filter-irr enforces, and the filter could not read it, or " +
 			"it failed its digest. The filter keeps the list it read before; with none, the peer's announcements are rejected " +
 			"and held. Run 'update irr as-set <name>' to fetch and store the set again; the filter reads it on the notice.",
-		Examples: []string{exampleShowDoctor, cmdShowIRR, "ze show diagnostic " + codeIRRStoredCopyUnreadable},
+		Examples: []string{exampleShowDoctor, cmdShowIRR, exampleShowDiagPref + codeIRRStoredCopyUnreadable},
 	},
 	{
 		Code:  codeIRRStoredCopyBehind,
 		Title: "bgp-filter-irr missed a stored IRR list",
 		Description: "The irr plugin stored a newer list than bgp-filter-irr has read: a notice did not reach the filter. The " +
 			"filter catches up at the next notice. Run 'update irr all' to store every set again, which sends the notices.",
-		Examples: []string{exampleShowDoctor, cmdShowIRR, "ze show diagnostic " + codeIRRStoredCopyBehind},
+		Examples: []string{exampleShowDoctor, cmdShowIRR, exampleShowDiagPref + codeIRRStoredCopyBehind},
 	},
 	{
 		Code:  codeIRRInterestUnsaved,
@@ -83,8 +95,30 @@ var irrDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "The store refused the key through which bgp-filter-irr tells the irr plugin which AS-SETs and AS numbers " +
 			"it enforces, so a newly configured one may not be fetched. The filter writes it again every minute. Fix the store " +
 			"error in the message, or run 'update irr as-set <name>' to fetch a set now.",
-		Examples: []string{exampleShowDoctor, "ze show irr", "ze show diagnostic " + codeIRRInterestUnsaved},
+		Examples: []string{exampleShowDoctor, "ze show irr", exampleShowDiagPref + codeIRRInterestUnsaved},
 	},
+	{
+		Code:  codeIRRInvalidPeer,
+		Title: "bgp-filter-irr received a filter UPDATE with an invalid peer address",
+		Description: "A BGP filter UPDATE reached bgp-filter-irr with a peer identifier that is not a valid IP address, so rejected " +
+			"prefixes cannot be held for automatic ROUTE-REFRESH re-admission when the IRR prefix list updates. Warnings are " +
+			"rate-limited per peer string. Remedy: inspect peer state and configuration with `ze show bgp peer list`.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, exampleShowDiagPref + codeIRRInvalidPeer},
+	},
+	{
+		Code:  codeIRRReadmitConfirmFailed,
+		Title: "bgp-filter-irr could not confirm a peer session after re-admission refresh",
+		Description: "bgp-filter-irr asked a peer for a ROUTE-REFRESH after an IRR prefix list authorized previously held prefixes, " +
+			"but querying the peer's session state afterward failed. Any prefix still rejected when the peer re-announces will be " +
+			"held again automatically. Remedy: inspect the peer session with `ze show bgp peer <peer> detail`.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, exampleShowDiagPref + codeIRRReadmitConfirmFailed},
+	},
+}
+
+// irrEventCodes declares the transient report-bus event codes this package raises.
+var irrEventCodes = []diagnostic.EventCode{
+	{Code: codeIRRInvalidPeer},
+	{Code: codeIRRReadmitConfirmFailed},
 }
 
 // fixFetchAll is the command that fetches and stores every referenced set

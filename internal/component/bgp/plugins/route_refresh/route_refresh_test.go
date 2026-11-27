@@ -2,6 +2,7 @@ package route_refresh
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 
@@ -162,4 +163,43 @@ func TestRunCLIDecodeDefaultsToRouteRefresh(t *testing.T) {
 	assert.Equal(t, 0, code)
 	assert.Equal(t, `{"code":2,"name":"route-refresh"}`+"\n", stdout.String())
 	assert.Empty(t, stderr.String())
+}
+
+type rrFailWriter struct {
+	err error
+}
+
+func (w rrFailWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// TestRouteRefreshDecodeReturnsExitOneOnWriteError verifies that RunDecodeMode
+// and RunCLIDecodeWithCode (both JSON and text output) return exit code 1 when
+// writing to stdout fails.
+//
+// VALIDATES: AC-3 (route_refresh.go writeOut/RunDecodeMode and RunCLIDecodeWithCode).
+// PREVENTS: broken stdout pipes exiting 0 with lost capability decode output.
+func TestRouteRefreshDecodeReturnsExitOneOnWriteError(t *testing.T) {
+	t.Parallel()
+	fw := rrFailWriter{err: errors.New("broken pipe")}
+
+	t.Run("decode_mode_json", func(t *testing.T) {
+		t.Parallel()
+		code := RunDecodeMode(strings.NewReader("decode capability 2 \n"), fw)
+		assert.Equal(t, 1, code)
+	})
+
+	t.Run("cli_decode_json", func(t *testing.T) {
+		t.Parallel()
+		var stderr bytes.Buffer
+		code := RunCLIDecodeWithCode(2, "", false, fw, &stderr)
+		assert.Equal(t, 1, code)
+	})
+
+	t.Run("cli_decode_text", func(t *testing.T) {
+		t.Parallel()
+		var stderr bytes.Buffer
+		code := RunCLIDecodeWithCode(2, "", true, fw, &stderr)
+		assert.Equal(t, 1, code)
+	})
 }

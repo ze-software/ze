@@ -22,6 +22,11 @@ func (gp *grPlugin) onPeerRemoved(source grPeer) {
 	delete(gp.peerLLGRCaps, source.owner)
 	delete(gp.sentLLGRFamilies, source.owner)
 	delete(gp.earlierRetained, source.owner)
+	for key := range gp.openDecodeWarned {
+		if key.owner == source.owner {
+			delete(gp.openDecodeWarned, key)
+		}
+	}
 	gp.mu.Unlock()
 
 	if m := grMetricsPtr.Load(); m != nil {

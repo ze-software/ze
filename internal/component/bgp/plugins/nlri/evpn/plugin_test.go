@@ -2,6 +2,7 @@ package evpn
 
 import (
 	"bytes"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"strings"
@@ -398,4 +399,43 @@ func TestRunCLIDecodeInvalidFamily(t *testing.T) {
 	code := RunCLIDecode("02", "invalid/family", false, &out, &errOut)
 	assert.Equal(t, 1, code)
 	assert.Contains(t, errOut.String(), "invalid family")
+}
+
+type evpnFailWriter struct {
+	err error
+}
+
+func (w evpnFailWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// TestEVPNDecodeReturnsExitOneOnWriteError verifies that runEVPNDecode returns
+// exit code 1 when writing decoded output (JSON or unknown) to stdout fails,
+// while DecodeNLRIHex still preserves parsed:false for unparseable EVPN routes.
+//
+// VALIDATES: AC-3 (evpn/plugin.go runEVPNDecode and handleDecodeNLRI write errors).
+// PREVENTS: broken stdout pipes exiting 0 with lost EVPN decode output.
+func TestEVPNDecodeReturnsExitOneOnWriteError(t *testing.T) {
+	t.Parallel()
+	fw := evpnFailWriter{err: errors.New("broken pipe")}
+
+	validType2 := "02210000FDE80000006400000000000000000000000000003000112233445500000101"
+
+	t.Run("valid_nlri_write_error", func(t *testing.T) {
+		t.Parallel()
+		code := runEVPNDecode(strings.NewReader("decode nlri l2vpn/evpn "+validType2+"\n"), fw)
+		assert.Equal(t, 1, code)
+	})
+
+	t.Run("unknown_hex_write_error", func(t *testing.T) {
+		t.Parallel()
+		code := runEVPNDecode(strings.NewReader("decode nlri l2vpn/evpn not-hex\n"), fw)
+		assert.Equal(t, 1, code)
+	})
+
+	t.Run("short_line_write_error", func(t *testing.T) {
+		t.Parallel()
+		code := runEVPNDecode(strings.NewReader("decode nlri\n"), fw)
+		assert.Equal(t, 1, code)
+	})
 }

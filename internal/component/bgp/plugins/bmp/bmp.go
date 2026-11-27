@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -248,10 +249,12 @@ type peerUpState struct {
 //
 // Caller MUST close stopCh and call stopListeners when done.
 type BMPPlugin struct {
-	plugin     *sdk.Plugin
-	mu         sync.RWMutex
-	state      *bmpState
-	systemName *systemNameConfig // Immutable after publication, guarded by mu.
+	plugin            *sdk.Plugin
+	issues            *issuequeue.Queue
+	awaitingHandshake atomic.Bool
+	mu                sync.RWMutex
+	state             *bmpState
+	systemName        *systemNameConfig // Immutable after publication, guarded by mu.
 
 	// eventMu orders the snapshot with live peer state and UPDATE delivery.
 	// Lock order: eventMu, sender writeMu, mu. No socket write holds eventMu.
@@ -380,6 +383,13 @@ type BMPPlugin struct {
 
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
+
+	// warnMu guards the bounded per-key rate-limit maps for receiver route
+	// inject failures and sender delivery failures. Leaf lock: never nested
+	// with mu, eventMu, or sender writeMu.
+	warnMu               sync.Mutex
+	receiverInjectWarned map[string]time.Time
+	senderDeliveryWarned map[senderWarnKey]time.Time
 }
 
 // dedupSentSalt separates the two directions inside one peer's hash set.
@@ -412,8 +422,11 @@ func runBMPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-bmp", conn)
 	defer closeLog(p, "plugin")
 
+	issues := issuequeue.Start(p)
+
 	bp := &BMPPlugin{
 		plugin:      p,
+		issues:      issues,
 		state:       newBMPState(),
 		openCache:   make(map[string]*openPair),
 		notifyCache: make(map[string]*notifyPDU),
@@ -431,9 +444,18 @@ func runBMPPlugin(conn net.Conn) int {
 		bp.stopSenders()
 		bp.stopListeners()
 		bp.sessions.Wait()
+		issues.Stop()
 	}()
 
 	bp.registerCallbacks()
+	// Hold report-issue RPCs until Stage 5 Ready completes: OnConfigure starts
+	// sender loops and Loc-RIB feeds during Stage 2, and the engine refuses
+	// any non-stage RPC on the plugin wire before Ready (pkg/plugin/sdk/report.go).
+	bp.awaitingHandshake.Store(true)
+	p.OnStarted(func(_ context.Context) error {
+		bp.awaitingHandshake.Store(false)
+		return nil
+	})
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
@@ -681,6 +703,7 @@ func (bp *BMPPlugin) registerCallbacks() {
 
 // closeLog closes c and logs any error. Used in deferred cleanup.
 func closeLog(c interface{ Close() error }, what string) {
+	// refuse-by-default: guards BMPPlugin.handleSession -- teardown close on an ending socket, listener, or plugin connection has no caller recovery
 	if err := c.Close(); err != nil {
 		logger().Debug("bmp: close failed", "what", what, "error", err)
 	}
@@ -714,7 +737,10 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 	logger().Info("bmp: session started", "remote", remote)
 	terminated := false
 	bp.state.addRouter(remote)
-	defer bp.state.removeRouter(remote)
+	defer func() {
+		bp.state.removeRouter(remote)
+		bp.pruneReceiverInjectWarnRouter(remote)
+	}()
 	defer func() {
 		if bp.plugin == nil || terminated {
 			return
@@ -723,7 +749,9 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 		defer cancel()
 		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-router", []string{protocolBMP, remote}, "")
 		if err != nil {
-			logger().Debug("bmp: withdraw-router failed on session end", "remote", remote, "error", err)
+			if !bp.isStopping() {
+				bp.reportReceiverRIBSyncFailure(remote, "withdraw-router", "session end", err)
+			}
 		}
 	}()
 	defer logger().Info("bmp: session ended", "remote", remote)
@@ -766,7 +794,9 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 		remaining := msgLen - CommonHeaderSize
 		if remaining > 0 {
 			if _, err := io.ReadFull(conn, msgBuf[CommonHeaderSize:]); err != nil {
-				logger().Debug("bmp: read body failed", "remote", remote, "error", err)
+				if !bp.isStopping() {
+					bp.reportReceiverSessionError(remote, ch.Type, err)
+				}
 				return
 			}
 		}
@@ -879,7 +909,9 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 		defer cancel()
 		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-router", []string{protocolBMP, remote}, "")
 		if err != nil {
-			logger().Debug("bmp: withdraw-router failed on termination", "remote", remote, "error", err)
+			if !bp.isStopping() {
+				bp.reportReceiverRIBSyncFailure(remote, "withdraw-router", "termination", err)
+			}
 		}
 	}
 }
@@ -996,10 +1028,12 @@ func openMultiprotocolFamilies(open []byte) []family.Family {
 		return nil
 	}
 	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
+	// refuse-by-default: guards processPeerUp -- RFC 4760 Section 8: an unparseable OPEN payload yields an empty family list rather than a default
 	if err != nil {
 		return nil
 	}
 	caps, err := capability.ParseFromOptionalParams(parsed.OptionalParams, parsed.ExtendedParams)
+	// refuse-by-default: guards processPeerUp -- RFC 4760 Section 8: an unparseable OPEN capability payload yields an empty family list rather than a default
 	if err != nil {
 		return nil
 	}
@@ -1016,6 +1050,8 @@ func openMultiprotocolFamilies(open []byte) []family.Family {
 
 func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
 	bp.state.peerDown(remote, m.Peer, m.Reason)
+	peerKey := bmpCompositeKey(remote, m.Peer)
+	bp.pruneReceiverInjectWarnPeer(peerKey)
 	logger().Info("bmp: peer down",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,
@@ -1023,12 +1059,13 @@ func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
 	)
 
 	if bp.plugin != nil {
-		peerKey := bmpCompositeKey(remote, m.Peer)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_, _, err := bp.plugin.DispatchCommandArgs(ctx, "request bgp rib withdraw-protocol", []string{protocolBMP, peerKey}, "")
 		if err != nil {
-			logger().Debug("bmp: withdraw-protocol failed on peer down", "peer", peerKey, "error", err)
+			if !bp.isStopping() {
+				bp.reportReceiverRIBSyncFailure(peerKey, "withdraw-protocol", "peer down", err)
+			}
 		}
 	}
 }
@@ -1046,11 +1083,12 @@ func (bp *BMPPlugin) processRouteMonitoring(remote string, m *RouteMonitoring) {
 	peerKey := bmpCompositeKey(remote, m.Peer)
 
 	if err := bp.plugin.InjectWireRoute(protocolBMP, peerKey, updateBody); err != nil {
-		logger().Debug("bmp: inject-wire-route failed",
-			"remote", remote,
-			"peer", peerKey,
-			"error", err,
-		)
+		if !bp.isStopping() {
+			incRouteInjectErrorMetric(peerKey)
+			if bp.allowReceiverInjectWarn(peerKey) {
+				bp.reportReceiverRIBSyncFailure(peerKey, "inject-wire-route", "route monitoring", err)
+			}
+		}
 	}
 }
 

@@ -145,6 +145,7 @@ func (bp *BMPPlugin) stopListeners() {
 	defer bp.mu.Unlock()
 
 	for addr, ln := range bp.listeners {
+		// refuse-by-default: guards applyReceiverConfig -- shutdown teardown closing active BMP receiver listeners has no recovery
 		if err := ln.Close(); err != nil {
 			logger().Debug("bmp: listener close", "address", addr, "error", err)
 		}

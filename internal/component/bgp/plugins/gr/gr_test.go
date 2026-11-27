@@ -2,14 +2,21 @@ package gr
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -847,4 +854,162 @@ func TestRunCLIDecode_LLGROnlyStructure(t *testing.T) {
 	assert.Equal(t, 0, exitCode)
 	assert.Contains(t, stdout.String(), "long-lived-graceful-restart")
 	assert.Contains(t, stdout.String(), "3600")
+}
+
+type grTestPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+}
+
+func (p *grTestPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	p.raises = append(p.raises, issue)
+	p.mu.Unlock()
+	return nil
+}
+
+func (p *grTestPublisher) ClearIssue(_ context.Context, _, _ string) error {
+	return nil
+}
+
+type grSyncWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *grSyncWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *grSyncWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
+}
+
+type grFailWriter struct {
+	err error
+}
+
+func (w grFailWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+// TestGROpenUndecodableCapabilityWarnsAndRaisesDoctorCode verifies that
+// malformed GR (code 64) and LLGR (code 71) OPEN capabilities on structured
+// and JSON received/sent OPEN paths emit rate-limited WARNs with
+// doctor-bgp-gr-capability-decode and enqueue report-issue RPCs via issuequeue.
+//
+// VALIDATES: AC-2, AC-4 (gr.go handleStructuredOpen, extractGRCaps, handleOpenEvent; gr_llgr_exchange.go).
+// PREVENTS: malformed GR/LLGR OPEN capabilities vanishing silently at Debug.
+func TestGROpenUndecodableCapabilityWarnsAndRaisesDoctorCode(t *testing.T) {
+	logs := &grSyncWriter{}
+	prevLogger := logger()
+	SetLogger(slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() { SetLogger(prevLogger) })
+
+	pub := &grTestPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	gp := &grPlugin{
+		issues:       q,
+		peerCaps:     make(map[uint64]*grPeerCap),
+		peerLLGRCaps: make(map[uint64]*llgrPeerCap),
+	}
+	gp.wireStateCallbacks()
+
+	src, err := newGRSource("192.0.2.77", 77, 1)
+	require.NoError(t, err)
+
+	// 1. Structured received OPEN that fails message.UnpackOpen (called twice -> rate-limited).
+	gp.handleStructuredOpen(src, &bgptypes.RawMessage{RawBytes: []byte{0x04}})
+	gp.handleStructuredOpen(src, &bgptypes.RawMessage{RawBytes: []byte{0x04}})
+
+	// 2. JSON received OPEN with invalid cap 64 hex and malformed cap 71 payload.
+	gp.handleOpenEvent(src, map[string]any{
+		"open": map[string]any{
+			"capabilities": []any{
+				map[string]any{"code": float64(64), "value": "zz"},
+				map[string]any{"code": float64(71), "value": "0001"},
+			},
+		},
+	})
+
+	// 3. Structured sent OPEN with truncated bytes and JSON sent OPEN with invalid cap 71 hex.
+	gp.handleStructuredSentOpen(src, &bgptypes.RawMessage{RawBytes: []byte{0x04}})
+	gp.handleSentOpenEvent(src, map[string]any{
+		"open": map[string]any{
+			"capabilities": []any{
+				map[string]any{"code": float64(71), "value": "zz"},
+			},
+		},
+	})
+
+	q.Flush()
+
+	out := logs.String()
+	assert.Contains(t, out, "level=WARN")
+	assert.Contains(t, out, "code="+codeDoctorBGPGRCapabilityDecode)
+	assert.Contains(t, out, "ze show bgp peer 192.0.2.77 detail")
+	assert.Contains(t, out, "report=queued")
+
+	pub.mu.Lock()
+	raises := append([]sdk.Issue(nil), pub.raises...)
+	pub.mu.Unlock()
+	// 5 distinct kinds across the calls above, with the duplicate structured OPEN suppressed by rate limit.
+	require.GreaterOrEqual(t, len(raises), 4, "expected rate-limited doctor raises for undecodable GR/LLGR capabilities")
+	for _, issue := range raises {
+		assert.Equal(t, codeDoctorBGPGRCapabilityDecode, issue.Code)
+		assert.Equal(t, rpc.ReportError, issue.Severity)
+		assert.Equal(t, "ze show bgp peer 192.0.2.77 detail", issue.Fix)
+	}
+}
+
+// TestGRWriteOutReturnsErrorAndExitOne verifies that RunDecodeMode and
+// RunCLIDecode (GR and LLGR, JSON and text) return exit code 1 when writing
+// decoded output fails.
+//
+// VALIDATES: AC-3 (gr.go writeOut/RunDecodeMode/runCLIDecodeGR and gr_llgr.go runCLIDecodeLLGR).
+// PREVENTS: broken stdout pipes exiting 0 with truncated or blank decode output.
+func TestGRWriteOutReturnsErrorAndExitOne(t *testing.T) {
+	t.Parallel()
+	fw := grFailWriter{err: errors.New("broken pipe")}
+
+	t.Run("decode_mode_gr", func(t *testing.T) {
+		t.Parallel()
+		code := RunDecodeMode(strings.NewReader("decode capability 64 007800010100\n"), fw)
+		assert.Equal(t, 1, code)
+	})
+	t.Run("decode_mode_llgr", func(t *testing.T) {
+		t.Parallel()
+		code := RunDecodeMode(strings.NewReader("decode capability 71 00010180000e10\n"), fw)
+		assert.Equal(t, 1, code)
+	})
+	t.Run("cli_decode_gr_json", func(t *testing.T) {
+		t.Parallel()
+		var stderr bytes.Buffer
+		code := RunCLIDecode("007800010100", false, fw, &stderr)
+		assert.Equal(t, 1, code)
+	})
+	t.Run("cli_decode_gr_text", func(t *testing.T) {
+		t.Parallel()
+		var stderr bytes.Buffer
+		code := RunCLIDecode("007800010100", true, fw, &stderr)
+		assert.Equal(t, 1, code)
+	})
+	t.Run("cli_decode_llgr_json", func(t *testing.T) {
+		t.Parallel()
+		var stderr bytes.Buffer
+		code := RunCLIDecode("00010180000e10", false, fw, &stderr)
+		assert.Equal(t, 1, code)
+	})
+	t.Run("cli_decode_llgr_text", func(t *testing.T) {
+		t.Parallel()
+		var stderr bytes.Buffer
+		code := RunCLIDecode("00010180000e10", true, fw, &stderr)
+		assert.Equal(t, 1, code)
+	})
 }

@@ -145,6 +145,11 @@ type senderSession struct {
 	// 9069 Loc-RIB dump request, whose replay batches call back into write*.
 	onConnected func()
 
+	// reportWriteFailure reports a drain socket write failure back to the
+	// owning BMPPlugin for metric counting, rate-limited WARN logging, and
+	// doctor event reporting. Nil in standalone unit tests without a plugin.
+	reportWriteFailure func(collector, message string, err error)
+
 	// locRIBUpSent records whether the RFC 9069 Loc-RIB Peer Up has been sent on
 	// the CURRENT connection. Cleared when the connection ends, because a new
 	// BMP session starts with no state at the collector.
@@ -463,6 +468,7 @@ func (ss *senderSession) writeTerminationLocked(conn net.Conn) {
 	var stack [CommonHeaderSize + TLVHeaderSize + 13 + TLVHeaderSize + 2]byte
 	buf := stack[:]
 	n := writeTermination(buf, 0, term)
+	// refuse-by-default: guards terminateAndClose -- best-effort Termination write on a dying collector socket before close
 	if err := ss.writeDeadlineLocked(conn, buf[:n], terminationWait); err != nil {
 		logger().Debug("bmp: sender termination write failed", "collector", ss.name, "error", err)
 	}

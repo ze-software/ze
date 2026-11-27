@@ -26,15 +26,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/bgp/retention"
-	"github.com/ze-software/ze/internal/core/bgp/routeaction"
-
 	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/component/bgp/retention"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/seqmap"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -158,6 +158,7 @@ type RawRoute struct {
 // Stores received routes as raw hex for fast replay via relay-stored-route.
 type AdjRIBInManager struct {
 	plugin *sdk.Plugin
+	issues *issuequeue.Queue
 
 	// ribIn stores routes received FROM peers.
 	// (original owner, diagnostic address) → native compactRouteKey → RawRoute.
@@ -246,6 +247,11 @@ type AdjRIBInManager struct {
 	// keyScratch is where routeKeyFromNLRI decodes a route identity, guarded by
 	// mu. A local array escapes through the family's key function, per NLRI.
 	keyScratch [nlrisplit.PrefixKeyScratchSize]byte
+
+	// nlriKeyWarned rate-limits complex NLRI key derivation warnings per
+	// (peer, family, operation), bounded to nlriKeyWarnMax entries and pruned
+	// on peer down and peer removal. Guarded by mu.
+	nlriKeyWarned map[nlriKeyWarnKey]time.Time
 
 	// routeRelayer, if set, overrides the engine relay call for replay delivery.
 	// Used in tests to verify peer-up triggers replay without an engine.
@@ -426,8 +432,12 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-adj-rib-in", conn)
 	defer func() { _ = p.Close() }()
 
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
 	r := &AdjRIBInManager{
 		plugin:         p,
+		issues:         issues,
 		ribIn:          make(map[receivedPeer]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[netip.Addr]bool),
 		pending:        make(map[compactPendingKey]*pendingRoute),

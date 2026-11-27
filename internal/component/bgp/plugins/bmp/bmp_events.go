@@ -460,8 +460,13 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 		ss.writeMu.Lock()
 		for _, st := range states {
 			if err := ss.writePeerDownLocked(st.peer, PeerDownDeconfigured, nil); err != nil {
-				logger().Debug("bmp: peer bounce down failed", "collector", ss.name, "error", err)
-				continue
+				if errors.Is(err, errNotConnected) {
+					incMessageDropMetric(ss.name, bmpMsgKindPeerDown, dropReasonDisconnected)
+					break
+				}
+				ss.abortAdjReplay(err)
+				bp.reportSenderWriteFailure(ss.name, bmpMsgKindPeerDown, err)
+				break
 			}
 			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
 				logger().Debug("bmp: peer bounce up failed", "collector", ss.name, "error", err)
@@ -505,7 +510,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 		for _, ss := range senders {
 			ss.writeMu.Lock()
 			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
-				logger().Debug("bmp: sender peer up failed", "collector", ss.name, "error", err)
+				bp.reportSenderWriteFailure(ss.name, bmpMsgKindPeerUp, err)
 			} else if err := bp.replayPeerLocked(ss, st, policy, prePolicyOut); err != nil {
 				ss.abortAdjReplay(err)
 			}
@@ -529,7 +534,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 		// pairs each reason with the Data it obliges.
 		for _, ss := range senders {
 			if err := ss.writePeerDown(cause.peer, cause.reason, cause.data); err != nil {
-				logger().Debug("bmp: sender peer down failed", "collector", ss.name, "error", err)
+				bp.reportSenderWriteFailure(ss.name, bmpMsgKindPeerDown, err)
 			}
 		}
 	case rpc.SessionStateUnspecified, rpc.SessionStateCount:
@@ -554,6 +559,7 @@ func (bp *BMPPlugin) handleSenderMirror(se *rpc.StructuredEvent, senders []*send
 	// the header has no way to say "not known", so that message is not mirrored
 	// rather than mirrored under AS 0.
 	peer, err := peerHeaderFromEvent(se)
+	// refuse-by-default: guards peerHeaderFromEvent -- dynamic peer OPEN precedes AS negotiation; RFC 7854 Section 4.2 has no unknown-AS encoding so mirror skips until negotiated
 	if err != nil {
 		logger().Debug("bmp: route mirroring skipped", "peer", se.PeerAddress, "error", err)
 		return
@@ -562,7 +568,7 @@ func (bp *BMPPlugin) handleSenderMirror(se *rpc.StructuredEvent, senders []*send
 	msgType := msg.Type
 	for _, ss := range senders {
 		if err := ss.writeRouteMirroring(peer, msgType, rawBytes); err != nil {
-			logger().Debug("bmp: sender route mirroring failed", "collector", ss.name, "error", err)
+			bp.reportSenderWriteFailure(ss.name, bmpMsgKindRouteMirroring, err)
 		}
 	}
 }
@@ -626,7 +632,7 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 	}
 	for _, ss := range senders {
 		if err := ss.writeRouteMonitoring(peer, msgType, rawBytes); err != nil {
-			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
+			bp.reportSenderWriteFailure(ss.name, bmpMsgKindRouteMonitoring, err)
 		}
 	}
 }

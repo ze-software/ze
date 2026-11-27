@@ -77,7 +77,7 @@ child owns the instances under its door's base paths and the zero for them:
 | Child | Door | Status | Instances (2026-11-26) | Bucket |
 |-------|------|--------|------------------------|--------|
 | `spec-dropped-error-1-bgp-engine` (closed 2026-11-27) | `bgp-engine.md` | closed | 0 (was 48) | release fixes |
-| `plan/release/fixes/spec-dropped-error-2-bgp-plugins.md` | `bgp-plugins.md` | `ready` | 63 (was 63) | release fixes |
+| `spec-dropped-error-2-bgp-plugins` (closed 2026-11-27) | `bgp-plugins.md` | closed | 0 (was 63) | release fixes |
 | `spec-dropped-error-3-access-security` (closed 2026-11-27) | `access-security.md` | closed | 0 (was 60; excludes 2 `mobike.go` sites moved to `spec-ipsec-11-mobike.md` on 2026-11-23) | release fixes |
 | `spec-dropped-error-4-system-plugins` (closed 2026-11-27) | `system-plugins.md` | closed | 0 (was 50) | release fixes |
 | `spec-dropped-error-5-forwarding` (closed 2026-11-27) | `forwarding.md` | closed | 0 (was 36) | release fixes |

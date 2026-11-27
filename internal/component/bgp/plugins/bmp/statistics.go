@@ -143,7 +143,9 @@ func (bp *BMPPlugin) sendStatisticsReports() {
 	for i := range reports {
 		for _, ss := range senders {
 			if err := ss.writeStatisticsReport(reports[i].Peer, reports[i].Stats); err != nil {
-				logger().Debug("bmp: sender statistics report failed", "collector", ss.name, "error", err)
+				if !bp.isStopping() {
+					bp.reportSenderWriteFailure(ss.name, bmpMsgKindStatistics, err)
+				}
 			}
 		}
 	}

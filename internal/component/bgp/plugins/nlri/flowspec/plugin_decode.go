@@ -32,14 +32,13 @@ func isValidFlowSpecFamily(name string) bool {
 }
 
 // decodeFlowSpecNLRI decodes FlowSpec NLRI wire bytes to JSON map.
-func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
+func decodeFlowSpecNLRI(famName string, data []byte) (map[string]any, error) {
 	isVPN := strings.HasSuffix(famName, "-vpn")
 
 	// Determine Family from family string
 	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		flowLogger.Debug("unknown family", "family", famName)
-		return nil
+		return nil, fmt.Errorf("unknown family: %s", famName)
 	}
 
 	var fs *flowspec.FlowSpec
@@ -48,8 +47,7 @@ func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
 	if isVPN {
 		fsv, err := flowspec.ParseFlowSpecVPN(fam, data)
 		if err != nil {
-			flowLogger.Debug("parse flowspec vpn failed", "err", err)
-			return nil
+			return nil, err
 		}
 		fs = fsv.FlowSpec()
 		rdVal := fsv.RD()
@@ -58,12 +56,11 @@ func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
 		var err error
 		fs, err = flowspec.ParseFlowSpec(fam, data)
 		if err != nil {
-			flowLogger.Debug("parse flowspec failed", "err", err)
-			return nil
+			return nil, err
 		}
 	}
 
-	return flowSpecToJSON(fs, famName, rd)
+	return flowSpecToJSON(fs, famName, rd), nil
 }
 
 // flowSpecToJSON converts FlowSpec to ze JSON representation.
