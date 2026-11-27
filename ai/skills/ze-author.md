@@ -71,6 +71,8 @@ The anti-patterns further down are the things to remove. These are the things to
 
 **Use his current English.** His English has improved substantially since the early TiddlyWiki posts. Those posts establish his perspective and humor, not a grammar or rhythm to imitate. Write fluent, current British English without turning it into corporate prose or a run of clipped sentences.
 
+**Write simple, clear English.** Choose everyday words and straightforward sentence structure. Flowing sentences connect cause and effect clearly; they are never an excuse to pack four clauses or internal code jargon into one line. Keep internal field names, Go type names and repository shorthand out of public prose unless the reader needs that exact command or output key, and explain what a command shows in plain words before relying on its fields.
+
 ## Paragraphs
 
 A paragraph makes one point. That is the unit of the writing, and getting it wrong is what makes a text feel assembled rather than written.
@@ -190,7 +192,7 @@ Notes to Thomas about a document go outside the document, or into a section whos
 
 ## Facts, sources and honesty
 
-Thomas's credibility rests on being right about things readers can check. Never invent a date, a figure, a benchmark result, a quotation, a link, a customer name or a personal anecdote. If a claim needs a fact you do not have, either ask him for it or write the sentence so it does not need one. If you are inferring rather than reporting, say so in the text the way he does ("This is pure speculation", "I am inclined to think").
+Thomas's credibility rests on being right about things readers can check. Never invent a date, a figure, a benchmark result, a quotation, a link, a customer name or a personal anecdote. Check every claim about other software, operating systems or vendor routers (how daemons are split, what signals do, what `show tech` masks) against primary sources and link the proof; never make sweeping claims about other routers that Thomas would have to defend. If a claim needs a fact you do not have, either ask him for it or write the sentence so it does not need one. If you are inferring rather than reporting, say so in the text the way he does ("This is pure speculation", "I am inclined to think").
 
 ## Email and correspondence register
 
