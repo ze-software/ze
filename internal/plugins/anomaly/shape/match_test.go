@@ -8,6 +8,7 @@ package shape
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -83,5 +84,55 @@ func TestAllowlisted(t *testing.T) {
 	}
 	if allowlisted(netip.MustParsePrefix("198.51.100.5/32"), allow) {
 		t.Error("198.51.100.5/32 should not be allowlisted")
+	}
+}
+
+// TestBuildActionsLimitDropsTheExcess checks the exact action sequence emitted
+// for ActionLimit and ActionDrop across IPv4 and IPv6 terms.
+//
+// VALIDATES: AC-2 exact 3-element sequence [Limit{Over: true}, Counter, Drop]
+// for ActionLimit (IPv4 and IPv6) and preserved [Counter, Drop] for ActionDrop.
+// PREVENTS: ActionLimit emitting Over: false, omitting Drop, or placing Counter
+// before Limit where it would count accepted packets instead of drops.
+func TestBuildActionsLimitDropsTheExcess(t *testing.T) {
+	prefixes := []netip.Prefix{
+		netip.MustParsePrefix("198.51.100.5/32"),
+		netip.MustParsePrefix("2001:db8::5/128"),
+	}
+
+	limitCfg := DefaultConfig()
+	limitCfg.Action = ActionLimit
+	limitCfg.LimitRate = 25
+	limitCfg.LimitUnit = "minute"
+	limitCfg.LimitBurst = 7
+
+	wantLimit := []firewall.Action{
+		firewall.Limit{
+			Rate:      limitCfg.LimitRate,
+			Unit:      limitCfg.LimitUnit,
+			Dimension: firewall.RateDimensionPackets,
+			Burst:     limitCfg.LimitBurst,
+			Over:      true,
+		},
+		firewall.Counter{},
+		firewall.Drop{},
+	}
+
+	for _, pfx := range prefixes {
+		term := buildSourceTerm(pfx, limitCfg)
+		if !slices.Equal(term.Actions, wantLimit) {
+			t.Errorf("buildSourceTerm(%s, ActionLimit).Actions = %#v, want %#v", pfx, term.Actions, wantLimit)
+		}
+	}
+
+	dropCfg := DefaultConfig()
+	dropCfg.Action = ActionDrop
+	wantDrop := []firewall.Action{firewall.Counter{}, firewall.Drop{}}
+
+	for _, pfx := range prefixes {
+		term := buildSourceTerm(pfx, dropCfg)
+		if !slices.Equal(term.Actions, wantDrop) {
+			t.Errorf("buildSourceTerm(%s, ActionDrop).Actions = %#v, want %#v", pfx, term.Actions, wantDrop)
+		}
 	}
 }

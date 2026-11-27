@@ -13,7 +13,6 @@ distinct firewall owner key.
 
 <!-- source: internal/plugins/anomaly/shape/responder.go -- responder state, registerTables -->
 <!-- source: internal/plugins/anomaly/shape/match.go -- buildTables -->
-<!-- source: internal/plugins/anomaly/shape/match.go -- buildTables -->
 
 All state (the armed map, the armed count, the killed flag, the timers) sits under
 one mutex, and `firewall.ApplyAll` runs inside the lock. The event rate is low, so
@@ -74,13 +73,20 @@ config change withdraws every armed action.
 
 ## Surface
 
+<!-- source: internal/plugins/anomaly/shape/match.go -- buildActions, buildSourceTerm -->
 <!-- source: internal/plugins/anomaly/shape/show.go -- show anomaly shape -->
 <!-- source: internal/plugins/anomaly/shape/metrics.go -- shape metric set -->
 <!-- source: internal/plugins/anomaly/shape/doctor.go -- anomaly-shape-firewall -->
 
 `anomaly-shape { mode armed }` arms the plugin. Each incident source gets its own
-rate limit (`firewall.MatchSourceAddress` plus `Limit`, with a drop fallback) and
-a TTL. `show anomaly shape` reports the mode and the armed sources. Metrics are
+per-source term (`firewall.MatchSourceAddress`) and a TTL. Under the default
+`limit` action, the term applies `firewall.Limit` with `Over: true`, then
+`firewall.Counter`, then `firewall.Drop`. Packets within the rate and burst fall
+through to the chain's accept policy. Excess packets increment the term counter
+and drop. Under the `drop` fallback, the term applies `firewall.Counter` then
+`firewall.Drop`.
+
+`show anomaly shape` reports the mode and the armed sources. Metrics are
 `ze_anomaly_shape_armed`, `ze_anomaly_shape_reverted_total`,
 `ze_anomaly_shape_arm_refused_total` and `ze_anomaly_shape_killswitch_total`. The
 doctor check `anomaly-shape-firewall` warns when the plugin is armed and no

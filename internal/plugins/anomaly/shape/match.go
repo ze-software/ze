@@ -23,18 +23,26 @@ const (
 
 var termNameSanitizer = strings.NewReplacer("/", "-", ".", "-", ":", "-")
 
-// buildActions returns the terminal action for an armed entity: a source
-// rate-limit (surgical throttle) by default, or an outright drop as the fallback.
+// buildActions returns the terminal actions for an armed entity: an
+// excess-and-drop rate limit (`Limit{Over: true}`, `Counter`, `Drop`) by
+// default, or an outright drop (`Counter`, `Drop`) as the fallback. Placing
+// `Counter` after `Limit{Over: true}` and before `Drop` counts dropped excess
+// packets while suppressing the backend's automatic leading counter.
 func buildActions(cfg *Config) []firewall.Action {
 	if cfg.Action == ActionDrop {
 		return []firewall.Action{firewall.Counter{}, firewall.Drop{}}
 	}
-	return []firewall.Action{firewall.Counter{}, firewall.Limit{
-		Rate:      cfg.LimitRate,
-		Unit:      cfg.LimitUnit,
-		Dimension: firewall.RateDimensionPackets,
-		Burst:     cfg.LimitBurst,
-	}}
+	return []firewall.Action{
+		firewall.Limit{
+			Rate:      cfg.LimitRate,
+			Unit:      cfg.LimitUnit,
+			Dimension: firewall.RateDimensionPackets,
+			Burst:     cfg.LimitBurst,
+			Over:      true,
+		},
+		firewall.Counter{},
+		firewall.Drop{},
+	}
 }
 
 // buildSourceTerm builds a firewall term matching the anomalous SOURCE prefix and
