@@ -7,8 +7,67 @@ package flowexport
 import (
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/plugins/flowexport/conntrack"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
+
+const (
+	fixShowDoctor               = "ze show doctor"
+	subjectConntrackDestroy     = "conntrack-destroy"
+	subjectSamplingIfaceDefault = "sampling"
+)
+
+func fitSubject(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	if len(s) <= rpc.ReportSubjectMax {
+		return s
+	}
+	cut := rpc.ReportSubjectMax
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+type conntrackReader interface {
+	Dump() ([]conntrack.FlowEntry, error)
+	Close() error
+}
+
+type conntrackDestroyListener interface {
+	Read() ([]conntrack.FlowEntry, error)
+	Close() error
+}
+
+// activeDestroyWarnings counts live conntrackWorker instances currently running
+// in dump-only mode under subjectConntrackDestroy so a config reload that
+// starts a replacement worker before stopping the previous one does not let
+// the old worker's Stop() clear the new worker's standing warning.
+var activeDestroyWarnings atomic.Int32
+
+// Test seams for conntrack socket creation. Production uses the real
+// ctnetlink reader and destroy listener.
+var (
+	newConntrackReaderFn = func() (conntrackReader, error) {
+		r, err := conntrack.NewReader()
+		if err != nil {
+			return nil, err
+		}
+		return r, nil
+	}
+	newConntrackDestroyListenerFn = func() (conntrackDestroyListener, error) {
+		dl, err := conntrack.NewDestroyListener()
+		if err != nil {
+			return nil, err
+		}
+		return dl, nil
+	}
 )
 
 const (
@@ -41,14 +100,15 @@ const (
 type conntrackWorker struct {
 	exp     *exporter
 	cfg     ConntrackConfig
-	reader  *conntrack.Reader
+	issues  *issuequeue.Queue
+	reader  conntrackReader
 	tracker *conntrack.DeltaTracker
 
 	// destroy listens for NFNLGRP_CONNTRACK_DESTROY events and exports each
 	// torn-down flow's residual counters immediately, so short-lived flows
 	// that begin and end between two periodic dumps are not lost. Optional:
 	// if the listener fails to open the worker still runs in dump-only mode.
-	destroy     *conntrack.DestroyListener
+	destroy     conntrackDestroyListener
 	destroyDone chan struct{}
 
 	// refreshCh requests an out-of-band dump between ticker intervals. The DDoS
@@ -60,9 +120,10 @@ type conntrackWorker struct {
 	// AttackDetected events into a single pending dump.
 	refreshCh chan struct{}
 
-	stopped atomic.Bool
-	stopCh  chan struct{}
-	doneCh  chan struct{}
+	stopped           atomic.Bool
+	destroyWarnRaised atomic.Bool
+	stopCh            chan struct{}
+	doneCh            chan struct{}
 }
 
 func newConntrackWorker(exp *exporter, cfg ConntrackConfig) *conntrackWorker {
@@ -75,6 +136,11 @@ func newConntrackWorker(exp *exporter, cfg ConntrackConfig) *conntrackWorker {
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
 	}
+}
+
+// setIssueQueue attaches the plugin's report-bus queue to the worker.
+func (w *conntrackWorker) setIssueQueue(q *issuequeue.Queue) {
+	w.issues = q
 }
 
 // Refresh requests an immediate out-of-band conntrack dump so the recent-flow
@@ -102,7 +168,7 @@ func (w *conntrackWorker) Start() {
 	// itself or the ctnetlink dump reads an empty table. A no-op off the appliance
 	// (see conntrack_setup_other.go), where the operator/firewall owns it.
 	ensureConntrackTracking(log)
-	reader, err := conntrack.NewReader()
+	reader, err := newConntrackReaderFn()
 	if err != nil {
 		log.Warn("flow-export: conntrack reader unavailable; flow records idle", "error", err)
 		close(w.doneCh)
@@ -116,13 +182,33 @@ func (w *conntrackWorker) Start() {
 	// nf_conntrack_netlink module. If it cannot start, the periodic dump still
 	// provides flow records (it just cannot capture flows shorter than one
 	// dump interval).
-	dl, err := conntrack.NewDestroyListener()
+	dl, err := newConntrackDestroyListenerFn()
 	if err != nil {
-		log.Info("flow-export: conntrack destroy listener unavailable; dump-only mode", "error", err)
+		msg := report.FitMessage("flow-export could not subscribe to kernel conntrack destroy events; conntrack export fell back to periodic table dumps and short-lived flows between dumps may be missed. Cause: " + err.Error())
+		failed := func(rErr error) {
+			loggerPtr.Load().Warn("flow-export could not deliver the conntrack-destroy warning to the daemon; check daemon health",
+				"code", codeDoctorFlowexportConntrackDestroyUnavailable, "error", rErr, "fix", fixShowDoctor)
+		}
+		qErr := w.issues.RaiseWarning(codeDoctorFlowexportConntrackDestroyUnavailable, subjectConntrackDestroy, msg, fixShowDoctor, failed)
+		if w.destroyWarnRaised.CompareAndSwap(false, true) {
+			activeDestroyWarnings.Add(1)
+		}
+		log.Warn("flow-export could not subscribe to kernel conntrack destroy events; falling back to periodic table dumps and short-lived flows may be missed",
+			"code", codeDoctorFlowexportConntrackDestroyUnavailable, "error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 		close(w.destroyDone)
 		return
 	}
 	w.destroy = dl
+	if w.issues != nil && activeDestroyWarnings.Load() == 0 {
+		clearFailed := func(rErr error) {
+			loggerPtr.Load().Warn("flow-export could not clear the conntrack-destroy warning on the daemon; check daemon health",
+				"code", codeDoctorFlowexportConntrackDestroyUnavailable, "error", rErr, "fix", fixShowDoctor)
+		}
+		if cErr := w.issues.ClearWarning(codeDoctorFlowexportConntrackDestroyUnavailable, subjectConntrackDestroy, clearFailed); cErr != nil {
+			log.Warn("flow-export could not queue the conntrack-destroy warning clear; stale warning may persist",
+				"code", codeDoctorFlowexportConntrackDestroyUnavailable, "fix", fixShowDoctor, issuequeue.Outcome(cErr))
+		}
+	}
 	go w.runDestroy()
 	log.Info("flow-export: conntrack destroy listener active")
 }
@@ -293,5 +379,17 @@ func (w *conntrackWorker) Stop() {
 	<-w.destroyDone
 	if w.reader != nil {
 		_ = w.reader.Close()
+	}
+	if w.destroyWarnRaised.Swap(false) {
+		if activeDestroyWarnings.Add(-1) == 0 && w.issues != nil {
+			clearFailed := func(rErr error) {
+				loggerPtr.Load().Warn("flow-export could not clear the conntrack-destroy warning on the daemon; check daemon health",
+					"code", codeDoctorFlowexportConntrackDestroyUnavailable, "error", rErr, "fix", fixShowDoctor)
+			}
+			if cErr := w.issues.ClearWarning(codeDoctorFlowexportConntrackDestroyUnavailable, subjectConntrackDestroy, clearFailed); cErr != nil {
+				loggerPtr.Load().Warn("flow-export could not queue the conntrack-destroy warning clear on stop; stale warning may persist",
+					"code", codeDoctorFlowexportConntrackDestroyUnavailable, "fix", fixShowDoctor, issuequeue.Outcome(cErr))
+			}
+		}
 	}
 }

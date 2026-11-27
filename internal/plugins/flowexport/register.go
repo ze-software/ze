@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -181,6 +182,12 @@ func runEngine(conn net.Conn) int {
 		return 1
 	}
 
+	// Report-bus queue over the SDK connection. Deferred before collectSubID's
+	// teardown so LIFO runs exp.stop() (conntrack/sampling workers) first, then
+	// issues.Stop() drains final clears/errors, then p.Close() closes the conn.
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
 	collectSubID := iface.SubscribeCollectNotify(notifyFromRateTracker)
 	defer func() {
 		iface.UnsubscribeCollectNotify(collectSubID)
@@ -217,7 +224,7 @@ func runEngine(conn net.Conn) int {
 		}
 
 		wireEncoders(exp, cfg)
-		startFlowSubsystems(exp, cfg)
+		startFlowSubsystems(exp, cfg, issues)
 
 		prev := activeExporter.Swap(exp)
 		if prev != nil {
@@ -330,7 +337,7 @@ func wireEncoders(exp *exporter, cfg *Config) {
 // sampling, and conntrack flow records. Each is optional and gated on config;
 // all teardown is registered as an exporter stopper so a config reload (which
 // stops the previous exporter) releases them cleanly.
-func startFlowSubsystems(exp *exporter, cfg *Config) {
+func startFlowSubsystems(exp *exporter, cfg *Config, issues *issuequeue.Queue) {
 	if cfg.Enrichment.BGP {
 		enricher := enrich.NewEnricher()
 		exp.setEnricher(enricher)
@@ -341,12 +348,14 @@ func startFlowSubsystems(exp *exporter, cfg *Config) {
 
 	if len(cfg.Sampling) > 0 {
 		sw := newSamplingWorker(exp, cfg.Sampling)
+		sw.setIssueQueue(issues)
 		sw.Start()
 		exp.addStopper(sw.Stop)
 	}
 
 	if cfg.Conntrack.Enabled {
 		cw := newConntrackWorker(exp, cfg.Conntrack)
+		cw.setIssueQueue(issues)
 		cw.Start()
 		exp.conntrack = cw
 		exp.addStopper(cw.Stop)

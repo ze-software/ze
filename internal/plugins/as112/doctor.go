@@ -180,6 +180,7 @@ func probeBindable(host string, port int) bool {
 	if err != nil {
 		return false
 	}
+	// refuse-by-default: guards as112ListenDiagnostic -- bind probe already succeeded; closing the throwaway probe socket cannot change bindability
 	if cerr := pc.Close(); cerr != nil {
 		loggerPtr.Load().Debug("as112: close udp port probe", "error", cerr)
 	}
@@ -187,6 +188,7 @@ func probeBindable(host string, port int) bool {
 	if err != nil {
 		return false
 	}
+	// refuse-by-default: guards as112ListenDiagnostic -- bind probe already succeeded; closing the throwaway probe socket cannot change bindability
 	if cerr := ln.Close(); cerr != nil {
 		loggerPtr.Load().Debug("as112: close tcp port probe", "error", cerr)
 	}

@@ -1,12 +1,15 @@
 package ntp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"net"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -1057,4 +1061,224 @@ func TestNTPUnsynchronisedNotKissOfDeath(t *testing.T) {
 			assert.Equal(t, uint8(0), ps.Reach, "a rejected reply must not count as reached")
 		})
 	}
+}
+
+type ntpStubPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+	clears []struct{ code, subject string }
+}
+
+func (p *ntpStubPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.raises = append(p.raises, issue)
+	return nil
+}
+
+func (p *ntpStubPublisher) ClearIssue(_ context.Context, code, subject string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.clears = append(p.clears, struct{ code, subject string }{code: code, subject: subject})
+	return nil
+}
+
+func (p *ntpStubPublisher) raisedByCode(code string) []sdk.Issue {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var out []sdk.Issue
+	for _, r := range p.raises {
+		if r.Code == code {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func (p *ntpStubPublisher) clearedByCode(code string) int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	n := 0
+	for _, c := range p.clears {
+		if c.code == code {
+			n++
+		}
+	}
+	return n
+}
+
+type ntpFailEventBus struct {
+	err error
+}
+
+func (b *ntpFailEventBus) Emit(_, _ string, _ any) (int, error) {
+	return 0, b.err
+}
+
+func (b *ntpFailEventBus) Subscribe(_, _ string, _ func(any)) func() {
+	return func() {}
+}
+
+type ntpToggleStateClient struct {
+	mu     sync.Mutex
+	putErr error
+}
+
+func (c *ntpToggleStateClient) StateGet(context.Context, string) ([]byte, bool, error) {
+	return nil, false, nil
+}
+
+func (c *ntpToggleStateClient) StatePut(context.Context, string, []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.putErr
+}
+
+// TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised verifies AC-2 and AC-3
+// for all four NTP Answer-2 sites: clock-synced emit failure, RTC write failure
+// and recovery clear, time persistence failure and recovery clear (while
+// rpc.StateUnavailable stays silent), and rate-limited malformed DHCP lease
+// event handling.
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (ntp).
+// PREVENTS: post-sync persistence, RTC, event-emit, and DHCP option-42 parse
+// failures dropping below WARN with no report-bus raise.
+func TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised(t *testing.T) {
+	restoreNTPSeams(t)
+	origSlew := slewClockFn
+	origRTC := setRTCFn
+	origLogger := loggerPtr.Load()
+	t.Cleanup(func() {
+		slewClockFn = origSlew
+		setRTCFn = origRTC
+		loggerPtr.Store(origLogger)
+	})
+
+	var logBuf bytes.Buffer
+	capLog := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	loggerPtr.Store(capLog)
+
+	pub := &ntpStubPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	ntpQueryFn = func(string) (*ntp.Response, error) {
+		return validNTPResponse(5 * time.Millisecond), nil
+	}
+	setClockFn = func(time.Time) error { return nil }
+	slewClockFn = func(time.Duration) error { return nil }
+
+	rtcErr := errors.New("rtc ioctl failed")
+	setRTCFn = func(time.Time) error { return rtcErr }
+
+	state := &ntpToggleStateClient{putErr: errors.New("disk full")}
+	cfg := defaultConfig()
+	cfg.Enabled = true
+	cfg.Servers = []string{"192.0.2.1"}
+
+	w := newSyncWorker(cfg, &ntpFailEventBus{err: errors.New("event bus closed")})
+	w.state = state
+	w.issues = q
+
+	require.True(t, w.doSync(capLog))
+	q.Flush()
+
+	warnOut := logBuf.String()
+	const queuedAttr = "report=queued"
+	for _, code := range []string{
+		codeDoctorNTPClockSyncedEmitFailed,
+		codeDoctorNTPRTCWriteFailed,
+		codeDoctorNTPTimePersistFailed,
+	} {
+		assert.Contains(t, warnOut, code, "WARN log missing doctor code")
+		assert.Contains(t, warnOut, queuedAttr, "WARN log missing issuequeue.Outcome")
+	}
+
+	clockIssues := pub.raisedByCode(codeDoctorNTPClockSyncedEmitFailed)
+	require.Len(t, clockIssues, 1)
+	assert.Equal(t, rpc.ReportError, clockIssues[0].Severity)
+	assert.Equal(t, "clock-synced", clockIssues[0].Subject)
+	assert.NotEmpty(t, clockIssues[0].Fix)
+
+	rtcIssues := pub.raisedByCode(codeDoctorNTPRTCWriteFailed)
+	require.Len(t, rtcIssues, 1)
+	assert.Equal(t, rpc.ReportWarning, rtcIssues[0].Severity)
+	assert.Equal(t, "/dev/rtc0", rtcIssues[0].Subject)
+	assert.NotEmpty(t, rtcIssues[0].Fix)
+
+	persistIssues := pub.raisedByCode(codeDoctorNTPTimePersistFailed)
+	require.Len(t, persistIssues, 1)
+	assert.Equal(t, rpc.ReportWarning, persistIssues[0].Severity)
+	assert.Equal(t, "last-time", persistIssues[0].Subject)
+	assert.NotEmpty(t, persistIssues[0].Fix)
+
+	// Recovery on next sync clears both RaiseWarning issues and does not
+	// re-emit clock-synced.
+	rtcErr = nil
+	state.mu.Lock()
+	state.putErr = nil
+	state.mu.Unlock()
+
+	require.True(t, w.doSync(capLog))
+	q.Flush()
+	assert.Equal(t, 1, pub.clearedByCode(codeDoctorNTPRTCWriteFailed))
+	assert.Equal(t, 1, pub.clearedByCode(codeDoctorNTPTimePersistFailed))
+	assert.Len(t, pub.raisedByCode(codeDoctorNTPClockSyncedEmitFailed), 1)
+
+	// Storeless daemon (rpc.StateUnavailable) neither warns nor raises.
+	logBuf.Reset()
+	w.state = unavailableStateClient{}
+	require.True(t, w.doSync(capLog))
+	q.Flush()
+	assert.NotContains(t, logBuf.String(), codeDoctorNTPTimePersistFailed)
+	assert.Len(t, pub.raisedByCode(codeDoctorNTPTimePersistFailed), 1)
+
+	// Malformed DHCP lease events are warned and raised once per minute window.
+	logBuf.Reset()
+	for range 3 {
+		w.handleDHCPEvent("{not-valid-json")
+	}
+	q.Flush()
+	dhcpLines := strings.Split(strings.TrimSpace(logBuf.String()), "\n")
+	require.Len(t, dhcpLines, 1, "malformed DHCP events must be rate-limited to one WARN per window")
+	assert.Contains(t, dhcpLines[0], codeDoctorNTPDHCPEventMalformed)
+	assert.Contains(t, dhcpLines[0], queuedAttr)
+
+	dhcpIssues := pub.raisedByCode(codeDoctorNTPDHCPEventMalformed)
+	require.Len(t, dhcpIssues, 1)
+	assert.Equal(t, rpc.ReportError, dhcpIssues[0].Severity)
+	assert.Equal(t, "dhcp-lease-event", dhcpIssues[0].Subject)
+	assert.NotEmpty(t, dhcpIssues[0].Fix)
+
+	// Stopping a running worker (disable / reload / shutdown) clears any
+	// standing RTC and persistence warnings before stopAndWait returns.
+	rtcClearsBefore := pub.clearedByCode(codeDoctorNTPRTCWriteFailed)
+	persistClearsBefore := pub.clearedByCode(codeDoctorNTPTimePersistFailed)
+	syncRan := make(chan struct{})
+	var syncRanOnce sync.Once
+	setRTCFn = func(time.Time) error {
+		return errors.New("rtc ioctl failed")
+	}
+	state2 := &ntpToggleStateClient{putErr: errors.New("disk full")}
+	origQuery := ntpQueryFn
+	ntpQueryFn = func(s string) (*ntp.Response, error) {
+		resp, err := origQuery(s)
+		syncRanOnce.Do(func() { close(syncRan) })
+		return resp, err
+	}
+	w2 := newSyncWorker(cfg, &ntpFailEventBus{err: errors.New("event bus closed")})
+	w2.state = state2
+	w2.issues = q
+	w2.start()
+	<-syncRan
+	// Wait until doSync finishes its post-sync side effects (phase 3 sleeps on
+	// cfg.IntervalSec) before stopping.
+	require.Eventually(t, func() bool {
+		q.Flush()
+		return len(pub.raisedByCode(codeDoctorNTPTimePersistFailed)) >= 2
+	}, 2*time.Second, 10*time.Millisecond)
+	w2.stopAndWait()
+	q.Flush()
+	assert.Greater(t, pub.clearedByCode(codeDoctorNTPRTCWriteFailed), rtcClearsBefore, "stopping worker must clear standing RTC warning")
+	assert.Greater(t, pub.clearedByCode(codeDoctorNTPTimePersistFailed), persistClearsBefore, "stopping worker must clear standing persist warning")
 }

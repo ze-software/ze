@@ -799,6 +799,7 @@ func (s *supervisor) releaseTunablesWhenIdle() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), participantCallTimeout)
 	defer cancel()
+	// refuse-by-default: guards supervisor.createWithTunables -- s.claimed stays true and sysctl restores kernel values on daemon stop
 	if err := s.tunables.release(ctx); err != nil {
 		// Nothing is wrong for an operator: a tunable left claimed hides the
 		// fallback tunnel devices from every new namespace, and the sysctl
@@ -915,6 +916,7 @@ func (s *supervisor) recordFailedExitLocked(name string, running *runningContain
 func (s *supervisor) cleanup(name string, created createdContainer, releaseHold func()) {
 	if err := created.destroy(); err != nil {
 		s.log.Warn("container: the cleanup did not finish", "name", name, "error", err, "code", codeCleanupIncomplete)
+		// refuse-by-default: guards supervisor.recordProblem -- cleanup already logged WARN under codeCleanupIncomplete; recordProblem intentionally refuses containers removed from s.desired
 		if recordErr := s.recordProblem(name, problemCleanupIncomplete); recordErr != nil {
 			s.log.Debug("container: the problem of a container no longer configured is not recorded", "name", name)
 		}
@@ -992,6 +994,7 @@ func (s *supervisor) stopTogether(ctx context.Context, targets []stopTarget) err
 	signaled := time.Now()
 	for _, target := range targets {
 		target.running.stopRequested.Store(true)
+		// refuse-by-default: guards awaitEnd -- awaitEnd immediately observes container exit or kills the cgroup after timeout
 		if err := target.running.created.signal(target.running.stopSignal); err != nil {
 			// An init that already exited cannot take a signal; its watcher
 			// is cleaning up, and the wait below sees it end.
@@ -1008,6 +1011,7 @@ func (s *supervisor) stopTogether(ctx context.Context, targets []stopTarget) err
 			s.log.Warn("container: it ignored its stop signal and was killed when its stop timeout ended",
 				"name", target.name, "signal", target.running.stopSignal.String(),
 				"stop-timeout", target.running.stopTimeout.String(), "code", codeStopKilled)
+			// refuse-by-default: guards supervisor.recordProblem -- stopTogether already logged WARN under codeStopKilled; recordProblem intentionally refuses unconfigured containers
 			if err := s.recordProblem(target.name, problemStopKilled); err != nil {
 				s.log.Debug("container: the problem of a container no longer configured is not recorded", "name", target.name)
 			}
@@ -1027,6 +1031,7 @@ func (s *supervisor) stopTogether(ctx context.Context, targets []stopTarget) err
 		if awaitEnd(context.Background(), target.running, cleanupDeadline) == stopEnded {
 			continue
 		}
+		// refuse-by-default: guards supervisor.recordProblem -- stopTogether already returns opererr.New in failures; recordProblem intentionally refuses unconfigured containers
 		if err := s.recordProblem(target.name, problemCleanupIncomplete); err != nil {
 			s.log.Debug("container: the problem of a container no longer configured is not recorded", "name", target.name)
 		}

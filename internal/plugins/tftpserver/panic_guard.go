@@ -63,6 +63,7 @@ func signalPanic(conn *net.UDPConn, target *net.UDPAddr) {
 	} else {
 		_, err = conn.WriteToUDP(panicError, target)
 	}
+	// refuse-by-default: guards tftpGuard -- taskguard already logged ERROR, incremented ze_task_panics_total, and wrote crash record; RFC 1350 ERROR is best-effort
 	if err != nil {
 		loggerPtr.Load().Debug("tftpserver: panic error response failed", "error", err)
 	}

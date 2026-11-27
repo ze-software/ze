@@ -1,11 +1,20 @@
 package vrrp
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // These tests exercise the REAL telemetry path (recordTransition / clearMetrics /
@@ -141,6 +150,7 @@ func resetTelemetry(t *testing.T) {
 	t.Cleanup(func() {
 		metricsPtr.Store(nil)
 		eventBusPtr.Store(nil)
+		setIssueQueue(nil)
 	})
 }
 
@@ -241,5 +251,95 @@ func TestEmitStateChangeRecordsMetricsAndEmitsEvent(t *testing.T) {
 	if sc.VRID != spec.VRID || sc.Group != spec.Name || sc.Device != spec.ParentDevice ||
 		sc.Family != spec.Family || sc.Interface != spec.Interface || sc.Reason != "master-down-expired" {
 		t.Errorf("payload identity mismatch: %+v", sc)
+	}
+}
+
+type vrrpStubPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+}
+
+func (p *vrrpStubPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.raises = append(p.raises, issue)
+	return nil
+}
+
+func (p *vrrpStubPublisher) ClearIssue(context.Context, string, string) error {
+	return nil
+}
+
+type vrrpFailBus struct {
+	err error
+}
+
+func (b *vrrpFailBus) Emit(_, _ string, _ any) (int, error) { return 0, b.err }
+func (b *vrrpFailBus) Subscribe(_, _ string, _ func(any)) func() {
+	return func() {}
+}
+
+// TestVRRPPublishStateChangeEmitFailureIsWarnedAndRaised verifies AC-2 and AC-3
+// for vrrp/telemetry.go publishStateChange: an EventBus Emit failure logs a
+// rate-limited WARN (once per minute per group) carrying doctor code, fix, and
+// issuequeue.Outcome, and enqueues RaiseError with "<interface>/<group>/<vrid>"
+// as subject.
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (vrrp).
+// PREVENTS: VRRP state-change emit failures dropping at Debug with no
+// report-bus raise, or flooding logs/bus during rapid flapping.
+func TestVRRPPublishStateChangeEmitFailureIsWarnedAndRaised(t *testing.T) {
+	resetTelemetry(t)
+	origLogger := logger()
+	t.Cleanup(func() { setLogger(origLogger) })
+
+	var logBuf bytes.Buffer
+	setLogger(slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	setEventBus(&vrrpFailBus{err: errors.New("event bus unavailable")})
+
+	pub := &vrrpStubPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+	setIssueQueue(q)
+
+	spec := testSpec()
+	for range 3 {
+		publishStateChange(spec, fsm.StateBackup, fsm.StateMaster, "master-down-expired")
+	}
+	q.Flush()
+
+	out := strings.TrimSpace(logBuf.String())
+	if out == "" {
+		t.Fatalf("expected rate-limited WARN line with %q, got empty log", codeDoctorVRRPStateEventEmitFailed)
+	}
+	lines := strings.Split(out, "\n")
+	if len(lines) != 1 {
+		t.Fatalf("WARN lines = %d, want 1 (rate-limited per group):\n%s", len(lines), out)
+	}
+	for _, want := range []string{"level=WARN", codeDoctorVRRPStateEventEmitFailed, "report=queued"} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("WARN line missing %q:\n%s", want, lines[0])
+		}
+	}
+
+	var tb textbuf.Buffer
+	wantSubject := tb.Str(spec.Interface).Byte('/').Str(spec.Name).Byte('/').Uint8(spec.VRID).String()
+
+	pub.mu.Lock()
+	defer pub.mu.Unlock()
+	if len(pub.raises) != 1 {
+		t.Fatalf("raised issues = %d, want 1 (rate-limited): %+v", len(pub.raises), pub.raises)
+	}
+	if pub.raises[0].Severity != rpc.ReportError {
+		t.Errorf("severity = %q, want %q", pub.raises[0].Severity, rpc.ReportError)
+	}
+	if pub.raises[0].Code != codeDoctorVRRPStateEventEmitFailed {
+		t.Errorf("code = %q, want %q", pub.raises[0].Code, codeDoctorVRRPStateEventEmitFailed)
+	}
+	if pub.raises[0].Subject != wantSubject {
+		t.Errorf("subject = %q, want %q", pub.raises[0].Subject, wantSubject)
+	}
+	if pub.raises[0].Fix == "" {
+		t.Error("raised issue has empty Fix")
 	}
 }

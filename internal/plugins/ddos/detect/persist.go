@@ -15,6 +15,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -47,8 +49,8 @@ type persistedBaseline struct {
 // saveBaselines writes the PPS+BPS snapshots into the daemon's managed zefs store
 // under the ddos-detect baseline key via the SDK state RPC. Best-effort: a no-op
 // when no state client is attached or the daemon reports no store registered
-// (rpc.StateUnavailable). The caller logs failures at debug and never treats
-// them as fatal.
+// (rpc.StateUnavailable). Real write failures are returned so the caller warns
+// and raises on the report bus without treating them as fatal.
 func saveBaselines(ctx context.Context, client stateClient, pps, bps baselineState) error {
 	if client == nil {
 		return nil
@@ -64,11 +66,8 @@ func saveBaselines(ctx context.Context, client stateClient, pps, bps baselineSta
 	callCtx, cancel := context.WithTimeout(ctx, stateCallTimeout)
 	defer cancel()
 	if err := client.StatePut(callCtx, zefs.KeyDDoSDetectBaseline.Pattern, data); err != nil {
-		var stateErr *rpc.StateError
-		if errors.As(err, &stateErr) {
-			if stateErr.Status == rpc.StateUnavailable {
-				return nil
-			}
+		if stateErr, ok := errors.AsType[*rpc.StateError](err); ok && stateErr.Status == rpc.StateUnavailable {
+			return nil
 		}
 		return err
 	}
@@ -81,6 +80,10 @@ func saveBaselines(ctx context.Context, client stateClient, pps, bps baselineSta
 // mismatches -- the per-series sample and sanity guards live in baseline.restore,
 // applied next.
 func loadBaselines(ctx context.Context, client stateClient) (persistedBaseline, bool) {
+	return loadBaselinesWithIssues(ctx, client, nil)
+}
+
+func loadBaselinesWithIssues(ctx context.Context, client stateClient, issues *issuequeue.Queue) (persistedBaseline, bool) {
 	if client == nil {
 		return persistedBaseline{}, false
 	}
@@ -91,7 +94,17 @@ func loadBaselines(ctx context.Context, client stateClient) (persistedBaseline, 
 	defer cancel()
 	data, ok, err := client.StateGet(callCtx, zefs.KeyDDoSDetectBaseline.Pattern)
 	if err != nil {
-		logger().Debug("ddos-detect: baseline load failed", "error", err)
+		if stateErr, ok := errors.AsType[*rpc.StateError](err); ok && stateErr.Status == rpc.StateUnavailable {
+			return persistedBaseline{}, false
+		}
+		msg := report.FitMessage("DDoS detector could not load its saved rolling baseline from the daemon state store; detection continues by re-warming from live traffic. Cause: " + err.Error())
+		failed := func(rErr error) {
+			logger().Warn("DDoS detector could not deliver the baseline-load failure report to the daemon; check daemon health",
+				"code", codeDoctorDDoSDetectBaselineLoadFailed, "error", rErr, "fix", fixShowDoctor)
+		}
+		qErr := issues.RaiseError(codeDoctorDDoSDetectBaselineLoadFailed, subjectBaseline, msg, fixShowDoctor, failed)
+		logger().Warn("DDoS detector could not load its saved rolling baseline; detection continues by re-warming from live traffic",
+			"code", codeDoctorDDoSDetectBaselineLoadFailed, "error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 		return persistedBaseline{}, false
 	}
 	if !ok {

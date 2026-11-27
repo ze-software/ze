@@ -3,12 +3,18 @@
 package imageserver
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -279,5 +285,117 @@ func TestConfigTxReloadThatLosesEveryRunningInterfaceRepairs(t *testing.T) {
 	}
 	if len(srv.httpServers) != 1 {
 		t.Fatalf("after the re-commit %d servers serve, want 1", len(srv.httpServers))
+	}
+}
+
+type imageStubPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+}
+
+func (p *imageStubPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.raises = append(p.raises, issue)
+	return nil
+}
+
+func (p *imageStubPublisher) ClearIssue(context.Context, string, string) error {
+	return nil
+}
+
+// TestImageServerZefsCleanupFailureIsWarnedAndRaised verifies AC-2 and AC-3
+// for imageserver/config_tx.go: os.RemoveAll failures in both prepareZefs
+// (after buildZefsDB error) and removeZefsDir (on reload/stop) log at WARN
+// with doctor code and issuequeue.Outcome, enqueue RaiseError with the temp
+// directory path as subject, and never leak the SSH password hash.
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (imageserver).
+// PREVENTS: leaked zefs temporary directories dropping at Debug with no
+// report-bus raise.
+func TestImageServerZefsCleanupFailureIsWarnedAndRaised(t *testing.T) {
+	origBuild := buildZefsDBFn
+	origRemove := removeAllFn
+	origLogger := loggerPtr.Load()
+	t.Cleanup(func() {
+		buildZefsDBFn = origBuild
+		removeAllFn = origRemove
+		loggerPtr.Store(origLogger)
+	})
+
+	var logBuf bytes.Buffer
+	capLog := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	loggerPtr.Store(capLog)
+
+	pub := &imageStubPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	const secretHash = "$6$supersecretpasswordhashvalue"
+	var createdDirs []string
+	t.Cleanup(func() {
+		for _, d := range createdDirs {
+			_ = os.RemoveAll(d)
+		}
+	})
+
+	buildZefsDBFn = func(dir, _, _ string) (string, error) {
+		createdDirs = append(createdDirs, dir)
+		return "", errors.New("zefs build boom")
+	}
+	removeAllFn = func(dir string) error {
+		return errors.New("permission denied removing " + dir)
+	}
+
+	srv := &imageServer{log: capLog, issues: q}
+
+	// 1. prepareZefs cleanup failure after buildZefsDB failure.
+	cfg := imageConfig{
+		Enabled:         true,
+		ImageDirectory:  "/srv/images",
+		SSHUsername:     "admin",
+		SSHPasswordHash: secretHash,
+	}
+	if err := srv.install(cfg); err == nil {
+		t.Fatal("expected install to fail when buildZefsDB fails")
+	}
+
+	// 2. removeZefsDir failure on stop/reload.
+	staleDir := t.TempDir()
+	srv.zefsDir = staleDir
+	srv.stop()
+	q.Flush()
+
+	warnOut := logBuf.String()
+	if strings.Contains(warnOut, secretHash) {
+		t.Fatalf("WARN log leaked SSH password hash:\n%s", warnOut)
+	}
+	for _, want := range []string{"level=WARN", codeDoctorImageServerZefsCleanupFailed, "report=queued"} {
+		if !strings.Contains(warnOut, want) {
+			t.Errorf("WARN log missing %q:\n%s", want, warnOut)
+		}
+	}
+
+	pub.mu.Lock()
+	defer pub.mu.Unlock()
+	if len(pub.raises) != 2 {
+		t.Fatalf("raised issues = %d, want 2 (prepareZefs + removeZefsDir): %+v", len(pub.raises), pub.raises)
+	}
+	for i, iss := range pub.raises {
+		if iss.Severity != rpc.ReportError {
+			t.Errorf("issue[%d] severity = %q, want %q", i, iss.Severity, rpc.ReportError)
+		}
+		if iss.Code != codeDoctorImageServerZefsCleanupFailed {
+			t.Errorf("issue[%d] code = %q, want %q", i, iss.Code, codeDoctorImageServerZefsCleanupFailed)
+		}
+		if iss.Subject == "" {
+			t.Errorf("issue[%d] subject is empty, want temp dir path", i)
+		}
+		if iss.Fix == "" {
+			t.Errorf("issue[%d] has empty Fix", i)
+		}
+		if strings.Contains(iss.Message, secretHash) || strings.Contains(iss.Fix, secretHash) {
+			t.Errorf("issue[%d] leaked SSH password hash", i)
+		}
 	}
 }

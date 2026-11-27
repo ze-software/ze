@@ -87,6 +87,7 @@ func runContainerEngine(conn net.Conn) int {
 	log := logger()
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() {
+		// refuse-by-default: guards supervisor.close -- teardown close of plugin connection on exit
 		if err := p.Close(); err != nil {
 			log.Debug("container: closing the plugin connection failed", "error", err)
 		}

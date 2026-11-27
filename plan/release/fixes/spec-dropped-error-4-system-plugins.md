@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | 50 errors in the system plugins and the ExaBGP bridge (TFTP, image and DHCP servers, NTP, DNS doctor probe closes, container runtime/network, flow export, DDoS detection, VRRP telemetry, ExaBGP bridge and runner) are caught and logged only below WARN at HEAD, hiding operator-actionable failures such as NTP persistence/RTC/event-emit failures, DDoS baseline load/save and direction-lookup failures, DHCP reply write failures, TFTP transfer dial/file-read/resolve-fallback failures, flow-export destroy-listener/teardown failures, image-server zefs cleanup failures, and VRRP state-event emit failures |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -206,7 +206,7 @@ Every Answer-2 plugin starts one `internal/component/plugin/issuequeue.Queue` vi
 | `docs/architecture/core-design.md` | Design decisions | the `// Design:` page of `internal/exabgp/bridge/bridge_ack.go` | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | This spec does not alter daemon startup, dataplane mismatch handling, commit, reload, or `ze config validate` |
 | `docs/architecture/exabgp-bridge.md` | Script exit, respawn, and route ownership | anchored to `bridge_ack.go`, `bridge_batch.go`, `bridge_ping.go`, `bridge_status.go`, `bridgerun/script.go` | "The translator mirrors the script it runs: when the script exits, the translator exits with the script's outcome." | agrees | Stdin write/close failures in `bridge_*` and `bridgerun/script.go` occur when the script closed stdin or exited, which `Bridge.Run` and `script.runOnce` reap and mirror; all 9 sites take Answer 3 naming that guard |
 | `docs/architecture/exabgp-bridge.md` | Design decisions | anchored to `bridge_ack.go`, `bridge_batch.go`, `bridge_ping.go`, `bridge_status.go`, `bridgerun/script.go` | "An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist" | agrees | This spec adds no config root and no internal bridge runner; it only annotates existing stdin write/close error branches in the wrapper and standalone bridge |
-| `docs/architecture/exabgp-bridge.md` | Design decisions | anchored to `bridge_ack.go`, `bridge_batch.go`, `bridge_ping.go`, `bridge_status.go`, `bridgerun/script.go` | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | This spec leaves the `base64` wire grammar, `MuxConn` batching, and hot-path UPDATE renderer completely untouched |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | anchored to `bridge_ack.go`, `bridge_batch.go`, `bridge_ping.go`, `bridge_status.go`, `bridgerun/script.go` | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>`, zero key names, `-` for absent metadata tokens, `0:` for an empty body) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | This spec leaves the `base64` wire grammar, `MuxConn` batching, and hot-path UPDATE renderer completely untouched |
 | `docs/architecture/config/environment.md` | ExaBGP Compatibility Wrapper | anchored to `internal/exabgp/bridge/bridge_ack.go` | "Wrapper emits `done`/`error` lines on script stdin after each dispatched command" | agrees | `AckMode` continues emitting the exact same `done`/`error` lines; Answer-3 annotations document only broken-pipe write errors |
 | `docs/architecture/dns/as112.md` | Address family is a parameter, not a constant | the `// Design:` page of and anchored to `internal/plugins/as112/doctor.go` | "" | silent | `as112.md` specifies zone responses, listener anchors, and family-aware probing, and is silent on closing the throwaway probe sockets in `probeBindable`; bindability reporting is unchanged |
 | `docs/architecture/container/runtime.md` | Runtime checks | the `// Design:` page of `container/container.go`, `container/supervise.go` | "A record is refused for a container the configuration does not hold, and a container that leaves the configuration takes its records with it." | agrees | The three `recordProblem` calls in `supervise.go` already log WARN or return an operator error before recording and intentionally ignore unconfigured-container refusals; `releaseTunablesWhenIdle`, `stopTogether` signal, and `p.Close` teardown all keep their documented behavior under Answer 3 |
@@ -254,9 +254,9 @@ Every Answer-2 plugin starts one `internal/component/plugin/issuequeue.Queue` vi
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin ↔ daemon report bus | `internal/component/plugin/issuequeue` → `sdk.Plugin.RaiseIssue` / `ClearIssue` (`report-issue` RPC, identical internal and forked) | No |
-| Plugin ↔ operator | Plugin log at `WARN` with registered doctor `code` + `issuequeue.Outcome`, `ze show doctor` (`recent-events`), `ze show warnings` / `ze show errors`, `ze show diagnostic <code>`, metrics | No |
-| Bridge ↔ ExaBGP script | stdin and stdout of the script (bytes unchanged) | No |
+| Plugin ↔ daemon report bus | `internal/component/plugin/issuequeue` → `sdk.Plugin.RaiseIssue` / `ClearIssue` (`report-issue` RPC, identical internal and forked) | Yes |
+| Plugin ↔ operator | Plugin log at `WARN` with registered doctor `code` + `issuequeue.Outcome`, `ze show doctor` (`recent-events`), `ze show warnings` / `ze show errors`, `ze show diagnostic <code>`, metrics | Yes |
+| Bridge ↔ ExaBGP script | stdin and stdout of the script (bytes unchanged) | Yes |
 
 ### Changed-Wire Census
 
@@ -337,13 +337,13 @@ Every Answer-2 plugin starts one `internal/component/plugin/issuequeue.Queue` vi
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised` | `internal/plugins/ntp/ntp_test.go` | AC-2, AC-3 for `ntp.go` (`clock-synced` emit `RaiseError`, `setRTC` and `saveTime` `RaiseWarning` + `ClearWarning` on recovery, `handleDHCPEvent` rate-limited `RaiseError`), asserting `WARN` fields, `issuequeue.Outcome`, and stub `Publisher` calls | |
-| `TestDDoSDetectPersistenceAndDirectionErrorsAreWarnedAndRaised` | `internal/plugins/ddos/detect/detector_test.go` | AC-2, AC-3 for `detector.go` and `persist.go` (`RaiseError` + `WARN` + `issuequeue.Outcome`; silent on `rpc.StateUnavailable`) | |
-| `TestDHCPServeRequestsReplyWriteFailureIsWarnedRaisedAndRateLimited` | `internal/plugins/dhcpserver/register_test.go` | AC-2, AC-3 for `dhcpserver/register.go:489` rate-limiting (`warnLimited`), counter, `WARN`, `issuequeue.Outcome`, and stub `Publisher` `RaiseError` | |
-| `TestFlowExportDestroyListenerAndSamplingTeardownWarnAndRaise` | `internal/plugins/flowexport/conntrack_worker_test.go`, `internal/plugins/flowexport/sampling_worker_test.go` | AC-2, AC-3 for `conntrack_worker.go:120` (`RaiseWarning` + `ClearWarning` on recovery/stop) and `sampling_worker.go:141` (`RaiseError` only for installed interfaces) | |
-| `TestTFTPServerSideErrorsAreWarnedAndRaised` | `internal/plugins/tftpserver/handler_test.go`, `internal/plugins/tftpserver/config_tx_test.go` | AC-2, AC-3 for `handler.go:397` (`RaiseError`), `window_send.go:128` outer `readBlock` (`RaiseError`), and `config_tx.go:200` (`RaiseWarning` on non-`ErrNoBackendLoaded` resolve error; silent on `iface.ErrNoBackendLoaded` with zero `iface.GetBackend()` calls) | |
-| `TestImageServerZefsCleanupFailureIsWarnedAndRaised` | `internal/plugins/imageserver/config_tx_test.go` | AC-2, AC-3 for `imageserver/config_tx.go:177,193` (`RaiseError` + `WARN` + `issuequeue.Outcome`) | |
-| `TestVRRPPublishStateChangeEmitFailureIsWarnedAndRaised` | `internal/plugins/vrrp/telemetry_test.go` | AC-2, AC-3 for `vrrp/telemetry.go:140` (rate-limited `RaiseError` + `WARN` + `issuequeue.Outcome`) | |
+| `TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised` | `internal/plugins/ntp/ntp_test.go` | AC-2, AC-3 for `ntp.go` (`clock-synced` emit `RaiseError`, `setRTC` and `saveTime` `RaiseWarning` + `ClearWarning` on recovery/stop, `handleDHCPEvent` rate-limited `RaiseError`), asserting `WARN` fields, `issuequeue.Outcome`, and stub `Publisher` calls | PASS (re-run owed after Run 1 fix) |
+| `TestDDoSDetectPersistenceAndDirectionErrorsAreWarnedAndRaised` | `internal/plugins/ddos/detect/detector_test.go` | AC-2, AC-3 for `detector.go` and `persist.go` (`RaiseError` + `WARN` + `issuequeue.Outcome`; silent on `rpc.StateUnavailable`) | PASS |
+| `TestDHCPServeRequestsReplyWriteFailureIsWarnedRaisedAndRateLimited` | `internal/plugins/dhcpserver/register_test.go` | AC-2, AC-3 for `dhcpserver/register.go:489` rate-limiting (`warnLimited`), counter, `WARN`, `issuequeue.Outcome`, and stub `Publisher` `RaiseError` | PASS |
+| `TestFlowExportDestroyListenerAndSamplingTeardownWarnAndRaise` | `internal/plugins/flowexport/conntrack_worker_test.go`, `internal/plugins/flowexport/sampling_worker_test.go` | AC-2, AC-3 for `conntrack_worker.go:120` (`RaiseWarning` + `ClearWarning` on recovery/stop/overlap) and `sampling_worker.go:141` (`RaiseError` only for installed interfaces) | PASS (re-run owed after Run 1 fix) |
+| `TestTFTPServerSideErrorsAreWarnedAndRaised` | `internal/plugins/tftpserver/handler_test.go`, `internal/plugins/tftpserver/config_tx_test.go` | AC-2, AC-3 for `handler.go:397` (`RaiseError`), `window_send.go:128` outer `readBlock` (`RaiseError`), and `config_tx.go:200` (`RaiseWarning` on non-`ErrNoBackendLoaded` resolve error + clear on clean apply/rollback; silent on `iface.ErrNoBackendLoaded` with zero `iface.GetBackend()` calls) | PASS (re-run owed after Run 1 fix) |
+| `TestImageServerZefsCleanupFailureIsWarnedAndRaised` | `internal/plugins/imageserver/config_tx_test.go` | AC-2, AC-3 for `imageserver/config_tx.go:177,193` (`RaiseError` + `WARN` + `issuequeue.Outcome`) | PASS |
+| `TestVRRPPublishStateChangeEmitFailureIsWarnedAndRaised` | `internal/plugins/vrrp/telemetry_test.go` | AC-2, AC-3 for `vrrp/telemetry.go:140` (rate-limited `RaiseError` + `WARN` + `issuequeue.Outcome`) | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -355,7 +355,7 @@ Every Answer-2 plugin starts one `internal/component/plugin/issuequeue.Queue` vi
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Reached `.ci` suites under `test/dhcp`, `test/exabgp`, `test/plugin` | `test/` | Unchanged DHCP/ExaBGP/plugin end-to-end behavior under default WARN logging and active `issuequeue` | |
+| Reached `.ci` suites under `test/dhcp`, `test/exabgp`, `test/plugin` | `test/` | Unchanged DHCP/ExaBGP/plugin end-to-end behavior under default WARN logging and active `issuequeue` | PASS (`dhcp` 1/1 runnable 1.6s; `vrrp` 7/7 runnable 6.4s) |
 
 ## Files to Modify
 - `internal/exabgp/bridge/bridge_ack.go` - 4 Answer-3 annotations: `AckMode.AnswerLocal` 56; `AckMode.WriteAck` 113; `AckMode.WriteError` 144; `AckMode.WriteErrorMarker` 156
@@ -574,3 +574,164 @@ The class row for the whole population is owned by the umbrella.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-4-system-plugins.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Resolved all 50 `error-dropped-below-warn` instances across 26 files under `internal/plugins/` (outside routing/forwarding) and `internal/exabgp/`: 15 Answer-2 sites (plus `tftpserver` `windowSender.sendWindow` outer `readBlock` error) upgraded to `WARN` + `issuequeue` raises under 15 registered doctor event codes, and 35 Answer-3 guard-protected sites (plus the `iface.ErrNoBackendLoaded` branch of `tftpserver` `listenInterface`) annotated with `// refuse-by-default: guards <Symbol> -- <why>`.
+- Wired `internal/component/plugin/issuequeue.Start(p)` and `defer issues.Stop()` (running after worker/server teardown and before `p.Close()`) across all 7 Answer-2 plugins (`ddos/detect`, `dhcpserver`, `flowexport`, `imageserver`, `ntp`, `tftpserver`, `vrrp`).
+- Registered all 15 event codes via `diagnostic.Register` and `diagnostic.RegisterEventCode` across 4 existing `register_doctor_codes.go` files (`ddos/detect`, `dhcpserver`, `flowexport`, `ntp`) and 3 new `register_doctor_codes.go` files (`imageserver`, `tftpserver`, `vrrp`).
+- Added the `ze_dhcp_reply_write_errors_total` CounterVec (`interface` label) in `internal/plugins/dhcpserver/register.go` (`configureMetrics`, `replyWriteErrorsCounter`, `serveRequests`).
+- Added unit tests proving `WARN` log fields, `issuequeue.Outcome`, stub `issuequeue.Publisher` raises/clears, rate limits, expected no-op suppressions, and zero credential leakage across all 7 Answer-2 plugins.
+- Wrote operator news fragment `website/changes/fragments/dropped-error-4-system-plugins.md` (STE check OK) and updated external citers (`plan/release/fixes/spec-dropped-error-0-umbrella.md` row 82 and `features/lan-dns-resolver.md` row 19) to bare stem.
+
+### Bugs Found/Fixed
+- `internal/plugins/tftpserver/config_tx.go` (`bindTFTP`, `tftpServer.install`): on strict reload failure, `bindTFTP` returned `nil, nil, err`, dropping `warnedIfaces` so rollback via `s.restore` never cleared `doctor-tftp-interface-resolve-fallback` warnings raised for interfaces in the rejected candidate config. Fixed by returning `warnedIfaces` and merging them into `s.resolveWarned` before `s.restore`; covered by `TestTFTPServerSideErrorsAreWarnedAndRaised/interface-resolve-fallback`.
+- `internal/plugins/ntp/ntp.go` (`syncWorker.run`): exiting a `syncWorker` (on disable, reload replacement, or plugin shutdown) did not clear standing `doctor-ntp-rtc-write-failed` or `doctor-ntp-time-persist-failed` warnings, leaving stale warnings on disable and preventing replacement workers (whose `failures == 0`) from clearing them. Fixed by deferring `clearRTCFailure` and `clearPersistFailure` after `defer close(w.done)` in `syncWorker.run`; covered by `TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised`.
+- `internal/plugins/flowexport/conntrack_worker.go` (`conntrackWorker.Start`, `conntrackWorker.Stop`): during config reload, `flowexport/register.go` starts the replacement `conntrackWorker` before stopping `prev`, so when `NewDestroyListener` remained unavailable `prev`'s `Stop()` enqueued `ClearWarning` after the replacement worker's `RaiseWarning`, erasing the live standing warning. Fixed by reference-counting active dump-only workers with `activeDestroyWarnings atomic.Int32`; covered by `TestFlowExportDestroyListenerAndSamplingTeardownWarnAndRaise/conntrack-destroy-unavailable`.
+
+### Documentation Updates
+- `docs/plugin-development/metrics.md` line 279: carries the STE-clean `ze_dhcp_reply_write_errors_total` row with anchor `<!-- source: internal/plugins/dhcpserver/register.go -- configureMetrics, replyWriteErrorsCounter, serveRequests -->` (already landed on HEAD via sibling commit `5b59287672`; verified present on HEAD).
+- `website/changes/fragments/dropped-error-4-system-plugins.md`: created operator-facing news fragment (`./le doc ste check file` -> `OK`).
+- `features/lan-dns-resolver.md` line 19 and `plan/release/fixes/spec-dropped-error-0-umbrella.md` line 82: updated citations of this spec to bare stem `spec-dropped-error-4-system-plugins` (closed 2026-11-27).
+- `./le doc check all`: verified during closure.
+
+### Deviations from Plan
+- `internal/plugins/dhcpserver/config_tx.go` was modified in addition to the files originally listed in `Files to Modify` so `dhcpServer` threads its `issues *issuequeue.Queue` into `bindListenersWithIssues` and `restore`'s `dhcpServe`.
+- `internal/plugins/dhcpserver/listen_resolve_test.go` was modified to match the updated `dhcpServe` test-hook signature carrying `*issuequeue.Queue`.
+- `internal/plugins/flowexport/sampling_worker_test.go` was created as a separate unit test file (matching the TDD Test Plan entry) rather than appending to `conntrack_worker_test.go`.
+- `docs/plugin-development/metrics.md` shows an empty diff against `HEAD` because its `ze_dhcp_reply_write_errors_total` row was already carried onto `HEAD` by commit `5b59287672` (verified present at line 279).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Initial implementation of the three standing-warning (`RaiseWarning`) plugins missed warning-clear lifecycle edge cases on strict reload rollback (`tftpserver`), worker stop/reload (`ntp`), and overlapping reload (`flowexport`) | Standing report-bus warnings persist on the daemon bus across rejected reloads, worker replacements, and overlapping exporter swaps unless explicitly cleared or ref-counted | Run 1 independent `/ze-review` during `/ze-close` | Fixed all three at source (`tftpserver/config_tx.go`, `ntp/ntp.go`, `flowexport/conntrack_worker.go`) and added regression cases in their respective tests |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Resolve all 50 `error-dropped-below-warn` instances across 26 files under system-plugins door | Done | 26 source files across `internal/exabgp/bridge`, `internal/plugins/{as112,container,ddos/detect,dhcpserver,dnsresolver,exabgp/bridgerun,flowexport,geodns,imageserver,ntp,tftpserver,vrrp}` | Filtered `./le arch refuse-by-default report` reports 0 unannotated findings and 0 `annotation-names-no-guard` findings |
+| Wire `issuequeue.Start(p)` / `defer issues.Stop()` in all 7 Answer-2 plugins' `register.go` (after workers stop, before `p.Close()`) | Done | `ddos/detect/register.go:146`, `dhcpserver/register.go:135`, `flowexport/register.go:188`, `imageserver/register.go:74`, `ntp/register.go:213`, `tftpserver/register.go:69`, `vrrp/register.go:192` | Verified LIFO/explicit teardown order in all 7 functions |
+| Register all 15 Answer-2 event codes via `diagnostic.Register` + `RegisterEventCode` in owning `register_doctor_codes.go` | Done | `register_doctor_codes.go` in `ddos/detect`, `dhcpserver`, `flowexport`, `imageserver`, `ntp`, `tftpserver`, `vrrp` | `./le arch doctor-coverage check` OK |
+| Every Answer-2 `WARN` carries what/why/executable YANG fix, `"code"`, `issuequeue.Outcome`, bounded `Subject`/`Message`, non-nil `failed` callback | Done | `ddos/detect/{detector,persist}.go`, `dhcpserver/register.go`, `flowexport/{conntrack,sampling}_worker.go`, `imageserver/config_tx.go`, `ntp/ntp.go`, `tftpserver/{config_tx,handler,window_send}.go`, `vrrp/telemetry.go` | Verified every `fix` string (`ze show doctor`, `ze show interface`, `ze show system ntp`, `ze show vrrp`) against `*.yang` `ze:command`, every subject via `fitSubject` (`rpc.ReportSubjectMax`), every message via `report.FitMessage` (`rpc.ReportMessageMax`), and zero `fmt.Sprintf` |
+| Use `errors.Is(rerr, iface.ErrNoBackendLoaded)` in `tftpserver` without calling `iface.GetBackend()` | Done | `internal/plugins/tftpserver/register.go:129` (`isNoBackendLoaded`), `config_tx.go:258` | `./le plugin boundary check` OK; zero `iface.GetBackend()` calls |
+| Annotate all 35 Answer-3 sites (plus `ErrNoBackendLoaded` branch) with non-enclosing guards | Done | `bridge_{ack,batch,ping,status}.go`, `bridgerun/script.go`, `{as112,dnsresolver,geodns}/doctor.go`, `container/{container,supervise}.go`, `container/network/attach.go`, `dhcpserver/register.go`, `flowexport/conntrack_setup_appliance_linux.go`, `imageserver/{config_tx,register}.go`, `tftpserver/{config_tx,handler,panic_guard,register,window_send}.go` | Zero `annotation-names-no-guard` findings |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Filtered `./le arch refuse-by-default report '\|' json` under system-plugins door paths -> 0 `error-dropped-below-warn`, 0 `annotation-names-no-guard` | All 35 Answer-3 sites + `ErrNoBackendLoaded` branch annotated with visible non-enclosing guards |
+| AC-2 | Done | `./le arch doctor-coverage check` OK; `./le plugin boundary check` OK; `./le arch tier check` OK; stub `issuequeue.Publisher` unit tests across all 7 Answer-2 plugins | Standing-warning clear edge cases fixed in Run 1 (`tftpserver`, `ntp`, `flowexport`); re-run owed on those 3 packages |
+| AC-3 | Done | 7 named unit tests in `ddos/detect`, `dhcpserver`, `flowexport`, `imageserver`, `ntp`, `tftpserver`, `vrrp` asserting `WARN`, `code`, `fix`, `report=queued`, severity, subject, rate limits, and silent no-ops | Re-verified PASS under `-race` after Run 1 fixes (`tftpserver` 49.90s, `ntp` 15.25s, `flowexport` 5.33s) |
+| AC-4 | Done | Main-thread `-race` unit + Linux userns suites across all 14 packages PASS (incl. `-tags ze_appliance` for `flowexport`); scoped lint 0 issues; functional `.ci` `dhcp` (1/1) and `vrrp` (7/7) PASS | Re-verified PASS after Run 1 fixes |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised` | Done | `internal/plugins/ntp/ntp_test.go:1143` | Extended with worker-stop warning-clear regression check; PASS (`-race`, 15.25s) |
+| `TestDDoSDetectPersistenceAndDirectionErrorsAreWarnedAndRaised` | Done | `internal/plugins/ddos/detect/detector_test.go:495` | PASS (`-race`, 8.91s) |
+| `TestDHCPServeRequestsReplyWriteFailureIsWarnedRaisedAndRateLimited` | Done | `internal/plugins/dhcpserver/register_test.go:388` | PASS (`-race` userns, 7.81s + 1.09s) |
+| `TestFlowExportDestroyListenerAndSamplingTeardownWarnAndRaise` | Done | `internal/plugins/flowexport/conntrack_worker_test.go:143`, `sampling_worker_test.go:44` | Extended with overlapping-reload warning-clear regression check; PASS (`-race`, 5.33s) |
+| `TestTFTPServerSideErrorsAreWarnedAndRaised` | Done | `internal/plugins/tftpserver/handler_test.go:1326`, `config_tx_test.go:413` | Extended with strict-reload rollback warning-clear regression check; PASS (`-race` userns, 49.90s) |
+| `TestImageServerZefsCleanupFailureIsWarnedAndRaised` | Done | `internal/plugins/imageserver/config_tx_test.go:313` | PASS (`-race`, 4.81s) |
+| `TestVRRPPublishStateChangeEmitFailureIsWarnedAndRaised` | Done | `internal/plugins/vrrp/telemetry_test.go:288` | PASS (`-race` userns, 72.64s) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 33 files in `Files to Modify` | Done | Verified in `git diff HEAD` |
+| All 3 `register_doctor_codes.go` files in `Files to Create` (`imageserver`, `tftpserver`, `vrrp`) | Done | Verified with `ls -l` |
+| `internal/plugins/flowexport/sampling_worker_test.go` | Done | Created per TDD Test Plan; verified with `ls -l` |
+| `internal/plugins/dhcpserver/config_tx.go`, `internal/plugins/dhcpserver/listen_resolve_test.go` | Changed | Recorded in Deviations from Plan |
+| `docs/plugin-development/metrics.md` | Changed | Already landed on HEAD in `5b59287672`; verified line 279 |
+
+### Audit Summary
+- **Total items:** 22
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero unannotated `error-dropped-below-warn` findings across all 26 system-plugin/ExaBGP files | Static gate (`./le arch refuse-by-default report`) | Main-thread filtered JSON report under `internal/plugins/` (excluding routing/forwarding) and `internal/exabgp/`: `0` `error-dropped-below-warn` findings, `0` `annotation-names-no-guard` findings |
+| Every Answer-2 failure warns with registered doctor code and raises on report bus via `issuequeue` over `*sdk.Plugin` | Unit tests + `./le arch doctor-coverage check` + `./le plugin boundary check` | All 7 TDD unit tests (`TestNTPPostSyncAndDHCPEventErrorsAreWarnedAndRaised`, `TestDDoSDetectPersistenceAndDirectionErrorsAreWarnedAndRaised`, `TestDHCPServeRequestsReplyWriteFailureIsWarnedRaisedAndRateLimited`, `TestFlowExportDestroyListenerAndSamplingTeardownWarnAndRaise`, `TestTFTPServerSideErrorsAreWarnedAndRaised`, `TestImageServerZefsCleanupFailureIsWarnedAndRaised`, `TestVRRPPublishStateChangeEmitFailureIsWarnedAndRaised`) + `./le arch doctor-coverage check` OK + `./le plugin boundary check` OK |
+| Zero wire, protocol, or functional regressions across system plugins and ExaBGP bridge | Scoped `-race` unit/userns tests + `.ci` functional tests | All 14 package suites PASS with `-race`; `./le --name b3ci test functional dhcp` 1/1 runnable PASS (`1.6s`); `./le --name b3ci test functional vrrp` 7/7 runnable PASS (`6.4s`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None — all 50 instances under this child's door are resolved | Tree-wide completion of remaining doors is tracked by the umbrella and sibling child specs | `plan/release/fixes/spec-dropped-error-0-umbrella.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-4-system-plugins-b3b20002-2222-4000-8000-000000000002.md` |
+| `./le spec review check` | `review_gate: OK (48 code files, clean, rounds 2)` |
+| Rounds | 2 (Run 1 found and fixed 3 standing-warning lifecycle ISSUEs; independent Run 2 `ze-read` review returned **CLEAN**, 0 BLOCKER, 0 ISSUE) |
+| Reviewer lenses used | logic+wiring, standing-warning lifecycle, user-facing errors & security, design-documents lens, ze-go-style pass |
+
+### Run 1 (independent `/ze-review` + `/ze-review-spec` over all 48 files)
+- Automated pre-checks: `./le test weakened check` reported 0 findings on this spec's 48 files (1 unrelated finding in `internal/component/bgp/format/raw_b64_test.go`); `./le spec design check` -> `ready to present`; `./le repo check` reported 0 findings on new symbols added by this spec.
+- Design-documents lens: checked all rows in `## Design documents` against the diff — 0 contradictions, 0 unrecorded departures.
+- Style pass (`docs/contributing/ze-go-style.md`): verified all 7 checks across changed Go files (zero peer-reachable `panic()`, every loop/rate-limiter map/ring bounded, zero `fmt.Sprintf` in added code, paired `Start`/`Stop` lifecycle order verified across all 7 `register.go` files).
+- Security & user-facing errors check: verified every `fix` string (`ze show doctor`, `ze show interface`, `ze show system ntp`, `ze show vrrp`) maps to an executable YANG `ze:command`, every `Subject` is bounded by `rpc.ReportSubjectMax`, every `Message` is bounded by `report.FitMessage` (`rpc.ReportMessageMax`), every `issuequeue` call passes a non-nil `failed` callback, and zero untrusted filenames, DHCP payloads, or SSH password hashes leak.
+- Found 3 standing-warning (`RaiseWarning`) lifecycle ISSUEs; fixed all 3 at source with regression tests (below).
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Rejected strict TFTP reload dropped `warnedIfaces` in `bindTFTP`, leaving standing `doctor-tftp-interface-resolve-fallback` warning un-cleared after rollback | `internal/plugins/tftpserver/config_tx.go:188,341` | Returned `warnedIfaces` on strict error in `bindTFTP` and merged into `s.resolveWarned` before `s.restore` in `tftpServer.install`; added rollback regression check in `internal/plugins/tftpserver/config_tx_test.go` |
+| 2 | ISSUE | Stopping NTP `syncWorker` on disable, reload replacement, or shutdown left standing `doctor-ntp-rtc-write-failed` and `doctor-ntp-time-persist-failed` warnings active (and replacement workers had `failures == 0`, so recovery skipped `ClearWarning`) | `internal/plugins/ntp/ntp.go:178` | Deferred `w.clearRTCFailure(logger)` and `w.clearPersistFailure(logger)` after `defer close(w.done)` in `syncWorker.run`; added worker-stop clear regression check in `internal/plugins/ntp/ntp_test.go` |
+| 3 | ISSUE | Overlapping flow-export reload in `register.go:227-232` starts replacement `conntrackWorker` before stopping `prev`, so `prev.Stop()` erased the replacement worker's newly raised `doctor-flowexport-conntrack-destroy-unavailable` warning | `internal/plugins/flowexport/conntrack_worker.go:186,375` | Added `activeDestroyWarnings atomic.Int32` refcount so `Stop()` clears only when the last dump-only worker exits and `Start()` clears on success only when count is 0; added overlapping-reload regression check in `internal/plugins/flowexport/conntrack_worker_test.go` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/imageserver/register_doctor_codes.go` | Yes | `-rw-r--r-- 1 thomas thomas 1799 Nov 27 10:51 internal/plugins/imageserver/register_doctor_codes.go` |
+| `internal/plugins/tftpserver/register_doctor_codes.go` | Yes | `-rw-r--r-- 1 thomas thomas 3321 Nov 27 10:51 internal/plugins/tftpserver/register_doctor_codes.go` |
+| `internal/plugins/vrrp/register_doctor_codes.go` | Yes | `-rw-r--r-- 1 thomas thomas 1743 Nov 27 10:51 internal/plugins/vrrp/register_doctor_codes.go` |
+| `internal/plugins/flowexport/sampling_worker_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 3305 Nov 27 11:06 internal/plugins/flowexport/sampling_worker_test.go` |
+| `website/changes/fragments/dropped-error-4-system-plugins.md` | Yes | `-rw-r--r-- 1 thomas thomas 3237 Nov 27 12:55 website/changes/fragments/dropped-error-4-system-plugins.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 unannotated `error-dropped-below-warn` and 0 `annotation-names-no-guard` findings under system-plugins door | Filtered `./le arch refuse-by-default report '\|' json` in main checkout: 0 findings, 0 invalid guards |
+| AC-2 | Every new `Warn` carries registered doctor code + raises via `issuequeue` over `*sdk.Plugin`; zero `iface.GetBackend()` calls | `./le arch doctor-coverage check` OK, `./le plugin boundary check` OK, `./le arch tier check` OK; `git diff HEAD` grep for `iface.GetBackend` returned only a doc comment line in `tftpserver/register.go` |
+| AC-3 | All 15 Answer-2 sites + `sendWindow` `readBlock` warn with what/why/fix/code/`report=queued` and raise/clear cleanly; expected no-ops stay silent | 7 unit tests verified against source and re-run under `-race` after Run 1 standing-warning fixes (`tftpserver` 49.90s, `ntp` 15.25s, `flowexport` 5.33s PASS; `doctor-coverage` OK; scoped lint 0 issues) |
+| AC-4 | All 14 modified packages and reached functional `.ci` suites pass with zero regressions | Main-thread `-race` unit/userns suites PASS for all 14 packages (re-verified post-Run-1 on `tftpserver`, `ntp`, `flowexport`) + `dhcp` (1/1) and `vrrp` (7/7) `.ci` PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| DHCP server reply path (`runDHCPServerPlugin` -> `serveRequests`) | `test/dhcp/` (`./le --name b3ci test functional dhcp`) | Yes — 1/1 runnable PASS (`1.6s`) |
+| VRRP state-change telemetry (`runVRRPEngine` -> `publishStateChange`) | `test/vrrp/` (`./le --name b3ci test functional vrrp`) | Yes — 7/7 runnable PASS (`6.4s`) |
+| Plugin SDK `issuequeue` (`Start` -> `RaiseIssue`/`ClearIssue` -> `Stop`) | Driven by all 7 Answer-2 plugins' `register.go` entry points + stub `issuequeue.Publisher` tests | Yes — verified in `ddos/detect/register.go`, `dhcpserver/register.go`, `flowexport/register.go`, `imageserver/register.go`, `ntp/register.go`, `tftpserver/register.go`, `vrrp/register.go` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Filtered `./le arch refuse-by-default report '\|' json` confirmed exact 50-finding population in 26 files and 0 remaining findings after implementation |
+| A-2 | confirmed | Source inspection of `bridge_ack.go`, `bridge_batch.go`, `bridge_ping.go`, `bridge_status.go`, and `bridgerun/script.go` confirmed `Bridge.Run` / `script.runOnce` reap child exit |
+| A-3 | confirmed | `./le arch doctor-coverage check` OK and all 7 Answer-2 plugins deliver raises through `issuequeue.Start(p)` over `*sdk.Plugin` |
+| A-4 | confirmed | `tftpserver/register.go` `isNoBackendLoaded` uses `errors.Is(err, iface.ErrNoBackendLoaded)`; `./le plugin boundary check` OK |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Metrics (`docs/plugin-development/metrics.md` line 279) | `ze_dhcp_reply_write_errors_total` row present on HEAD with anchor to `internal/plugins/dhcpserver/register.go -- configureMetrics, replyWriteErrorsCounter, serveRequests`; `./le doc ste check file` OK | Yes |
+| Operator news fragment (`website/changes/fragments/dropped-error-4-system-plugins.md`) | Created with valid front matter (`spec`, `topic: Diagnostics`, `found-by: review`) and 6 headings; `./le doc ste check file` OK | Yes |
+| External spec citations (`plan/release/fixes/spec-dropped-error-0-umbrella.md:82`, `features/lan-dns-resolver.md:19`) | Updated to bare stem `spec-dropped-error-4-system-plugins`; `git grep 'plan/release/fixes/spec-dropped-error-4-system-plugins\.md'` returns only self-references in this spec | Yes |
+| Existing architecture doc anchors (`./le spec citation anchors`) | Wire, protocol, and documented fallback behaviors (`dhcp-server.md`, `container/network.md`, `tftp-server.md`, `flow-export-2-flow-records.md`, `exabgp-bridge.md`) preserved unchanged | Yes |

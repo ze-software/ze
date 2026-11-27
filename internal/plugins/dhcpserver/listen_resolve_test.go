@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -131,7 +132,7 @@ func recordServe(t *testing.T) <-chan string {
 	t.Helper()
 	previous := dhcpServe
 	served := make(chan string, 8)
-	dhcpServe = func(_ *net.UDPConn, device string, _ []*dhcpHandler, _ *slog.Logger) {
+	dhcpServe = func(_ *net.UDPConn, device string, _ []*dhcpHandler, _ *slog.Logger, _ *issuequeue.Queue) {
 		served <- device
 	}
 	t.Cleanup(func() { dhcpServe = previous })

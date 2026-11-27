@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -46,6 +47,7 @@ type dhcpServer struct {
 	handlers  []*dhcpHandler
 	listeners []dhcpListener
 	log       *slog.Logger
+	issues    *issuequeue.Queue
 	// learned is the newest system-dns snapshot, which every handler's
 	// received class reads at reply time (followLearnedResolvers).
 	learned dnssource.Follower
@@ -78,7 +80,7 @@ func (s *dhcpServer) install(cfg serverConfig) error {
 	}
 	served := s.listeners
 	s.closeListeners()
-	listeners, err := bindListeners(cfg, handlers, s.log, !s.boot)
+	listeners, err := bindListenersWithIssues(cfg, handlers, s.log, s.issues, !s.boot)
 	if err != nil {
 		stopLeasesNotIn(handlers, s.handlers)
 		return s.restore(served, err)
@@ -121,7 +123,7 @@ func (s *dhcpServer) restore(served []dhcpListener, cause error) error {
 			continue
 		}
 		s.listeners = append(s.listeners, dhcpListener{iface: previous.iface, device: previous.device, conn: conn})
-		go dhcpServe(conn, previous.device, s.handlers, s.log)
+		go dhcpServe(conn, previous.device, s.handlers, s.log, s.issues)
 	}
 	if len(lost) == 0 {
 		return cause

@@ -9,7 +9,27 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/plugins/flowexport/sampling"
+)
+
+type psampleReader interface {
+	Read() (sampling.SampledPacket, error)
+	Close() error
+}
+
+// Test seams for tc sampling setup/teardown and psample netlink reader.
+var (
+	setupSamplingFn    = sampling.SetupSampling
+	removeSamplingFn   = sampling.RemoveSampling
+	newPsampleReaderFn = func() (psampleReader, error) {
+		r, err := sampling.NewPsampleReader()
+		if err != nil {
+			return nil, err
+		}
+		return r, nil
+	}
 )
 
 const (
@@ -30,9 +50,11 @@ const (
 // SetupSampling and NewPsampleReader return errors and the worker degrades
 // to a no-op (logged once).
 type samplingWorker struct {
-	exp    *exporter
-	cfgs   []SamplingConfig
-	reader *sampling.PsampleReader
+	exp       *exporter
+	cfgs      []SamplingConfig
+	installed []string
+	issues    *issuequeue.Queue
+	reader    psampleReader
 
 	idxToName map[uint32]string
 	stopped   atomic.Bool
@@ -48,6 +70,11 @@ func newSamplingWorker(exp *exporter, cfgs []SamplingConfig) *samplingWorker {
 	}
 }
 
+// setIssueQueue attaches the plugin's report-bus queue to the worker.
+func (w *samplingWorker) setIssueQueue(q *issuequeue.Queue) {
+	w.issues = q
+}
+
 // Start installs sampling on each configured interface and launches the
 // reader goroutine. Failures are logged; a failed setup leaves the worker
 // idle rather than aborting the whole exporter.
@@ -56,11 +83,12 @@ func (w *samplingWorker) Start() {
 
 	for i := range w.cfgs {
 		c := &w.cfgs[i]
-		if err := sampling.SetupSampling(c.Interface, c.Rate, c.Group, c.TruncSize); err != nil {
+		if err := setupSamplingFn(c.Interface, c.Rate, c.Group, c.TruncSize); err != nil {
 			log.Warn("flow-export: tc sample setup failed",
 				"interface", c.Interface, "error", err)
 			continue
 		}
+		w.installed = append(w.installed, c.Interface)
 		if b, err := iface.Resolve(c.Interface); err == nil {
 			w.idxToName[uint32(b.Ifindex)] = c.Interface //nolint:gosec // ifindex is a small positive kernel value
 		}
@@ -68,7 +96,7 @@ func (w *samplingWorker) Start() {
 			"interface", c.Interface, "rate", c.Rate, "group", c.Group)
 	}
 
-	reader, err := sampling.NewPsampleReader()
+	reader, err := newPsampleReaderFn()
 	if err != nil {
 		log.Warn("flow-export: psample reader unavailable; sampling idle", "error", err)
 		close(w.doneCh)
@@ -130,18 +158,28 @@ func (w *samplingWorker) run() {
 	}
 }
 
-// Stop removes the tc sample actions, closes the reader (unblocking the
-// goroutine), and waits for it to exit.
+// Stop removes the tc sample actions installed during Start, closes the reader
+// (unblocking the goroutine), and waits for it to exit.
 func (w *samplingWorker) Stop() {
 	w.stopped.Store(true)
 	if w.reader != nil {
 		_ = w.reader.Close()
 	}
-	for i := range w.cfgs {
-		if err := sampling.RemoveSampling(w.cfgs[i].Interface); err != nil {
-			loggerPtr.Load().Debug("flow-export: tc sample teardown",
-				"interface", w.cfgs[i].Interface, "error", err)
+	for _, ifName := range w.installed {
+		err := removeSamplingFn(ifName)
+		if err == nil {
+			continue
 		}
+		subject := fitSubject(ifName, subjectSamplingIfaceDefault)
+		msg := report.FitMessage("flow-export could not remove the tc packet-sampling filter on interface " + ifName +
+			"; a stale tc sample filter may remain on the interface until removed or replaced. Cause: " + err.Error())
+		failed := func(rErr error) {
+			loggerPtr.Load().Warn("flow-export could not deliver the sampling-teardown failure report to the daemon; check daemon health",
+				"code", codeDoctorFlowexportSamplingTeardownFailed, "interface", ifName, "error", rErr, "fix", fixShowDoctor)
+		}
+		qErr := w.issues.RaiseError(codeDoctorFlowexportSamplingTeardownFailed, subject, msg, fixShowDoctor, failed)
+		loggerPtr.Load().Warn("flow-export could not remove the tc packet-sampling filter; a stale tc sample filter may remain on the interface",
+			"code", codeDoctorFlowexportSamplingTeardownFailed, "interface", ifName, "error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 	}
 	<-w.doneCh
 }

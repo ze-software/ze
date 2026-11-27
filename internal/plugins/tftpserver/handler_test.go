@@ -2,7 +2,10 @@ package tftpserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"errors"
+	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -12,8 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/tftp"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func closeUDP(t *testing.T, c *net.UDPConn) {
@@ -1265,4 +1271,205 @@ func TestTFTPIOErrorMidTransfer(t *testing.T) {
 	default:
 		t.Fatalf("unexpected opcode %d", opcode)
 	}
+}
+
+type tftpStubPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+	clears []struct{ code, subject string }
+}
+
+func (p *tftpStubPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.raises = append(p.raises, issue)
+	return nil
+}
+
+func (p *tftpStubPublisher) ClearIssue(_ context.Context, code, subject string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.clears = append(p.clears, struct{ code, subject string }{code: code, subject: subject})
+	return nil
+}
+
+func (p *tftpStubPublisher) raisedByCode(code string) []sdk.Issue {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var out []sdk.Issue
+	for _, r := range p.raises {
+		if r.Code == code {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func (p *tftpStubPublisher) clearedByCode(code string) int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	n := 0
+	for _, c := range p.clears {
+		if c.code == code {
+			n++
+		}
+	}
+	return n
+}
+
+// TestTFTPServerSideErrorsAreWarnedAndRaised verifies AC-2 and AC-3 for all
+// three TFTP server-side Answer-2 sites: transfer dial failure (rate-limited
+// RaiseError), file-read failure in sendWindow (rate-limited RaiseError), and
+// non-ErrNoBackendLoaded interface resolve fallback (RaiseWarning +
+// ClearWarning on clean apply, silent on iface.ErrNoBackendLoaded).
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (tftpserver).
+// PREVENTS: TFTP server-side dial, file-read, and interface-resolution errors
+// dropping below WARN with no report-bus visibility.
+func TestTFTPServerSideErrorsAreWarnedAndRaised(t *testing.T) {
+	t.Run("transfer-dial-failed", func(t *testing.T) {
+		origDial := dialTransferUDP
+		t.Cleanup(func() { dialTransferUDP = origDial })
+		dialTransferUDP = func(*net.UDPAddr) (*net.UDPConn, error) {
+			return nil, errors.New("no route to host")
+		}
+
+		pub := &tftpStubPublisher{}
+		q := issuequeue.Start(pub)
+		t.Cleanup(q.Stop)
+
+		var buf syncBuf
+		log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		gen := newTransferGeneration()
+		sem := make(chan struct{}, 4)
+
+		for range 3 {
+			sem <- struct{}{}
+			tr := &transfer{
+				clientAddr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 54321},
+				path:       "/srv/tftp/boot.efi",
+				blksize:    tftp.DefaultBlockSize,
+				timeout:    time.Second,
+				windowsize: 1,
+				issues:     q,
+			}
+			runTransfer(gen, tr, sem, log)
+		}
+		q.Flush()
+
+		out := strings.TrimSpace(buf.String())
+		if out == "" {
+			t.Fatalf("expected rate-limited WARN line with %q, got empty log", codeDoctorTFTPTransferDialFailed)
+		}
+		lines := strings.Split(out, "\n")
+		if len(lines) != 1 {
+			t.Fatalf("WARN lines = %d, want 1 (rate-limited):\n%s", len(lines), out)
+		}
+		for _, want := range []string{"level=WARN", codeDoctorTFTPTransferDialFailed, "report=queued"} {
+			if !strings.Contains(lines[0], want) {
+				t.Errorf("WARN line missing %q:\n%s", want, lines[0])
+			}
+		}
+
+		raised := pub.raisedByCode(codeDoctorTFTPTransferDialFailed)
+		if len(raised) != 1 {
+			t.Fatalf("raised issues = %d, want 1 (rate-limited)", len(raised))
+		}
+		if raised[0].Severity != rpc.ReportError {
+			t.Errorf("severity = %q, want %q", raised[0].Severity, rpc.ReportError)
+		}
+		if raised[0].Subject != "transfer-dial" {
+			t.Errorf("subject = %q, want transfer-dial", raised[0].Subject)
+		}
+		if raised[0].Fix == "" {
+			t.Error("raised issue has empty Fix")
+		}
+	})
+
+	t.Run("file-read-failed", func(t *testing.T) {
+		rootDir := t.TempDir()
+		filePath := filepath.Join(rootDir, "kernel.bin")
+		if err := os.WriteFile(filePath, []byte("payload"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		f, err := os.Open(filePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		clientConn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { closeUDP(t, clientConn) })
+
+		clientAddr, ok := clientConn.LocalAddr().(*net.UDPAddr)
+		if !ok {
+			t.Fatalf("unexpected addr type %T", clientConn.LocalAddr())
+		}
+		xferConn, err := net.DialUDP("udp4", nil, clientAddr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { closeUDP(t, xferConn) })
+
+		pub := &tftpStubPublisher{}
+		q := issuequeue.Start(pub)
+		t.Cleanup(q.Stop)
+
+		var buf syncBuf
+		log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+		sender := &windowSender{
+			conn:       xferConn,
+			file:       f,
+			path:       filePath,
+			issues:     q,
+			blksize:    tftp.DefaultBlockSize,
+			windowsize: 1,
+			timeout:    time.Second,
+			packet:     make([]byte, tftp.HeaderOctets+tftp.DefaultBlockSize),
+			ackBuf:     make([]byte, tftp.HeaderOctets),
+		}
+		for range 3 {
+			_, _, ok := sender.sendWindow(1, log)
+			if ok {
+				t.Fatal("sendWindow succeeded on closed file")
+			}
+		}
+		q.Flush()
+
+		out := strings.TrimSpace(buf.String())
+		if out == "" {
+			t.Fatalf("expected rate-limited WARN line with %q, got empty log", codeDoctorTFTPFileReadFailed)
+		}
+		lines := strings.Split(out, "\n")
+		if len(lines) != 1 {
+			t.Fatalf("WARN lines = %d, want 1 (rate-limited):\n%s", len(lines), out)
+		}
+		for _, want := range []string{"level=WARN", codeDoctorTFTPFileReadFailed, "report=queued"} {
+			if !strings.Contains(lines[0], want) {
+				t.Errorf("WARN line missing %q:\n%s", want, lines[0])
+			}
+		}
+
+		raised := pub.raisedByCode(codeDoctorTFTPFileReadFailed)
+		if len(raised) != 1 {
+			t.Fatalf("raised issues = %d, want 1 (rate-limited)", len(raised))
+		}
+		if raised[0].Severity != rpc.ReportError {
+			t.Errorf("severity = %q, want %q", raised[0].Severity, rpc.ReportError)
+		}
+		if raised[0].Subject != filePath {
+			t.Errorf("subject = %q, want %q", raised[0].Subject, filePath)
+		}
+		if raised[0].Fix == "" {
+			t.Error("raised issue has empty Fix")
+		}
+	})
+
+	t.Run("interface-resolve-fallback", testTFTPInterfaceResolveFallbackWarnAndRaise)
 }

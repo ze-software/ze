@@ -22,6 +22,7 @@ import (
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -184,6 +185,14 @@ func runVRRPEngine(conn net.Conn) int {
 			"reason", "it drives the interface component's macvlan and address-owner registries, which are same-process state")
 		return 1
 	}
+
+	// Report-bus queue over the SDK connection. Deferred before eng.stopAll()
+	// so LIFO runs eng.stopAll() first, then clears the pointer, then drains
+	// issues.Stop(), then closes p.
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+	setIssueQueue(issues)
+	defer setIssueQueue(nil)
 
 	eng := newEngine(clock.RealClock{}, livePlatform(), liveDeps())
 	defer eng.stopAll()

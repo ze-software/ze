@@ -14,7 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/tftp"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -401,5 +404,108 @@ func TestReloadOfTransferValuesKeepsTransfers(t *testing.T) {
 	opts, _ = next.expectOACK()
 	if opts["windowsize"] != "2" {
 		t.Fatalf("OACK windowsize after the reload = %q, want the new 2", opts["windowsize"])
+	}
+}
+
+// testTFTPInterfaceResolveFallbackWarnAndRaise is driven by
+// TestTFTPServerSideErrorsAreWarnedAndRaised.
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (tftpserver
+// listenInterface): iface.ErrNoBackendLoaded stays quiet while any other
+// resolve error warns, raises ReportWarning, and clears on clean apply.
+// PREVENTS: real interface-resolution failures hiding at Debug, or false
+// warnings on the backendless provisioning path.
+func testTFTPInterfaceResolveFallbackWarnAndRaise(t *testing.T) {
+	origBind := tftpBindDeviceFor
+	t.Cleanup(func() { tftpBindDeviceFor = origBind })
+
+	tx, srv, buf, refused := newTestTFTPConfigTxRefusing(t)
+	pub := &tftpStubPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+	srv.issues = q
+
+	// 1. ErrNoBackendLoaded (install/provision path) must stay quiet.
+	tftpBindDeviceFor = func(ifName string) (string, error) {
+		return ifName, iface.ErrNoBackendLoaded
+	}
+	if err := tx.Configure(tftpSectionsOn("eth0", "/srv/tftp")); err != nil {
+		t.Fatalf("configure with ErrNoBackendLoaded: %v", err)
+	}
+	q.Flush()
+	if strings.Contains(buf.String(), codeDoctorTFTPInterfaceResolveFallback) {
+		t.Fatalf("ErrNoBackendLoaded must not warn:\n%s", buf.String())
+	}
+	if got := len(pub.raisedByCode(codeDoctorTFTPInterfaceResolveFallback)); got != 0 {
+		t.Fatalf("ErrNoBackendLoaded raised %d issues, want 0", got)
+	}
+
+	// 2. Any other resolve error must WARN and raise ReportWarning.
+	buf.Reset()
+	tftpBindDeviceFor = func(ifName string) (string, error) {
+		return ifName, errors.New("selector matched multiple devices")
+	}
+	if err := tx.Verify(tftpSectionsOn("eth0", "/srv/tftp2")); err != nil {
+		t.Fatalf("verify with resolve error: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply with resolve error: %v", err)
+	}
+	q.Flush()
+
+	warnOut := buf.String()
+	for _, want := range []string{"level=WARN", codeDoctorTFTPInterfaceResolveFallback, "report=queued"} {
+		if !strings.Contains(warnOut, want) {
+			t.Errorf("WARN log missing %q:\n%s", want, warnOut)
+		}
+	}
+	raised := pub.raisedByCode(codeDoctorTFTPInterfaceResolveFallback)
+	if len(raised) != 1 {
+		t.Fatalf("raised issues = %d, want 1", len(raised))
+	}
+	if raised[0].Severity != rpc.ReportWarning {
+		t.Errorf("severity = %q, want %q", raised[0].Severity, rpc.ReportWarning)
+	}
+	if raised[0].Subject != "eth0" {
+		t.Errorf("subject = %q, want eth0", raised[0].Subject)
+	}
+	if raised[0].Fix == "" {
+		t.Error("raised issue has empty Fix")
+	}
+
+	// 3. Clean apply clears the active warning.
+	tftpBindDeviceFor = func(ifName string) (string, error) {
+		return "enp1s0", nil
+	}
+	if err := tx.Verify(tftpSectionsOn("eth0", "/srv/tftp3")); err != nil {
+		t.Fatalf("verify clean apply: %v", err)
+	}
+	if err := tx.Apply(); err != nil {
+		t.Fatalf("apply clean: %v", err)
+	}
+	q.Flush()
+	clearsAfterClean := pub.clearedByCode(codeDoctorTFTPInterfaceResolveFallback)
+	if clearsAfterClean < 1 {
+		t.Errorf("clear count after clean apply = %d, want >= 1", clearsAfterClean)
+	}
+
+	// 4. A rejected strict reload whose candidate interface triggers a resolve
+	// warning must clear that warning on rollback so it does not leak.
+	refused["eth-bad"] = true
+	tftpBindDeviceFor = func(ifName string) (string, error) {
+		if ifName == "eth-bad" {
+			return ifName, errors.New("selector matched no device")
+		}
+		return "enp1s0", nil
+	}
+	if err := tx.Verify(tftpSectionsOn("eth-bad", "/srv/tftp4")); err != nil {
+		t.Fatalf("verify rejected reload: %v", err)
+	}
+	if err := tx.Apply(); err == nil {
+		t.Fatal("expected strict reload with refused device to fail")
+	}
+	q.Flush()
+	if got := pub.clearedByCode(codeDoctorTFTPInterfaceResolveFallback); got <= clearsAfterClean {
+		t.Errorf("clear count after rejected reload rollback = %d, want > %d (eth-bad warning leaked)", got, clearsAfterClean)
 	}
 }

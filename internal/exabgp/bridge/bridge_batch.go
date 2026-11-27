@@ -511,6 +511,7 @@ func writeReply(w io.Writer, reply []byte) {
 	if len(reply) == 0 {
 		return
 	}
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit
 	if _, err := w.Write(reply); err != nil {
 		slog.Debug("bridge: write reply failed", "error", err)
 	}

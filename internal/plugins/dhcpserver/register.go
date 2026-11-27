@@ -13,12 +13,15 @@ import (
 	"slices"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	dhcpyang "github.com/ze-software/ze/internal/plugins/dhcpserver/yang"
@@ -26,7 +29,25 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-const configRootService = "service"
+const (
+	configRootService       = "service"
+	fixShowInterface        = "ze show interface"
+	subjectListenerFallback = "dhcp-listener"
+)
+
+func fitSubject(s string) string {
+	if s == "" {
+		return subjectListenerFallback
+	}
+	if len(s) <= rpc.ReportSubjectMax {
+		return s
+	}
+	cut := rpc.ReportSubjectMax
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
 
 var loggerPtr atomic.Pointer[slog.Logger]
 
@@ -109,7 +130,12 @@ func runDHCPServerPlugin(conn net.Conn) int {
 		return 1
 	}
 
-	srv := &dhcpServer{log: log}
+	// Report-bus queue over the SDK connection; Stop runs after srv.stop()
+	// closes all listeners and before closeLogged(p, ...) closes the transport.
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
+	srv := &dhcpServer{log: log, issues: issues}
 	tx := sdk.NewConfigTx(serverConfig{}, parseDHCPSections, srv.install)
 	tx.Register(p)
 	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
@@ -142,6 +168,32 @@ func runDHCPServerPlugin(conn net.Conn) int {
 func configureMetrics(metricsRegistry metrics.Registry) {
 	dhcpGuard.SetMetricsRegistry(metricsRegistry)
 	learnedRejected.Store(&rejectedSeries{counter: dnssource.RejectedCounter(metricsRegistry, dhcpConsumer)})
+	if metricsRegistry != nil {
+		replyWriteErrors.Store(&replyWriteErrorVec{
+			vec: metricsRegistry.CounterVec(
+				dhcpReplyWriteErrorsMetric,
+				"Total DHCP reply UDP write failures, by listen interface.",
+				[]string{"interface"},
+			),
+		})
+	}
+}
+
+const dhcpReplyWriteErrorsMetric = "ze_dhcp_reply_write_errors_total"
+
+// replyWriteErrors holds dhcpserver's reply-write-error CounterVec stored by
+// configureMetrics whenever the engine's metrics registry arrives.
+var replyWriteErrors atomic.Pointer[replyWriteErrorVec]
+
+type replyWriteErrorVec struct{ vec metrics.CounterVec }
+
+// replyWriteErrorsCounter returns the reply-write-error counter for device, or
+// a no-op counter when no metrics registry was configured.
+func replyWriteErrorsCounter(device string) metrics.Counter {
+	if series := replyWriteErrors.Load(); series != nil && series.vec != nil {
+		return series.vec.With(device)
+	}
+	return metrics.NopRegistry{}.Counter(dhcpReplyWriteErrorsMetric, "")
 }
 
 // learnedRejected holds dhcpserver's series of dnssource.RejectedMetricName,
@@ -233,6 +285,7 @@ type closer interface {
 }
 
 func closeLogged(c closer, log *slog.Logger, what string) {
+	// refuse-by-default: guards runDHCPServerPlugin -- teardown/rollback close of plugin connection or listener socket
 	if err := c.Close(); err != nil {
 		log.Debug("dhcpserver: close failed", "what", what, "error", err)
 	}
@@ -244,7 +297,16 @@ var dhcpListen = listenDHCP
 
 // dhcpServe starts the request loop on a bound listener. It is a variable so a
 // test can see which device each listener is served on; nothing else assigns it.
-var dhcpServe = serveMulti
+var dhcpServe = serveMultiWithIssues
+
+// dhcpWriteReply sends a DHCP reply datagram on conn. It is a variable so a
+// test can model a UDP write failure deterministically without OS-specific
+// socket tricks; nothing else assigns it.
+var dhcpWriteReply = writeReplyUDP
+
+func writeReplyUDP(conn *net.UDPConn, resp []byte, dst *net.UDPAddr) (int, error) {
+	return conn.WriteToUDP(resp, dst)
+}
 
 // dhcpResolveDevice answers the kernel device a configured listen-interface
 // names. It is a variable so a test can stand in a selector that matches no
@@ -302,6 +364,10 @@ func listenInterface(name string) (dhcpListener, error) {
 // server starts after the interface plugin (StartAfter in init); a device
 // that appears later is served only after the next reload.
 func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, strict bool) ([]dhcpListener, error) {
+	return bindListenersWithIssues(cfg, handlers, log, nil, strict)
+}
+
+func bindListenersWithIssues(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, issues *issuequeue.Queue, strict bool) ([]dhcpListener, error) {
 	if !cfg.Enabled {
 		return nil, nil
 	}
@@ -333,7 +399,7 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 		return nil, nil
 	}
 	for _, ln := range listeners {
-		go dhcpServe(ln.conn, ln.device, handlers, log)
+		go dhcpServe(ln.conn, ln.device, handlers, log, issues)
 	}
 	log.Info("dhcpserver: started",
 		"shared-networks", len(cfg.SharedNetworks),
@@ -345,7 +411,11 @@ func bindListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger, 
 // serveMulti answers the requests conn receives on the kernel device named device,
 // which is the interface a reply to a client with no address is delivered on.
 func serveMulti(conn *net.UDPConn, device string, handlers []*dhcpHandler, log *slog.Logger) {
-	server := &requestServer{device: device, handlers: handlers, log: log}
+	serveMultiWithIssues(conn, device, handlers, log, nil)
+}
+
+func serveMultiWithIssues(conn *net.UDPConn, device string, handlers []*dhcpHandler, log *slog.Logger, issues *issuequeue.Queue) {
+	server := &requestServer{device: device, handlers: handlers, log: log, issues: issues}
 	buf := make([]byte, 1500)
 	for serveRequests(conn, server, buf, log) {
 		// The pass ended on a contained panic; the next one reads on.
@@ -373,11 +443,15 @@ type requestServer struct {
 	device   string
 	handlers []*dhcpHandler
 	log      *slog.Logger
+	issues   *issuequeue.Queue
 	// warned is when the last unserved warning was written (unservedWarnInterval).
 	warned time.Time
 	// warnedWithheld is when the last warning that a segment withheld a reply
 	// was written (segment.withheld), limited the same way.
 	warnedWithheld time.Time
+	// warnedReplyWrite is when the last reply UDP write failure warning and
+	// report-bus raise were emitted, limited by unservedWarnInterval.
+	warnedReplyWrite time.Time
 }
 
 // answer returns the reply to pkt, or nil when the server stays silent.
@@ -443,12 +517,42 @@ func (r *requestServer) warnWithheld(msg string, attrs ...any) {
 // warnLimited writes msg at WARN unless the last warning recorded in last is
 // younger than unservedWarnInterval.
 func warnLimited(log *slog.Logger, last *time.Time, msg string, attrs ...any) {
-	now := time.Now()
-	if !last.IsZero() && now.Sub(*last) < unservedWarnInterval {
+	if !warnLimitedDue(last) {
 		return
 	}
-	*last = now
 	log.Warn(msg, attrs...)
+}
+
+// warnLimitedDue reports whether unservedWarnInterval has elapsed since last
+// and records now when it has.
+func warnLimitedDue(last *time.Time) bool {
+	now := time.Now()
+	if !last.IsZero() {
+		if now.Sub(*last) < unservedWarnInterval {
+			return false
+		}
+	}
+	*last = now
+	return true
+}
+
+// warnReplyWriteFailed emits a rate-limited WARN and report-bus error event
+// when writing a DHCP reply datagram on r.device fails.
+func (r *requestServer) warnReplyWriteFailed(dst *net.UDPAddr, writeErr error) {
+	if !warnLimitedDue(&r.warnedReplyWrite) {
+		return
+	}
+	subject := fitSubject(r.device)
+	msg := report.FitMessage("DHCP server could not send a reply packet on interface " + r.device +
+		" to " + dst.String() + "; the requesting client did not receive its reply and must retransmit. Cause: " + writeErr.Error())
+	failed := func(rErr error) {
+		r.log.Warn("DHCP server could not deliver the reply-write failure report to the daemon; check daemon health",
+			"code", codeDoctorDHCPReplyWriteFailed, "interface", r.device, "error", rErr, "fix", fixShowInterface)
+	}
+	qErr := r.issues.RaiseError(codeDoctorDHCPReplyWriteFailed, subject, msg, fixShowInterface, failed)
+	r.log.Warn("DHCP server could not send a reply packet; the requesting client did not receive its reply and must retransmit",
+		"code", codeDoctorDHCPReplyWriteFailed, "interface", r.device, "dst", dst.String(),
+		"error", writeErr, "fix", fixShowInterface, issuequeue.Outcome(qErr))
 }
 
 // serveRequests is the request task: it answers requests until the socket
@@ -486,8 +590,9 @@ func serveRequests(conn *net.UDPConn, server *requestServer, buf []byte, log *sl
 
 		// RFC 2131 Section 4.1
 		dst := replyDestination(server.device, pkt, resp, log)
-		if _, writeErr := conn.WriteToUDP(resp, dst); writeErr != nil {
-			log.Debug("dhcpserver: write failed", "dst", dst.String(), "error", writeErr)
+		if _, writeErr := dhcpWriteReply(conn, resp, dst); writeErr != nil {
+			replyWriteErrorsCounter(server.device).Inc()
+			server.warnReplyWriteFailed(dst, writeErr)
 		}
 	}
 }
@@ -580,6 +685,7 @@ func replyDestination(device string, req, resp []byte, log *slog.Logger) *net.UD
 	yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
 	chaddr := extractMAC(req)
 	entry, err := neighborRead(device, yiaddr)
+	// refuse-by-default: guards broadcastReply -- RFC 2131 Section 4.1 broadcast fallback when neighbor table is unreadable
 	if err != nil {
 		log.Info("dhcpserver: reply broadcast, the neighbor table could not be read",
 			"interface", device, "ip", yiaddr.String(), "mac", chaddr.String(), "error", err)

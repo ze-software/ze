@@ -12,9 +12,58 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+const (
+	fixShowDoctor           = "ze show doctor"
+	fixShowInterface        = "ze show interface"
+	subjectIfaceFallback    = "tftp-interface"
+	subjectTransferDial     = "transfer-dial"
+	subjectFileReadFallback = "tftp-file"
+
+	tftpWarnInterval = time.Minute
+)
+
+func fitSubject(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	if len(s) <= rpc.ReportSubjectMax {
+		return s
+	}
+	cut := rpc.ReportSubjectMax
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+// tftpWarnLimiter bounds per-server transfer warnings and report-bus raises
+// to at most one per tftpWarnInterval. Safe for concurrent use.
+type tftpWarnLimiter struct {
+	lastUnixNano atomic.Int64
+}
+
+func (l *tftpWarnLimiter) allow() bool {
+	now := time.Now().UnixNano()
+	for {
+		prev := l.lastUnixNano.Load()
+		if prev != 0 {
+			if time.Duration(now-prev) < tftpWarnInterval {
+				return false
+			}
+		}
+		if l.lastUnixNano.CompareAndSwap(prev, now) {
+			return true
+		}
+	}
+}
 
 // parseTFTPSections reads and checks the service section of one delivery.
 // present is false when the delivery carries no service section. It changes
@@ -36,9 +85,13 @@ func parseTFTPSections(sections []sdk.ConfigSection) (tftpConfig, bool, error) {
 	return tftpConfig{}, false, nil
 }
 
-// tftpListen is the per-device listener factory (a var so tests can stub the
-// bind without privileges or a real interface).
-var tftpListen = listenTFTP
+// tftpListen is the per-device listener factory and tftpBindDeviceFor resolves
+// a logical interface name to its kernel device (vars so tests can stub bind
+// and resolution without privileges or a real interface).
+var (
+	tftpListen        = listenTFTP
+	tftpBindDeviceFor = bindDeviceFor
+)
 
 // tftpServer is the running TFTP server: one listener per bound interface,
 // the semaphore that bounds its transfers, and the generation every transfer
@@ -61,8 +114,12 @@ type tftpServer struct {
 	// limits holds the transfer limits of the running config, which each
 	// listener reads when a request arrives. An install that changes only
 	// them swaps this value and keeps the listeners and the transfers.
-	limits atomic.Pointer[transferLimits]
-	log    *slog.Logger
+	limits        atomic.Pointer[transferLimits]
+	log           *slog.Logger
+	issues        *issuequeue.Queue
+	resolveWarned map[string]struct{}
+	dialLimiter   tftpWarnLimiter
+	readLimiter   tftpWarnLimiter
 }
 
 // limitsOf answers the transfer limits cfg sets.
@@ -128,12 +185,21 @@ func (s *tftpServer) install(cfg tftpConfig) error {
 	s.limits.Store(limitsOf(cfg))
 	generation := newTransferGeneration()
 	sem := make(chan struct{}, cfg.MaxTransfers)
-	listeners, err := bindTFTP(generation, cfg, sem, &s.limits, s.log, !s.boot)
+	listeners, warnedIfaces, err := bindTFTP(generation, cfg, sem, &s.limits, s.log, s.issues, &s.dialLimiter, &s.readLimiter, !s.boot)
 	if err != nil {
+		if len(warnedIfaces) > 0 {
+			if s.resolveWarned == nil {
+				s.resolveWarned = make(map[string]struct{}, len(warnedIfaces))
+			}
+			for ifName := range warnedIfaces {
+				s.resolveWarned[ifName] = struct{}{}
+			}
+		}
 		generation.end(s.log)
 		s.limits.Store(limitsOf(s.running))
 		return s.restore(served, err)
 	}
+	s.reconcileResolveWarnings(warnedIfaces)
 	s.endTransfers()
 	s.running, s.listeners, s.sem, s.generation = cfg, listeners, sem, generation
 	if !cfg.Enabled {
@@ -163,15 +229,20 @@ func (s *tftpServer) configureAtBoot(tx *sdk.ConfigTx[tftpConfig], sections []sd
 // why, and never says the running config was kept.
 func (s *tftpServer) restore(served []tftpListener, cause error) error {
 	var lost []error
+	warnedIfaces := make(map[string]struct{})
 	for _, previous := range served {
-		conn, err := listenInterface(previous.iface, s.log)
+		conn, warned, err := listenInterface(previous.iface, s.log, s.issues)
+		if warned {
+			warnedIfaces[previous.iface] = struct{}{}
+		}
 		if err != nil {
 			lost = append(lost, fmt.Errorf("interface %q: %w", previous.iface, err))
 			continue
 		}
 		s.listeners = append(s.listeners, tftpListener{iface: previous.iface, conn: conn})
-		go serveLimited(s.generation, conn, s.running.RootDirectory, s.sem, &s.limits, s.log)
+		go serveLimitedWithIssues(s.generation, conn, s.running.RootDirectory, s.sem, &s.limits, s.log, s.issues, &s.dialLimiter, &s.readLimiter)
 	}
+	s.reconcileResolveWarnings(warnedIfaces)
 	if len(lost) == 0 {
 		return cause
 	}
@@ -179,6 +250,28 @@ func (s *tftpServer) restore(served []tftpListener, cause error) error {
 		"the TFTP server could not apply the new config, and could not bind "+strconv.Itoa(len(lost))+
 			" of the "+strconv.Itoa(len(served))+" interface(s) it served again, so they stopped serving",
 		sdk.RunningConfigLostListenerFix)
+}
+
+// reconcileResolveWarnings clears any standing interface-resolve-fallback
+// warning for interfaces that resolved cleanly or are no longer configured.
+func (s *tftpServer) reconcileResolveWarnings(active map[string]struct{}) {
+	if s.issues != nil {
+		for ifName := range s.resolveWarned {
+			if _, stillWarned := active[ifName]; stillWarned {
+				continue
+			}
+			subject := fitSubject(ifName, subjectIfaceFallback)
+			failed := func(rErr error) {
+				s.log.Warn("TFTP server could not clear the interface-resolve warning on the daemon; check daemon health",
+					"code", codeDoctorTFTPInterfaceResolveFallback, "interface", ifName, "error", rErr, "fix", fixShowInterface)
+			}
+			if cErr := s.issues.ClearWarning(codeDoctorTFTPInterfaceResolveFallback, subject, failed); cErr != nil {
+				s.log.Warn("TFTP server could not queue the interface-resolve warning clear; stale warning may persist",
+					"code", codeDoctorTFTPInterfaceResolveFallback, "interface", ifName, "fix", fixShowInterface, issuequeue.Outcome(cErr))
+			}
+		}
+	}
+	s.resolveWarned = active
 }
 
 // tftpListener is one bound listener and the interface it serves, which a
@@ -194,14 +287,33 @@ type tftpListener struct {
 // Best-effort: when no iface backend is loaded -- the install/provision path
 // configures the interface directly via netlink without starting the iface
 // component -- bindDeviceFor returns the name verbatim, which is the kernel
-// device in that case.
-func listenInterface(ifName string, log *slog.Logger) (*net.UDPConn, error) {
-	device, rerr := bindDeviceFor(ifName)
+// device in that case. Any other resolution error warns and raises a standing
+// warning on issues.
+func listenInterface(ifName string, log *slog.Logger, issues *issuequeue.Queue) (*net.UDPConn, bool, error) {
+	device, rerr := tftpBindDeviceFor(ifName)
+	warned := false
 	if rerr != nil {
-		log.Debug("tftpserver: iface backend unavailable, binding by name",
-			"interface", ifName, "device", device, "error", rerr)
+		if isNoBackendLoaded(rerr) {
+			// refuse-by-default: guards bindTFTP -- no iface backend loaded on install/provision path; tftpListen validates and bindTFTP reports bind failure
+			log.Debug("tftpserver: iface backend unavailable, binding by name",
+				"interface", ifName, "device", device, "error", rerr)
+		} else {
+			warned = true
+			subject := fitSubject(ifName, subjectIfaceFallback)
+			msg := report.FitMessage("TFTP server could not resolve logical listen interface " + ifName +
+				" and fell back to binding the literal interface name; if an os-name or mac-match selector maps it to another device, the listener may bind the wrong device. Cause: " + rerr.Error())
+			failed := func(qFail error) {
+				log.Warn("TFTP server could not deliver the interface-resolve warning to the daemon; check daemon health",
+					"code", codeDoctorTFTPInterfaceResolveFallback, "interface", ifName, "error", qFail, "fix", fixShowInterface)
+			}
+			qErr := issues.RaiseWarning(codeDoctorTFTPInterfaceResolveFallback, subject, msg, fixShowInterface, failed)
+			log.Warn("TFTP server could not resolve logical listen interface; fell back to binding the literal interface name",
+				"code", codeDoctorTFTPInterfaceResolveFallback, "interface", ifName, "device", device,
+				"error", rerr, "fix", fixShowInterface, issuequeue.Outcome(qErr))
+		}
 	}
-	return tftpListen(device)
+	conn, err := tftpListen(device)
+	return conn, warned, err
 }
 
 // bindTFTP binds a listener on every interface of cfg and serves each under
@@ -215,13 +327,17 @@ func listenInterface(ifName string, log *slog.Logger) (*net.UDPConn, error) {
 // serve. A device ze's own `interface {}` config creates exists by then,
 // because the server starts after the interface plugin (StartAfter in init);
 // a device that appears later is served only after the next reload.
-func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{}, limits *atomic.Pointer[transferLimits], log *slog.Logger, strict bool) ([]tftpListener, error) {
+func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{}, limits *atomic.Pointer[transferLimits], log *slog.Logger, issues *issuequeue.Queue, dialLimiter, readLimiter *tftpWarnLimiter, strict bool) ([]tftpListener, map[string]struct{}, error) {
 	if !cfg.Enabled {
-		return nil, nil
+		return nil, nil, nil
 	}
 	var listeners []tftpListener
+	warnedIfaces := make(map[string]struct{})
 	for _, ifName := range cfg.ListenInterfaces {
-		ln, err := listenInterface(ifName, log)
+		ln, warned, err := listenInterface(ifName, log, issues)
+		if warned {
+			warnedIfaces[ifName] = struct{}{}
+		}
 		if err != nil && !strict {
 			log.Error("tftpserver: listen failed", "interface", ifName, "error", err)
 			continue
@@ -230,7 +346,7 @@ func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{},
 			for _, bound := range listeners {
 				closeLogged(bound.conn, log, "udp listener")
 			}
-			return nil, fmt.Errorf("tftpserver: cannot listen on interface %q: %w. "+
+			return nil, warnedIfaces, fmt.Errorf("tftpserver: cannot listen on interface %q: %w. "+
 				"The TFTP server does not take this config.\n"+
 				"Fix: name an interface that exists in service tftp-server listen-interface, or remove %q from it", ifName, err, ifName)
 		}
@@ -240,10 +356,10 @@ func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{},
 	if len(listeners) == 0 {
 		log.Error("tftpserver: no interfaces bound; server not serving",
 			"interfaces", cfg.ListenInterfaces)
-		return nil, nil
+		return nil, warnedIfaces, nil
 	}
 	for _, ln := range listeners {
-		go serveLimited(generation, ln.conn, cfg.RootDirectory, sem, limits, log)
+		go serveLimitedWithIssues(generation, ln.conn, cfg.RootDirectory, sem, limits, log, issues, dialLimiter, readLimiter)
 	}
 	log.Info("tftpserver: started",
 		"root-directory", cfg.RootDirectory,
@@ -252,7 +368,7 @@ func bindTFTP(generation *transferGeneration, cfg tftpConfig, sem chan struct{},
 		"max-transfers", cfg.MaxTransfers,
 		"timeout", cfg.Timeout,
 		"max-windowsize", cfg.MaxWindowsize)
-	return listeners, nil
+	return listeners, warnedIfaces, nil
 }
 
 // closeListeners closes every listener, which ends its serve loop.
@@ -278,4 +394,5 @@ func (s *tftpServer) endTransfers() {
 func (s *tftpServer) stop() {
 	s.closeListeners()
 	s.endTransfers()
+	s.reconcileResolveWarnings(nil)
 }

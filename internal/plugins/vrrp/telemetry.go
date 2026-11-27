@@ -9,14 +9,46 @@ package vrrp
 
 import (
 	"net/netip"
+	"sync"
 	"sync/atomic"
+	"time"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+const (
+	fixShowVRRP             = "ze show vrrp"
+	subjectVRRPFallback     = "vrrp"
+	stateEventWarnInterval  = time.Minute
+	maxStateEventWarnGroups = 1024
+)
+
+func fitSubject(s string) string {
+	if s == "" {
+		return subjectVRRPFallback
+	}
+	if len(s) <= rpc.ReportSubjectMax {
+		return s
+	}
+	cut := rpc.ReportSubjectMax
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+func groupSubject(spec GroupSpec) string {
+	var tb textbuf.Buffer
+	return tb.Str(spec.Interface).Byte('/').Str(spec.Name).Byte('/').Uint8(spec.VRID).String()
+}
 
 // Namespace is this plugin's eventbus namespace.
 const Namespace = "vrrp"
@@ -59,8 +91,11 @@ type engineMetrics struct {
 }
 
 var (
-	metricsPtr  atomic.Pointer[engineMetrics]
-	eventBusPtr atomic.Pointer[ze.EventBus]
+	metricsPtr         atomic.Pointer[engineMetrics]
+	eventBusPtr        atomic.Pointer[ze.EventBus]
+	issueQueuePtr      atomic.Pointer[issuequeue.Queue]
+	stateEventWarnMu   sync.Mutex
+	stateEventWarnLast = make(map[string]time.Time)
 )
 
 // newEngineMetrics registers the state series. Names and labels come from the
@@ -95,6 +130,37 @@ func setEventBus(bus ze.EventBus) {
 	}
 }
 
+// setIssueQueue installs or clears the plugin's report-bus queue.
+func setIssueQueue(q *issuequeue.Queue) {
+	issueQueuePtr.Store(q)
+	stateEventWarnMu.Lock()
+	clear(stateEventWarnLast)
+	stateEventWarnMu.Unlock()
+}
+
+func stateEventWarnDue(groupKey string) bool {
+	now := time.Now()
+	stateEventWarnMu.Lock()
+	defer stateEventWarnMu.Unlock()
+	if last, ok := stateEventWarnLast[groupKey]; ok {
+		if now.Sub(last) < stateEventWarnInterval {
+			return false
+		}
+	}
+	if len(stateEventWarnLast) >= maxStateEventWarnGroups {
+		for k, ts := range stateEventWarnLast {
+			if now.Sub(ts) >= stateEventWarnInterval {
+				delete(stateEventWarnLast, k)
+			}
+		}
+		if len(stateEventWarnLast) >= maxStateEventWarnGroups {
+			clear(stateEventWarnLast)
+		}
+	}
+	stateEventWarnLast[groupKey] = now
+	return true
+}
+
 // stateValue maps a state to its gauge value.
 func stateValue(s fsm.State) float64 {
 	switch s {
@@ -124,6 +190,9 @@ func recordTransition(spec GroupSpec, to fsm.State) {
 // clearMetrics drops an instance's series when it is torn down, so a deleted
 // group stops reporting a stale state.
 func clearMetrics(spec GroupSpec) {
+	stateEventWarnMu.Lock()
+	delete(stateEventWarnLast, groupSubject(spec))
+	stateEventWarnMu.Unlock()
 	m := metricsPtr.Load()
 	if m == nil {
 		return
@@ -148,8 +217,25 @@ func publishStateChange(spec GroupSpec, from, to fsm.State, reason string) {
 		To:        viewState(to),
 		Reason:    reason,
 	}); err != nil {
-		logger().Debug("vrrp: emit state-change event failed",
-			"interface", spec.Interface, "group", spec.Name, "vrid", spec.VRID, "error", err)
+		groupKey := groupSubject(spec)
+		if !stateEventWarnDue(groupKey) {
+			return
+		}
+		subject := fitSubject(groupKey)
+		msg := report.FitMessage("VRRP group " + groupKey + " transitioned from " + viewState(from) +
+			" to " + viewState(to) + ", but publishing the state-change event on the daemon event bus failed; " +
+			"downstream subscribers may miss this transition until the next state change. Cause: " + err.Error())
+		failed := func(rErr error) {
+			logger().Warn("VRRP could not deliver the state-change emit failure report to the daemon; check daemon health",
+				"code", codeDoctorVRRPStateEventEmitFailed,
+				"interface", spec.Interface, "group", spec.Name, "vrid", spec.VRID,
+				"error", rErr, "fix", fixShowVRRP)
+		}
+		qErr := issueQueuePtr.Load().RaiseError(codeDoctorVRRPStateEventEmitFailed, subject, msg, fixShowVRRP, failed)
+		logger().Warn("VRRP could not emit a state-change event; downstream subscribers may miss the transition until the next state change",
+			"code", codeDoctorVRRPStateEventEmitFailed,
+			"interface", spec.Interface, "group", spec.Name, "vrid", spec.VRID,
+			"error", err, "fix", fixShowVRRP, issuequeue.Outcome(qErr))
 	}
 }
 

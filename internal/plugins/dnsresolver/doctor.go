@@ -145,6 +145,7 @@ func probeBindable(endpoint netip.AddrPort) error {
 	if err != nil {
 		return err
 	}
+	// refuse-by-default: guards listenerDiagnostics -- bind probe already succeeded; closing the throwaway probe socket cannot change bindability
 	if cerr := pc.Close(); cerr != nil {
 		loggerPtr.Load().Debug("dns-resolver: close udp port probe", "error", cerr)
 	}
@@ -152,6 +153,7 @@ func probeBindable(endpoint netip.AddrPort) error {
 	if err != nil {
 		return err
 	}
+	// refuse-by-default: guards listenerDiagnostics -- bind probe already succeeded; closing the throwaway probe socket cannot change bindability
 	if cerr := ln.Close(); cerr != nil {
 		loggerPtr.Load().Debug("dns-resolver: close tcp port probe", "error", cerr)
 	}

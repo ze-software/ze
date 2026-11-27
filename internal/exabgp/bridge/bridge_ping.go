@@ -81,6 +81,7 @@ func writePong(w io.Writer, action LocalAction) {
 	default:
 		return
 	}
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit
 	if _, err := w.Write(tb.Bytes()); err != nil {
 		slog.Debug("bridge ping: write pong failed", "error", err)
 	}

@@ -9,8 +9,37 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+const (
+	fixShowDoctor       = "ze show doctor"
+	subjectZefsFallback = "zefs-tmp"
+)
+
+func fitSubject(s string) string {
+	if s == "" {
+		return subjectZefsFallback
+	}
+	if len(s) <= rpc.ReportSubjectMax {
+		return s
+	}
+	cut := rpc.ReportSubjectMax
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+// Test seams for zefs database creation and temporary directory cleanup.
+var (
+	buildZefsDBFn = buildZefsDB
+	removeAllFn   = os.RemoveAll
 )
 
 // parseImageSections reads and checks the service section of one delivery.
@@ -49,6 +78,7 @@ type imageServer struct {
 	zefsDir     string
 	zefsPath    string
 	log         *slog.Logger
+	issues      *issuequeue.Queue
 }
 
 // install makes cfg the running config, or returns an error and leaves the
@@ -64,7 +94,7 @@ type imageServer struct {
 // the error wraps sdk.ErrRunningConfigLost (restore), so the transaction's
 // rollback installs the running config again or restarts the plugin.
 func (s *imageServer) install(cfg imageConfig) error {
-	zefsDir, zefsPath, err := prepareZefs(cfg)
+	zefsDir, zefsPath, err := prepareZefs(cfg, s.log, s.issues)
 	if err != nil && s.boot {
 		// Boot has no previous config to keep: report and serve nothing,
 		// as the daemon did before reload existed.
@@ -78,10 +108,10 @@ func (s *imageServer) install(cfg imageConfig) error {
 	s.closeServers()
 	servers, err := bindImage(cfg, zefsPath, s.log, !s.boot)
 	if err != nil {
-		removeZefsDir(zefsDir, s.log)
+		removeZefsDir(zefsDir, s.log, s.issues)
 		return s.restore(served, err)
 	}
-	removeZefsDir(s.zefsDir, s.log)
+	removeZefsDir(s.zefsDir, s.log, s.issues)
 	s.running, s.httpServers, s.zefsDir, s.zefsPath = cfg, servers, zefsDir, zefsPath
 	if !cfg.Enabled {
 		s.log.Debug("imageserver: disabled in config")
@@ -154,7 +184,7 @@ func lostImageTarget(target listenTarget, port int, err error) error {
 // prepareZefs builds the zefs database of cfg in a new temporary directory
 // and answers the directory and the database path, both empty when cfg
 // carries no SSH credentials.
-func prepareZefs(cfg imageConfig) (dir, path string, err error) {
+func prepareZefs(cfg imageConfig, log *slog.Logger, issues *issuequeue.Queue) (dir, path string, err error) {
 	if !cfg.Enabled {
 		return "", "", nil
 	}
@@ -172,10 +202,10 @@ func prepareZefs(cfg imageConfig) (dir, path string, err error) {
 			"The image server does not take this config.\n"+
 			"Fix: make the system temporary directory writable", err)
 	}
-	path, err = buildZefsDB(dir, cfg.SSHUsername, cfg.SSHPasswordHash)
+	path, err = buildZefsDBFn(dir, cfg.SSHUsername, cfg.SSHPasswordHash)
 	if err != nil {
-		if rmErr := os.RemoveAll(dir); rmErr != nil {
-			loggerPtr.Load().Debug("imageserver: remove zefs dir failed", "error", rmErr)
+		if rmErr := removeAllFn(dir); rmErr != nil {
+			reportZefsCleanupFailed(dir, rmErr, log, issues)
 		}
 		return "", "", fmt.Errorf("imageserver: cannot build the zefs database for SSH user %q: %w. "+
 			"The image server does not take this config.\n"+
@@ -186,18 +216,37 @@ func prepareZefs(cfg imageConfig) (dir, path string, err error) {
 
 // removeZefsDir removes a zefs directory prepareZefs made. An empty dir is
 // none.
-func removeZefsDir(dir string, log *slog.Logger) {
+func removeZefsDir(dir string, log *slog.Logger, issues *issuequeue.Queue) {
 	if dir == "" {
 		return
 	}
-	if err := os.RemoveAll(dir); err != nil {
-		log.Debug("imageserver: remove zefs dir failed", "error", err)
+	if err := removeAllFn(dir); err != nil {
+		reportZefsCleanupFailed(dir, err, log, issues)
 	}
+}
+
+// reportZefsCleanupFailed warns and enqueues a report-bus error event when a
+// temporary zefs staging directory cannot be removed.
+func reportZefsCleanupFailed(dir string, err error, log *slog.Logger, issues *issuequeue.Queue) {
+	if log == nil {
+		log = loggerPtr.Load()
+	}
+	subject := fitSubject(dir)
+	msg := report.FitMessage("Image server could not remove temporary zefs directory " + dir +
+		"; stale staging files may remain in the system temporary directory until removed manually. Cause: " + err.Error())
+	failed := func(rErr error) {
+		log.Warn("Image server could not deliver the zefs-cleanup failure report to the daemon; check daemon health",
+			"code", codeDoctorImageServerZefsCleanupFailed, "dir", dir, "error", rErr, "fix", fixShowDoctor)
+	}
+	qErr := issues.RaiseError(codeDoctorImageServerZefsCleanupFailed, subject, msg, fixShowDoctor, failed)
+	log.Warn("Image server could not remove temporary zefs directory; stale staging files may remain in the system temporary directory",
+		"code", codeDoctorImageServerZefsCleanupFailed, "dir", dir, "error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 }
 
 // closeServers closes every HTTP server, with its active connections.
 func (s *imageServer) closeServers() {
 	for _, srv := range s.httpServers {
+		// refuse-by-default: guards imageServer.stop -- teardown/reload close of HTTP servers
 		if err := srv.Close(); err != nil {
 			s.log.Debug("imageserver: http close failed", "addr", srv.Addr, "error", err)
 		}
@@ -209,6 +258,6 @@ func (s *imageServer) closeServers() {
 // called only after Run returned, when no install can run.
 func (s *imageServer) stop() {
 	s.closeServers()
-	removeZefsDir(s.zefsDir, s.log)
+	removeZefsDir(s.zefsDir, s.log, s.issues)
 	s.zefsDir, s.zefsPath = "", ""
 }

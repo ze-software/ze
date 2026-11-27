@@ -361,6 +361,7 @@ func (s *script) writeLoop(drained chan<- struct{}) {
 			s.dropped.Add(1)
 			continue
 		}
+		// refuse-by-default: guards script.runOnce -- broken stdin pipe means the script exited; runOnce reads stdout to EOF, calls script.reap, and reports exit to Fleet.notifyScriptExit
 		if _, err := w.Write(line); err != nil {
 			s.log.Debug("exabgp-bridge write to script failed", "script", s.name, "error", err)
 		}
@@ -370,6 +371,7 @@ func (s *script) writeLoop(drained chan<- struct{}) {
 	w := s.stdin
 	s.mu.Unlock()
 	if w != nil {
+		// refuse-by-default: guards script.closeQueue -- teardown close of child stdin after queue closed
 		if err := w.Close(); err != nil {
 			s.log.Debug("exabgp-bridge close script stdin", "script", s.name, "error", err)
 		}

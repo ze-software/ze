@@ -9,13 +9,38 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/ddosevent"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/stats"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
+
+const (
+	fixShowDoctor         = "ze show doctor"
+	fixShowInterface      = "ze show interface"
+	subjectBaseline       = "baseline"
+	subjectVictimFallback = "victim"
+)
+
+func fitSubject(s string) string {
+	if s == "" {
+		return subjectVictimFallback
+	}
+	if len(s) <= rpc.ReportSubjectMax {
+		return s
+	}
+	cut := rpc.ReportSubjectMax
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
 
 var loggerPtr atomic.Pointer[slog.Logger]
 
@@ -64,6 +89,7 @@ type detector struct {
 	bus      ze.EventBus
 	dispatch dispatchFunc
 	state    stateClient
+	issues   *issuequeue.Queue
 	baseline *baseline
 	// baselineBps is a parallel rolling baseline over bytes/sec, feeding the
 	// bandwidth trigger. Same type and poisoning guard as the PPS baseline; its
@@ -193,6 +219,11 @@ func newDetectorWithState(cfg *Config, bus ze.EventBus, dispatch dispatchFunc, s
 	return d
 }
 
+// setIssueQueue attaches the plugin's report-bus queue to the detector.
+func (d *detector) setIssueQueue(q *issuequeue.Queue) {
+	d.issues = q
+}
+
 // Stop cancels in-flight characterization and waits for the goroutines to unwind.
 // Called at plugin shutdown and before a reconfigure replaces the detector, so a
 // slow source query cannot outlive the detector that spawned it. Setting stopped
@@ -228,7 +259,7 @@ func (d *detector) restore() {
 }
 
 func (d *detector) restoreContext(ctx context.Context) {
-	blob, ok := loadBaselines(ctx, d.state)
+	blob, ok := loadBaselinesWithIssues(ctx, d.state, d.issues)
 	if !ok {
 		return
 	}
@@ -263,7 +294,14 @@ func (d *detector) saveBaselineContext(ctx context.Context) {
 	d.saveMu.Lock()
 	defer d.saveMu.Unlock()
 	if err := saveBaselines(ctx, d.state, pps, bps); err != nil {
-		logger().Debug("ddos-detect: baseline save failed", "error", err)
+		msg := report.FitMessage("DDoS detector could not save its rolling baseline snapshot to the daemon state store; detection continues in memory, but a restart or reload will re-warm from zero. Cause: " + err.Error())
+		failed := func(rErr error) {
+			logger().Warn("DDoS detector could not deliver the baseline-save failure report to the daemon; check daemon health",
+				"code", codeDoctorDDoSDetectBaselineSaveFailed, "error", rErr, "fix", fixShowDoctor)
+		}
+		qErr := d.issues.RaiseError(codeDoctorDDoSDetectBaselineSaveFailed, subjectBaseline, msg, fixShowDoctor, failed)
+		logger().Warn("DDoS detector could not save its rolling baseline snapshot; detection continues in memory, but a restart or reload will re-warm from zero",
+			"code", codeDoctorDDoSDetectBaselineSaveFailed, "error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 	}
 }
 
@@ -520,8 +558,15 @@ func (d *detector) classifyDirection(victim netip.Prefix) ddosevent.Direction {
 	}
 	local, err := iface.AddressIsLocal(victim.Addr())
 	if err != nil {
-		logger().Debug("ddos-detect: address-is-local lookup failed, assuming remote",
-			"victim", victim, "error", err)
+		subject := fitSubject(victim.String())
+		msg := report.FitMessage("DDoS detector could not check whether victim prefix " + victim.String() + " is local to this router, so it assumed remote (FORWARD hook); mitigation for a locally terminated victim may miss the INPUT hook until interface state is readable. Cause: " + err.Error())
+		failed := func(rErr error) {
+			logger().Warn("DDoS detector could not deliver the direction-fallback report to the daemon; check daemon health",
+				"code", codeDoctorDDoSDetectDirectionFallback, "victim", victim, "error", rErr, "fix", fixShowInterface)
+		}
+		qErr := d.issues.RaiseError(codeDoctorDDoSDetectDirectionFallback, subject, msg, fixShowInterface, failed)
+		logger().Warn("DDoS detector could not check whether victim address is local, assuming remote (FORWARD hook); mitigation for a locally terminated victim may miss the INPUT hook",
+			"code", codeDoctorDDoSDetectDirectionFallback, "victim", victim, "error", err, "fix", fixShowInterface, issuequeue.Outcome(qErr))
 		return ddosevent.DirectionRemote
 	}
 	if local {

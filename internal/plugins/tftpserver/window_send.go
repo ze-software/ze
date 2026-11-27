@@ -12,6 +12,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/tftp"
 )
 
@@ -30,25 +32,30 @@ var errNoACK = errors.New("no ACK of the window before the timeout")
 func serveFile(conn *net.UDPConn, t *transfer, log *slog.Logger) {
 	f, err := os.Open(t.path) //nolint:gosec // path validated by resolvePath
 	if err != nil {
+		// refuse-by-default: guards runTransfer -- best-effort RFC 1350 ERROR packet; transfer ends
 		if _, wErr := conn.Write(tftp.BuildError(tftp.CodeFileNotFound, "file not found")); wErr != nil {
 			log.Debug("tftpserver: error response failed", "error", wErr)
 		}
 		return
 	}
 	defer func() {
+		// refuse-by-default: guards runTransfer -- closing read-only file after transfer completes
 		if cErr := f.Close(); cErr != nil {
 			log.Debug("tftpserver: file close failed", "error", cErr)
 		}
 	}()
 
 	sender := &windowSender{
-		conn:       conn,
-		file:       f,
-		blksize:    t.blksize,
-		windowsize: t.windowsize,
-		timeout:    t.timeout,
-		packet:     make([]byte, tftp.HeaderOctets+t.blksize),
-		ackBuf:     make([]byte, tftp.HeaderOctets),
+		conn:        conn,
+		file:        f,
+		path:        t.path,
+		issues:      t.issues,
+		readLimiter: t.readLimiter,
+		blksize:     t.blksize,
+		windowsize:  t.windowsize,
+		timeout:     t.timeout,
+		packet:      make([]byte, tftp.HeaderOctets+t.blksize),
+		ackBuf:      make([]byte, tftp.HeaderOctets),
 	}
 
 	// first is the first block of the window to send: the block after the
@@ -101,15 +108,40 @@ func serveFile(conn *net.UDPConn, t *transfer, log *slog.Logger) {
 // windowSender is the sending side of one transfer. It is used by the
 // transfer's goroutine only: not safe for concurrent use.
 type windowSender struct {
-	conn       *net.UDPConn
-	file       *os.File
-	blksize    int
-	windowsize int
-	timeout    time.Duration
+	conn             *net.UDPConn
+	file             *os.File
+	path             string
+	issues           *issuequeue.Queue
+	readLimiter      *tftpWarnLimiter
+	localReadLimiter tftpWarnLimiter
+	blksize          int
+	windowsize       int
+	timeout          time.Duration
 	// packet holds one DATA packet: the header, then up to blksize octets.
 	packet []byte
 	// ackBuf holds one ACK; a longer datagram is read truncated.
 	ackBuf []byte
+}
+
+func (s *windowSender) warnFileReadFailed(block int64, err error, log *slog.Logger) {
+	limiter := s.readLimiter
+	if limiter == nil {
+		limiter = &s.localReadLimiter
+	}
+	if !limiter.allow() {
+		return
+	}
+	subject := fitSubject(s.path, subjectFileReadFallback)
+	msg := report.FitMessage("TFTP server failed reading a file block from " + s.path +
+		" during transfer; the transfer was aborted. Cause: " + err.Error())
+	failed := func(rErr error) {
+		log.Warn("TFTP server could not deliver the file-read failure report to the daemon; check daemon health",
+			"code", codeDoctorTFTPFileReadFailed, "file", s.path, "error", rErr, "fix", fixShowDoctor)
+	}
+	qErr := s.issues.RaiseError(codeDoctorTFTPFileReadFailed, subject, msg, fixShowDoctor, failed)
+	log.Warn("TFTP server failed reading a file block during transfer; the transfer was aborted",
+		"code", codeDoctorTFTPFileReadFailed, "file", s.path, "block", block,
+		"error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 }
 
 // sendWindow sends up to windowsize blocks from block first. It answers how
@@ -125,6 +157,8 @@ func (s *windowSender) sendWindow(first int64, log *slog.Logger) (sent int, fina
 		block := first + int64(sent)
 		n, err := s.readBlock(block)
 		if err != nil {
+			s.warnFileReadFailed(block, err, log)
+			// refuse-by-default: guards serveFile -- best-effort RFC 1350 ERROR packet after readBlock failure
 			if _, wErr := s.conn.Write(tftp.BuildError(tftp.CodeNotDefined, "read error")); wErr != nil {
 				log.Debug("tftpserver: error response failed", "error", wErr)
 			}

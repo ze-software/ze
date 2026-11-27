@@ -127,6 +127,7 @@ func (m *manager) ended(ctx context.Context, instance string) {
 	if client == nil {
 		return
 	}
+	// refuse-by-default: guards manager.created -- kernel removes the veth pair with its network namespace and manager.created removes any leftover record before the next start
 	if _, err := client.OwnedLinkRemove(ctx, &rpc.OwnedLinkRemoveInput{Key: instance}); err != nil {
 		// Going on is correct: the kernel removes a link pair with its
 		// namespace, the interface component forgets a record whose device is

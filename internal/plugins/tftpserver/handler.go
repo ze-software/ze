@@ -12,12 +12,57 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/tftp"
 )
+
+// genWarnRingSize bounds the fallback per-generation dial-failure rate limiter
+// used only when runTransfer is called directly without a tftpServer limiter.
+const genWarnRingSize = 32
+
+type genWarnSlot struct {
+	gen          *transferGeneration
+	lastUnixNano int64
+}
+
+var (
+	genDialWarnMu   sync.Mutex
+	genDialWarnRing [genWarnRingSize]genWarnSlot
+	genDialWarnNext int
+)
+
+func allowDialWarn(generation *transferGeneration, limiter *tftpWarnLimiter) bool {
+	if limiter != nil {
+		return limiter.allow()
+	}
+	now := time.Now().UnixNano()
+	genDialWarnMu.Lock()
+	defer genDialWarnMu.Unlock()
+	for i := range genDialWarnRing {
+		if genDialWarnRing[i].gen == generation {
+			if time.Duration(now-genDialWarnRing[i].lastUnixNano) < tftpWarnInterval {
+				return false
+			}
+			genDialWarnRing[i].lastUnixNano = now
+			return true
+		}
+	}
+	genDialWarnRing[genDialWarnNext] = genWarnSlot{gen: generation, lastUnixNano: now}
+	genDialWarnNext = (genDialWarnNext + 1) % genWarnRingSize
+	return true
+}
+
+// dialTransferUDP opens the per-transfer UDP socket back to the client (a var
+// so unit tests can inject dial failures deterministically).
+var dialTransferUDP = func(raddr *net.UDPAddr) (*net.UDPConn, error) {
+	return net.DialUDP("udp4", nil, raddr)
+}
 
 // The opcodes, error codes, block sizes and the ERROR encoder are the wire
 // facts the server shares with Ze's TFTP client, declared once in
@@ -229,9 +274,13 @@ func serve(generation *transferGeneration, conn *net.UDPConn, rootDir string, se
 // Every transfer it starts joins generation, takes the limits stored in limits
 // when its request arrives, and runs until it ends or generation ends.
 func serveLimited(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, limits *atomic.Pointer[transferLimits], log *slog.Logger) {
+	serveLimitedWithIssues(generation, conn, rootDir, sem, limits, log, nil, nil, nil)
+}
+
+func serveLimitedWithIssues(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, limits *atomic.Pointer[transferLimits], log *slog.Logger, issues *issuequeue.Queue, dialLimiter, readLimiter *tftpWarnLimiter) {
 	// RFC 2347: RRQ with options can be up to 512 octets.
 	buf := make([]byte, 516)
-	for serveRequests(generation, conn, rootDir, sem, limits, buf, log) {
+	for serveRequests(generation, conn, rootDir, sem, limits, buf, log, issues, dialLimiter, readLimiter) {
 		// The pass ended on a contained panic; the next one reads on.
 	}
 }
@@ -239,7 +288,7 @@ func serveLimited(generation *transferGeneration, conn *net.UDPConn, rootDir str
 // serveRequests is the request task: it answers requests until conn closes,
 // answering false, or until a panic ends the pass, answering true. The client
 // whose request was being handled is then sent an ERROR, RFC 1350 Section 2.
-func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, limits *atomic.Pointer[transferLimits], buf []byte, log *slog.Logger) (again bool) {
+func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir string, sem chan struct{}, limits *atomic.Pointer[transferLimits], buf []byte, log *slog.Logger, issues *issuequeue.Queue, dialLimiter, readLimiter *tftpWarnLimiter) (again bool) {
 	var clientAddr *net.UDPAddr // the sender of the request being handled
 	describe := func() taskguard.Context {
 		return taskguard.Context{Unit: "request from " + clientAddr.String()}
@@ -268,9 +317,10 @@ func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir st
 		opcode := binary.BigEndian.Uint16(pkt[:2])
 		switch opcode {
 		case tftp.OpRRQ:
-			handleRRQ(generation, conn, pkt, clientAddr, rootDir, sem, limits.Load(), log)
+			handleRRQ(generation, conn, pkt, clientAddr, rootDir, sem, limits.Load(), log, issues, dialLimiter, readLimiter)
 		case tftp.OpWRQ:
 			resp := tftp.BuildError(tftp.CodeIllegalOperation, "write not supported")
+			// refuse-by-default: guards handleRRQ -- best-effort RFC 1350 ERROR packet to rejected client; never retransmitted
 			if _, wErr := conn.WriteToUDP(resp, clientAddr); wErr != nil {
 				log.Debug("tftpserver: write error response failed", "error", wErr)
 			}
@@ -282,8 +332,9 @@ func serveRequests(generation *transferGeneration, conn *net.UDPConn, rootDir st
 // it arrived. The transfer it starts joins generation and is cut when
 // generation ends: its socket is closed, so its next read or write fails and
 // the transfer ends.
-func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootDir string, sem chan struct{}, limits *transferLimits, log *slog.Logger) {
+func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootDir string, sem chan struct{}, limits *transferLimits, log *slog.Logger, issues *issuequeue.Queue, dialLimiter, readLimiter *tftpWarnLimiter) {
 	sendErr := func(code uint16, msg string) {
+		// refuse-by-default: guards serveRequests -- best-effort RFC 1350 ERROR packet; never retransmitted
 		if _, wErr := mainConn.WriteToUDP(tftp.BuildError(code, msg), clientAddr); wErr != nil {
 			log.Debug("tftpserver: error response failed", "error", wErr)
 		}
@@ -341,13 +392,16 @@ func handleRRQ(generation *transferGeneration, mainConn *net.UDPConn, pkt []byte
 	select {
 	case sem <- struct{}{}:
 		t := &transfer{
-			clientAddr: clientAddr,
-			path:       resolved,
-			opts:       opts,
-			hasOptions: hasOptions,
-			blksize:    negotiatedBlksize,
-			timeout:    timeout,
-			windowsize: windowsize,
+			clientAddr:  clientAddr,
+			path:        resolved,
+			opts:        opts,
+			hasOptions:  hasOptions,
+			blksize:     negotiatedBlksize,
+			timeout:     timeout,
+			windowsize:  windowsize,
+			issues:      issues,
+			dialLimiter: dialLimiter,
+			readLimiter: readLimiter,
 		}
 		go runTransfer(generation, t, sem, log)
 	default:
@@ -383,7 +437,10 @@ type transfer struct {
 	timeout time.Duration
 	// windowsize is the blocks sent before an ACK is awaited, from 1 to the
 	// configured maximum; above 1 it was acknowledged in the OACK.
-	windowsize int
+	windowsize  int
+	issues      *issuequeue.Queue
+	dialLimiter *tftpWarnLimiter
+	readLimiter *tftpWarnLimiter
 }
 
 // runTransfer serves one transfer on its own socket and frees its sem slot
@@ -393,9 +450,20 @@ type transfer struct {
 func runTransfer(generation *transferGeneration, t *transfer, sem chan struct{}, log *slog.Logger) {
 	defer func() { <-sem }()
 
-	transferConn, dialErr := net.DialUDP("udp4", nil, t.clientAddr)
+	transferConn, dialErr := dialTransferUDP(t.clientAddr)
 	if dialErr != nil {
-		log.Debug("tftpserver: dial failed", "client", t.clientAddr, "error", dialErr)
+		if allowDialWarn(generation, t.dialLimiter) {
+			msg := report.FitMessage("TFTP server could not open a UDP transfer socket to client " +
+				t.clientAddr.String() + "; the client received no data blocks and will time out. Cause: " + dialErr.Error())
+			failed := func(rErr error) {
+				log.Warn("TFTP server could not deliver the transfer-dial failure report to the daemon; check daemon health",
+					"code", codeDoctorTFTPTransferDialFailed, "client", t.clientAddr, "error", rErr, "fix", fixShowInterface)
+			}
+			qErr := t.issues.RaiseError(codeDoctorTFTPTransferDialFailed, subjectTransferDial, msg, fixShowInterface, failed)
+			log.Warn("TFTP server could not open a UDP transfer socket; the client received no data blocks and will time out",
+				"code", codeDoctorTFTPTransferDialFailed, "client", t.clientAddr,
+				"error", dialErr, "fix", fixShowInterface, issuequeue.Outcome(qErr))
+		}
 		return
 	}
 	// A config change ends generation, which closes the socket and cuts the
@@ -449,6 +517,7 @@ func sendOACKAndWait(conn *net.UDPConn, t *transfer, log *slog.Logger) bool {
 	if t.opts.tsize {
 		info, err := os.Stat(t.path)
 		if err != nil {
+			// refuse-by-default: guards runTransfer -- best-effort RFC 1350 ERROR packet; sendOACKAndWait returns false and ends transfer
 			if _, wErr := conn.Write(tftp.BuildError(tftp.CodeFileNotFound, "file not found")); wErr != nil {
 				log.Debug("tftpserver: error response failed", "error", wErr)
 			}

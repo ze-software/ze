@@ -199,6 +199,7 @@ func (s *statusInfo) write(w io.Writer, asJSON bool) {
 			tb.Str("  - ").Str(peer.Name).Str(": ").Str(peer.State).Byte('\n')
 		}
 	}
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit (StatusReply writes to an in-memory bytes.Buffer)
 	if _, err := w.Write(tb.Bytes()); err != nil {
 		slog.Debug("bridge status: write failed", "error", err)
 	}

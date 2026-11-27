@@ -2,12 +2,20 @@ package dhcpserver
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"log/slog"
 	"net"
 	"net/netip"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // TestBindListenersRefusesUnboundInterface pins R-13: when an interface
@@ -53,7 +61,7 @@ func TestBindListenersReportsBoundCount(t *testing.T) {
 	dhcpListen = func(string) (*net.UDPConn, error) { return ephemeralUDP(t), nil }
 
 	log, buf := captureLogger()
-	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, nil, log, true)
+	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, []*dhcpHandler{}, log, true)
 	if err != nil || len(got) != 2 {
 		t.Fatalf("expected 2 listeners, got %d, %v", len(got), err)
 	}
@@ -79,7 +87,7 @@ func TestBindListenersPartialBindBindsNothing(t *testing.T) {
 	}
 
 	log, _ := captureLogger()
-	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, nil, log, true)
+	got, err := bindListeners(serverConfig{Enabled: true, ListenInterfaces: []string{"eth0", "eth1"}}, []*dhcpHandler{}, log, true)
 	if err == nil || got != nil {
 		t.Fatalf("expected an error and no listeners, got %d, %v", len(got), err)
 	}
@@ -283,5 +291,220 @@ func TestListenerIgnoresOtherSegments(t *testing.T) {
 		if !strings.Contains(lines[0], want) {
 			t.Errorf("warning lacks %q:\n%s", want, lines[0])
 		}
+	}
+}
+
+type dhcpStubPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+}
+
+func (p *dhcpStubPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.raises = append(p.raises, issue)
+	return nil
+}
+
+func (p *dhcpStubPublisher) ClearIssue(context.Context, string, string) error {
+	return nil
+}
+
+type dhcpCountCounter struct{ n atomic.Int64 }
+
+func (c *dhcpCountCounter) Inc()          { c.n.Add(1) }
+func (c *dhcpCountCounter) Add(d float64) { c.n.Add(int64(d)) }
+
+type dhcpCountCounterVec struct {
+	mu sync.Mutex
+	m  map[string]*dhcpCountCounter
+}
+
+func (v *dhcpCountCounterVec) With(labels ...string) metrics.Counter {
+	key := strings.Join(labels, "|")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	c, ok := v.m[key]
+	if !ok {
+		c = &dhcpCountCounter{}
+		v.m[key] = c
+	}
+	return c
+}
+
+func (v *dhcpCountCounterVec) Delete(labels ...string) bool {
+	key := strings.Join(labels, "|")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	_, ok := v.m[key]
+	delete(v.m, key)
+	return ok
+}
+
+func (v *dhcpCountCounterVec) countFor(label string) int64 {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if c, ok := v.m[label]; ok {
+		return c.n.Load()
+	}
+	return 0
+}
+
+type dhcpSyncWriter struct {
+	mu  *sync.Mutex
+	buf *bytes.Buffer
+}
+
+func (w *dhcpSyncWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+type dhcpStubMetrics struct {
+	replyWriteVec *dhcpCountCounterVec
+}
+
+func (m *dhcpStubMetrics) Counter(string, string) metrics.Counter { return &dhcpCountCounter{} }
+func (m *dhcpStubMetrics) Gauge(string, string) metrics.Gauge     { return nil }
+func (m *dhcpStubMetrics) CounterVec(name, _ string, _ []string) metrics.CounterVec {
+	if name == dhcpReplyWriteErrorsMetric {
+		return m.replyWriteVec
+	}
+	return &dhcpCountCounterVec{m: map[string]*dhcpCountCounter{}}
+}
+func (m *dhcpStubMetrics) GaugeVec(string, string, []string) metrics.GaugeVec    { return nil }
+func (m *dhcpStubMetrics) Histogram(string, string, []float64) metrics.Histogram { return nil }
+func (m *dhcpStubMetrics) HistogramVec(string, string, []float64, []string) metrics.HistogramVec {
+	return nil
+}
+
+// TestDHCPServeRequestsReplyWriteFailureIsWarnedRaisedAndRateLimited verifies
+// AC-2 and AC-3 for dhcpserver/register.go serveRequests reply write failure:
+// repeated UDP write failures increment the counter every time while emitting
+// one rate-limited WARN (with doctor code, fix, and issuequeue.Outcome) and one
+// RaiseError on the plugin's issuequeue within unservedWarnInterval.
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (dhcpserver).
+// PREVENTS: DHCP reply write failures dropping at Debug or flooding logs and
+// the report bus per packet.
+func TestDHCPServeRequestsReplyWriteFailureIsWarnedRaisedAndRateLimited(t *testing.T) {
+	origAddrs := dhcpDeviceAddrs
+	origWrite := dhcpWriteReply
+	origNeighborRead := neighborRead
+	origReplyVec := replyWriteErrors.Load()
+	origRejected := learnedRejected.Load()
+	t.Cleanup(func() {
+		dhcpDeviceAddrs = origAddrs
+		dhcpWriteReply = origWrite
+		neighborRead = origNeighborRead
+		replyWriteErrors.Store(origReplyVec)
+		learnedRejected.Store(origRejected)
+	})
+
+	const ifaceName = "eth-dhcp0"
+	dhcpDeviceAddrs = func(string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("192.168.50.1")}, nil
+	}
+	neighborRead = func(string, netip.Addr) (neighborEntry, error) {
+		return neighborEntry{}, errors.New("no netlink in unit test")
+	}
+
+	var writeAttempts atomic.Int32
+	allFailed := make(chan struct{})
+	dhcpWriteReply = func(*net.UDPConn, []byte, *net.UDPAddr) (int, error) {
+		if writeAttempts.Add(1) == 3 {
+			close(allFailed)
+		}
+		return 0, errors.New("network unreachable")
+	}
+
+	stubReg := &dhcpStubMetrics{replyWriteVec: &dhcpCountCounterVec{m: map[string]*dhcpCountCounter{}}}
+	configureMetrics(stubReg)
+
+	handlers := buildHandlers(serverConfig{Enabled: true, SharedNetworks: []sharedNetwork{{
+		Name: "lan",
+		Subnets: []subnetConfig{{
+			Prefix:       netip.MustParsePrefix("192.168.50.0/24"),
+			Ranges:       []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.50.10"), Stop: netip.MustParseAddr("192.168.50.50")}},
+			LeaseTimeSec: 600,
+		}},
+	}}}, nil)
+	t.Cleanup(func() {
+		for _, h := range handlers {
+			h.leases.stop()
+		}
+	})
+
+	pub := &dhcpStubPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	var logMu sync.Mutex
+	var logBuf bytes.Buffer
+	syncWriter := &dhcpSyncWriter{mu: &logMu, buf: &logBuf}
+	log := slog.New(slog.NewTextHandler(syncWriter, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+	srvConn := ephemeralUDP(t)
+	srvAddr, ok := srvConn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("unexpected addr type %T", srvConn.LocalAddr())
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		serveMultiWithIssues(srvConn, ifaceName, handlers, log, q)
+	}()
+
+	clientConn := ephemeralUDP(t)
+	for i := range 3 {
+		pkt := buildDiscover(net.HardwareAddr{0x02, 0x00, 0x00, 0x00, 0x50, byte(i + 1)}, uint32(0x7000+i))
+		if _, err := clientConn.WriteToUDP(pkt, srvAddr); err != nil {
+			t.Fatalf("send discover %d: %v", i, err)
+		}
+	}
+
+	<-allFailed
+	_ = srvConn.Close()
+	<-done
+	q.Flush()
+
+	logMu.Lock()
+	warnOut := strings.TrimSpace(logBuf.String())
+	logMu.Unlock()
+
+	if got := stubReg.replyWriteVec.countFor(ifaceName); got != 3 {
+		t.Errorf("reply write error counter = %d, want 3", got)
+	}
+	if warnOut == "" {
+		t.Fatalf("expected one rate-limited WARN line with %q, got empty log", codeDoctorDHCPReplyWriteFailed)
+	}
+	lines := strings.Split(warnOut, "\n")
+	if len(lines) != 1 {
+		t.Fatalf("WARN lines = %d, want 1 (rate-limited):\n%s", len(lines), warnOut)
+	}
+	for _, want := range []string{"level=WARN", codeDoctorDHCPReplyWriteFailed, "report=queued"} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("WARN line missing %q:\n%s", want, lines[0])
+		}
+	}
+
+	pub.mu.Lock()
+	defer pub.mu.Unlock()
+	if len(pub.raises) != 1 {
+		t.Fatalf("raised issues = %d, want 1 (rate-limited): %+v", len(pub.raises), pub.raises)
+	}
+	if pub.raises[0].Severity != rpc.ReportError {
+		t.Errorf("severity = %q, want %q", pub.raises[0].Severity, rpc.ReportError)
+	}
+	if pub.raises[0].Code != codeDoctorDHCPReplyWriteFailed {
+		t.Errorf("code = %q, want %q", pub.raises[0].Code, codeDoctorDHCPReplyWriteFailed)
+	}
+	if pub.raises[0].Subject != ifaceName {
+		t.Errorf("subject = %q, want %q", pub.raises[0].Subject, ifaceName)
+	}
+	if pub.raises[0].Fix == "" {
+		t.Error("raised issue has empty Fix")
 	}
 }

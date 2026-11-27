@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/events"
@@ -206,6 +207,12 @@ func runNTPPlugin(conn net.Conn) int {
 
 	p := sdk.NewWithConn("ntp", conn)
 	defer func() { _ = p.Close() }()
+
+	// Report-bus queue over the SDK connection; Stop runs after finishNTPWorkerContext
+	// and left.stopAndWait() finish, and before p.Close().
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
 	p.OnExecuteCommand(executeNTPCommand)
 
 	var (
@@ -254,6 +261,7 @@ func runNTPPlugin(conn net.Conn) int {
 		storeState(nil)
 		worker = newSyncWorker(cfg, getEventBus())
 		worker.state = p
+		worker.issues = issues
 		worker.ready = startedCh
 		worker.start()
 		log.Info("ntp: sync worker started",

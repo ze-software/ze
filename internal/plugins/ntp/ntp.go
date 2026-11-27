@@ -18,6 +18,7 @@ import (
 	"math/rand/v2"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -25,10 +26,24 @@ import (
 	"github.com/beevik/ntp"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/events"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/report"
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 	"github.com/ze-software/ze/pkg/ze"
+)
+
+const (
+	fixShowDoctor         = "ze show doctor"
+	fixShowSystemNTP      = "ze show system ntp"
+	subjectClockSynced    = "clock-synced"
+	subjectRTCDevice      = "/dev/rtc0"
+	subjectLastTime       = "last-time"
+	subjectDHCPLeaseEvent = "dhcp-lease-event"
+
+	dhcpEventWarnInterval = time.Minute
+	minRaiseRetryWindow   = time.Minute
 )
 
 var (
@@ -45,8 +60,10 @@ var loggerPtr atomic.Pointer[slog.Logger]
 // Settimeofday. Matches the radiusAdminProbe seam convention in the radius
 // component. Production code leaves them at their real implementations.
 var (
-	ntpQueryFn = ntp.Query
-	setClockFn = setClock
+	ntpQueryFn  = ntp.Query
+	setClockFn  = setClock
+	slewClockFn = slewClock
+	setRTCFn    = setRTC
 )
 
 // ntpConfig holds the parsed NTP configuration.
@@ -76,19 +93,31 @@ func defaultConfig() ntpConfig {
 	}
 }
 
+// ntpWarningRun tracks a run of consecutive failures for one persistent NTP
+// warning so the worker warns once per run, retries refused raises via
+// issuequeue.RunRaises, and clears on recovery. Owned by syncWorker.doSync.
+type ntpWarningRun struct {
+	failures uint64
+	raises   *issuequeue.RunRaises
+}
+
 // syncWorker is the long-lived NTP sync goroutine.
 type syncWorker struct {
-	cfg      ntpConfig
-	stop     chan struct{}
-	stopOnce sync.Once // requestStop closes stop once
-	done     chan struct{}
-	ready    <-chan struct{} // closed on SDK OnStarted; nil in direct unit tests
-	state    stateClient     // daemon state RPC client (*sdk.Plugin); nil in unit tests without state
-	mu       sync.Mutex
-	dhcpSrv  []string    // DHCP-discovered servers (lower priority)
-	eventBus ze.EventBus // for emitting clock-synced event
-	synced   atomic.Bool // true after first successful NTP sync
-	peers    map[string]*serverState
+	cfg             ntpConfig
+	stop            chan struct{}
+	stopOnce        sync.Once // requestStop closes stop once
+	done            chan struct{}
+	ready           <-chan struct{}   // closed on SDK OnStarted; nil in direct unit tests
+	state           stateClient       // daemon state RPC client (*sdk.Plugin); nil in unit tests without state
+	issues          *issuequeue.Queue // report-bus queue over *sdk.Plugin; nil in unit tests without publisher
+	mu              sync.Mutex
+	dhcpSrv         []string    // DHCP-discovered servers (lower priority)
+	dhcpEventWarned time.Time   // last rate-limited malformed DHCP event WARN/raise (guarded by mu)
+	eventBus        ze.EventBus // for emitting clock-synced event
+	synced          atomic.Bool // true after first successful NTP sync
+	peers           map[string]*serverState
+	rtcWarn         ntpWarningRun
+	persistWarn     ntpWarningRun
 }
 
 // lastErrorUnsynchronized is the last-error of a server whose reply carries
@@ -149,6 +178,13 @@ func (w *syncWorker) stopAndWait() {
 func (w *syncWorker) run() {
 	defer close(w.done)
 	logger := loggerPtr.Load()
+	// Clear standing RTC/persistence warnings before closing w.done so
+	// stopAndWait() returns only after clears are queued (before issues.Stop()
+	// drains them), preventing stale warnings on disable or worker reload.
+	defer func() {
+		w.clearRTCFailure(logger)
+		w.clearPersistFailure(logger)
+	}()
 
 	// Publish initial "enabled but not synced" state.
 	w.publishState(false, "", 0, 0)
@@ -292,7 +328,7 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 
 	clockTime := time.Now().Add(best.Offset)
 	if action == actionSlew {
-		if err := slewClock(best.Offset); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
+		if err := slewClockFn(best.Offset); err != nil {
 			logger.Warn("ntp: slew failed, falling back to step", "server", best.Address, "err", err)
 			if err := setClockFn(clockTime); err != nil {
 				logger.Warn("ntp: set clock failed", "server", best.Address, "err", err)
@@ -315,13 +351,24 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	// Emit clock-synced event once after first successful NTP sync.
 	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
 		if _, err := w.eventBus.Emit(ntpevents.Namespace, ntpevents.EventClockSynced, ""); err != nil {
-			logger.Debug("ntp: clock-synced emit failed", "err", err)
+			msg := report.FitMessage("NTP synchronized the system clock, but could not emit the clock-synced event on the event bus; downstream plugins waiting for initial clock synchronization may not learn that the clock is ready. Cause: " + err.Error())
+			failed := func(rErr error) {
+				logger.Warn("NTP could not deliver the clock-synced emit failure report to the daemon; check daemon health",
+					"code", codeDoctorNTPClockSyncedEmitFailed, "error", rErr, "fix", fixShowDoctor)
+			}
+			qErr := w.issues.RaiseError(codeDoctorNTPClockSyncedEmitFailed, subjectClockSynced, msg, fixShowDoctor, failed)
+			logger.Warn("NTP synchronized the system clock, but could not emit the clock-synced event; downstream plugins waiting for clock readiness may not be notified",
+				"code", codeDoctorNTPClockSyncedEmitFailed, "error", err, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
 		}
 	}
 
 	// Write RTC if available.
-	if err := setRTC(clockTime); err != nil { //nolint:staticcheck // SA4023 holds only on darwin: the !linux stub always errors, the linux implementation can return nil
-		logger.Debug("ntp: rtc write failed (non-fatal)", "err", err)
+	if err := setRTCFn(clockTime); err != nil {
+		if !isUnsupportedRTCError(err) {
+			w.observeRTCFailure(logger, err)
+		}
+	} else {
+		w.clearRTCFailure(logger)
 	}
 
 	// Persist time to the daemon's managed zefs store via the SDK state RPC
@@ -329,11 +376,124 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	// the location is the managed zefs store).
 	if w.cfg.PersistPath != "" {
 		if err := saveTime(context.Background(), w.state, clockTime); err != nil {
-			logger.Debug("ntp: time persistence failed", "err", err)
+			w.observePersistFailure(logger, err)
+		} else {
+			w.clearPersistFailure(logger)
 		}
 	}
 
 	return true
+}
+
+// isUnsupportedRTCError reports whether err came from the non-Linux setRTC stub
+// in clock_other.go, which is an expected platform absence rather than a device
+// write failure.
+func isUnsupportedRTCError(err error) bool {
+	return strings.HasPrefix(err.Error(), "ntp: rtc not supported on ")
+}
+
+func (w *syncWorker) raiseRetryWindow() time.Duration {
+	return max(time.Duration(w.cfg.IntervalSec)*time.Second, minRaiseRetryWindow)
+}
+
+func (w *syncWorker) observeRTCFailure(logger *slog.Logger, cause error) {
+	now := time.Now()
+	w.rtcWarn.failures++
+	msg := report.FitMessage("NTP synchronized the system clock, but writing the synced time to /dev/rtc0 failed; hardware clock drift will persist across reboots until the RTC device is writable. Cause: " + cause.Error())
+	if w.rtcWarn.failures == 1 {
+		w.rtcWarn.raises = &issuequeue.RunRaises{}
+		qErr := w.raiseRTCWarning(logger, w.rtcWarn.raises, now, msg)
+		logger.Warn("NTP could not update the hardware RTC; hardware clock drift will persist across reboots until /dev/rtc0 is writable",
+			"code", codeDoctorNTPRTCWriteFailed, "error", cause, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
+		return
+	}
+	if !w.rtcWarn.raises.RetryDue(now, w.raiseRetryWindow()) {
+		return
+	}
+	if qErr := w.raiseRTCWarning(logger, w.rtcWarn.raises, now, msg); qErr != nil {
+		logger.Warn("NTP could not re-queue the RTC write warning for the daemon; check daemon health",
+			"code", codeDoctorNTPRTCWriteFailed, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
+	}
+}
+
+func (w *syncWorker) raiseRTCWarning(logger *slog.Logger, raises *issuequeue.RunRaises, now time.Time, message string) error {
+	refused := raises.Offer(now)
+	failed := func(rErr error) {
+		refused(rErr)
+		logger.Warn("NTP could not deliver the RTC write warning to the daemon; check daemon health",
+			"code", codeDoctorNTPRTCWriteFailed, "error", rErr, "fix", fixShowDoctor)
+	}
+	qErr := w.issues.RaiseWarning(codeDoctorNTPRTCWriteFailed, subjectRTCDevice, message, fixShowDoctor, failed)
+	if qErr != nil {
+		refused(qErr)
+	}
+	return qErr
+}
+
+func (w *syncWorker) clearRTCFailure(logger *slog.Logger) {
+	if w.rtcWarn.failures == 0 {
+		return
+	}
+	w.rtcWarn.failures = 0
+	w.rtcWarn.raises = nil
+	failed := func(rErr error) {
+		logger.Warn("NTP could not clear the RTC write warning on the daemon; check daemon health",
+			"code", codeDoctorNTPRTCWriteFailed, "error", rErr, "fix", fixShowDoctor)
+	}
+	if cErr := w.issues.ClearWarning(codeDoctorNTPRTCWriteFailed, subjectRTCDevice, failed); cErr != nil {
+		logger.Warn("NTP could not queue the RTC write warning clear; stale warning may persist",
+			"code", codeDoctorNTPRTCWriteFailed, "fix", fixShowDoctor, issuequeue.Outcome(cErr))
+	}
+}
+
+func (w *syncWorker) observePersistFailure(logger *slog.Logger, cause error) {
+	now := time.Now()
+	w.persistWarn.failures++
+	msg := report.FitMessage("NTP synchronized the system clock, but writing the last-known timestamp to the daemon state store failed; devices without a battery-backed RTC will boot with a stale timestamp. Cause: " + cause.Error())
+	if w.persistWarn.failures == 1 {
+		w.persistWarn.raises = &issuequeue.RunRaises{}
+		qErr := w.raisePersistWarning(logger, w.persistWarn.raises, now, msg)
+		logger.Warn("NTP could not persist the last-known clock time; devices without a battery-backed RTC will boot with a stale timestamp",
+			"code", codeDoctorNTPTimePersistFailed, "error", cause, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
+		return
+	}
+	if !w.persistWarn.raises.RetryDue(now, w.raiseRetryWindow()) {
+		return
+	}
+	if qErr := w.raisePersistWarning(logger, w.persistWarn.raises, now, msg); qErr != nil {
+		logger.Warn("NTP could not re-queue the time-persistence warning for the daemon; check daemon health",
+			"code", codeDoctorNTPTimePersistFailed, "fix", fixShowDoctor, issuequeue.Outcome(qErr))
+	}
+}
+
+func (w *syncWorker) raisePersistWarning(logger *slog.Logger, raises *issuequeue.RunRaises, now time.Time, message string) error {
+	refused := raises.Offer(now)
+	failed := func(rErr error) {
+		refused(rErr)
+		logger.Warn("NTP could not deliver the time-persistence warning to the daemon; check daemon health",
+			"code", codeDoctorNTPTimePersistFailed, "error", rErr, "fix", fixShowDoctor)
+	}
+	qErr := w.issues.RaiseWarning(codeDoctorNTPTimePersistFailed, subjectLastTime, message, fixShowDoctor, failed)
+	if qErr != nil {
+		refused(qErr)
+	}
+	return qErr
+}
+
+func (w *syncWorker) clearPersistFailure(logger *slog.Logger) {
+	if w.persistWarn.failures == 0 {
+		return
+	}
+	w.persistWarn.failures = 0
+	w.persistWarn.raises = nil
+	failed := func(rErr error) {
+		logger.Warn("NTP could not clear the time-persistence warning on the daemon; check daemon health",
+			"code", codeDoctorNTPTimePersistFailed, "error", rErr, "fix", fixShowDoctor)
+	}
+	if cErr := w.issues.ClearWarning(codeDoctorNTPTimePersistFailed, subjectLastTime, failed); cErr != nil {
+		logger.Warn("NTP could not queue the time-persistence warning clear; stale warning may persist",
+			"code", codeDoctorNTPTimePersistFailed, "fix", fixShowDoctor, issuequeue.Outcome(cErr))
+	}
 }
 
 // getOrCreatePeer returns the serverState for addr, creating it if needed.
@@ -447,11 +607,35 @@ func (w *syncWorker) sleepOrStop(d time.Duration) bool {
 	}
 }
 
+func (w *syncWorker) dhcpEventWarnDue() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	now := time.Now()
+	if !w.dhcpEventWarned.IsZero() {
+		if now.Sub(w.dhcpEventWarned) < dhcpEventWarnInterval {
+			return false
+		}
+	}
+	w.dhcpEventWarned = now
+	return true
+}
+
 // handleDHCPEvent processes a DHCP lease event to extract NTP servers.
 func (w *syncWorker) handleDHCPEvent(data string) {
 	var payload iface.DHCPPayload
 	if err := json.Unmarshal([]byte(data), &payload); err != nil {
-		loggerPtr.Load().Debug("ntp: failed to parse DHCP lease event", "err", err)
+		if !w.dhcpEventWarnDue() {
+			return
+		}
+		log := loggerPtr.Load()
+		msg := report.FitMessage("NTP could not decode a DHCP lease event payload on the event bus; NTP servers advertised via DHCP option 42 in that event were ignored. Cause: " + err.Error())
+		failed := func(rErr error) {
+			log.Warn("NTP could not deliver the malformed DHCP-event report to the daemon; check daemon health",
+				"code", codeDoctorNTPDHCPEventMalformed, "error", rErr, "fix", fixShowSystemNTP)
+		}
+		qErr := w.issues.RaiseError(codeDoctorNTPDHCPEventMalformed, subjectDHCPLeaseEvent, msg, fixShowSystemNTP, failed)
+		log.Warn("NTP could not decode a DHCP lease event payload; DHCP option 42 NTP servers in that event were ignored",
+			"code", codeDoctorNTPDHCPEventMalformed, "error", err, "fix", fixShowSystemNTP, issuequeue.Outcome(qErr))
 		return
 	}
 	if len(payload.NTPServers) > 0 {

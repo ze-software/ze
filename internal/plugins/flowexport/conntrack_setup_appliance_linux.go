@@ -66,6 +66,7 @@ func loadConntrackModules(log *slog.Logger) {
 		out, err := exec.CommandContext(ctx, modprobe, mod).CombinedOutput() //nolint:gosec // fixed module names, resolved modprobe path
 		cancel()
 
+		// refuse-by-default: guards setupConntrackTracking -- conntrack modules are built-in on gokrazy; enableConntrackAccounting, registerConntrackHook, and conntrack.NewReader WARN if conntrack is actually unavailable
 		if err != nil {
 			log.Debug("flow-export: modprobe conntrack module failed (built-in?)", "module", mod, "error", err, "output", string(out))
 		}

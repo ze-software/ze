@@ -3,11 +3,13 @@
 package tftpserver
 
 import (
+	"errors"
 	"log/slog"
 	"net"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -62,7 +64,12 @@ func runTFTPServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("tftpserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
-	srv := &tftpServer{log: log}
+	// Report-bus queue over the SDK connection; Stop runs after srv.stop()
+	// closes listeners and ends transfers, and before closeLogged(p, ...).
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
+	srv := &tftpServer{log: log, issues: issues}
 	tx := sdk.NewConfigTx(tftpConfig{}, parseTFTPSections, srv.install)
 	tx.Register(p)
 	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
@@ -89,6 +96,7 @@ type closer interface {
 }
 
 func closeLogged(c closer, log *slog.Logger, what string) {
+	// refuse-by-default: guards runTFTPServerPlugin -- teardown/reload close
 	if err := c.Close(); err != nil {
 		log.Debug("tftpserver: close failed", "what", what, "error", err)
 	}
@@ -106,4 +114,12 @@ func bindDeviceFor(ifName string) (string, error) {
 		return b.OsName, nil
 	}
 	return ifName, err
+}
+
+// isNoBackendLoaded reports whether err indicates that no iface backend is
+// active. It inspects the returned sentinel error rather than calling
+// iface.GetBackend(), which is forbidden across plugin boundaries and reads
+// nil in a forked plugin process.
+func isNoBackendLoaded(err error) bool {
+	return errors.Is(err, iface.ErrNoBackendLoaded)
 }

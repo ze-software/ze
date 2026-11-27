@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/ddosevent"
@@ -140,6 +141,11 @@ func runEngine(conn net.Conn) int {
 	warnIfExternal(p.IsInternal())
 	defer func() { _ = p.Close() }()
 
+	// Report-bus queue over the SDK connection; Stop runs after stopCurrent
+	// finishes (including final baseline saves) and before p.Close().
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
 	var (
 		detMu     sync.Mutex
 		det       *detector
@@ -230,6 +236,7 @@ func runEngine(conn net.Conn) int {
 		isStarted := started.Load()
 		stopCurrent(context.Background(), !isStarted)
 		next := newDetectorWithState(cfg, bus, p.DispatchCommand, p)
+		next.setIssueQueue(issues)
 		if isStarted {
 			next.restore()
 		}
@@ -284,6 +291,7 @@ func runEngine(conn net.Conn) int {
 		}
 		stopCurrent(context.Background(), false)
 		next := newDetectorWithState(cfg, bus, p.DispatchCommand, p)
+		next.setIssueQueue(issues)
 		next.restore()
 		detMu.Lock()
 		det = next

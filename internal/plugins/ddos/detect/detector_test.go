@@ -1,13 +1,21 @@
 package detect
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"log/slog"
+	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/trafficstat"
 	"github.com/ze-software/ze/internal/core/ddosevent"
 	"github.com/ze-software/ze/internal/core/stats"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -434,5 +442,132 @@ func TestApplyTick_BpsTriggerFiresDuringStartupGrace(t *testing.T) {
 	}
 	if d.tickNum > cfg.StartupGrace {
 		t.Fatalf("test ran past the grace window: tickNum %d, startup-grace %d", d.tickNum, cfg.StartupGrace)
+	}
+}
+
+type detectStubPublisher struct {
+	mu     sync.Mutex
+	raises []sdk.Issue
+}
+
+func (p *detectStubPublisher) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.raises = append(p.raises, issue)
+	return nil
+}
+
+func (p *detectStubPublisher) ClearIssue(context.Context, string, string) error {
+	return nil
+}
+
+func (p *detectStubPublisher) raisedByCode(code string) []sdk.Issue {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var out []sdk.Issue
+	for _, r := range p.raises {
+		if r.Code == code {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+type detectErrStateClient struct {
+	getErr error
+	putErr error
+}
+
+func (c *detectErrStateClient) StateGet(context.Context, string) ([]byte, bool, error) {
+	return nil, false, c.getErr
+}
+
+func (c *detectErrStateClient) StatePut(context.Context, string, []byte) error {
+	return c.putErr
+}
+
+// TestDDoSDetectPersistenceAndDirectionErrorsAreWarnedAndRaised verifies AC-2
+// and AC-3 for ddos/detect: baseline save failure, baseline load failure (with
+// rpc.StateUnavailable suppressed), and classifyDirection AddressIsLocal
+// failure each log at WARN with registered doctor code and issuequeue.Outcome
+// and enqueue RaiseError on the plugin queue.
+//
+// VALIDATES: spec-dropped-error-4-system-plugins AC-2, AC-3 (ddos/detect).
+// PREVENTS: baseline load/save and victim direction lookup errors dropping
+// below WARN with no report-bus visibility.
+func TestDDoSDetectPersistenceAndDirectionErrorsAreWarnedAndRaised(t *testing.T) {
+	origLogger := loggerPtr.Load()
+	t.Cleanup(func() { loggerPtr.Store(origLogger) })
+
+	var logBuf bytes.Buffer
+	setLogger(slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+
+	pub := &detectStubPublisher{}
+	q := issuequeue.Start(pub)
+	t.Cleanup(q.Stop)
+
+	// Storeless daemon (rpc.StateUnavailable) stays silent on both load and save.
+	unavail := &detectErrStateClient{
+		getErr: &rpc.StateError{Status: rpc.StateUnavailable, Message: "no store"},
+		putErr: &rpc.StateError{Status: rpc.StateUnavailable, Message: "no store"},
+	}
+	dUnavail := newDetectorWithState(DefaultConfig(), newDTestBus(), nil, unavail)
+	dUnavail.setIssueQueue(q)
+	dUnavail.restoreContext(t.Context())
+	dUnavail.saveBaselineContext(t.Context())
+	q.Flush()
+	if logBuf.Len() != 0 {
+		t.Fatalf("rpc.StateUnavailable must not warn, got: %s", logBuf.String())
+	}
+	if len(pub.raises) != 0 {
+		t.Fatalf("rpc.StateUnavailable must not raise, got: %+v", pub.raises)
+	}
+
+	// Real store errors on load and save, plus AddressIsLocal error on direction.
+	failStore := &detectErrStateClient{
+		getErr: errors.New("corrupt zefs store"),
+		putErr: errors.New("read-only store"),
+	}
+	d := newDetectorWithState(DefaultConfig(), newDTestBus(), nil, failStore)
+	d.setIssueQueue(q)
+	d.restoreContext(t.Context())
+	d.saveBaselineContext(t.Context())
+	victim := netip.MustParsePrefix("203.0.113.10/32")
+	if got := d.classifyDirection(victim); got != ddosevent.DirectionRemote {
+		t.Fatalf("classifyDirection fallback = %q, want remote", got)
+	}
+	q.Flush()
+
+	warnOut := logBuf.String()
+	const queuedAttr = "report=queued"
+	cases := []struct {
+		code    string
+		subject string
+	}{
+		{codeDoctorDDoSDetectBaselineLoadFailed, "baseline"},
+		{codeDoctorDDoSDetectBaselineSaveFailed, "baseline"},
+		{codeDoctorDDoSDetectDirectionFallback, victim.String()},
+	}
+	for _, tc := range cases {
+		if !strings.Contains(warnOut, tc.code) {
+			t.Errorf("WARN log missing doctor code %q:\n%s", tc.code, warnOut)
+		}
+		if !strings.Contains(warnOut, queuedAttr) {
+			t.Errorf("WARN log missing %q:\n%s", queuedAttr, warnOut)
+		}
+		raised := pub.raisedByCode(tc.code)
+		if len(raised) != 1 {
+			t.Errorf("code %q: raised %d issues, want 1", tc.code, len(raised))
+			continue
+		}
+		if raised[0].Severity != rpc.ReportError {
+			t.Errorf("code %q: severity = %q, want %q", tc.code, raised[0].Severity, rpc.ReportError)
+		}
+		if raised[0].Subject != tc.subject {
+			t.Errorf("code %q: subject = %q, want %q", tc.code, raised[0].Subject, tc.subject)
+		}
+		if raised[0].Fix == "" {
+			t.Errorf("code %q: empty Fix", tc.code)
+		}
 	}
 }

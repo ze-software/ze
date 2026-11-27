@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
@@ -68,7 +69,12 @@ func runImageServerPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("imageserver", conn)
 	defer closeLogged(p, log, "plugin conn")
 
-	srv := &imageServer{log: log}
+	// Report-bus queue over the SDK connection; Stop runs after srv.stop()
+	// removes temporary zefs directories and before closeLogged(p, ...).
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
+	srv := &imageServer{log: log, issues: issues}
 	tx := sdk.NewConfigTx(imageConfig{}, parseImageSections, srv.install)
 	tx.Register(p)
 	p.OnConfigure(func(sections []sdk.ConfigSection) error { return srv.configureAtBoot(tx, sections) })
@@ -311,6 +317,7 @@ type closer interface {
 }
 
 func closeLogged(c closer, log *slog.Logger, what string) {
+	// refuse-by-default: guards runImageServerPlugin -- teardown/rollback close
 	if err := c.Close(); err != nil {
 		log.Debug("imageserver: close failed", "what", what, "error", err)
 	}

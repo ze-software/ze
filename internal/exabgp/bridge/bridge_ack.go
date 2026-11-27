@@ -53,6 +53,7 @@ func (m *AckMode) AnswerLocal(pluginW io.Writer, action LocalAction) {
 	if !m.apply(action) {
 		return
 	}
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit
 	if _, err := fmt.Fprintln(pluginW, "done"); err != nil { //nolint:errcheck // output
 		slog.Debug("bridge ack: write done failed", "error", err)
 	}
@@ -110,6 +111,7 @@ func (m AckMode) WriteAck(pluginW io.Writer) {
 	if !m.enabled {
 		return
 	}
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit
 	if _, err := fmt.Fprintln(pluginW, "done"); err != nil { //nolint:errcheck // output
 		slog.Debug("bridge ack: write done failed", "error", err)
 	}
@@ -141,6 +143,7 @@ func (m AckMode) WriteError(pluginW io.Writer, version APIVersion, reason string
 		panic("BUG: invalid bridge API version")
 	}
 	tb.Str("error\n")
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit
 	if _, err := pluginW.Write(tb.Bytes()); err != nil {
 		slog.Debug("bridge ack: write error failed", "error", err)
 	}
@@ -153,6 +156,7 @@ func (m AckMode) WriteErrorMarker(pluginW io.Writer) {
 	if !m.enabled {
 		return
 	}
+	// refuse-by-default: guards Bridge.Run -- broken stdin pipe means the ExaBGP script exited; Bridge.Run reaps the child exit
 	if _, err := io.WriteString(pluginW, "error\n"); err != nil {
 		slog.Debug("bridge ack: write error marker failed", "error", err)
 	}
