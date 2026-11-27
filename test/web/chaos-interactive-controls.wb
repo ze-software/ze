@@ -1,0 +1,61 @@
+# Test: interactive controls on the chaos dashboard drive the live simulation
+# VALIDATES:
+# - Control strip Pause and Resume update the scheduler state and DOM.
+# - Speed control switches virtual clock pacing in --in-process mode.
+# - Targeting peer 0 in the trigger peer picker and clicking Route Flap
+#   dispatches the fault to the live peer simulator, renders the trigger
+#   confirmation, and records the executed route-flap in server chaos history.
+# - Table view and peer detail pane open for a live peer.
+# PREVENTS: Dead control strip buttons, unwired in-process control channels, or
+#   trigger clicks that claim success without executing in the simulator.
+
+option=server:kind=chaos
+option=viewport:width=1440:height=1000
+option=timeout:value=90s
+
+action=open:path=/
+
+# Wait for the control strip (with the configured seed) and peer 0 to reach Established.
+expect=element:id=control-strip
+expect=html:id=control-strip:contains=seed: 42
+action=wait-html:contains=id="peer-cell-0" class="peer-cell status-up
+
+# Pause and Resume via the control strip.
+expect=html:id=control-strip:contains=Running
+action=click:text=Pause
+action=wait-html:contains=strip-label">Paused<
+expect=html:id=control-strip:contains=Resume
+
+action=click:text=Resume
+action=wait-html:contains=strip-label">Running<
+expect=html:id=control-strip:contains=Pause
+
+# Switch speed factor to 10x so the in-process run accelerates cleanly.
+action=click:text=10x
+action=wait-html:contains=border-color:#22c55e;font-weight:bold" hx-post="/control/speed" hx-target="#control-strip" hx-swap="outerHTML" hx-vals="{&quot;factor&quot;:&quot;10&quot;}"
+expect=html:id=control-strip:contains=title="10x (100ms/step)"
+
+# Target peer 0 and manually trigger Route Flap.
+action=fill:id=tp-number-input:value=0
+action=press:id=tp-number-input:key=Enter
+action=wait-html:contains=data-peer="0"
+
+action=click:text=Route Flap
+action=wait-html:contains=triggered
+expect=html:id=trigger-result:contains=route-flap
+expect=html:id=trigger-result:contains=peer(s) [0]
+
+# Open Table view, ensure peer 0 is tracked, and inspect peer 0's detail pane.
+action=click:text=Table
+action=wait-html:contains=id="peer-tbody"
+action=fill:id=promote-id:value=0
+action=click:text=Add
+action=wait-html:contains=id="peer-0"
+action=click:id=peer-0
+action=wait-html:contains=Peer 0
+expect=html:id=peer-detail:contains=Peer 0
+
+# Verify the triggered route-flap actually executed in the live simulator and
+# landed in the dashboard's server-side chaos events table.
+action=wait-until:path=/viz/chaos-events:contains=route-flap
+expect=html:contains=route-flap

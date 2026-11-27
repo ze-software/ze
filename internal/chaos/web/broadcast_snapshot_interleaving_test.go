@@ -169,7 +169,7 @@ func assertSnapshotBatch(t *testing.T, name string, batch []string, chaosCount i
 			if strings.Contains(message, `class="event-time">-`) {
 				t.Errorf("%s batch rendered an event newer than its sampled clock: %s", name, message)
 			}
-		case strings.HasPrefix(message, `<tr id="peer-0" hx-swap-oob="outerHTML">`):
+		case strings.HasPrefix(message, `<tr id="peer-0" hx-swap-oob="outerHTML" hx-get="/peer/0" hx-target="#peer-detail" hx-swap="outerHTML">`):
 			counts["peer"]++
 			lastCell := `<td>0</td></tr>`
 			if chaosCount == 1 {

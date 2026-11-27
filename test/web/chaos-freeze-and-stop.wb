@@ -1,0 +1,49 @@
+# Test: chaos dashboard stop, route-dynamics controls, and freeze toggle
+# VALIDATES:
+# - Control strip Stop transitions chaos status to Stopped and removes Pause/Stop.
+# - Route Dynamics panel Pause and Resume transition route dynamics status live.
+# - Selecting Convergence tab and toggling Freeze (#freeze-updates) works in a
+#   real browser without breaking subsequent navigation.
+# - Track peer control promotes a valid peer index into the table view.
+# PREVENTS: Dead stop/route-dynamics buttons, broken Freeze toggle, or a Track
+#   control that fails on valid input.
+
+option=server:kind=chaos
+option=viewport:width=1440:height=1000
+option=timeout:value=90s
+
+action=open:path=/
+
+expect=element:id=control-strip
+expect=element:id=route-control-panel
+expect=html:id=control-strip:contains=Running
+expect=html:id=route-control-panel:contains=Running
+
+# Stop chaos scheduler via the control strip.
+action=click:text=Stop
+action=wait-html:contains=strip-label">Stopped<
+expect=html:id=control-strip:contains=Stopped
+expect=html:id=control-strip:not-contains=Pause
+
+# Pause and Resume route dynamics (now the sole Pause/Resume on the page).
+action=click:text=Pause
+action=wait-html:contains=<span>Paused</span>
+expect=html:id=route-control-panel:contains=Resume
+
+action=click:text=Resume
+action=wait-html:contains=<span>Running</span>
+expect=html:id=route-control-panel:contains=Pause
+
+# Switch to Convergence tab and toggle Freeze.
+action=click:text=Convergence
+action=wait-html:contains=Convergence
+action=click:id=freeze-updates
+expect=element:id=freeze-updates
+
+# Switch to Table view and track peer 0 via the Track control.
+action=click:text=Table
+action=wait-html:contains=id="peer-tbody"
+action=fill:id=promote-id:value=0
+action=click:text=Add
+action=wait-html:contains=id="peer-0"
+expect=element:id=peer-0

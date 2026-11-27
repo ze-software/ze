@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -1216,5 +1217,61 @@ func TestWriteControlSidebarStopped(t *testing.T) {
 
 	if html != "" {
 		t.Errorf("sidebar should be empty when stopped, got %q", html)
+	}
+}
+
+// TestNewPropagatesControlSeed verifies New copies Config.Seed into ControlState.Seed
+// so the control strip displays the real run seed instead of 0.
+//
+// VALIDATES: Control strip seed reflects Config.Seed.
+// PREVENTS: Regression where state.Control.Seed is copied before state.Seed is assigned.
+func TestNewPropagatesControlSeed(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	d, err := New(Config{
+		Mux:       mux,
+		PeerCount: 2,
+		Seed:      42,
+		Control:   make(chan ControlCommand, 1),
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer func() { _ = d.Close() }()
+
+	if d.state.Control.Seed != 42 {
+		t.Fatalf("Control.Seed = %d, want 42", d.state.Control.Seed)
+	}
+	var buf strings.Builder
+	writeControlStrip(&buf, &d.state.Control)
+	if !strings.Contains(buf.String(), "seed: 42") {
+		t.Errorf("control strip should show seed: 42, got %q", buf.String())
+	}
+}
+
+// TestRenderPeerRowPreservesDetailTarget verifies SSE outerHTML row updates
+// preserve the row's hx-get peer detail link and pin click stopPropagation.
+//
+// VALIDATES: Clicking a peer row in Table view still opens #peer-detail after SSE updates.
+// PREVENTS: Regression where SSE renderPeerRow strips hx-get="/peer/<idx>" from <tr id="peer-<idx>">.
+func TestRenderPeerRowPreservesDetailTarget(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	row := d.renderPeerRow(1)
+	for _, want := range []string{
+		`id="peer-1"`,
+		`hx-swap-oob="outerHTML"`,
+		`hx-get="/peer/1"`,
+		`hx-target="#peer-detail"`,
+		`hx-swap="outerHTML"`,
+		`onclick="event.stopPropagation()"`,
+	} {
+		if !strings.Contains(row, want) {
+			t.Errorf("renderPeerRow(1) missing %q in %q", want, row)
+		}
 	}
 }

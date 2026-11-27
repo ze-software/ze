@@ -754,6 +754,7 @@ const chaosPollMorphReason = ", and periodic refreshes use native HTMX Morph to 
 const chaosRunClockReason = ", and the controlled producer clock pins exact initial uptime instead of a normalized placeholder, with no independent browser uptime timer"
 const chaosUptimeOOBReason = ", and the existing stats fragment also replaces #uptime out of band using the same producer-clock sample"
 const chaosTimelineClockReason = ", and the fixture samples the producer clock at exactly three hours, so timeline tick percentages and inclusive window-boundary ticks are exact"
+const chaosPeerRowDetailReason = "renderPeerRow preserves the peer detail hx-get target and pin stopPropagation across SSE outerHTML row swaps, matching writePeerRows and renderPeerRowInsert"
 
 // chaosPortCutover explains every capture the cutover moves. A fixture that
 // differs and is not named here is a finding, and so is a name that matches no
@@ -779,7 +780,9 @@ var chaosPortCutover = map[string]string{
 	"sse-stats.html":               chaosOOBReason + chaosDonutReason + chaosPollMorphReason + chaosUptimeOOBReason,
 	"sse-events.html":              chaosOOBReason + chaosPollMorphReason,
 	"sse-convergence.html":         chaosOOBReason,
+	"sse-peer-row.html":            chaosPeerRowDetailReason,
 	"sse-toast.html":               chaosOOBReason + ", inside a wrapper the swap discards, so the toast keeps its own class and handlers",
+	"peer-pin.txt":                 chaosPeerRowDetailReason,
 	"active-set-max-visible.txt":   chaosPollMorphReason,
 	"sidebar-active-set.txt":       chaosPollMorphReason,
 	"peers-grid.txt":               chaosPollMorphReason,

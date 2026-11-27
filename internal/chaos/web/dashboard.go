@@ -273,6 +273,10 @@ func New(cfg Config) (*Dashboard, error) {
 		ownServer:     ownServer,
 	}
 
+	state.Seed = cfg.Seed
+	state.WarmupDuration = cfg.WarmupDuration
+	state.ConvergenceDeadline = cfg.ConvergenceDeadline
+
 	// Initialize control state from config.
 	if cfg.Control != nil {
 		state.Control = ControlState{Rate: cfg.ChaosRate, Status: "running"}
@@ -294,9 +298,6 @@ func New(cfg Config) (*Dashboard, error) {
 	default:
 		return nil, fmt.Errorf("invalid InitialSpeedFactor %d (must be 1, 10, 100, or 1000)", cfg.InitialSpeedFactor)
 	}
-	state.Seed = cfg.Seed
-	state.WarmupDuration = cfg.WarmupDuration
-	state.ConvergenceDeadline = cfg.ConvergenceDeadline
 
 	// Auto-promote all peers when the total fits in the active set.
 	// This ensures small deployments show all peers immediately.
@@ -730,36 +731,18 @@ func (d *Dashboard) recentEventsAt(oob string, now time.Time) string {
 
 // renderPeerRow returns a table row HTML fragment for a single peer.
 func (d *Dashboard) renderPeerRow(idx int) string {
-	ps := d.state.Peers[idx]
-	if ps == nil {
-		return ""
-	}
-	pinned := d.state.Active.isPinned(idx)
-	pinClass := cssPinDefault
-	if pinned {
-		pinClass = cssPinPinned
-	}
-	var b textbuf.Buffer
-	idxStr := itoa(idx)
-	b.Str(`<tr id="peer-`).Str(idxStr).Str(`" hx-swap-oob="outerHTML">`)
-	b.Str(`<td><span class="`).Str(pinClass).Str(`" hx-post="/peers/`).Str(idxStr).Str(`/pin" hx-swap="none"></span></td>`)
-	b.Str(`<td>`).Str(idxStr).Str(`</td>`)
-	b.Str(`<td><span class="dot `).Str(ps.Status.CSSClass()).Str(`"></span> `).Str(ps.Status.String()).Str(`</td>`)
-	b.Str(`<td>`).Str(itoa(ps.RoutesSent)).Str(`</td>`)
-	b.Str(`<td>`).Str(itoa(ps.RoutesRecv)).Str(`</td>`)
-	b.Str(`<td>`).Str(formatBytes(ps.BytesSent)).Str(`</td>`)
-	b.Str(`<td>`).Str(formatBytes(ps.BytesRecv)).Str(`</td>`)
-	b.Str(`<td>`).Str(FormatBitRate(ps.throughputOut)).Str(`</td>`)
-	b.Str(`<td>`).Str(FormatBitRate(ps.throughputIn)).Str(`</td>`)
-	b.Str(`<td>`).Str(itoa(ps.ChaosCount)).Str(`</td>`)
-	b.Str(`</tr>`)
-	return b.String()
+	return d.buildPeerRow(idx, "outerHTML")
 }
 
 // renderPeerRowInsert returns a table row HTML fragment for inserting a new peer
 // into the table body via hx-swap-oob="beforeend". Unlike renderPeerRow (which
 // uses outerHTML to update an existing row), this appends a new row to #peer-tbody.
 func (d *Dashboard) renderPeerRowInsert(idx int) string {
+	return d.buildPeerRow(idx, "beforeend:#peer-tbody")
+}
+
+// buildPeerRow formats a single SSE table row fragment with the given hx-swap-oob target.
+func (d *Dashboard) buildPeerRow(idx int, oob string) string {
 	ps := d.state.Peers[idx]
 	if ps == nil {
 		return ""
@@ -771,7 +754,7 @@ func (d *Dashboard) renderPeerRowInsert(idx int) string {
 	}
 	var b textbuf.Buffer
 	idxStr := itoa(idx)
-	b.Str(`<tr id="peer-`).Str(idxStr).Str(`" hx-swap-oob="beforeend:#peer-tbody" hx-get="/peer/`).Str(idxStr).Str(`" hx-target="#peer-detail" hx-swap="outerHTML">`)
+	b.Str(`<tr id="peer-`).Str(idxStr).Str(`" hx-swap-oob="`).Str(oob).Str(`" hx-get="/peer/`).Str(idxStr).Str(`" hx-target="#peer-detail" hx-swap="outerHTML">`)
 	b.Str(`<td><span class="`).Str(pinClass).Str(`" hx-post="/peers/`).Str(idxStr).Str(`/pin" hx-swap="none" hx-trigger="click" onclick="event.stopPropagation()"></span></td>`)
 	b.Str(`<td>`).Str(idxStr).Str(`</td>`)
 	b.Str(`<td><span class="dot `).Str(ps.Status.CSSClass()).Str(`"></span> `).Str(ps.Status.String()).Str(`</td>`)

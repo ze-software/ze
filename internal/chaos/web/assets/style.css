@@ -1297,8 +1297,8 @@ span.fm-complete {
 .action-error { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 60%; }
 .action-error:empty { display: none; }
 
-/* Toast Notifications */
-.toast-container { position: fixed; top: 8px; right: 8px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
+/* Toast Notifications — anchored bottom-right with a capped stack height so rapid toasts (e.g. 10x-1000x speed) never cover the top-right Table/Grid controls or control strip. */
+.toast-container { position: fixed; bottom: 12px; right: 12px; z-index: 1000; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; pointer-events: none; max-width: 300px; max-height: 220px; overflow: hidden; }
 .toast { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); pointer-events: auto; cursor: pointer; animation: toast-in 0.3s ease-out, toast-out 0.5s ease-in 4.5s forwards; }
 .toast-error { background: #552426; border-left: 3px solid var(--red); color: var(--text-primary); }
 .toast-warn { background: #4a3a1a; border-left: 3px solid var(--yellow); color: var(--text-primary); }
