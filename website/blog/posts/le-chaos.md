@@ -99,6 +99,8 @@ Every fault follows one rule: manual triggers from the web dashboard or MCP trav
 
 When a run fails a property, `--replay` re-runs the recorded header, peer reachability, deadlines and event stream through the validation engine to confirm the failure reproduces, and `--diff` compares two logs. `--shrink` then narrows a failing trace in two phases: binary search first cuts the event list down coarsely, and single-step elimination removes individual events together with their causal dependents until only the smallest subsequence that still violates the property remains. Reducing a long failing log to a handful of events turns an intermittent fault into something an engineer can trace directly in the BGP engine.
 
+For multi-seed swarm fuzzing (`./le chaos fuzz`), wire-level TCP stream fragmentation and resets, white-box reactor invariant checks and automatic scenario shrinking, see [Deterministic simulation testing for BGP](../deterministic-simulation-testing-bgp/).
+
 ## Driving chaos from an AI assistant through MCP
 
 Watching a dashboard is helpful when a person is debugging; during Ze development, coding agents investigate many of these failures themselves. Passing `--mcp :8001` alongside `--web` starts a JSON-RPC 2.0 server over Ze's shared Streamable HTTP MCP layer, exposing six tools (`chaos_status`, `chaos_problems`, `chaos_peers`, `chaos_scenario`, `chaos_control` and `chaos_execute`). Adding `--ze-mcp 9718` exposes the target Ze daemon's own MCP server at the same time, so an agent can inspect both the simulator and the router under test.
