@@ -16,11 +16,15 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The bound on a hash-and-URL lookup.
@@ -251,6 +255,9 @@ type certURLFetcher struct {
 	// renewably. The backoff exists to bound ONE peer's retransmissions, so it is scoped to
 	// the peer whose retransmissions it bounds.
 	failed map[certURLFailure]time.Time
+	// raises tracks report-bus raises per failed lookup so retries stay within
+	// rpc.ReportRaisesPerWindow and clear once a fetch succeeds.
+	raises map[certURLFailure]*issuequeue.RunRaises
 }
 
 // certURLFailure names one peer's failed lookup of one object.
@@ -265,6 +272,7 @@ type certURLFailure struct {
 var certURLFetches = certURLFetcher{
 	pending: make(map[string]struct{}),
 	failed:  make(map[certURLFailure]time.Time),
+	raises:  make(map[certURLFailure]*issuequeue.RunRaises),
 }
 
 // start begins a background lookup for one Hash and URL payload, on behalf of one peer.
@@ -282,7 +290,7 @@ var certURLFetches = certURLFetcher{
 // on the peer as well, so one peer's failure can never suppress another's lookup
 // (certURLFailure, above).
 func (f *certURLFetcher) start(peer string, data []byte, allow []netip.Prefix, log *slog.Logger) {
-	hash, _, err := splitHashAndURL(data)
+	hash, rawURL, err := splitHashAndURL(data)
 	if err != nil {
 		return
 	}
@@ -330,12 +338,77 @@ func (f *certURLFetcher) start(peer string, data []byte, allow []netip.Prefix, l
 			// caller, in one critical section, so a retransmission that arrives between
 			// the two cannot slip through and start a second GET.
 			f.noteFailureLocked(failKey)
+		} else {
+			delete(f.raises, failKey)
 		}
 		f.mu.Unlock()
 		if err != nil {
-			log.Debug("ike: background hash-and-url lookup failed", "error", err)
+			safeURL := sanitizeCertURL(rawURL)
+			reportAttr := f.raiseFetchFailure(peer, safeURL, failKey, err, log)
+			log.Warn("ike: hash-and-url certificate fetch failed; IKE_AUTH cannot verify the peer certificate until the URL is reachable and permitted",
+				"code", codeDoctorIPsecCertURLFetchFailed,
+				"peer", peer,
+				"url", safeURL,
+				"error", err,
+				"fix", fixShowIPsecSA,
+				reportAttr)
 		}
 	}()
+}
+
+const maxSanitizedCertURLBytes = 256
+
+// sanitizeCertURL redacts any userinfo credentials and bounds a peer-supplied
+// hash-and-URL string before it reaches Warn logs or report-issue messages.
+func sanitizeCertURL(rawURL string) string {
+	if u, err := url.Parse(rawURL); err == nil {
+		return fitReportField(u.Redacted(), maxSanitizedCertURLBytes)
+	}
+	if strings.ContainsRune(rawURL, '@') {
+		return "<redacted invalid cert-url>"
+	}
+	return fitReportField(rawURL, maxSanitizedCertURLBytes)
+}
+
+func (f *certURLFetcher) raiseFetchFailure(peer, rawURL string, failKey certURLFailure, fetchErr error, log *slog.Logger) slog.Attr {
+	now := time.Now()
+	f.mu.Lock()
+	if f.raises == nil {
+		f.raises = make(map[certURLFailure]*issuequeue.RunRaises)
+	}
+	runs, exists := f.raises[failKey]
+	if !exists {
+		if len(f.raises) >= certURLCacheMaxEntries {
+			clear(f.raises)
+		}
+		runs = &issuequeue.RunRaises{}
+		f.raises[failKey] = runs
+	} else if !runs.RetryDue(now, ikeIssueCoalesceWindow) {
+		f.mu.Unlock()
+		return slog.String("report", "coalesced")
+	}
+	refused := runs.Offer(now)
+	f.mu.Unlock()
+
+	p := ikeIssuePeerName(peer)
+	safeURL := sanitizeCertURL(rawURL)
+	var msg textbuf.Buffer
+	msg.Str("IPsec hash-and-URL certificate fetch for peer ").Str(p).
+		Str(" from ").Str(safeURL).Str(" failed: ").Err(fetchErr).
+		Str(". IKE_AUTH cannot verify the peer certificate until the URL is reachable and allowed by certificate-url-allow.")
+
+	subject := fitReportField(p, rpc.ReportSubjectMax)
+	message := fitReportField(msg.String(), rpc.ReportMessageMax)
+	qErr := ikeIssueQueue.Load().RaiseError(codeDoctorIPsecCertURLFetchFailed, subject, message, fixShowIPsecSA, func(sendErr error) {
+		refused(sendErr)
+		log.Warn("ike: could not record hash-and-url certificate fetch failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecCertURLFetchFailed, "peer", p, "url", safeURL, "error", sendErr,
+			"fix", fixShowIPsecSA)
+	})
+	if qErr != nil {
+		refused(qErr)
+	}
+	return issuequeue.Outcome(qErr)
 }
 
 // noteFailureLocked records a failed lookup for the backoff, and bounds the record set.
@@ -555,6 +628,9 @@ func fetchHashAndURL(ctx context.Context, data []byte, allow []netip.Prefix) ([]
 	// them. That is the basis for refusing rather than attempting them.
 	u, err := url.Parse(rawURL)
 	if err != nil {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			return nil, fmt.Errorf("ike cert-url: parse url %s: %w", sanitizeCertURL(rawURL), urlErr.Err)
+		}
 		return nil, fmt.Errorf("ike cert-url: parse url: %w", err)
 	}
 	if u.Scheme != "http" {
@@ -576,6 +652,9 @@ func fetchHashAndURL(ctx context.Context, data []byte, allow []netip.Prefix) ([]
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), http.NoBody)
 	if err != nil {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			return nil, fmt.Errorf("ike cert-url: build request %s: %w", sanitizeCertURL(rawURL), urlErr.Err)
+		}
 		return nil, fmt.Errorf("ike cert-url: build request: %w", err)
 	}
 	resp, err := certURLClient(allow).Do(req)

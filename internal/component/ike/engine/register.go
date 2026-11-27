@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/iface"
@@ -21,11 +22,13 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -160,6 +163,7 @@ var (
 	loggerPtr      atomic.Pointer[slog.Logger]
 	eventBusPtr    atomic.Pointer[ze.EventBus]
 	activeTablePtr atomic.Pointer[SATable]
+	ikeIssueQueue  atomic.Pointer[issuequeue.Queue]
 
 	peersMu        sync.RWMutex
 	activePeersMap map[string]*PeerSession
@@ -529,6 +533,25 @@ func runEngine(conn net.Conn) int {
 	defer closeSDK(p)
 	state.issueRaiser = p
 
+	// Start the plugin-owned non-blocking report queue before the engine runs
+	// and stop it AFTER engine shutdown and dataplane close (before p.Close),
+	// so transient events from runtime and shutdown paths drain over p in both
+	// internal and forked plugin modes without blocking hot goroutines.
+	issues := issuequeue.Start(p)
+	ikeIssueQueue.Store(issues)
+	defer func() {
+		ikeIssueQueue.CompareAndSwap(issues, nil)
+		issues.Stop()
+	}()
+
+	// Wire non-blocking dataplane and transport report sinks onto issues before
+	// engine shutdown is deferred, so unregistering them runs after peers stop
+	// and before issues.Stop() drains the queue.
+	dataplane.RegisterXFRMRollbackFailed(xfrmRollbackFailedSink(issues, log))
+	defer dataplane.RegisterXFRMRollbackFailed(nil)
+	transport.RegisterNATKeepaliveSink(newNATKeepaliveSink(issues, log))
+	defer transport.RegisterNATKeepaliveSink(nil)
+
 	// Keep the SDK available through policy cleanup where the connection survives.
 	// A daemon disconnect already closed it; coded logs retain failed report attempts.
 	// The whole shutdown, for a clean return and an error return of p.Run alike
@@ -694,8 +717,123 @@ func runEngine(conn net.Conn) int {
 }
 
 func closeSDK(p *sdk.Plugin) {
+	// refuse-by-default: guards runEngine -- deferred SDK close during engine shutdown cannot be acted on after the plugin loop exits
 	if err := p.Close(); err != nil {
 		getLogger().Debug("ike: sdk close", "error", err)
+	}
+}
+
+const (
+	fixShowIPsecDataplaneSA     = "ze show vpn ipsec dataplane sa"
+	fixShowIPsecDataplanePolicy = "ze show vpn ipsec dataplane policy"
+	fixShowIPsecSA              = "ze show vpn ipsec sa"
+	keepaliveRaiseWindow        = time.Minute
+	maxTrackedKeepaliveRuns     = 256
+)
+
+// fitReportField cuts s to at most maxBytes UTF-8 octets on a rune boundary
+// so report-issue RPC fields never exceed rpc.ValidateReportIssue limits.
+func fitReportField(s string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+	cut := maxBytes
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
+}
+
+// xfrmRollbackFailedSink answers the non-blocking callback runEngine registers
+// with dataplane so XFRM install rollback failures enqueue onto the plugin's
+// issuequeue.Queue without blocking InstallSA on daemon RPC.
+func xfrmRollbackFailedSink(q *issuequeue.Queue, log *slog.Logger) dataplane.XFRMRollbackFailedSink {
+	return func(ev dataplane.XFRMRollbackFailed) slog.Attr {
+		var subj textbuf.Buffer
+		subj.Str("spi-").Uint(uint64(ev.SPI))
+
+		var msg textbuf.Buffer
+		msg.Str("Ze could not remove stranded XFRM state SPI ").Uint(uint64(ev.SPI))
+		if ev.Src.IsValid() && ev.Dst.IsValid() {
+			msg.Str(" (").Str(ev.Src.String()).Str(" -> ").Str(ev.Dst.String()).Byte(')')
+		}
+		msg.Str(" after dual-form ESP setup failed: ").Err(ev.RollbackErr)
+		if ev.InstallErr != nil {
+			msg.Str(" (install error: ").Err(ev.InstallErr).Byte(')')
+		}
+		msg.Str(". A stranded kernel state can block later Child SA installs using the same SPI.")
+
+		subject := fitReportField(subj.String(), rpc.ReportSubjectMax)
+		message := fitReportField(msg.String(), rpc.ReportMessageMax)
+		err := q.RaiseError(dataplane.CodeDoctorIPsecXFRMRollbackFailed, subject, message, fixShowIPsecDataplaneSA, func(sendErr error) {
+			log.Warn("ike: could not record XFRM install rollback failure on the report bus; only the log keeps it",
+				"code", dataplane.CodeDoctorIPsecXFRMRollbackFailed, "spi", ev.SPI, "error", sendErr,
+				"fix", fixShowIPsecDataplaneSA)
+		})
+		return issuequeue.Outcome(err)
+	}
+}
+
+// newNATKeepaliveSink answers the non-blocking callback runEngine registers
+// with transport so periodic NAT-T keepalive failures enqueue once per failure
+// run onto q (retrying via issuequeue.RunRaises if the daemon refused the raise)
+// and clear their tracking state on recovery.
+func newNATKeepaliveSink(q *issuequeue.Queue, log *slog.Logger) transport.NATKeepaliveSink {
+	var (
+		mu     sync.Mutex
+		active = make(map[string]*issuequeue.RunRaises)
+	)
+	return func(ev transport.NATKeepaliveEvent) slog.Attr {
+		subject := "unknown-remote"
+		if ev.Remote != nil {
+			subject = ev.Remote.String()
+		}
+		subject = fitReportField(subject, rpc.ReportSubjectMax)
+		switch ev.Kind {
+		case transport.NATKeepaliveEventUnspecified:
+			return slog.Attr{}
+		case transport.NATKeepaliveEventRecovered:
+			mu.Lock()
+			delete(active, subject)
+			mu.Unlock()
+			return slog.Attr{}
+		case transport.NATKeepaliveEventFailed:
+			now := time.Now()
+			mu.Lock()
+			runs, exists := active[subject]
+			if !exists {
+				if len(active) >= maxTrackedKeepaliveRuns {
+					clear(active)
+				}
+				runs = &issuequeue.RunRaises{}
+				active[subject] = runs
+			} else if !runs.RetryDue(now, keepaliveRaiseWindow) {
+				mu.Unlock()
+				return slog.Attr{}
+			}
+			refused := runs.Offer(now)
+			mu.Unlock()
+
+			var msg textbuf.Buffer
+			msg.Str("IPsec NAT-T keepalive send to ").Str(subject).Str(" failed: ").Err(ev.Err).
+				Str(". Intermediate NAT mappings may expire and drop inbound IKE and ESP traffic until the peer renegotiates.")
+
+			message := fitReportField(msg.String(), rpc.ReportMessageMax)
+			err := q.RaiseError(transport.CodeDoctorIPsecNATKeepaliveFailed, subject, message, fixShowIPsecSA, func(sendErr error) {
+				refused(sendErr)
+				log.Warn("ike: could not record NAT-T keepalive send failure on the report bus; only the log keeps it",
+					"code", transport.CodeDoctorIPsecNATKeepaliveFailed, "remote", subject, "error", sendErr,
+					"fix", fixShowIPsecSA)
+			})
+			if err != nil {
+				refused(err)
+			}
+			return issuequeue.Outcome(err)
+		}
+		return slog.Attr{}
 	}
 }
 
@@ -1080,4 +1218,231 @@ func resolveInterfaceAddr(name string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+type ikeIssueKey struct {
+	code    string
+	subject string
+}
+
+const (
+	ikeIssueCoalesceWindow = time.Minute
+	maxTrackedIKEIssues    = 256
+)
+
+var ikeIssueCoalescer = struct {
+	mu     sync.Mutex
+	lastAt map[ikeIssueKey]time.Time
+}{
+	lastAt: map[ikeIssueKey]time.Time{},
+}
+
+func raiseIKEIssueCoalesced(code, subject, message, fix string, onSendFailed func(error)) slog.Attr {
+	subject = fitReportField(subject, rpc.ReportSubjectMax)
+	message = fitReportField(message, rpc.ReportMessageMax)
+	now := time.Now()
+	key := ikeIssueKey{code: code, subject: subject}
+
+	ikeIssueCoalescer.mu.Lock()
+	if last, ok := ikeIssueCoalescer.lastAt[key]; ok && now.Sub(last) < ikeIssueCoalesceWindow {
+		ikeIssueCoalescer.mu.Unlock()
+		return slog.String("report", "coalesced")
+	}
+	if len(ikeIssueCoalescer.lastAt) >= maxTrackedIKEIssues {
+		clear(ikeIssueCoalescer.lastAt)
+	}
+	ikeIssueCoalescer.lastAt[key] = now
+	ikeIssueCoalescer.mu.Unlock()
+
+	err := ikeIssueQueue.Load().RaiseError(code, subject, message, fix, func(sendErr error) {
+		ikeIssueCoalescer.mu.Lock()
+		if ikeIssueCoalescer.lastAt[key].Equal(now) {
+			delete(ikeIssueCoalescer.lastAt, key)
+		}
+		ikeIssueCoalescer.mu.Unlock()
+		onSendFailed(sendErr)
+	})
+	if err != nil {
+		ikeIssueCoalescer.mu.Lock()
+		if ikeIssueCoalescer.lastAt[key].Equal(now) {
+			delete(ikeIssueCoalescer.lastAt, key)
+		}
+		ikeIssueCoalescer.mu.Unlock()
+	}
+	return issuequeue.Outcome(err)
+}
+
+func ikeIssuePeerName(peer string) string {
+	if peer == "" {
+		return "unknown-peer"
+	}
+	return peer
+}
+
+func raiseChildRemoveIssue(peer, direction string, spi uint32, err error, log *slog.Logger) slog.Attr {
+	p := ikeIssuePeerName(peer)
+	var subj textbuf.Buffer
+	subj.Str(p).Byte(':').Str(direction)
+
+	var msg textbuf.Buffer
+	msg.Str("IPsec failed to remove ").Str(direction).Str(" Child SA SPI ").Uint(uint64(spi)).
+		Str(" for peer ").Str(p).Str(": ").Err(err).
+		Str(". A stranded XFRM state remains in the kernel SAD.")
+
+	return raiseIKEIssueCoalesced(codeDoctorIPsecChildRemoveFailed, subj.String(), msg.String(), fixShowIPsecDataplaneSA, func(sendErr error) {
+		log.Warn("ike: could not record Child SA removal failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecChildRemoveFailed, "peer", p, "direction", direction, "spi", spi,
+			"error", sendErr, "fix", fixShowIPsecDataplaneSA)
+	})
+}
+
+func raiseMessageBuildIssue(peer, operation string, err error, log *slog.Logger) slog.Attr {
+	p := ikeIssuePeerName(peer)
+	var subj textbuf.Buffer
+	subj.Str(p).Byte(':').Str(operation)
+
+	var msg textbuf.Buffer
+	msg.Str("IPsec failed to build encrypted IKE ").Str(operation).Str(" message for peer ").
+		Str(p).Str(": ").Err(err).
+		Str(". The peer did not receive the message and may wait for liveness timeout.")
+
+	return raiseIKEIssueCoalesced(codeDoctorIPsecMessageBuildFailed, subj.String(), msg.String(), fixShowIPsecSA, func(sendErr error) {
+		log.Warn("ike: could not record IKE message build failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecMessageBuildFailed, "peer", p, "operation", operation,
+			"error", sendErr, "fix", fixShowIPsecSA)
+	})
+}
+
+func raiseEventEmitIssue(peer, event string, child *ChildSA, err error, log *slog.Logger) slog.Attr {
+	p := ikeIssuePeerName(peer)
+	var subj textbuf.Buffer
+	subj.Str(p).Byte(':').Str(event)
+
+	var msg textbuf.Buffer
+	msg.Str("IPsec failed to emit ").Str(event).Str(" event for peer ").Str(p).
+		Str(" (in-spi ").Uint(uint64(child.InboundSPI)).
+		Str(", out-spi ").Uint(uint64(child.OutboundSPI)).
+		Str("): ").Err(err).
+		Str(". Bus subscribers missed this Child SA transition.")
+
+	return raiseIKEIssueCoalesced(codeDoctorIPsecEventEmitFailed, subj.String(), msg.String(), fixShowIPsecSA, func(sendErr error) {
+		log.Warn("ike: could not record Child SA lifecycle event emit failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecEventEmitFailed, "peer", p, "event", event,
+			"error", sendErr, "fix", fixShowIPsecSA)
+	})
+}
+
+func raiseSPDUndoIssue(policy, dir string, err error, log *slog.Logger) slog.Attr {
+	var subj textbuf.Buffer
+	subj.Str(policy).Byte(':').Str(dir)
+
+	var msg textbuf.Buffer
+	msg.Str("IPsec failed to remove operator SPD policy ").Str(policy).Str(" (").Str(dir).
+		Str(") on shutdown: ").Err(err).
+		Str(". A stranded kernel SPD entry remains.")
+
+	return raiseIKEIssueCoalesced(codeDoctorIPsecSPDUndoIncomplete, subj.String(), msg.String(), fixShowIPsecDataplanePolicy, func(sendErr error) {
+		log.Warn("ike: could not record SPD shutdown removal failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecSPDUndoIncomplete, "policy", policy, "dir", dir,
+			"error", sendErr, "fix", fixShowIPsecDataplanePolicy)
+	})
+}
+
+type ikeSendRunKey struct {
+	peer string
+	ispi [8]byte
+	rspi [8]byte
+	kind string
+}
+
+var ikeSendRuns = struct {
+	mu          sync.Mutex
+	active      map[ikeSendRunKey]*issuequeue.RunRaises
+	activeCount atomic.Int32
+	now         func() time.Time
+}{
+	active: map[ikeSendRunKey]*issuequeue.RunRaises{},
+	now:    time.Now,
+}
+
+func recordIKESendFailure(sa *SA, kind string, remote *net.UDPAddr, sendErr error, log *slog.Logger) (first bool, outcome slog.Attr) {
+	p := ikeIssuePeerName(sa.PeerName)
+	key := ikeSendRunKey{peer: p, ispi: sa.InitiatorSPI, rspi: sa.ResponderSPI, kind: kind}
+
+	ikeSendRuns.mu.Lock()
+	now := ikeSendRuns.now()
+	runs, exists := ikeSendRuns.active[key]
+	if !exists {
+		if len(ikeSendRuns.active) >= maxTrackedIKEIssues {
+			clear(ikeSendRuns.active)
+		}
+		runs = &issuequeue.RunRaises{}
+		ikeSendRuns.active[key] = runs
+		ikeSendRuns.activeCount.Store(int32(len(ikeSendRuns.active)))
+		first = true
+	} else if !runs.RetryDue(now, ikeIssueCoalesceWindow) {
+		ikeSendRuns.mu.Unlock()
+		return false, slog.Attr{}
+	}
+	refused := runs.Offer(now)
+	ikeSendRuns.mu.Unlock()
+
+	var subj textbuf.Buffer
+	subj.Str(p).Byte(':').Str(kind)
+
+	var msg textbuf.Buffer
+	if kind == sendFailureKindProbeDFClear {
+		msg.Str("IPsec DF-clear path MTU probe send to peer ").Str(p)
+	} else {
+		msg.Str("IPsec IKE datagram send to peer ").Str(p)
+	}
+	if remote != nil {
+		msg.Str(" (").Str(remote.String()).Byte(')')
+	}
+	msg.Str(" failed: ").Err(sendErr).
+		Str(". DPD liveness checks, rekeys, Deletes, or probes cannot reach the peer until UDP sends recover.")
+
+	subject := fitReportField(subj.String(), rpc.ReportSubjectMax)
+	message := fitReportField(msg.String(), rpc.ReportMessageMax)
+	qErr := ikeIssueQueue.Load().RaiseError(codeDoctorIPsecSendFailed, subject, message, fixShowIPsecSA, func(busErr error) {
+		refused(busErr)
+		log.Warn("ike: could not record IKE send failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecSendFailed, "peer", p, "kind", kind, "error", busErr,
+			"fix", fixShowIPsecSA)
+	})
+	if qErr != nil {
+		refused(qErr)
+	}
+	return first, issuequeue.Outcome(qErr)
+}
+
+func clearIKESendFailure(sa *SA, kind string) {
+	if ikeSendRuns.activeCount.Load() == 0 {
+		return
+	}
+	p := ikeIssuePeerName(sa.PeerName)
+	key := ikeSendRunKey{peer: p, ispi: sa.InitiatorSPI, rspi: sa.ResponderSPI, kind: kind}
+	ikeSendRuns.mu.Lock()
+	if _, ok := ikeSendRuns.active[key]; ok {
+		delete(ikeSendRuns.active, key)
+		ikeSendRuns.activeCount.Store(int32(len(ikeSendRuns.active)))
+	}
+	ikeSendRuns.mu.Unlock()
+}
+
+func resetIKEIssueTrackersForTest() {
+	ikeIssueCoalescer.mu.Lock()
+	clear(ikeIssueCoalescer.lastAt)
+	ikeIssueCoalescer.mu.Unlock()
+
+	ikeSendRuns.mu.Lock()
+	clear(ikeSendRuns.active)
+	ikeSendRuns.activeCount.Store(0)
+	ikeSendRuns.now = time.Now
+	ikeSendRuns.mu.Unlock()
+
+	certURLFetches.mu.Lock()
+	clear(certURLFetches.failed)
+	clear(certURLFetches.raises)
+	certURLFetches.mu.Unlock()
 }

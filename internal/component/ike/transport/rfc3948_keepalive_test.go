@@ -3,7 +3,10 @@
 package transport
 
 import (
+	"context"
+	"log/slog"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -108,5 +111,123 @@ func TestNATKeepaliveIsNeverDeliveredToASession(t *testing.T) {
 	case pkt := <-tr.Recv():
 		t.Fatalf("a NAT-keepalive of %d byte(s) was delivered as a session packet", len(pkt.Data))
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+type keepaliveLogCapture struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *keepaliveLogCapture) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+//nolint:gocritic // slog.Handler interface requires slog.Record by value
+func (h *keepaliveLogCapture) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	h.records = append(h.records, r.Clone())
+	h.mu.Unlock()
+	return nil
+}
+
+func (h *keepaliveLogCapture) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *keepaliveLogCapture) WithGroup(string) slog.Handler      { return h }
+
+func (h *keepaliveLogCapture) warns() []slog.Record {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []slog.Record
+	for i := range h.records {
+		if h.records[i].Level == slog.LevelWarn {
+			out = append(out, h.records[i])
+		}
+	}
+	return out
+}
+
+func recordAttrString(r *slog.Record, key string) (string, bool) {
+	var val string
+	var found bool
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == key {
+			val = a.Value.String()
+			found = true
+			return false
+		}
+		return true
+	})
+	return val, found
+}
+
+// VALIDATES: consecutive NAT-T keepalive send failures emit exactly one Warn
+// line carrying CodeDoctorIPsecNATKeepaliveFailed, a fix command, and the
+// report sink outcome, and forward the failure event to the registered sink
+// without flooding the log on every tick.
+// PREVENTS: failing NAT-T keepalives staying invisible at Debug while NAT
+// bindings silently expire, or flooding Warn logs on every keepalive tick.
+func TestKeepaliveSendFailureWarnsOncePerCondition(t *testing.T) {
+	capture := &keepaliveLogCapture{}
+	log := slog.New(capture)
+
+	var (
+		sinkMu     sync.Mutex
+		sinkEvents []NATKeepaliveEvent
+	)
+	RegisterNATKeepaliveSink(func(ev NATKeepaliveEvent) slog.Attr {
+		sinkMu.Lock()
+		sinkEvents = append(sinkEvents, ev)
+		sinkMu.Unlock()
+		if ev.Kind == NATKeepaliveEventFailed {
+			return slog.String("report", "queued")
+		}
+		return slog.Attr{}
+	})
+	t.Cleanup(func() { RegisterNATKeepaliveSink(nil) })
+
+	client, err := NewNATTTransport("127.0.0.1:0", slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatalf("NewNATTTransport: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	bound, ok := client.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("LocalAddr is not *net.UDPAddr")
+	}
+	badPort := 1
+	if bound.Port == 1 {
+		badPort = 2
+	}
+	local := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: badPort}
+	remote := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4500}
+
+	ka := NewKeepalive(client, local, remote, 15*time.Millisecond, log)
+	go ka.Run()
+	time.Sleep(85 * time.Millisecond)
+	ka.Stop()
+
+	warns := capture.warns()
+	if len(warns) != 1 {
+		t.Fatalf("warn count = %d, want 1 across consecutive keepalive send failures", len(warns))
+	}
+	if code, ok := recordAttrString(&warns[0], "code"); !ok || code != CodeDoctorIPsecNATKeepaliveFailed {
+		t.Errorf("warn code = %q (present=%v), want %q", code, ok, CodeDoctorIPsecNATKeepaliveFailed)
+	}
+	if fix, ok := recordAttrString(&warns[0], "fix"); !ok || fix != "ze show vpn ipsec sa" {
+		t.Errorf("warn fix = %q (present=%v), want %q", fix, ok, "ze show vpn ipsec sa")
+	}
+	if rep, ok := recordAttrString(&warns[0], "report"); !ok || rep != "queued" {
+		t.Errorf("warn report = %q (present=%v), want %q", rep, ok, "queued")
+	}
+
+	sinkMu.Lock()
+	var failedCount int
+	for _, ev := range sinkEvents {
+		if ev.Kind == NATKeepaliveEventFailed && ev.Err != nil {
+			failedCount++
+		}
+	}
+	sinkMu.Unlock()
+	if failedCount == 0 {
+		t.Errorf("sink received 0 NATKeepaliveEventFailed events, want at least 1")
 	}
 }

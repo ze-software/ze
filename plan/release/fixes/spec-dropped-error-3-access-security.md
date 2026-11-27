@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | 44 active errors in IKE, L2TP/PPP/PPPoE, RADIUS and TACACS+ are caught and logged only below WARN (hiding XFRM rollback failures, Child SA removal/event failures, established IKE send/build failures, NAT-T keepalive drops, PPP RA send failures, per-packet malformed wire counts, and RADIUS EAP concluding mismatches); resolving them reaches zero unannotated `error-dropped-below-warn` findings under the access-security door |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -218,9 +218,9 @@ Each instance is resolved by exactly one answer, judged in this order
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Forkable `ike` (`engine`/`dataplane`/`transport`) ↔ daemon report bus | Callback sinks / engine calls → non-blocking `issuequeue.Queue` (`internal/component/plugin/issuequeue`) → worker calls `sdk.Plugin.RaiseIssue` (`report-issue` RPC over both DirectBridge and forked TLS/RPC) | No |
-| Daemon-local `ppp` / `radius` / internal-only `authradius` ↔ operator | Log at `Warn` with `"code"`, `internal/core/report` (`show errors` / `show doctor`), and subsystem Prometheus counters | No |
-| AAA backend ↔ chain | Preserved error classification (TACACS+ close errors never become `aaa.ErrAuthRejected`; RADIUS concluding EAP mismatch still returns `a.result(resp, username)`) | No |
+| Forkable `ike` (`engine`/`dataplane`/`transport`) ↔ daemon report bus | Callback sinks / engine calls → non-blocking `issuequeue.Queue` (`internal/component/plugin/issuequeue`) → worker calls `sdk.Plugin.RaiseIssue` (`report-issue` RPC over both DirectBridge and forked TLS/RPC) | Yes |
+| Daemon-local `ppp` / `radius` / internal-only `authradius` ↔ operator | Log at `Warn` with `"code"`, `internal/core/report` (`show errors` / `show doctor`), and subsystem Prometheus counters | Yes |
+| AAA backend ↔ chain | Preserved error classification (TACACS+ close errors never become `aaa.ErrAuthRejected`; RADIUS concluding EAP mismatch still returns `a.result(resp, username)`) | Yes |
 
 ### Changed-Wire Census
 
@@ -244,9 +244,9 @@ No protocol wire format, RPC schema, plugin JSON event schema, or persistent sto
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 44 active instances in 22 files (plus 2 excluded MOBIKE instances) are the exact `error-dropped-below-warn` population under `ai/doors/access-security.md` at HEAD | `./le arch refuse-by-default report` run on 2026-11-26 | Re-run the report filtered to the door's base paths before editing and resolve any newly added site | Filtered `./le arch refuse-by-default report` at Phase 1 | validated (2026-11-26) |
-| A-2 | Every newly added `Warn` log line is checked by `./le arch doctor-coverage check` and `./le commit create`, which requires `"code"` to name a declared doctor code | `ai/rules/user-facing-errors.md` and `docs/architecture/doctor-and-health-checks.md` | Committing a `Warn` without a covered doctor code is refused at `./le commit create` | `./le arch doctor-coverage check` before commit | validated (2026-11-26) |
-| A-3 | `Keepalive.Run` (`ike/transport/keepalive.go:61`), `sendRaw` (`ike/engine/established.go:1008`), and `raSender.send` (`l2tp/ppp/ra_send.go:61`) run repeatedly on timers/exchanges, so an unthrottled `Warn` or `RaiseIssue` would flood logs and trip `rpc.ReportRaisesPerWindow` (60/min) | Source inspection of `keepalive.go:51`, `established.go:1008`, `ra_send.go:79`, and `docs/architecture/api/process-protocol.md` ("Plugin problems") | Unthrottled logging/raises fill logs or trigger `doctor-plugin-request-refused` during transient link loss | Unit tests asserting 1 `Warn` and 1 queued/raised event across repeated consecutive failures, retry via `RunRaises` on refusal, and a fresh emit after recovery | validated (2026-11-26) |
+| A-1 | The 44 active instances in 22 files (plus 2 excluded MOBIKE instances) are the exact `error-dropped-below-warn` population under `ai/doors/access-security.md` at HEAD | `./le arch refuse-by-default report` run on 2026-11-26 | Re-run the report filtered to the door's base paths before editing and resolve any newly added site | Filtered `./le arch refuse-by-default report` at Phase 1 and closure (0 in-scope unannotated findings; only excluded `mobike.go:590,607` remain) | confirmed |
+| A-2 | Every newly added `Warn` log line is checked by `./le arch doctor-coverage check` and `./le commit create`, which requires `"code"` to name a declared doctor code | `ai/rules/user-facing-errors.md` and `docs/architecture/doctor-and-health-checks.md` | Committing a `Warn` without a covered doctor code is refused at `./le commit create` | `./le arch doctor-coverage check` exit 0 | confirmed |
+| A-3 | `Keepalive.Run` (`ike/transport/keepalive.go:61`), `sendRaw` (`ike/engine/established.go:1008`), and `raSender.send` (`l2tp/ppp/ra_send.go:61`) run repeatedly on timers/exchanges, so an unthrottled `Warn` or `RaiseIssue` would flood logs and trip `rpc.ReportRaisesPerWindow` (60/min) | Source inspection of `keepalive.go:51`, `established.go:1008`, `ra_send.go:79`, and `docs/architecture/api/process-protocol.md` ("Plugin problems") | Unthrottled logging/raises fill logs or trigger `doctor-plugin-request-refused` during transient link loss | `TestKeepaliveSendFailureWarnsOncePerCondition`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, and `TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent` all pass | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -518,16 +518,34 @@ This spec changes no protocol wire behavior, timer, or state transition; it pres
 
 ## Review Gate
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-3-access-security-b2b20002-2222-4000-8000-000000000002.md` |
+| `./le spec review check` | `OK` (46 spec files covered, 0 unreviewed, 0 stale) |
+| Rounds | 2 (Run 1: 0 BLOCKER, 2 ISSUE; Run 2: CLEAN, 0 BLOCKER, 0 ISSUE, 0 NOTE) |
+| Reviewer lenses used | logic+wiring+style, security+edge-cases+bounds, spec-completeness+design-docs |
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Fix command and doctor descriptions/examples name `ze show vpn ipsec dataplane`, which is a non-executable parent container in `internal/component/ike/yang/ze-ipsec-cmd.yang` (`container dataplane` has no `ze:command`); executable commands are `ze show vpn ipsec dataplane sa` (for XFRM rollback and Child SA removal) and `ze show vpn ipsec dataplane policy` (for SPD removal) | `internal/component/ike/dataplane/xfrm_linux.go` (`xfrmBackend.InstallSA`), `internal/component/ike/dataplane/register_doctor_codes.go`, `internal/component/ike/dataplane/xfrm_state_del_failure_linux_test.go`, `internal/component/ike/engine/register.go` (`fixShowIPsecDataplane`), `internal/component/ike/engine/child.go`, `internal/component/ike/engine/spd_policy.go`, `internal/component/ike/engine/register_doctor_codes.go`, `internal/component/ike/engine/dropped_errors_test.go` | Fixed before Round 2 |
+| 2 | ISSUE | Unbounded `Subject` and `Message` fields sent over `report-issue` RPC in `ike/engine` can exceed `rpc.ReportSubjectMax` (256 bytes, e.g. 255-char peer name + `":ike-auth-failed-notify"` = 278 bytes) or `rpc.ReportMessageMax` (1024 bytes, e.g. peer-supplied `rawURL` + `fetchErr` in `certURLFetcher.raiseFetchFailure`), causing `rpc.ValidateReportIssue` (`pkg/plugin/rpc/report.go`) to refuse the report; additionally `certurl.go` logs and embeds raw unredacted peer-controlled `rawURL` instead of redacting userinfo via `url.Parse`/`u.Redacted()` and bounding logged URL length | `internal/component/ike/engine/certurl.go` (`certURLFetcher.start`, `certURLFetcher.raiseFetchFailure`), `internal/component/ike/engine/register.go` (`xfrmRollbackFailedSink`, `newNATKeepaliveSink`, `raiseIKEIssueCoalesced`, `recordIKESendFailure`) | Fixed before Round 2 |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Non-executable `ze show vpn ipsec dataplane` fix command | `ike/dataplane` and `ike/engine` | Split `fixShowIPsecDataplane` into `fixShowIPsecDataplaneSA` (`ze show vpn ipsec dataplane sa`) for XFRM rollback and Child SA removal, and `fixShowIPsecDataplanePolicy` (`ze show vpn ipsec dataplane policy`) for SPD removal, updating doctor metadata, Warn lines, sinks, and unit test assertions |
+| 2 | ISSUE | Unbounded `report-issue` `Subject`/`Message` and unredacted peer `rawURL` in `certurl.go` | `ike/engine/certurl.go` and `ike/engine/register.go` | Added UTF-8-safe `fitReportField` bounding `Subject` to `rpc.ReportSubjectMax` (256) and `Message` to `rpc.ReportMessageMax` (1024) across all `ike/engine` `RaiseError` callers, added `sanitizeCertURL` (`u.Redacted()`, 256-byte bound, `@` fallback) + `*url.Error` sanitization in `fetchHashAndURL`, and added regression test in `internal/component/ike/engine/dropped_errors_test.go` |
 
 ### Fixes applied
-- [pending]
+- Split `ze show vpn ipsec dataplane` into executable `ze show vpn ipsec dataplane sa` (`xfrm_linux.go`, `dataplane/register_doctor_codes.go`, `xfrm_state_del_failure_linux_test.go`, `child.go`, `engine/register.go`, `engine/register_doctor_codes.go`, `dropped_errors_test.go`) and `ze show vpn ipsec dataplane policy` (`spd_policy.go`, `engine/register.go`, `dropped_errors_test.go`), matching `internal/component/ike/yang/ze-ipsec-cmd.yang`.
+- Added UTF-8-safe `fitReportField` in `internal/component/ike/engine/register.go` and applied it to `Subject` (`rpc.ReportSubjectMax`) and `Message` (`rpc.ReportMessageMax`) in `xfrmRollbackFailedSink`, `newNATKeepaliveSink`, `raiseIKEIssueCoalesced`, `recordIKESendFailure`, and `certURLFetcher.raiseFetchFailure`; added `sanitizeCertURL` and `*url.Error` sanitization in `internal/component/ike/engine/certurl.go`; added regression subtest in `internal/component/ike/engine/dropped_errors_test.go` proving `rpc.ValidateReportIssue`, UTF-8 preservation, and zero credential leakage.
+- Main thread re-verified `internal/component/ike/dataplane/` and `internal/component/ike/engine/` unit tests (PASS) and 5-flavor lint (0 issues).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | CLEAN | Run 2 independent `/ze-review` verified all 9 Round 1 fix files and spot-checked the 46-file scope: 0 BLOCKER, 0 ISSUE, 0 NOTE | All 46 spec files | Recorded CLEAN artifact |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -562,3 +580,146 @@ This spec changes no protocol wire behavior, timer, or state transition; it pres
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-3-access-security.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Resolved all 44 active in-scope `error-dropped-below-warn` sites across 22 files under `ai/doors/access-security.md` (`ike/dataplane`, `ike/engine`, `ike/transport`, `l2tp/plugins/authradius`, `l2tp/ppp`, `l2tp/pppoe`, `radius`, `tacacs`).
+- Registered new doctor codes and `diagnostic.RegisterEventCode` entries in `ike/dataplane/register_doctor_codes.go`, `ike/engine/register_doctor_codes.go` (including registering existing `codeDoctorIPsecSPDUndoIncomplete` as an event code), `ike/transport/register_doctor_codes.go`, and `radius/register_doctor_codes.go`.
+- Started a plugin-owned non-blocking `issuequeue.Queue` (`issuequeue.Start(p)`) in `ike/engine/register.go` (`runEngine`), stopped after engine shutdown before `p.Close()`, with non-blocking callback sinks registered for `ike/dataplane` (`RegisterXFRMRollbackFailed`) and `ike/transport` (`RegisterNATKeepaliveSink`), zero direct `internal/core/report` calls under `internal/component/ike/`, and `issuequeue.RunRaises` / coalescing on periodic and hot paths.
+- Added low-cardinality Prometheus metrics `ze_ipsec_malformed_inbound_total`, `ze_ipsec_send_failures_total`, `ze_ppp_malformed_frames_total`, and `ze_pppoe_discovery_parse_errors_total` and documented them in `docs/guide/monitoring.md`.
+- Annotated teardown, already-gone `ENOENT`/`ESRCH`, expired-wait, and unauthenticated UDP reply drop branches with `// refuse-by-default: guards <Symbol> -- <why>`.
+- Added all 10 unit tests from the TDD Test Plan proving `Warn` doctor codes, report-bus queuing/raising, rate bounding and recovery, per-packet counting without `Warn`, and preserved RFC/AAA invariants.
+
+### Bugs Found/Fixed
+- Run 1 `/ze-review` caught two ISSUEs in `ike/dataplane` and `ike/engine` (non-executable `ze show vpn ipsec dataplane` fix command and unbounded `report-issue` `Subject`/`Message` + unredacted `rawURL` in `certurl.go`); both were fixed, re-tested, linted across all 5 flavors (0 issues), and cleared in Run 2 `/ze-review` (CLEAN).
+
+### Documentation Updates
+- `docs/guide/monitoring.md`: added "Access and Security Protocol Metrics" table with source anchors (`internal/component/ike/engine/metrics.go -- RegisterMetrics, countMalformedInbound, countSendFailure`, `internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countMalformedFrame`, `internal/component/l2tp/pppoe/metrics.go -- initPPPoEMetrics, countDiscoveryParseError`); STE check (`./le doc ste check file docs/guide/monitoring.md`) passed and source-anchor validation reported 0 issues on the new anchors.
+- `website/changes/fragments/dropped-error-3-access-security.md`: created operator news fragment.
+- `plan/release/fixes/spec-dropped-error-0-umbrella.md` and `plan/post-release/features/spec-ipsec-11-mobike.md`: cleared external citations to bare stem `spec-dropped-error-3-access-security`.
+
+### Deviations from Plan
+- Added two supporting production edits alongside the 30 files named in `Files to Modify`: `internal/component/ike/dataplane/espform_state.go` (defines `XFRMRollbackFailed` and `RegisterXFRMRollbackFailed` beside `ESPFormReaderStoppedSink`) and `internal/component/l2tp/ppp/ra_carrier.go` (passes `ctx` into `raSender` so `normalIPv6CarrierStop` distinguishes normal teardown from live send failures).
+- Created new test file `internal/component/ike/engine/dropped_errors_test.go` for `TestIKEEngineDroppedErrorsWarnWithDoctorCodes` (explicitly permitted by the TDD Test Plan).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Spec and implementation used `ze show vpn ipsec dataplane` as a fix command | `container dataplane` in `ze-ipsec-cmd.yang` is a parent namespace with no `ze:command`; runnable commands are `ze show vpn ipsec dataplane sa` and `ze show vpn ipsec dataplane policy` | Run 1 `/ze-review` checking `ze-ipsec-cmd.yang` | Fixed in `ike/dataplane` and `ike/engine`; verified in Run 2 CLEAN |
+| approach | `ike/engine` report-issue builders wrote composite `Subject` (`peer:op`) and `Message` (including peer `rawURL`) without enforcing `rpc.ReportSubjectMax`/`rpc.ReportMessageMax` or redacting URL userinfo | `rpc.ValidateReportIssue` refuses `Subject > 256` or `Message > 1024`, and `fetchHashAndURL` redacts URLs with `u.Redacted()` | Run 1 `/ze-review` security and bounds pass | Added UTF-8-safe `fitReportField`, `sanitizeCertURL`, `*url.Error` sanitization, and regression test; verified in Run 2 CLEAN |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| IKE dataplane (1 site) | Done | `internal/component/ike/dataplane/xfrm_linux.go` (`xfrmBackend.InstallSA`) | Warns with `CodeDoctorIPsecXFRMRollbackFailed`, `ze show vpn ipsec dataplane sa`, joins error, invokes non-blocking sink |
+| IKE engine (26 sites in 13 files) | Done | `internal/component/ike/engine/{certurl,child,delete,established,fsm,inbound,notify_error,notify_invalid_msgid,notify_suspicious,probe,register,responder,spd_policy}.go` | All 26 resolved via `issuequeue.Queue` (UTF-8-bounded fields, redacted URLs, executable fix commands), counters, or guard annotations |
+| IKE transport (1 site) | Done | `internal/component/ike/transport/keepalive.go` (`Keepalive.Run`) | Once-per-condition `Warn` with `CodeDoctorIPsecNATKeepaliveFailed` + non-blocking sink |
+| L2TP / PPP / PPPoE / authradius (10 sites in 5 files) | Done | `internal/component/l2tp/{plugins/authradius/{handler,register},ppp/{ra_send,ra_carrier,session_run},pppoe/panic_guard}.go` | `stageFramedMTU`, `raSender.send`, malformed frame/discovery counters, shutdown/expired-wait guards |
+| RADIUS (1 site) | Done | `internal/component/radius/authenticator_eap.go` (`radiusAuthenticator.authenticateEAP`) | `Warn` with `doctorCodeAdminEAPMismatch`, `"radius-code"`, `report.RaiseErrorFixOnce`, RFC 3579 Section 2.6.3 preserved |
+| TACACS+ (5 sites) | Done | `internal/component/tacacs/client.go` (`Close`, `trySend`, `storeConn`, `closeAndEvict`) | Five teardown/eviction guard annotations; AAA chain semantics preserved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `./le arch refuse-by-default report` (0 unannotated in-scope findings; only excluded `mobike.go:590,607` remain) | Verified by main thread |
+| AC-2 | Done | `./le arch doctor-coverage check` OK; `git grep "internal/core/report" internal/component/ike/` empty; `rpc.ValidateReportIssue` passes on bounded fields | Verified after Run 1 fixes |
+| AC-3 | Done | `TestKeepaliveSendFailureWarnsOncePerCondition`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, `TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent` | All PASS |
+| AC-4 | Done | `TestHandleInboundMalformedPacketCountsWithoutWarn`, `TestPPPMalformedFramesCountWithoutWarn`, `TestDispatchDiscoveryMalformedFrameIncrementsParseErrorCounter` | All PASS |
+| AC-5 | Done | `TestXFRMInstallSARollbackFailureWarnsAndJoinsError`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, `TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode`, `TestAuthRadiusExpiredWaitAndUnexpectedMTUStage` | Re-run and PASS after Run 1 fixes |
+| AC-6 | Done | `./le arch refuse-by-default check` OK (0 in-scope refused shapes); `TestTacacsClientCloseErrorsPreserveResultAndChain` | All Answer 3 guards accepted |
+| AC-7 | Done | Unit tests pass across all 8 packages; 5-flavor lint 0 issues after Run 1 fixes | Re-verified on `ike/dataplane` and `ike/engine` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestXFRMInstallSARollbackFailureWarnsAndJoinsError` | Done | `internal/component/ike/dataplane/xfrm_state_del_failure_linux_test.go` | PASS (asserts `ze show vpn ipsec dataplane sa`) |
+| `TestIKEEngineDroppedErrorsWarnWithDoctorCodes` | Done | `internal/component/ike/engine/dropped_errors_test.go` | PASS (includes Run 1 regression subtest for bounds + redaction) |
+| `TestHandleInboundMalformedPacketCountsWithoutWarn` | Done | `internal/component/ike/engine/metrics_test.go` | PASS |
+| `TestKeepaliveSendFailureWarnsOncePerCondition` | Done | `internal/component/ike/transport/rfc3948_keepalive_test.go` | PASS |
+| `TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent` | Done | `internal/component/l2tp/ppp/ra_send_test.go` | PASS |
+| `TestPPPMalformedFramesCountWithoutWarn` | Done | `internal/component/l2tp/ppp/metrics_test.go` | PASS |
+| `TestDispatchDiscoveryMalformedFrameIncrementsParseErrorCounter` | Done | `internal/component/l2tp/pppoe/panic_guard_test.go` | PASS |
+| `TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode` | Done | `internal/component/radius/authenticator_eap_test.go` | PASS |
+| `TestAuthRadiusExpiredWaitAndUnexpectedMTUStage` | Done | `internal/component/l2tp/plugins/authradius/extract_framed_mtu_test.go` | PASS |
+| `TestTacacsClientCloseErrorsPreserveResultAndChain` | Done | `internal/component/tacacs/client_test.go` | PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 30 files in `Files to Modify` | Done | All modified in working tree |
+| `internal/component/ike/dataplane/espform_state.go` | Changed | Added rollback failure sink registration beside `ESPFormReaderStoppedSink` |
+| `internal/component/l2tp/ppp/ra_carrier.go` | Changed | Passed `ctx` into `raSender` for teardown detection |
+| `internal/component/ike/engine/dropped_errors_test.go` + 9 modified `*_test.go` | Done | Covers all 10 TDD Test Plan entries |
+| `website/changes/fragments/dropped-error-3-access-security.md` | Done | Operator news fragment |
+| `plan/release/fixes/spec-dropped-error-0-umbrella.md`, `plan/post-release/features/spec-ipsec-11-mobike.md` | Done | External citers cleared to bare stem |
+
+### Audit Summary
+- **Total items:** 44 active sites, 10 unit tests, 42 owned code/test/doc files + 1 news fragment + 2 external citers + 1 spec file (46 files)
+- **Done:** All 44 sites implemented and unit-tested; both Run 1 `/ze-review` ISSUEs fixed and cleared in Run 2 CLEAN
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 supporting files (`espform_state.go`, `ra_carrier.go`) and 1 new test file (`dropped_errors_test.go`) recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero unannotated in-scope `error-dropped-below-warn` findings under `ai/doors/access-security.md` | Static architecture gate | `./le arch refuse-by-default report` over door base paths: 0 unannotated in-scope findings (only excluded `mobike.go:590,607` remain); `./le arch refuse-by-default check` OK |
+| 100% doctor-code coverage and non-blocking forkable `ike` report-bus wiring | Static gate + unit tests | `./le arch doctor-coverage check` OK; `git grep "internal/core/report" internal/component/ike/` returns 0 hits; `TestXFRMInstallSARollbackFailureWarnsAndJoinsError`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, `TestKeepaliveSendFailureWarnsOncePerCondition`, `TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode`, `TestAuthRadiusExpiredWaitAndUnexpectedMTUStage` PASS |
+| Rate-bounded periodic/hot-path warnings and low-cardinality malformed wire counters without `Warn` floods | Unit tests | `TestKeepaliveSendFailureWarnsOncePerCondition`, `TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent`, `TestHandleInboundMalformedPacketCountsWithoutWarn`, `TestPPPMalformedFramesCountWithoutWarn`, `TestDispatchDiscoveryMalformedFrameIncrementsParseErrorCounter` PASS |
+| Preserved RFC 7296 / 3948 / 3579 / 8907 / 1661 / 2516 / 4861 and AAA chain semantics | Unit tests | `TestTacacsClientCloseErrorsPreserveResultAndChain`, `TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode`, `TestHandleInboundMalformedPacketCountsWithoutWarn`, and full package suites across all 8 packages PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `internal/component/ike/engine/mobike.go` (`serviceMobike` dropped errors) | Moved out of release scope by owner ruling on 2026-11-23 | `plan/post-release/features/spec-ipsec-11-mobike.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/dropped_errors_test.go` | Yes | Present in `git status --porcelain` (`?? internal/component/ike/engine/dropped_errors_test.go`) |
+| `website/changes/fragments/dropped-error-3-access-security.md` | Yes | Created in closure with required front matter and six fixed headings |
+| All 41 modified owned files | Yes | Confirmed via `git status --porcelain` across `docs/guide/monitoring.md` and the 8 modified Go packages |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 unannotated in-scope `error-dropped-below-warn` findings | Main-thread `./le arch refuse-by-default report` over `access-security.md` base paths: 0 unannotated in-scope findings (only `mobike.go:590,607` remain) |
+| AC-2 | 100% doctor-code coverage, 0 `internal/core/report` under `ike/` | Main-thread `./le arch doctor-coverage check` OK; `git grep -n "internal/core/report" internal/component/ike/` returned empty (0 hits) |
+| AC-3 | Once-per-condition periodic `Warn` and `RunRaises` retry | `TestKeepaliveSendFailureWarnsOncePerCondition`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, `TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent` PASS |
+| AC-4 | Per-packet malformed wire counters without `Warn` | `TestHandleInboundMalformedPacketCountsWithoutWarn`, `TestPPPMalformedFramesCountWithoutWarn`, `TestDispatchDiscoveryMalformedFrameIncrementsParseErrorCounter` PASS |
+| AC-5 | Doctor-coded `Warn` + raised events preserving RFC/error returns | `TestXFRMInstallSARollbackFailureWarnsAndJoinsError`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, `TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode`, `TestAuthRadiusExpiredWaitAndUnexpectedMTUStage` PASS (re-verified after Run 1 fixes) |
+| AC-6 | Every Answer 3 guard annotation valid and accepted | `./le arch refuse-by-default check` 0 in-scope refused shapes; `TestTacacsClientCloseErrorsPreserveResultAndChain` PASS |
+| AC-7 | Scoped tests and 5-flavor lint green | All 8 package unit test suites PASS; `ike/dataplane` and `ike/engine` unit tests PASS and 5-flavor lint 0 issues after Run 1 fixes |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le arch refuse-by-default report` / `./le arch doctor-coverage check` | N-A (native architecture gates over all 22 target files) | Yes — both gates exit 0 |
+| `Keepalive.Run` → `RegisterNATKeepaliveSink` → `issuequeue.Queue` | Unit wiring via `runEngine` (`ike/engine/register.go`) + `TestKeepaliveSendFailureWarnsOncePerCondition` + `TestIKEEngineDroppedErrorsWarnWithDoctorCodes` | Yes |
+| `xfrmBackend.InstallSA` → `RegisterXFRMRollbackFailed` → `issuequeue.Queue` | Unit wiring via `runEngine` (`ike/engine/register.go`) + `TestXFRMInstallSARollbackFailureWarnsAndJoinsError` + `TestIKEEngineDroppedErrorsWarnWithDoctorCodes` | Yes |
+| `radiusAuthenticator.authenticateEAP` → `report.RaiseErrorFixOnce` | `TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode` | Yes |
+| `Subsystem.dispatchDiscovery` → `ze_pppoe_discovery_parse_errors_total` | `TestDispatchDiscoveryMalformedFrameIncrementsParseErrorCounter` | Yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Filtered `./le arch refuse-by-default report` confirmed 0 unannotated in-scope findings after resolving the 44 active sites |
+| A-2 | confirmed | `./le arch doctor-coverage check` exits 0 across all modified Go files |
+| A-3 | confirmed | `TestKeepaliveSendFailureWarnsOncePerCondition`, `TestIKEEngineDroppedErrorsWarnWithDoctorCodes`, and `TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent` prove once-per-condition coalescing, recovery reset, and `RunRaises` retry |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Prometheus counters (`docs/guide/monitoring.md`) | `<!-- source: internal/component/ike/engine/metrics.go -- RegisterMetrics, countMalformedInbound, countSendFailure -->`, `<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countMalformedFrame -->`, `<!-- source: internal/component/l2tp/pppoe/metrics.go -- initPPPoEMetrics, countDiscoveryParseError -->`; STE check OK; `./le doc check all` reported 0 anchor errors on our anchors | Yes |
+| Design documents (`## Design documents`) | `./le spec design check spec plan/release/fixes/spec-dropped-error-3-access-security.md` returned `ready to present`; 0 `departs` rows | Yes |
+| External citers cleared | `git grep -n "spec-dropped-error-3-access-security"` returns only self-references inside this spec after editing `spec-dropped-error-0-umbrella.md` and `spec-ipsec-11-mobike.md` | Yes |

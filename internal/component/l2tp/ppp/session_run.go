@@ -1308,7 +1308,9 @@ func (s *pppSession) readFrames(out chan<- []byte, done chan<- error, stop <-cha
 // Length counts the control packet from Code, excluding Protocol.
 func (s *pppSession) handleFrame(frame []byte) bool {
 	proto, payload, _, err := ParseFrame(frame)
+	// refuse-by-default: guards countMalformedFrame -- untrusted malformed PPP frame is counted in ze_ppp_malformed_frames_total and discarded without tearing down the session or flooding Warn logs.
 	if err != nil {
+		countMalformedFrame(malformedProtocolFrame, malformedReasonParseError)
 		s.logger.Debug("ppp: malformed frame dropped", "error", err.Error())
 		return false
 	}
@@ -1331,7 +1333,9 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 
 	switch proto {
 	case ProtoLCP:
+		// refuse-by-default: guards countMalformedFrame -- untrusted malformed LCP packet is counted in ze_ppp_malformed_frames_total and discarded without tearing down the session or flooding Warn logs.
 		if perr != nil {
+			countMalformedFrame(malformedProtocolLCP, malformedReasonParseError)
 			s.logger.Debug("ppp: malformed LCP packet", "error", perr.Error())
 			return false
 		}
@@ -1350,7 +1354,9 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		if s.disableIPCP {
 			return s.rejectUnsupportedProtocol(proto, payload)
 		}
+		// refuse-by-default: guards countMalformedFrame -- untrusted malformed IPCP packet is counted in ze_ppp_malformed_frames_total and discarded without tearing down the session or flooding Warn logs.
 		if perr != nil {
+			countMalformedFrame(malformedProtocolIPCP, malformedReasonParseError)
 			s.logger.Debug("ppp: malformed IPCP packet", "error", perr.Error())
 			return false
 		}
@@ -1367,7 +1373,9 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		if s.disableIPv6CP || !s.ipv6MRUSupported() {
 			return s.rejectUnsupportedProtocol(proto, payload)
 		}
+		// refuse-by-default: guards countMalformedFrame -- untrusted malformed IPv6CP packet is counted in ze_ppp_malformed_frames_total and discarded without tearing down the session or flooding Warn logs.
 		if perr != nil {
+			countMalformedFrame(malformedProtocolIPv6CP, malformedReasonParseError)
 			s.logger.Debug("ppp: malformed IPv6CP packet", "error", perr.Error())
 			return false
 		}
@@ -1792,7 +1800,9 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	switch pkt.Code {
 	case LCPEchoRequest, LCPEchoReply, LCPDiscardRequest:
 		received, err := parseLCPEchoMagic(pkt.Data)
+		// refuse-by-default: guards countMalformedFrame -- untrusted LCP echo packet missing a Magic-Number field is counted in ze_ppp_malformed_frames_total and discarded without flooding Warn logs.
 		if err != nil {
+			countMalformedFrame(malformedProtocolLCP, malformedReasonEchoMissingMagic)
 			s.logger.Debug("ppp: LCP echo packet dropped, no Magic-Number field",
 				"code", LCPCodeName(pkt.Code), "id", pkt.Identifier, "len", len(pkt.Data))
 			return false

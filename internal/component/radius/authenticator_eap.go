@@ -11,9 +11,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // errEAPNoResponse reports a challenge the peer answered with nothing: it
@@ -116,8 +119,22 @@ func (a *radiusAuthenticator) authenticateEAP(ctx context.Context, request aaa.A
 			// Returning eapErr here would put the encapsulated packet back in charge
 			// of the decision through the error path.
 			if eapErr != nil {
-				a.logger.Info("RADIUS admin EAP: the concluding EAP packet did not satisfy the peer; the RADIUS code decides",
-					"username", username, "code", resp.Code, "error", eapErr)
+				const fix = "inspect the RADIUS server EAP policy and run ze show log recent level warn component radius"
+				a.logger.Warn("RADIUS admin EAP concluding packet disagreed with encapsulated EAP; Ze followed the RADIUS packet code per RFC 3579 Section 2.6.3. Inspect the RADIUS server EAP policy",
+					"code", doctorCodeAdminEAPMismatch,
+					"username", username,
+					"radius-code", resp.Code,
+					"fix", fix,
+					"error", eapErr)
+				subject := username
+				if subject == "" {
+					subject = "(no user name)"
+				}
+				var msg textbuf.Buffer
+				msg.Str("RADIUS concluding packet code ").Uint(uint64(resp.Code)).
+					Str(" disagreed with encapsulated EAP packet: ").Str(eapErr.Error())
+				report.RaiseErrorFixOnce(aaaName, doctorCodeAdminEAPMismatch, subject,
+					report.FitMessage(msg.String()), fix, time.Minute)
 			}
 			return a.result(resp, username)
 		}

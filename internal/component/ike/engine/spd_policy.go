@@ -706,7 +706,19 @@ func removeSPDPolicies(dp dataplane.Dataplane, policies map[string]ipsec.SPDPoli
 		for i := range entries {
 			sp := &entries[i]
 			if err := removeZePolicy(dp, *sp); err != nil {
-				log.Debug("ike: remove spd policy", "policy", name, "dir", sp.Dir, "error", err)
+				if policyGone(err) {
+					// refuse-by-default: guards releaseSPD -- ENOENT or unsupported dataplane means the SPD entry is already absent at shutdown
+					log.Debug("ike: spd policy already absent on shutdown", "policy", name, "dir", dirLabel(sp.Dir), "error", err)
+					continue
+				}
+				reportAttr := raiseSPDUndoIssue(name, dirLabel(sp.Dir), err, log)
+				log.Warn("ike: failed to remove operator SPD policy on shutdown; a stranded kernel SPD entry remains and will continue acting on traffic until cleared",
+					"code", codeDoctorIPsecSPDUndoIncomplete,
+					"policy", name,
+					"dir", dirLabel(sp.Dir),
+					"error", err,
+					"fix", fixShowIPsecDataplanePolicy,
+					reportAttr)
 			}
 		}
 	}

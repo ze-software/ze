@@ -109,7 +109,14 @@ func (ps *PeerSession) sendInvalidMessageID(sa *SA, badID uint32, tr *transport.
 	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: notify}},
 		sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
-		log.Debug("ike: INVALID_MESSAGE_ID build failed", "peer", ps.peerName, "error", err)
+		reportAttr := raiseMessageBuildIssue(ps.peerName, "invalid-msgid-notify", err, log)
+		log.Warn("ike: failed to build INVALID_MESSAGE_ID notification; the peer will not be informed of its out-of-window Message ID",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", ps.peerName,
+			"invalid-msgid", badID,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		sa.releaseRequestWindow()
 		countErrorNotifySuppressed("invalid-msgid-build-failed")
 		return

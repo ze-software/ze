@@ -741,6 +741,21 @@ persistence metrics:
 | `ze_managed_config_held_total` | counter | `result` | Held config uploads recorded on the hub |
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer -->
 
+### Access and Security Protocol Metrics
+
+Untrusted wire parse errors and IKE datagram send failures are counted here rather than emitted as per-packet warnings:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_ipsec_malformed_inbound_total` | gauge | - | Cumulative inbound IKE packets that failed wire parsing and were dropped while SA state stayed unchanged (RFC 7296 Section 2.4) |
+| `ze_ipsec_send_failures_total` | gauge | `peer`, `kind` | Cumulative IKE datagram send failures on established sessions and path probes (`kind`: `ike`, `path-probe-df-clear`) |
+| `ze_ppp_malformed_frames_total` | counter | `protocol`, `reason` | Malformed PPP frames or control packets discarded by the session parser. `protocol` is `frame`, `lcp`, `ipcp`, or `ipv6cp`. `reason` is `parse-error` or `echo-missing-magic`. |
+| `ze_pppoe_discovery_parse_errors_total` | counter | - | Malformed PPPoE discovery frames discarded by `dispatchDiscovery` before server handling (separate from well-formed `ze_pppoe_discovery_refusals_total`) |
+
+<!-- source: internal/component/ike/engine/metrics.go -- RegisterMetrics, countMalformedInbound, countSendFailure -->
+<!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countMalformedFrame -->
+<!-- source: internal/component/l2tp/pppoe/metrics.go -- initPPPoEMetrics, countDiscoveryParseError -->
+
 ---
 
 ## Single Command

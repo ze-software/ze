@@ -4,9 +4,12 @@
 package tacacs
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
 	"net"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/config"
 	_ "github.com/ze-software/ze/internal/component/tacacs/yang"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -166,3 +170,119 @@ type timeoutError struct{}
 func (timeoutError) Error() string   { return "i/o timeout" }
 func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
+
+// closeErrConn wraps a net.Conn so Close closes the underlying socket and
+// returns a synthetic error while recording that Close ran.
+type closeErrConn struct {
+	net.Conn
+	closeErr error
+	closed   atomic.Bool
+}
+
+func (c *closeErrConn) Close() error {
+	c.closed.Store(true)
+	_ = c.Conn.Close()
+	return c.closeErr
+}
+
+// VALIDATES: net.Conn.Close() errors during pool eviction, replacement,
+// post-close discard, and teardown never emit Warn logs, never overturn a
+// settled TACACS+ reply, and never turn an infrastructure failure into
+// aaa.ErrAuthRejected so the AAA chain keeps falling through.
+// PREVENTS: teardown/eviction close errors breaking pooled retry or falsely
+// stopping the AAA chain.
+func TestTacacsClientCloseErrorsPreserveResultAndChain(t *testing.T) {
+	var warnLogs bytes.Buffer
+	warnLogger := slog.New(slog.NewTextHandler(&warnLogs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	closeFailure := errors.New("simulated socket close failure")
+
+	// 1. Pool replacement, closeAndEvict, Close, and post-close storeConn.
+	c := NewTacacsClient(TacacsClientConfig{Logger: warnLogger})
+	a1, a2 := net.Pipe()
+	t.Cleanup(func() { _ = a2.Close() })
+	b1, b2 := net.Pipe()
+	t.Cleanup(func() { _ = b2.Close() })
+	c1, c2 := net.Pipe()
+	t.Cleanup(func() { _ = c2.Close() })
+	d1, d2 := net.Pipe()
+	t.Cleanup(func() { _ = d2.Close() })
+
+	first := &closeErrConn{Conn: a1, closeErr: closeFailure}
+	second := &closeErrConn{Conn: b1, closeErr: closeFailure}
+	evicted := &closeErrConn{Conn: c1, closeErr: closeFailure}
+	postClose := &closeErrConn{Conn: d1, closeErr: closeFailure}
+
+	c.storeConn("127.0.0.1:49", first)
+	c.storeConn("127.0.0.1:49", second) // replaces first -> first.Close() fails
+	assert.True(t, first.closed.Load(), "replaced pooled connection must be closed")
+
+	c.storeConn("127.0.0.2:49", evicted)
+	c.closeAndEvict("127.0.0.2:49", evicted) // evicts -> evicted.Close() fails
+	assert.True(t, evicted.closed.Load(), "evicted connection must be closed")
+
+	c.Close() // drains second -> second.Close() fails
+	assert.True(t, second.closed.Load(), "pooled connection must be closed on Close")
+
+	c.storeConn("127.0.0.1:49", postClose) // post-close discard -> postClose.Close() fails
+	assert.True(t, postClose.closed.Load(), "post-close connection must be closed")
+
+	// 2. Stale pooled connection whose Close fails during eviction still retries
+	// cleanly on a fresh TCP dial and preserves the settled AuthenStatusPass.
+	key := []byte("tacacs-secret")
+	srv := newTestServer(t, key, func(_ PacketHeader, _ []byte) []byte {
+		return []byte{AuthenStatusPass, 0, 0, 0, 0, 0}
+	})
+	t.Cleanup(srv.close)
+
+	retryClient := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+		Timeout: time.Second,
+		Logger:  warnLogger,
+	})
+	t.Cleanup(retryClient.Close)
+
+	var lc net.ListenConfig
+	deadLn, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = deadLn.Close() })
+	go func() {
+		if sc, aErr := deadLn.Accept(); aErr == nil {
+			_ = sc.Close()
+		}
+	}()
+	var d net.Dialer
+	deadLocal, err := d.DialContext(t.Context(), "tcp", deadLn.Addr().String())
+	require.NoError(t, err)
+	deadPooled := &closeErrConn{Conn: deadLocal, closeErr: closeFailure}
+	retryClient.storeConn(srv.addr(), deadPooled)
+
+	reply, err := retryClient.Authenticate("alice", "secret", "ssh", "10.0.0.1")
+	require.NoError(t, err)
+	require.NotNil(t, reply)
+	assert.Equal(t, uint8(AuthenStatusPass), reply.Status)
+	assert.True(t, deadPooled.closed.Load(), "stale pooled conn must be evicted and closed")
+
+	// 3. Failed exchange with a close error on an unreachable server never
+	// becomes aaa.ErrAuthRejected, preserving AAA chain fallthrough.
+	unreachable := refusingAddress(t)
+	chainClient := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: unreachable, Key: key}},
+		Timeout: 200 * time.Millisecond,
+		Logger:  warnLogger,
+	})
+	t.Cleanup(chainClient.Close)
+
+	deadLocal2, deadPeer2 := net.Pipe()
+	require.NoError(t, deadPeer2.Close())
+	deadPooled2 := &closeErrConn{Conn: deadLocal2, closeErr: closeFailure}
+	chainClient.storeConn(unreachable, deadPooled2)
+
+	auth := newTacacsAuthenticator(chainClient, map[int][]string{15: {"admin"}}, warnLogger)
+	res, authErr := auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "secret", Service: "ssh"})
+	require.Error(t, authErr)
+	assert.NotErrorIs(t, authErr, aaa.ErrAuthRejected, "close/eviction errors must not stop the AAA chain")
+	assert.False(t, res.Authenticated)
+	assert.True(t, deadPooled2.closed.Load())
+
+	assert.NotContains(t, warnLogs.String(), closeFailure.Error(), "teardown/eviction close errors must not emit Warn logs")
+}

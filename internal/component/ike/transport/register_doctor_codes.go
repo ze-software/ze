@@ -7,6 +7,8 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 const (
 	// CodeDoctorIPsecIKESocketBypass is the doctor diagnostic code "doctor-ipsec-ike-socket-bypass".
 	CodeDoctorIPsecIKESocketBypass = "doctor-ipsec-ike-socket-bypass"
+	// CodeDoctorIPsecNATKeepaliveFailed is the doctor diagnostic code "doctor-ipsec-nat-keepalive-failed".
+	CodeDoctorIPsecNATKeepaliveFailed = "doctor-ipsec-nat-keepalive-failed"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -30,6 +32,15 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"the steps for a ze started another way.",
 		Examples: []string{"ze doctor --json", "ze show diagnostic doctor-ipsec-ike-socket-bypass"},
 	},
+	{
+		Code:  CodeDoctorIPsecNATKeepaliveFailed,
+		Title: "IPsec NAT-T keepalive packet could not be sent",
+		Description: "Ze could not transmit a periodic RFC 3948 NAT-T keepalive packet to an IPsec peer. " +
+			"While keepalives fail to leave the socket, intermediate NAT mappings can expire and stop " +
+			"inbound IKE and ESP traffic until the peer renegotiates. Inspect the tunnel and local " +
+			"uplink with `ze show vpn ipsec sa` and verify the NAT-T socket and route to the peer.",
+		Examples: []string{"ze doctor --json", "ze show vpn ipsec sa", "ze show diagnostic doctor-ipsec-nat-keepalive-failed"},
+	},
 }
 
 func init() {
@@ -37,5 +48,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: transport: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: CodeDoctorIPsecNATKeepaliveFailed}); err != nil {
+		panic("BUG: transport: NAT keepalive event code registration refused: " + err.Error())
 	}
 }

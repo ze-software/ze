@@ -22,7 +22,9 @@ const (
 	CodeDoctorIPsecESPFormReaderStopped = "doctor-ipsec-esp-form-reader-stopped"
 	// CodeDoctorIPsecESPFormFirewall is the doctor diagnostic code "doctor-ipsec-esp-form-firewall".
 	CodeDoctorIPsecESPFormFirewall = "doctor-ipsec-esp-form-firewall"
-	exampleDoctorJSON              = "ze doctor --json"
+	// CodeDoctorIPsecXFRMRollbackFailed is the doctor diagnostic code "doctor-ipsec-xfrm-rollback-failed".
+	CodeDoctorIPsecXFRMRollbackFailed = "doctor-ipsec-xfrm-rollback-failed"
+	exampleDoctorJSON                 = "ze doctor --json"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -191,6 +193,16 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"keeps failing.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-esp-form-firewall"},
 	},
+	{
+		Code:  CodeDoctorIPsecXFRMRollbackFailed,
+		Title: "IPsec XFRM state rollback failed after Child SA setup error",
+		Description: "Ze installed an inbound XFRM state in the kernel, then dual-form ESP setup failed " +
+			"and the kernel also refused to delete that XFRM state during rollback. The failed Child SA " +
+			"was not established, but a stranded kernel XFRM state remains and can block a later install " +
+			"that draws the same SPI. Inspect the kernel SAD with `ze show vpn ipsec dataplane sa` and " +
+			"verify Ze holds CAP_NET_ADMIN.",
+		Examples: []string{exampleDoctorJSON, "ze show vpn ipsec dataplane sa", "ze show diagnostic doctor-ipsec-xfrm-rollback-failed"},
+	},
 }
 
 func init() {
@@ -198,5 +210,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: dataplane: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: CodeDoctorIPsecXFRMRollbackFailed}); err != nil {
+		panic("BUG: dataplane: XFRM rollback event code registration refused: " + err.Error())
 	}
 }

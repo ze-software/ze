@@ -13,10 +13,13 @@
 package radius
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // RFC 3579 Section 3.2 mandates HMAC-MD5
 	"encoding/binary"
+	"log/slog"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -27,6 +30,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // hmacMD5 computes the Message-Authenticator the RFC's own recipe defines,
@@ -1035,4 +1039,101 @@ func TestRFC3579EachCredentialTypeAloneEncodes(t *testing.T) {
 		require.NoErrorf(t, err, "%s alone", credential.name)
 		assert.Positivef(t, n, "%s alone encoded no octets", credential.name)
 	}
+}
+
+type radiusLogCapture struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (h *radiusLogCapture) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+//nolint:gocritic // slog.Handler interface requires slog.Record by value
+func (h *radiusLogCapture) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	h.records = append(h.records, r.Clone())
+	h.mu.Unlock()
+	return nil
+}
+
+func (h *radiusLogCapture) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *radiusLogCapture) WithGroup(string) slog.Handler      { return h }
+
+func (h *radiusLogCapture) warns() []slog.Record {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []slog.Record
+	for i := range h.records {
+		if h.records[i].Level == slog.LevelWarn {
+			out = append(out, h.records[i])
+		}
+	}
+	return out
+}
+
+func radiusRecordAttr(r *slog.Record, key string) (string, bool) {
+	var val string
+	var found bool
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == key {
+			val = a.Value.String()
+			found = true
+			return false
+		}
+		return true
+	})
+	return val, found
+}
+
+// VALIDATES: a concluding RADIUS Access-Accept whose encapsulated EAP packet
+// fails local peer verification logs at Warn with doctorCodeAdminEAPMismatch
+// under "code", records the RADIUS packet code under "radius-code", raises an
+// event on internal/core/report, and still authorizes per RFC 3579 Section 2.6.3.
+// PREVENTS: a concluding RADIUS/EAP mismatch staying hidden at Info or
+// overloading the reserved doctor "code" key with resp.Code.
+func TestAuthenticateEAPConcludingMismatchWarnsWithDoctorCode(t *testing.T) {
+	const user = "alice-eap-mismatch"
+	secret := []byte("testing123")
+	srv := newEAPMockServer(t, secret, eap.TypeMD5Challenge, "Hello",
+		[]Attr{{Type: AttrFilterID, Value: []byte("admin")}})
+	srv.mu.Lock()
+	srv.concludeAtIdentityWithEAPFailure = true
+	srv.mu.Unlock()
+
+	capture := &radiusLogCapture{}
+	a := eapAuthenticator(t, srv.addr, secret, AuthMethodEAPMD5)
+	a.logger = slog.New(capture)
+
+	countMatchingErrors := func() int {
+		n := 0
+		for _, issue := range report.Errors(0) {
+			if issue.Code == doctorCodeAdminEAPMismatch && issue.Subject == user && issue.Fix != "" {
+				n++
+			}
+		}
+		return n
+	}
+	before := countMatchingErrors()
+
+	res, err := a.Authenticate(aaa.AuthRequest{Username: user, Password: "Hello"})
+	require.NoError(t, err, "RFC 3579 Section 2.6.3: Access-Accept still authorizes")
+	assert.True(t, res.Authenticated)
+	assert.Equal(t, []string{"admin"}, res.Profiles)
+
+	warns := capture.warns()
+	require.Len(t, warns, 1, "concluding EAP mismatch must log one Warn")
+	code, ok := radiusRecordAttr(&warns[0], "code")
+	assert.True(t, ok, "Warn must carry doctor code under key \"code\"")
+	assert.Equal(t, doctorCodeAdminEAPMismatch, code)
+
+	radiusCode, ok := radiusRecordAttr(&warns[0], "radius-code")
+	assert.True(t, ok, "Warn must carry RADIUS packet code under key \"radius-code\"")
+	assert.Equal(t, strconv.Itoa(int(CodeAccessAccept)), radiusCode)
+
+	fix, ok := radiusRecordAttr(&warns[0], "fix")
+	assert.True(t, ok, "Warn must carry a fix attribute")
+	assert.NotEmpty(t, fix)
+
+	assert.Greater(t, countMatchingErrors(), before,
+		"concluding EAP mismatch must raise an error event on internal/core/report")
 }

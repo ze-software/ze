@@ -141,6 +141,7 @@ func (c *TacacsClient) Close() {
 	defer c.poolMu.Unlock()
 	c.closed = true
 	for addr, conn := range c.pool {
+		// refuse-by-default: guards storeConn -- teardown drains the pool after c.closed is set; a socket close error cannot alter any settled AAA reply and leaves no operator action.
 		if err := conn.Close(); err != nil {
 			c.logger.Debug("TACACS+ close pooled connection", "server", addr, "error", err)
 		}
@@ -605,6 +606,7 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	// returned, so a panic inside it still closes the connection.
 	if !reused {
 		if respHdr.Flags&FlagSingleConnect == 0 {
+			// refuse-by-default: guards sendReceive -- the TACACS+ reply is already read and validated; a close error on the non-reusable socket must not overturn the settled AAA answer or trigger aaa.ErrAuthRejected.
 			if closeErr := conn.Close(); closeErr != nil {
 				c.logger.Debug("TACACS+ close non-reusable connection",
 					"server", srv.Address, "error", closeErr)
@@ -717,12 +719,14 @@ func (c *TacacsClient) storeConn(address string, conn net.Conn) {
 	c.poolMu.Lock()
 	defer c.poolMu.Unlock()
 	if c.closed {
+		// refuse-by-default: guards Close -- client shutdown already closed the pool; discarding a post-close connection cannot change the settled AAA answer.
 		if err := conn.Close(); err != nil {
 			c.logger.Debug("TACACS+ discard post-close connection", "server", address, "error", err)
 		}
 		return
 	}
 	if prev, ok := c.pool[address]; ok && prev != conn {
+		// refuse-by-default: guards acquireConn -- replacing a superseded pooled socket after a settled exchange; a close error on the evicted socket must not affect the settled AAA answer.
 		if err := prev.Close(); err != nil {
 			c.logger.Debug("TACACS+ replace pooled connection", "server", address, "error", err)
 		}
@@ -740,6 +744,7 @@ func (c *TacacsClient) closeAndEvict(address string, conn net.Conn) {
 		delete(c.pool, address)
 	}
 	c.poolMu.Unlock()
+	// refuse-by-default: guards trySend -- evicting an already-failed or unwound connection; a close error must not mask the exchange error or alter AAA chain fallthrough.
 	if err := conn.Close(); err != nil {
 		c.logger.Debug("TACACS+ close on error", "server", address, "error", err)
 	}

@@ -173,8 +173,14 @@ func (ps *PeerSession) respondError(
 ) {
 	resp, err := buildErrorNotifyResponse(sa, msgID, exchange, notifyType, data)
 	if err != nil {
-		log.Debug("ike: error notify build failed", "peer", ps.peerName,
-			"notify", wire.NotifyTypeName(notifyType), "error", err)
+		reportAttr := raiseMessageBuildIssue(ps.peerName, "error-notify", err, log)
+		log.Warn("ike: failed to build encrypted error notify response; the peer will not receive the error notification and may retry until timeout",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", ps.peerName,
+			"notify", wire.NotifyTypeName(notifyType),
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		countErrorNotifySuppressed("build-failed")
 		return
 	}
@@ -313,6 +319,7 @@ func sendInvalidIKESPI(
 	}
 	buf := make([]byte, wire.HeaderLen+64)
 	n, err := msg.CheckedWriteTo(buf, 0)
+	// refuse-by-default: guards answerOutOfSA -- unauthenticated out-of-SA INVALID_IKE_SPI build failures are counted via countErrorNotifySuppressed and dropped
 	if err != nil {
 		log.Debug("ike: INVALID_IKE_SPI build failed", "src", pkt.RemoteAddr, "error", err)
 		countErrorNotifySuppressed("build-failed")
@@ -323,6 +330,7 @@ func sendInvalidIKESPI(
 		// RFC 3948 Section 2.2: IKE on port 4500 carries the four-octet non-ESP marker.
 		out = transport.AddNonESPMarker(out)
 	}
+	// refuse-by-default: guards answerOutOfSA -- unauthenticated out-of-SA INVALID_IKE_SPI send failures are counted via countErrorNotifySuppressed and dropped
 	if err := tr.Send(out, pkt.RemoteAddr); err != nil {
 		log.Debug("ike: send INVALID_IKE_SPI failed", "src", pkt.RemoteAddr, "error", err)
 		countErrorNotifySuppressed("send-failed")

@@ -3,14 +3,18 @@
 package engine
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 	"maps"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -315,5 +319,62 @@ func TestDataplaneGaugesClearOnGenerationChange(t *testing.T) {
 		if strings.HasPrefix(name, "ze_ipsec_dataplane_") {
 			t.Errorf("%s survived an inconclusive observation", name)
 		}
+	}
+}
+
+type metricsLogCapture struct {
+	mu      sync.Mutex
+	records []slog.Record
+}
+
+func (c *metricsLogCapture) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+//nolint:gocritic // slog.Handler interface requires slog.Record by value
+func (c *metricsLogCapture) Handle(_ context.Context, r slog.Record) error {
+	c.mu.Lock()
+	c.records = append(c.records, r.Clone())
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *metricsLogCapture) WithAttrs([]slog.Attr) slog.Handler { return c }
+func (c *metricsLogCapture) WithGroup(string) slog.Handler      { return c }
+
+// VALIDATES: malformed inbound wire packets handled by handleInbound increment
+// ze_ipsec_malformed_inbound_total without emitting a per-packet Warn and
+// without altering the live SA state (RFC 7296 Section 2.4).
+// PREVENTS: silent wire parse drops on untrusted input or Warn log flooding
+// from malformed packets.
+func TestHandleInboundMalformedPacketCountsWithoutWarn(t *testing.T) {
+	before := malformedInboundCount()
+	capture := &metricsLogCapture{}
+	log := slog.New(capture)
+
+	sa := &SA{
+		PeerName:    "peer-malformed",
+		IsInitiator: true,
+		State:       StateEstablished,
+	}
+	handleInbound(sa, transport.Packet{Data: []byte{0x01, 0x02, 0x03}}, NewSATable(), nil, log)
+
+	after := malformedInboundCount()
+	if after != before+1 {
+		t.Fatalf("malformedInboundCount rose from %d to %d, want %d", before, after, before+1)
+	}
+	if sa.State != StateEstablished {
+		t.Errorf("SA state became %v on malformed wire frame, want StateEstablished", sa.State)
+	}
+	capture.mu.Lock()
+	for i := range capture.records {
+		if capture.records[i].Level >= slog.LevelWarn {
+			t.Errorf("unexpected %v log on malformed wire packet: %q", capture.records[i].Level, capture.records[i].Message)
+		}
+	}
+	capture.mu.Unlock()
+
+	reg := recordingRegistry{values: map[string]float64{}}
+	RegisterMetrics(reg).Update()
+	if got := reg.values["ze_ipsec_malformed_inbound_total"]; got != float64(after) {
+		t.Errorf("ze_ipsec_malformed_inbound_total = %v, want %v", got, float64(after))
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -18,7 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/taskguard"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // radiusAuth holds the RADIUS client and implements the auth handler.
@@ -229,17 +232,15 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 			}
 		}
 		if meta != nil && len(meta.FramedRoutes) != 0 {
+			// refuse-by-default: guards EventAuthRequest -- the original auth wait retired or already has a decision, so staging framed routes is a no-op and the late response is discarded.
 			if err := req.StageFramedRoutes(meta.FramedRoutes); err != nil {
-				// The original wait retired or already has a decision.
 				logger().Debug("l2tp-auth-radius: original framed-route profile was not staged", "error", err)
 				return
 			}
 		}
 		// RFC 2865 Section 5.12: the session lowers its interface MTU to it.
 		if meta != nil && meta.FramedMTU != 0 {
-			if err := req.StageFramedMTU(meta.FramedMTU); err != nil {
-				// The original wait retired or already has a decision.
-				logger().Debug("l2tp-auth-radius: original Framed-MTU was not staged", "error", err)
+			if stageFramedMTU(req, meta.FramedMTU) != nil {
 				return
 			}
 		}
@@ -267,6 +268,42 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 			logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
 		}
 	}
+}
+
+// stageFramedMTU stages a resolved RADIUS Framed-MTU on req. Expired or
+// already-decided waits are logged at Debug only; any other staging failure
+// warns with ppp.CodeDoctorRADIUSFramedMTU and raises on the daemon-local
+// report bus (valid because authradius runs in internal mode only).
+func stageFramedMTU(req ppp.EventAuthRequest, mtu uint16) error {
+	err := req.StageFramedMTU(mtu)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, ppp.ErrRequestExpired) {
+		// refuse-by-default: guards EventAuthRequest -- the original auth wait retired, so staging Framed-MTU is a no-op and the late response is discarded.
+		logger().Debug("l2tp-auth-radius: original Framed-MTU was not staged", "error", err)
+		return err
+	}
+	if errors.Is(err, ppp.ErrAuthResponsePending) {
+		// refuse-by-default: guards EventAuthRequest -- the original auth wait already has a decision, so staging Framed-MTU is a no-op and the late response is discarded.
+		logger().Debug("l2tp-auth-radius: original Framed-MTU was not staged", "error", err)
+		return err
+	}
+	var problem textbuf.Buffer
+	problem.Str("Framed-MTU ").Uint(uint64(mtu)).Str(" could not be staged on the PPP session: ").Str(err.Error())
+	text := problem.String()
+	logger().Warn("l2tp-auth-radius: "+text+"; the session will not apply the RADIUS Framed-MTU. Correct the subscriber's RADIUS profile",
+		"code", ppp.CodeDoctorRADIUSFramedMTU,
+		"tunnel", req.TunnelID, "session", req.SessionID,
+		"subscriber", req.Username, "framed-mtu", mtu,
+		"fix", framedMTUFix, "error", err)
+	subject := req.Username
+	if subject == "" {
+		subject = framedRouteNoUserName
+	}
+	report.RaiseErrorFixOnce(Name, ppp.CodeDoctorRADIUSFramedMTU, subject,
+		report.FitMessage(text), framedMTUFix, framedRouteEventWindow)
+	return err
 }
 
 // buildAccessRequestAttrs is the full attribute list of one Access-Request:
@@ -439,6 +476,7 @@ func decodeMSCHAP2Success(data []byte) []byte {
 		return nil
 	}
 	raw := make([]byte, mschapv2AuthenticatorResponseLen)
+	// refuse-by-default: guards doRADIUS -- returning nil on invalid hex causes the caller to reject the session per RFC 2759 Section 5.
 	if _, err := hex.Decode(raw, digits[:2*mschapv2AuthenticatorResponseLen]); err != nil {
 		return nil
 	}

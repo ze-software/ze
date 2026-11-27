@@ -57,8 +57,14 @@ type pendingDelete struct {
 func (ps *PeerSession) writeDelete(sa *SA, tr *transport.UDPTransport, del *wire.PayloadDelete, log *slog.Logger) {
 	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: del}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
-		log.Debug("ike: delete build failed", "peer", ps.peerName,
-			"protocol", del.ProtocolID, "error", err)
+		reportAttr := raiseMessageBuildIssue(ps.peerName, "delete", err, log)
+		log.Warn("ike: failed to build INFORMATIONAL Delete; the peer may hold a stale SA until its DPD liveness timeout",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", ps.peerName,
+			"protocol", del.ProtocolID,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		sa.releaseRequestWindow()
 		return
 	}
@@ -198,7 +204,13 @@ func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, lo
 
 	msg, err := buildEncryptedMessageEx(sa, payloads, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
-		log.Debug("ike: teardown notify build failed", "peer", sa.PeerName, "error", err)
+		reportAttr := raiseMessageBuildIssue(sa.PeerName, "teardown-delete", err, log)
+		log.Warn("ike: failed to build INFORMATIONAL teardown Delete; the peer may keep the abandoned IKE SA until its DPD liveness timeout",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", sa.PeerName,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		sa.releaseRequestWindow()
 		return
 	}

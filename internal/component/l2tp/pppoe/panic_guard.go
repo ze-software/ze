@@ -83,7 +83,9 @@ func (s *Subsystem) dispatchDiscovery(srv *InterfaceServer, frame []byte) {
 	defer pppoePanics().discovery.Contain(describe, func(*taskguard.Panic) { srv.endAdmissionAfterPanic() })
 
 	pkt, parseErr := ParseDiscovery(frame)
+	// refuse-by-default: guards HandleDiscovery -- malformed L2 discovery frames are counted in ze_pppoe_discovery_parse_errors_total and discarded before HandleDiscovery without per-frame Warn logs.
 	if parseErr != nil {
+		countDiscoveryParseError()
 		s.logger.Debug("pppoe: parse error", "interface", srv.ifName, "error", parseErr)
 		return
 	}

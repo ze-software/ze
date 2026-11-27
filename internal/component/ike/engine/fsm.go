@@ -577,7 +577,9 @@ func (ps *PeerSession) reapStaleHandshake(sa *SA, table *SATable, log *slog.Logg
 // handleInbound processes an inbound packet for an existing SA.
 func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.UDPTransport, log *slog.Logger) {
 	var msg wire.Message
+	// refuse-by-default: guards deliverDatagram -- malformed untrusted wire frames are counted and dropped without altering SA state (RFC 7296 Section 2.4)
 	if err := msg.ReadFrom(pkt.Data); err != nil {
+		countMalformedInbound()
 		log.Debug("ike: parse error", "error", err)
 		return
 	}

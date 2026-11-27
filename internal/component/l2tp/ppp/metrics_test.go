@@ -1,6 +1,7 @@
 package ppp
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"net/http"
@@ -124,5 +125,60 @@ func TestIdentifierRefusalCounterCountsAfterLCPOpenAndSessionEventRefusals(t *te
 	wantEvent := `ze_ppp_ipv6cp_identifier_refusals_total{reason="event-unnegotiated"} 1`
 	if got := scrapeIdentifierRefusals(t, reg, reasonEventUnnegotiated); got != wantEvent {
 		t.Errorf("onNCPOpened refusal: scraped %q, want %q", got, wantEvent)
+	}
+}
+
+// VALIDATES: malformed PPP frames, malformed LCP/IPCP/IPv6CP control packets,
+// and LCP Echo packets missing a Magic-Number field each increment
+// ze_ppp_malformed_frames_total under closed protocol and reason labels without
+// terminating the session or emitting per-packet Warn logs.
+// PREVENTS: untrusted subscriber wire errors staying uncounted at default log
+// levels or flooding Warn logs on every malformed packet.
+func TestPPPMalformedFramesCountWithoutWarn(t *testing.T) {
+	previous := pppMetricsPtr.Swap(nil)
+	t.Cleanup(func() { pppMetricsPtr.Store(previous) })
+
+	reg := metrics.NewPrometheusRegistry()
+	bindPPPMetrics(reg)
+
+	var warnLogs bytes.Buffer
+	warnLogger := slog.New(slog.NewTextHandler(&warnLogs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	session := &pppSession{
+		logger:     warnLogger,
+		ncpStarted: true,
+	}
+
+	frames := []struct {
+		name     string
+		frame    []byte
+		protocol string
+		reason   string
+	}{
+		{"short PPP frame", []byte{0xc0}, malformedProtocolFrame, malformedReasonParseError},
+		{"short LCP packet", []byte{0xc0, 0x21, 0x01, 0x02}, malformedProtocolLCP, malformedReasonParseError},
+		{"short IPCP packet", []byte{0x80, 0x21, 0x01, 0x02}, malformedProtocolIPCP, malformedReasonParseError},
+		{"short IPv6CP packet", []byte{0x80, 0x57, 0x01, 0x02}, malformedProtocolIPv6CP, malformedReasonParseError},
+		{"LCP echo missing magic", []byte{0xc0, 0x21, LCPEchoRequest, 0x01, 0x00, 0x04}, malformedProtocolLCP, malformedReasonEchoMissingMagic},
+	}
+
+	for _, tc := range frames {
+		if term := session.handleFrame(tc.frame); term {
+			t.Errorf("%s: handleFrame requested session termination, want false", tc.name)
+		}
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
+	reg.Handler().ServeHTTP(recorder, request)
+	body := recorder.Body.String()
+
+	for _, tc := range frames {
+		want := `ze_ppp_malformed_frames_total{protocol="` + tc.protocol + `",reason="` + tc.reason + `"} 1`
+		if !strings.Contains(body, want) {
+			t.Errorf("%s: scraped metrics missing %q", tc.name, want)
+		}
+	}
+	if warnLogs.Len() != 0 {
+		t.Errorf("malformed PPP frames emitted Warn/Error log lines (want none):\n%s", warnLogs.String())
 	}
 }

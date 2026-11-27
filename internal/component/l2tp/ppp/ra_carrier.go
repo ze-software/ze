@@ -45,7 +45,7 @@ func (c *raCarrierClose) Close() error { c.err = c.carrier.Close(); return c.err
 
 func startRASender(carrier IPv6Carrier, identity SessionIdentity, logger *slog.Logger) func() error {
 	ctx, cancel := context.WithCancel(context.Background())
-	sender := &raSender{conn: carrierRAWriter{carrier}, ifname: identity.InterfaceName, logger: logger}
+	sender := &raSender{ctx: ctx, conn: carrierRAWriter{carrier}, ifname: identity.InterfaceName, logger: logger}
 	//nolint:gosec // Timer jitter does not make a security decision.
 	random := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), uint64(identity.NativeIndex)))
 	sched := newRASchedule(clock.RealClock{}, random)

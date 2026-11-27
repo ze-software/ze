@@ -25,6 +25,8 @@ type IPsecMetrics struct {
 	saInitRetries         metrics.GaugeVec
 	eapTLSResumptionHits  metrics.GaugeVec
 	eapTLSResumptionMiss  metrics.GaugeVec
+	malformedInbound      metrics.Gauge
+	sendFailures          metrics.GaugeVec
 
 	// dataplaneSACount and dataplaneDrift report what the KERNEL holds, beside
 	// the belief gauges above. Both are a GaugeVec even where one label value
@@ -232,6 +234,56 @@ func errorNotifySentCount(notifyType uint16, protected bool) uint64 {
 	return errorNotifyStats.sent[errorNotifyKey{notifyType: notifyType, protected: protected}]
 }
 
+// malformedInboundTotal counts inbound IKE packets dropped because outer wire
+// parsing failed before SA state was touched (handleInbound, fsm.go).
+var malformedInboundTotal atomic.Uint64
+
+// countMalformedInbound records one inbound IKE packet dropped on wire parse
+// failure without altering SA state (RFC 7296 Section 2.4).
+func countMalformedInbound() {
+	malformedInboundTotal.Add(1)
+}
+
+// malformedInboundCount reports the cumulative malformed inbound packet total.
+func malformedInboundCount() uint64 {
+	return malformedInboundTotal.Load()
+}
+
+// Closed label values for ze_ipsec_send_failures_total{peer, kind}.
+const (
+	sendFailureKindIKE          = "ike"
+	sendFailureKindProbeDFClear = "path-probe-df-clear"
+)
+
+// sendFailureKey labels one IKE datagram send failure by peer and send kind.
+type sendFailureKey struct {
+	peer string
+	kind string
+}
+
+// sendFailureStats records send failures from established-SA and path-probe
+// senders, which are free functions or session methods without a metrics handle.
+var sendFailureStats = struct {
+	mu     sync.Mutex
+	counts map[sendFailureKey]uint64
+}{
+	counts: map[sendFailureKey]uint64{},
+}
+
+// countSendFailure records one failed IKE datagram send for peer under kind.
+func countSendFailure(peer, kind string) {
+	sendFailureStats.mu.Lock()
+	defer sendFailureStats.mu.Unlock()
+	sendFailureStats.counts[sendFailureKey{peer: peer, kind: kind}]++
+}
+
+// sendFailureCount reports the cumulative send failures recorded for peer and kind.
+func sendFailureCount(peer, kind string) uint64 {
+	sendFailureStats.mu.Lock()
+	defer sendFailureStats.mu.Unlock()
+	return sendFailureStats.counts[sendFailureKey{peer: peer, kind: kind}]
+}
+
 // RegisterMetrics creates IPsec metrics on the given registry.
 //
 // A tunnel counts as up only when its IKE SA is established AND its Child SA is
@@ -278,6 +330,11 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 		eapTLSResumptionMiss: reg.GaugeVec("ze_ipsec_eap_tls_resumption_misses_total",
 			"Cumulative EAP-TLS authentications that ran a full TLS handshake, by peer",
 			[]string{metricLabelPeer}),
+		malformedInbound: reg.Gauge("ze_ipsec_malformed_inbound_total",
+			"Cumulative inbound IKE packets that failed wire parsing and were dropped without altering SA state"),
+		sendFailures: reg.GaugeVec("ze_ipsec_send_failures_total",
+			"Cumulative IKE datagram send failures on established sessions and path probes, by peer and kind",
+			[]string{metricLabelPeer, "kind"}),
 		dataplaneSACount: reg.GaugeVec("ze_ipsec_dataplane_sa_count",
 			"Number of IPsec SAs the kernel SAD holds, by XFRM if_id. No series is published when the dataplane cannot be read",
 			[]string{metricLabelIfID}),
@@ -415,6 +472,15 @@ func (m *IPsecMetrics) publishCookieCounts() {
 	}
 }
 
+// publishSendFailureCounts copies the send-failure counters into their gauge.
+func (m *IPsecMetrics) publishSendFailureCounts() {
+	sendFailureStats.mu.Lock()
+	defer sendFailureStats.mu.Unlock()
+	for key, count := range sendFailureStats.counts {
+		m.sendFailures.With(key.peer, key.kind).Set(float64(count))
+	}
+}
+
 // espInstalled reports whether this peer's current Child SA is in the dataplane.
 //
 // It fails closed. An unknown peer, a session without a Child SA, and a Child SA
@@ -433,6 +499,8 @@ func (m *IPsecMetrics) Update() {
 	m.publishErrorNotifyCounts()
 	m.publishCookieCounts()
 	m.publishEAPTLSResumptionCounts()
+	m.publishSendFailureCounts()
+	m.malformedInbound.Set(float64(malformedInboundCount()))
 	m.publishVirtualIPGauges()
 	// RFC 7296 Section 2.23 needs the kernel to decapsulate ESP that arrives inside
 	// UDP. A failure to arm that is invisible on the wire: the tunnel establishes and

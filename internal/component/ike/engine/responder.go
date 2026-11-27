@@ -172,6 +172,7 @@ func replayCachedResponse(sa *SA, msg *wire.Message, pkt transport.Packet, tr *t
 	// sendReply, not tr.Send. RFC 3948 Section 2.2 needs the non-ESP marker when the
 	// request reached the NAT-T socket. A bare replay there is one the peer reads as
 	// ESP, and drops.
+	// refuse-by-default: guards handleResponderInbound -- cached UDP replay send failure is best-effort because the initiator retransmits if needed
 	if err := sendReplyFrom(tr, sa.lastResponse, pkt.LocalAddr, pkt.RemoteAddr); err != nil {
 		log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 	}
@@ -339,6 +340,7 @@ func resendResponderSAInit(sa *SA, tr *transport.UDPTransport, remote *net.UDPAd
 	if len(sa.ResponderSAInitMsg) == 0 {
 		return
 	}
+	// refuse-by-default: guards handleResponderInbound -- unauthenticated IKE_SA_INIT reply resend failure is best-effort because the initiator retransmits
 	if err := sendReplyFrom(tr, sa.ResponderSAInitMsg, sa.replyLocal, remote); err != nil {
 		log.Debug("ike: resend IKE_SA_INIT response failed", "peer", sa.PeerName, "error", err)
 	}
@@ -509,6 +511,7 @@ func sendSAInitNotifyRaw(
 		log.Warn("ike: SA_INIT notify too large, dropping", "peer", peerName, "notify", notifyType, "error", err)
 		return
 	}
+	// refuse-by-default: guards sendCookieChallenge -- unauthenticated IKE_SA_INIT notify send failure is best-effort because the peer retransmits or is gone
 	if err := sendReplyFrom(tr, buf[:n], local, remote); err != nil {
 		log.Debug("ike: send SA_INIT notify failed", "peer", peerName, "error", err)
 	}
@@ -1336,7 +1339,14 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 func (ps *PeerSession) respondAuthError(sa *SA, msgID uint32, notifyType uint16, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
 	resp, err := buildErrorNotifyResponse(sa, msgID, wire.ExchangeIKEAuth, notifyType, nil)
 	if err != nil {
-		log.Debug("ike: build IKE_AUTH error notify failed", "peer", sa.PeerName, "error", err)
+		reportAttr := raiseMessageBuildIssue(sa.PeerName, "ike-auth-error-notify", err, log)
+		log.Warn("ike: failed to build IKE_AUTH error notify response; the peer will not receive the error notification and must wait for retransmit timeout",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", sa.PeerName,
+			"notify", wire.NotifyTypeName(notifyType),
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		countErrorNotifySuppressed("build-failed")
 		return
 	}
@@ -1344,6 +1354,7 @@ func (ps *PeerSession) respondAuthError(sa *SA, msgID uint32, notifyType uint16,
 		countErrorNotifySuppressed("no-destination")
 		return
 	}
+	// refuse-by-default: guards handleAuthRequest -- pre-establishment IKE_AUTH error reply send failure is counted via countErrorNotifySuppressed as the SA is being abandoned
 	if err := sendReplyFrom(tr, resp, sa.replyLocal, remote); err != nil {
 		log.Debug("ike: send IKE_AUTH error notify failed", "peer", sa.PeerName, "error", err)
 		countErrorNotifySuppressed("send-failed")
@@ -1358,9 +1369,16 @@ func (ps *PeerSession) sendAuthFailed(sa *SA, msgID uint32, tr *transport.UDPTra
 	notify := &wire.PayloadNotify{NotifyMsgType: wire.NotifyAuthenticationFailed}
 	resp, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: notify}}, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
-		log.Debug("ike: build AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
+		reportAttr := raiseMessageBuildIssue(sa.PeerName, "ike-auth-failed-notify", err, log)
+		log.Warn("ike: failed to build AUTHENTICATION_FAILED response; the peer will not receive the rejection and must wait for retransmit timeout",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", sa.PeerName,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		return
 	}
+	// refuse-by-default: guards handleAuthRequest -- pre-establishment AUTHENTICATION_FAILED reply send failure cannot be acted on because the SA is being abandoned
 	if err := sendReplyFrom(tr, resp, sa.replyLocal, remote); err != nil {
 		log.Debug("ike: send AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
 	}

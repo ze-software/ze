@@ -850,7 +850,14 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 	}
 	resp, err := buildEncryptedMessageEx(sa, respPayloads, msg.Header.MessageID, wire.ExchangeInformational, initiatorFlag(sa)|wire.FlagResponse)
 	if err != nil {
-		log.Debug("ike: informational response build failed", "peer", ps.peerName, "error", err)
+		reportAttr := raiseMessageBuildIssue(ps.peerName, "informational-response", err, log)
+		log.Warn("ike: failed to build INFORMATIONAL response; the peer may hit DPD liveness timeout and tear down the tunnel",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", ps.peerName,
+			"msgid", msg.Header.MessageID,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		return out
 	}
 	cacheResponse(sa, msg.Header.MessageID, resp)

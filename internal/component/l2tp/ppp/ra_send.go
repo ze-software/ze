@@ -8,9 +8,12 @@ package ppp
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
+	"sync/atomic"
+	"syscall"
 
 	"golang.org/x/net/ipv6"
 
@@ -29,20 +32,37 @@ type raWriter interface {
 }
 
 // raSender sends Router Advertisements for one PPP subscriber interface.
-// Safe for concurrent use: it holds no mutable state, and *ipv6.PacketConn is
-// itself safe for concurrent use.
+// Safe for concurrent use: failed is atomic, and *ipv6.PacketConn is itself
+// safe for concurrent use.
 type raSender struct {
+	ctx     context.Context
 	conn    raWriter
 	dst     net.Addr
 	ifIndex int
 	ifname  string
 	logger  *slog.Logger
+	failed  atomic.Bool
+}
+
+// isTeardownError reports whether a Router Advertisement write failed because
+// the session carrier or subscriber interface was already torn down.
+func (s *raSender) isTeardownError(lifetime uint16, err error) bool {
+	if s.ctx != nil && normalIPv6CarrierStop(s.ctx, err) {
+		return true
+	}
+	if lifetime == raCeaseLifetime &&
+		(errors.Is(err, net.ErrClosed) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, context.Canceled)) {
+		return true
+	}
+	return errors.Is(err, syscall.ENODEV) || errors.Is(err, syscall.ENXIO)
 }
 
 // send writes one Router Advertisement carrying lifetime seconds in the Router
-// Lifetime field. A failure is logged and not returned: an unsolicited
-// advertisement is repeated at the next scheduled one, and the final one is
-// best effort because an abrupt teardown can remove the interface first.
+// Lifetime field. A failure is not returned: an unsolicited advertisement is
+// repeated at the next scheduled one, and the final one is best effort because
+// an abrupt teardown can remove the interface first. Live send failures warn
+// and raise once per failure condition via reportIPv6Failure until a
+// subsequent send succeeds.
 func (s *raSender) send(lifetime uint16) {
 	var buf [256]byte
 	n := BuildRA(buf[:], RAConfig{
@@ -59,8 +79,19 @@ func (s *raSender) send(lifetime uint16) {
 	// advertisement gives no signal that one of them was missed.
 	cm := &ipv6.ControlMessage{IfIndex: s.ifIndex, HopLimit: ndp.MessageHopLimit}
 	if _, err := s.conn.WriteTo(buf[:n], cm, s.dst); err != nil {
-		s.logger.Debug("ppp: RA send failed", "error", err, "iface", s.ifname)
+		// refuse-by-default: guards raSenderLoop -- abrupt teardown removes the interface or closes the carrier before the final Router Advertisement completes; live send failures are reported once per failure condition until recovery.
+		if s.isTeardownError(lifetime, err) {
+			s.logger.Debug("ppp: RA send skipped during teardown", "error", err, "iface", s.ifname)
+			return
+		}
+		if s.failed.CompareAndSwap(false, true) {
+			reportIPv6Failure(s.logger, s.ifname, "Router Advertisement send", err)
+		} else {
+			s.logger.Debug("ppp: RA send failed (condition already reported)", "error", err, "iface", s.ifname)
+		}
+		return
 	}
+	s.failed.Store(false)
 }
 
 // raSenderLoop advertises for as long as the session is up. It sends one

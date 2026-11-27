@@ -237,7 +237,13 @@ func (ps *PeerSession) informSuspicious(sa *SA, pkt transport.Packet, tr *transp
 	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: notify}},
 		sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
-		log.Debug("ike: suspicious-message notification build failed", "peer", ps.peerName, "error", err)
+		reportAttr := raiseMessageBuildIssue(ps.peerName, "suspicious-notify", err, log)
+		log.Warn("ike: failed to build suspicious-message INVALID_IKE_SPI notification; the peer will not be informed over its SA",
+			"code", codeDoctorIPsecMessageBuildFailed,
+			"peer", ps.peerName,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 		sa.releaseRequestWindow()
 		countErrorNotifySuppressed("suspicious-build-failed")
 		return

@@ -1006,8 +1006,19 @@ func sendRaw(sa *SA, tr *transport.UDPTransport, msg []byte, log *slog.Logger) {
 		msg = transport.AddNonESPMarker(msg)
 	}
 	if err := out.SendFrom(msg, local, remote); err != nil {
-		log.Debug("ike: send failed", "peer", sa.PeerName, "error", err)
+		countSendFailure(sa.PeerName, sendFailureKindIKE)
+		if first, reportAttr := recordIKESendFailure(sa, sendFailureKindIKE, remote, err, log); first {
+			log.Warn("ike: failed to send IKE datagram to peer; DPD liveness checks, rekeys, and Deletes cannot reach the peer until UDP sends recover",
+				"code", codeDoctorIPsecSendFailed,
+				"peer", sa.PeerName,
+				"remote", remote,
+				"error", err,
+				"fix", fixShowIPsecSA,
+				reportAttr)
+		}
+		return
 	}
+	clearIKESendFailure(sa, sendFailureKindIKE)
 }
 
 // serviceRekeyRetransmit retransmits an outstanding rekey request whose response
@@ -1217,7 +1228,16 @@ func emitChildUp(bus ze.EventBus, peerName string, child *ChildSA, log *slog.Log
 		evt.TSRemote = child.TSRemote.String()
 	}
 	if _, err := ChildUp.Emit(bus, evt); err != nil {
-		log.Debug("ike: emit child-up failed", "error", err)
+		reportAttr := raiseEventEmitIssue(peerName, "child-up", child, err, log)
+		log.Warn("ike: failed to emit child-up lifecycle event; bus subscribers missed the Child SA activation",
+			"code", codeDoctorIPsecEventEmitFailed,
+			"peer", peerName,
+			"event", "child-up",
+			"in-spi", child.InboundSPI,
+			"out-spi", child.OutboundSPI,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 	}
 }
 
@@ -1238,7 +1258,16 @@ func emitChildDown(bus ze.EventBus, peerName string, child *ChildSA, log *slog.L
 		evt.TSRemote = child.TSRemote.String()
 	}
 	if _, err := ChildDown.Emit(bus, evt); err != nil {
-		log.Debug("ike: emit child-down failed", "error", err)
+		reportAttr := raiseEventEmitIssue(peerName, "child-down", child, err, log)
+		log.Warn("ike: failed to emit child-down lifecycle event; bus subscribers missed the Child SA teardown",
+			"code", codeDoctorIPsecEventEmitFailed,
+			"peer", peerName,
+			"event", "child-down",
+			"in-spi", child.InboundSPI,
+			"out-spi", child.OutboundSPI,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 	}
 }
 
@@ -1259,7 +1288,16 @@ func emitChildRekey(bus ze.EventBus, peerName string, child *ChildSA, log *slog.
 		evt.TSRemote = child.TSRemote.String()
 	}
 	if _, err := ChildRekey.Emit(bus, evt); err != nil {
-		log.Debug("ike: emit child-rekey failed", "error", err)
+		reportAttr := raiseEventEmitIssue(peerName, "child-rekey", child, err, log)
+		log.Warn("ike: failed to emit child-rekey lifecycle event; bus subscribers missed the Child SA rekey",
+			"code", codeDoctorIPsecEventEmitFailed,
+			"peer", peerName,
+			"event", "child-rekey",
+			"in-spi", child.InboundSPI,
+			"out-spi", child.OutboundSPI,
+			"error", err,
+			"fix", fixShowIPsecSA,
+			reportAttr)
 	}
 }
 

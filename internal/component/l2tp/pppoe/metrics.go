@@ -36,8 +36,9 @@ const metricsHookName = "l2tp-pppoe"
 // any access interface accumulates on one series per reason rather than
 // splitting the count by interface.
 type pppoeMetrics struct {
-	discoveryRefusalsTotal   metrics.CounterVec // labels: reason
-	discoveryReadErrorsTotal metrics.Counter    // discoveryReader's swallowed socket read errors
+	discoveryRefusalsTotal    metrics.CounterVec // labels: reason
+	discoveryReadErrorsTotal  metrics.Counter    // discoveryReader's swallowed socket read errors
+	discoveryParseErrorsTotal metrics.Counter    // dispatchDiscovery's malformed discovery frames
 }
 
 // pppoeMetricsPtr holds the active metric set. It is nil until a registry
@@ -53,6 +54,8 @@ func initPPPoEMetrics(reg metrics.Registry) *pppoeMetrics {
 			"PPPoE discovery packets (PADI or PADR) refused, by reason.", []string{"reason"}),
 		discoveryReadErrorsTotal: reg.Counter("ze_pppoe_discovery_read_errors_total",
 			"Discovery socket read errors discoveryReader swallowed and retried, after the socket-closed case is ruled out."),
+		discoveryParseErrorsTotal: reg.Counter("ze_pppoe_discovery_parse_errors_total",
+			"Malformed PPPoE discovery frames discarded by dispatchDiscovery before server handling."),
 	}
 }
 
@@ -108,4 +111,18 @@ func countDiscoveryReadError() {
 		return
 	}
 	m.discoveryReadErrorsTotal.Inc()
+}
+
+// countDiscoveryParseError increments dispatchDiscovery's malformed discovery
+// frame counter. It is a separate series from discoveryRefusalsTotal rather
+// than a seventh reason on it: a refusal is a protocol or configuration
+// decision about a well-formed read (docs/architecture/l2tp/bng-5-pppoe.md),
+// while this counter records frames ParseDiscovery could not decode. It is a
+// no-op while no registry is bound, the same as countRefusal.
+func countDiscoveryParseError() {
+	m := pppoeMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.discoveryParseErrorsTotal.Inc()
 }

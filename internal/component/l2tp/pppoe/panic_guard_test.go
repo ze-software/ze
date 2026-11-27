@@ -7,17 +7,19 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
-
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // guardLogBuffer is the guard's log sink: the discovery reader writes it while
@@ -226,5 +228,52 @@ func TestPPPoEReadPanicContained(t *testing.T) {
 				t.Fatalf("crash records = %+v, want one of kind %q", crashes, crashlog.KindRecovered)
 			}
 		})
+	}
+}
+
+// VALIDATES: a malformed L2 discovery frame discarded in dispatchDiscovery
+// increments ze_pppoe_discovery_parse_errors_total without touching the closed
+// ze_pppoe_discovery_refusals_total vocabulary or emitting per-packet Warn logs.
+// PREVENTS: malformed discovery frames going uncounted at default log levels
+// or widening the well-formed discovery refusal reason vocabulary.
+func TestDispatchDiscoveryMalformedFrameIncrementsParseErrorCounter(t *testing.T) {
+	previous := pppoeMetricsPtr.Swap(nil)
+	t.Cleanup(func() { pppoeMetricsPtr.Store(previous) })
+
+	reg := metrics.NewPrometheusRegistry()
+	bindPPPoEMetrics(reg)
+
+	warnBuf := &guardLogBuffer{}
+	sub := &Subsystem{
+		logger: slog.New(slog.NewTextHandler(warnBuf, &slog.HandlerOptions{Level: slog.LevelWarn})),
+	}
+	srv := newRecordingServer(new([][]byte), nil, 8)
+
+	// Truncated frame shorter than an Ethernet + PPPoE header forces ParseDiscovery to fail.
+	sub.dispatchDiscovery(srv, []byte{0x01, 0x02})
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
+	reg.Handler().ServeHTTP(recorder, req)
+	body := recorder.Body.String()
+
+	const wantParseLine = "ze_pppoe_discovery_parse_errors_total 1"
+	var sawParse, sawRefusal bool
+	for line := range strings.SplitSeq(body, "\n") {
+		if line == wantParseLine {
+			sawParse = true
+		}
+		if strings.HasPrefix(line, "ze_pppoe_discovery_refusals_total{") {
+			sawRefusal = true
+		}
+	}
+	if !sawParse {
+		t.Fatalf("scraped metrics missing %q", wantParseLine)
+	}
+	if sawRefusal {
+		t.Errorf("malformed discovery frame unexpectedly incremented ze_pppoe_discovery_refusals_total")
+	}
+	if got := warnBuf.String(); got != "" {
+		t.Errorf("malformed discovery frame emitted Warn/Error log lines (want none):\n%s", got)
 	}
 }

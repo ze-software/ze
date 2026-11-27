@@ -9,6 +9,7 @@ package dataplane
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 	"sync"
@@ -49,6 +50,7 @@ var (
 	xfrmStateList     = netlink.XfrmStateList
 	xfrmPolicyList    = netlink.XfrmPolicyList
 	xfrmStateAdd      = netlink.XfrmStateAdd
+	xfrmStateDel      = netlink.XfrmStateDel
 	xfrmScopeCapsRead = readXFRMZECapabilities
 )
 
@@ -153,11 +155,29 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 			// reported as failed. Leaving it behind would strand a state no caller
 			// believes exists, and the next install of the same SPI would answer
 			// "file exists" for a reason nobody could see.
-			if delErr := netlink.XfrmStateDel(state); delErr != nil {
-				b.espForms.logger().Debug("xfrm: remove state after the ESP form receiver refused",
-					"spi", p.SPI, "error", delErr)
+			installErr := fmt.Errorf("xfrm: spi=%d cannot receive both ESP forms, so it was not installed: %w", p.SPI, err)
+			if delErr := xfrmStateDel(state); delErr != nil {
+				reportAttr := slog.String("report", "not-wired")
+				if sink := xfrmRollbackFailedSink.Load(); sink != nil {
+					reportAttr = (*sink)(XFRMRollbackFailed{
+						SPI:         p.SPI,
+						Src:         peer,
+						Dst:         local,
+						InstallErr:  err,
+						RollbackErr: delErr,
+					})
+				}
+				b.espForms.logger().Warn(
+					"xfrm: rollback delete of inbound XFRM state failed after dual-form ESP setup was refused; a stranded kernel state remains and can block later Child SA installs using the same SPI",
+					"code", CodeDoctorIPsecXFRMRollbackFailed,
+					"spi", p.SPI,
+					"error", delErr,
+					"fix", "ze show vpn ipsec dataplane sa",
+					reportAttr,
+				)
+				return errors.Join(installErr, fmt.Errorf("xfrm: rollback state del spi=%d: %w", p.SPI, delErr))
 			}
-			return fmt.Errorf("xfrm: spi=%d cannot receive both ESP forms, so it was not installed: %w", p.SPI, err)
+			return installErr
 		}
 	}
 	return nil

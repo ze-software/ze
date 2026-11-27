@@ -36,6 +36,11 @@ const (
 	codeDoctorIPsecXFRMUnknown           = "doctor-ipsec-xfrm-unknown"
 	codeDoctorIPsecMOBIKESocketNotShared = "doctor-ipsec-mobike-socket-not-shared"
 	codeDoctorIPsecEAPTLSIdentity        = "doctor-ipsec-eap-tls-identity"
+	codeDoctorIPsecCertURLFetchFailed    = "doctor-ipsec-cert-url-fetch-failed"
+	codeDoctorIPsecChildRemoveFailed     = "doctor-ipsec-child-remove-failed"
+	codeDoctorIPsecMessageBuildFailed    = "doctor-ipsec-message-build-failed"
+	codeDoctorIPsecSendFailed            = "doctor-ipsec-send-failed"
+	codeDoctorIPsecEventEmitFailed       = "doctor-ipsec-event-emit-failed"
 	exampleDoctorJSON                    = "ze doctor --json"
 )
 
@@ -437,6 +442,55 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"constraint is configured.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-eap-tls-identity"},
 	},
+	{
+		Code:  codeDoctorIPsecCertURLFetchFailed,
+		Title: "IPsec hash-and-URL peer certificate fetch failed",
+		Description: "Ze could not fetch a peer's certificate from the HTTP URL announced in a hash-and-URL " +
+			"CERT payload (RFC 7296 Section 3.6). Until the certificate can be fetched, IKE_AUTH for " +
+			"that peer cannot verify the peer's certificate chain and handshake retries stay blocked. " +
+			"Verify that the peer's certificate URL is reachable from this router and permitted by " +
+			"`vpn ipsec certificate-url-allow`, then inspect `ze show vpn ipsec sa`.",
+		Examples:     []string{exampleDoctorJSON, fixShowIPsecSA, "ze show diagnostic doctor-ipsec-cert-url-fetch-failed"},
+		RelatedCodes: []string{codeDoctorIPsecCertURL, codeDoctorIPsecCertURLDenied},
+	},
+	{
+		Code:  codeDoctorIPsecChildRemoveFailed,
+		Title: "IPsec Child SA removal failed in the kernel dataplane",
+		Description: "The kernel refused to remove an inbound or outbound Child SA state during teardown or " +
+			"rekey for a reason other than the state already being absent (ENOENT/ESRCH). A stranded " +
+			"XFRM state remains in the kernel SAD and can interfere with subsequent installs or traffic " +
+			"accounting. Inspect the kernel SAD with `ze show vpn ipsec dataplane sa` and verify Ze holds " +
+			"CAP_NET_ADMIN.",
+		Examples: []string{exampleDoctorJSON, fixShowIPsecDataplaneSA, "ze show diagnostic doctor-ipsec-child-remove-failed"},
+	},
+	{
+		Code:  codeDoctorIPsecMessageBuildFailed,
+		Title: "IPsec IKE encrypted message could not be built",
+		Description: "Ze could not encrypt or encode an IKEv2 Delete, INFORMATIONAL response, or error " +
+			"notification for a configured peer's SA. Because the message was not sent, the peer may " +
+			"keep a stale SA until DPD liveness timeout or miss an error notification. Inspect the " +
+			"peer's SA state with `ze show vpn ipsec sa` and check recent IKE warnings.",
+		Examples: []string{exampleDoctorJSON, fixShowIPsecSA, "ze show diagnostic doctor-ipsec-message-build-failed"},
+	},
+	{
+		Code:  codeDoctorIPsecSendFailed,
+		Title: "IPsec IKE datagram could not be sent to peer",
+		Description: "The IKE engine could not transmit an IKEv2 datagram or DF-clear path probe on the " +
+			"peer's UDP transport socket. While sends fail, DPD liveness checks, rekeys, Deletes, and " +
+			"path MTU probes cannot reach the peer and the tunnel may time out or stall. Inspect tunnel " +
+			"status with `ze show vpn ipsec sa` and verify the route and local interface to the peer.",
+		Examples: []string{exampleDoctorJSON, fixShowIPsecSA, "ze show diagnostic doctor-ipsec-send-failed"},
+	},
+	{
+		Code:  codeDoctorIPsecEventEmitFailed,
+		Title: "IPsec Child SA lifecycle event could not be published",
+		Description: "The IKE engine could not emit a Child SA lifecycle event (child-up, child-down, or " +
+			"child-rekey) on the plugin event bus. Downstream subscribers watching IPsec Child SA state " +
+			"changes missed that transition, though the dataplane SA itself follows its own install " +
+			"outcome. Inspect tunnel status with `ze show vpn ipsec sa` and check bus health with " +
+			"`ze show doctor`.",
+		Examples: []string{exampleDoctorJSON, fixShowIPsecSA, "ze show diagnostic doctor-ipsec-event-emit-failed"},
+	},
 }
 
 func init() {
@@ -444,5 +498,23 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: engine: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecSPDUndoIncomplete}); err != nil {
+		panic("BUG: engine: SPD undo event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecCertURLFetchFailed}); err != nil {
+		panic("BUG: engine: cert URL fetch event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecChildRemoveFailed}); err != nil {
+		panic("BUG: engine: child remove event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecMessageBuildFailed}); err != nil {
+		panic("BUG: engine: message build event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecSendFailed}); err != nil {
+		panic("BUG: engine: send failed event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecEventEmitFailed}); err != nil {
+		panic("BUG: engine: event emit failed event code registration refused: " + err.Error())
 	}
 }

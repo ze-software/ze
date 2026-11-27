@@ -6,6 +6,7 @@
 package dataplane
 
 import (
+	"log/slog"
 	"net/netip"
 	"strconv"
 	"sync/atomic"
@@ -438,6 +439,41 @@ func RegisterESPFormReaderStopped(sink ESPFormReaderStoppedSink) {
 		return
 	}
 	espFormReaderStoppedSink.Store(&sink)
+}
+
+// XFRMRollbackFailed describes one inbound XFRM state whose kernel deletion
+// failed while rolling back a refused dual-form ESP setup in InstallSA. Never
+// changed once built.
+type XFRMRollbackFailed struct {
+	SPI         uint32
+	Src         netip.Addr
+	Dst         netip.Addr
+	InstallErr  error
+	RollbackErr error
+}
+
+// XFRMRollbackFailedSink enqueues one XFRM rollback failure onto the IKE
+// plugin's non-blocking report queue and answers the log attribute describing
+// whether the report was queued (report=queued or report-error=...). It MUST
+// NOT block on daemon RPC because InstallSA runs while the caller holds
+// childLifecycleMu and beginDataplaneWrite.
+type XFRMRollbackFailedSink func(XFRMRollbackFailed) slog.Attr
+
+// xfrmRollbackFailedSink is the registered XFRMRollbackFailedSink, nil until
+// one is registered.
+var xfrmRollbackFailedSink atomic.Pointer[XFRMRollbackFailedSink]
+
+// RegisterXFRMRollbackFailed records sink as the taker of XFRM install rollback
+// failures, and a nil sink removes it. The IKE engine registers it in runEngine
+// so rollback failures reach the daemon's report bus non-blockingly in both
+// internal and forked plugin modes without coupling dataplane to sdk or
+// issuequeue. Safe for concurrent use.
+func RegisterXFRMRollbackFailed(sink XFRMRollbackFailedSink) {
+	if sink == nil {
+		xfrmRollbackFailedSink.Store(nil)
+		return
+	}
+	xfrmRollbackFailedSink.Store(&sink)
 }
 
 // ESPFormFastPathReporter is implemented by a backend whose dual-form receiver has a

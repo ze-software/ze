@@ -34,11 +34,27 @@ const (
 	reasonSuggestionDrawFailed = "suggestion-draw-failed"
 )
 
+// Closed protocol and reason label sets for ze_ppp_malformed_frames_total.
+// Neither label carries a session or tunnel identifier so cardinality stays
+// constant regardless of subscriber count.
+const (
+	malformedProtocolFrame  = "frame"
+	malformedProtocolLCP    = "lcp"
+	malformedProtocolIPCP   = "ipcp"
+	malformedProtocolIPv6CP = "ipv6cp"
+
+	malformedReasonParseError       = "parse-error"
+	malformedReasonEchoMissingMagic = "echo-missing-magic"
+)
+
 // metricsHookName is the key registry.InjectPluginMetrics stores this
 // component's hook under. It is a namespace, not a plugin declaration: the
 // registry keys the deferral by name only, and no plugin under
 // internal/plugins/ carries this one.
-const metricsHookName = "l2tp-ppp"
+const (
+	metricsHookName = "l2tp-ppp"
+	labelReason     = "reason"
+)
 
 // pppMetrics holds the Prometheus metrics the PPP driver publishes. One
 // instance serves every Driver in the process, so a refusal on any
@@ -48,6 +64,7 @@ type pppMetrics struct {
 	ipv6cpIdentifierRefusalsTotal metrics.CounterVec // labels: reason
 	authFailuresTotal             metrics.CounterVec // labels: reason
 	readerErrorsTotal             metrics.CounterVec // labels: loop (ra, dhcpv6): swallowed socket read errors
+	malformedFramesTotal          metrics.CounterVec // labels: protocol, reason
 }
 
 // pppMetricsPtr holds the active metric set. It is nil until a registry
@@ -62,13 +79,16 @@ func initPPPMetrics(reg metrics.Registry) *pppMetrics {
 	return &pppMetrics{
 		ipv6cpIdentifierRefusalsTotal: reg.CounterVec("ze_ppp_ipv6cp_identifier_refusals_total",
 			"IPv6CP negotiations refused for want of a usable interface identifier, by reason.",
-			[]string{"reason"}),
+			[]string{labelReason}),
 		readerErrorsTotal: reg.CounterVec("ze_ppp_reader_errors_total",
 			"Socket read errors a PPP reader loop swallowed and retried, by loop.",
 			[]string{"loop"}),
 		authFailuresTotal: reg.CounterVec("ze_ppp_auth_failures_total",
 			"PPP authentication policy failures, by reason.",
-			[]string{"reason"}),
+			[]string{labelReason}),
+		malformedFramesTotal: reg.CounterVec("ze_ppp_malformed_frames_total",
+			"Malformed PPP frames or control packets discarded by the session parser, by protocol and reason.",
+			[]string{"protocol", labelReason}),
 	}
 }
 
@@ -120,4 +140,15 @@ func countAuthMethodRefusal() {
 		return
 	}
 	m.authFailuresTotal.With("auth-method-refused").Inc()
+}
+
+// countMalformedFrame records one malformed PPP frame or control packet
+// discarded by the session parser under closed protocol and reason labels,
+// without per-session labels.
+func countMalformedFrame(protocol, reason string) {
+	m := pppMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.malformedFramesTotal.With(protocol, reason).Inc()
 }

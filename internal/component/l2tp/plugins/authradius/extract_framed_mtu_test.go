@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"slices"
 	"strings"
@@ -140,5 +141,68 @@ func TestFramedMTUAdjustedCarriesCodeAndRaisesEventForSubscriber(t *testing.T) {
 	}
 	if logs.Len() != 0 || len(report.Errors(0)) != 0 {
 		t.Fatalf("a Framed-MTU applied as sent logged or raised: %s %+v", logs.Bytes(), report.Errors(0))
+	}
+}
+
+// VALIDATES: staging Framed-MTU on an expired auth wait (ppp.ErrRequestExpired)
+// stays silent at Warn and raises no report event, while an unexpected
+// non-expired StageFramedMTU error logs Warn with ppp.CodeDoctorRADIUSFramedMTU
+// and raises on internal/core/report.
+// PREVENTS: retired auth waits flooding Warn logs or unexpected Framed-MTU
+// staging failures disappearing at Debug.
+func TestAuthRadiusExpiredWaitAndUnexpectedMTUStage(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	var logs bytes.Buffer
+	previous := logger()
+	loggerPtr.Store(slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	t.Cleanup(func() { loggerPtr.Store(previous) })
+
+	// Expired wait: zero EventAuthRequest has no active pending wait.
+	expiredReq := ppp.EventAuthRequest{TunnelID: 11, SessionID: 22, Username: "subscriber-expired"}
+	err := stageFramedMTU(expiredReq, 1400)
+	if !errors.Is(err, ppp.ErrRequestExpired) {
+		t.Fatalf("expired wait error = %v, want ErrRequestExpired", err)
+	}
+	if logs.Len() != 0 {
+		t.Errorf("expired wait unexpectedly logged Warn:\n%s", logs.String())
+	}
+	if entries := report.Errors(0); len(entries) != 0 {
+		t.Errorf("expired wait unexpectedly raised %d report event(s): %+v", len(entries), entries)
+	}
+
+	// Unexpected non-expired staging error: value below ppp.MinIPv4MRU (68)
+	// fails StageFramedMTU with ErrFramedMTUBelowIPv4.
+	const subscriber = "subscriber-bad-mtu"
+	badMTUReq := ppp.EventAuthRequest{TunnelID: 33, SessionID: 44, Username: subscriber}
+	err = stageFramedMTU(badMTUReq, 64)
+	if !errors.Is(err, ppp.ErrFramedMTUBelowIPv4) {
+		t.Fatalf("unexpected MTU error = %v, want ErrFramedMTUBelowIPv4", err)
+	}
+
+	var warning map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &warning); err != nil {
+		t.Fatalf("decode Warn JSON: %v\n%s", err, logs.Bytes())
+	}
+	if warning["code"] != ppp.CodeDoctorRADIUSFramedMTU {
+		t.Errorf("Warn code = %v, want %s", warning["code"], ppp.CodeDoctorRADIUSFramedMTU)
+	}
+	if warning["subscriber"] != subscriber {
+		t.Errorf("Warn subscriber = %v, want %s", warning["subscriber"], subscriber)
+	}
+	if warning["fix"] != framedMTUFix {
+		t.Errorf("Warn fix = %v, want %q", warning["fix"], framedMTUFix)
+	}
+
+	entries := report.Errors(0)
+	if len(entries) != 1 {
+		t.Fatalf("unexpected StageFramedMTU failure raised %d report event(s), want 1: %+v", len(entries), entries)
+	}
+	if entries[0].Source != Name || entries[0].Code != ppp.CodeDoctorRADIUSFramedMTU || entries[0].Subject != subscriber {
+		t.Errorf("report event metadata mismatch: %+v", entries[0])
+	}
+	if entries[0].Fix != framedMTUFix {
+		t.Errorf("report event fix = %q, want %q", entries[0].Fix, framedMTUFix)
 	}
 }

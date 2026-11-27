@@ -334,7 +334,18 @@ func (ps *PeerSession) rekeyHoldInForce(now time.Time) bool {
 // datagram the first copy carried; only the IP header's DF bit differs.
 func (ps *PeerSession) sendProbeDFClear(sa *SA, tr *transport.UDPTransport, now time.Time, log *slog.Logger) {
 	if err := sendRawDF(sa, tr, sa.requestMsg, probe.DFOff, log); err != nil {
-		log.Debug("ike: path probe DF-clear copy send failed", "peer", ps.peerName, "error", err)
+		countSendFailure(ps.peerName, sendFailureKindProbeDFClear)
+		if first, reportAttr := recordIKESendFailure(sa, sendFailureKindProbeDFClear, sa.remoteUDPAddr(), err, log); first {
+			log.Warn("ike: failed to send DF-clear path MTU probe; path MTU probing cannot complete until UDP sends recover",
+				"code", codeDoctorIPsecSendFailed,
+				"peer", ps.peerName,
+				"msgid", sa.requestMsgID,
+				"error", err,
+				"fix", fixShowIPsecSA,
+				reportAttr)
+		}
+	} else {
+		clearIKESendFailure(sa, sendFailureKindProbeDFClear)
 	}
 	ps.pendingProbe.dfCleared = true
 	sa.noteRequestRetransmit(now)

@@ -1535,6 +1535,10 @@ func policyGone(err error) bool {
 // one whose removal policyGone does not accept), which removeChildSAExcept needs before
 // it releases the cross-peer record. It returns none when it removes no policy:
 // dropPolicy false, no dataplane, or no Child SA.
+func saStateGone(err error) bool {
+	return errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ESRCH)
+}
+
 func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) []dataplane.SPParams {
 	beginDataplaneWrite()
 	defer endDataplaneWrite()
@@ -1572,7 +1576,20 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		}
 	}
 	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
-		log.Debug("child-sa: remove outbound SA", "error", err)
+		if saStateGone(err) {
+			// refuse-by-default: guards removeChildSAExcept -- ENOENT/ESRCH means the outbound XFRM state is already absent during teardown
+			log.Debug("child-sa: outbound SA already absent", "peer", child.Owner, "spi", child.OutboundSPI, "error", err)
+		} else {
+			reportAttr := raiseChildRemoveIssue(child.Owner, "outbound", child.OutboundSPI, err, log)
+			log.Warn("child-sa: failed to remove outbound XFRM state; a stranded kernel state remains and can affect later installs or traffic accounting",
+				"code", codeDoctorIPsecChildRemoveFailed,
+				"peer", child.Owner,
+				"direction", "outbound",
+				"spi", child.OutboundSPI,
+				"error", err,
+				"fix", fixShowIPsecDataplaneSA,
+				reportAttr)
+		}
 	}
 	return left
 }
@@ -1607,7 +1624,20 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		}
 	}
 	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
-		log.Debug("child-sa: remove inbound SA", "error", err)
+		if saStateGone(err) {
+			// refuse-by-default: guards removeChildSAExcept -- ENOENT/ESRCH means the inbound XFRM state is already absent during teardown
+			log.Debug("child-sa: inbound SA already absent", "peer", child.Owner, "spi", child.InboundSPI, "error", err)
+		} else {
+			reportAttr := raiseChildRemoveIssue(child.Owner, "inbound", child.InboundSPI, err, log)
+			log.Warn("child-sa: failed to remove inbound XFRM state; a stranded kernel state remains and can affect later installs or traffic accounting",
+				"code", codeDoctorIPsecChildRemoveFailed,
+				"peer", child.Owner,
+				"direction", "inbound",
+				"spi", child.InboundSPI,
+				"error", err,
+				"fix", fixShowIPsecDataplaneSA,
+				reportAttr)
+		}
 	}
 	return left
 }

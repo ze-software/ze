@@ -129,6 +129,7 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	p.OnDoctorCheck(checkRuntimeHealth)
 	defer func() {
+		// refuse-by-default: guards runPlugin -- deferred SDK close runs only on plugin shutdown after runPlugin exits; no caller or operator action applies.
 		if err := p.Close(); err != nil {
 			logger().Debug("plugin close error", "error", err)
 		}

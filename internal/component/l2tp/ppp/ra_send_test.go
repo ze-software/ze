@@ -5,13 +5,17 @@
 package ppp
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
 	"runtime"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -19,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/ndp"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
@@ -508,5 +513,102 @@ func TestRASendAsksForHopLimit255(t *testing.T) {
 		if got != 255 {
 			t.Errorf("advertisement %d asked for Hop Limit %d, want 255 (RFC 4861 Section 6.1.2)", i, got)
 		}
+	}
+}
+
+// VALIDATES: a live Router Advertisement send failure logs one Warn carrying
+// codePPPIPv6Service and raises one daemon-local report event across
+// consecutive failures, re-arms after a successful send, and stays silent on
+// abrupt teardown (normalIPv6CarrierStop, ENODEV, or cease write on a closed
+// carrier).
+// PREVENTS: live RA send failures being hidden at Debug, flooding Warn on
+// every scheduled advertisement, or firing spurious warnings during normal
+// session teardown.
+func TestRASenderLiveFailureWarnsOnceAndTeardownIsSilent(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	var logs bytes.Buffer
+	warnLogger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	rec := &raRecorder{sendErr: errors.New("network unreachable")}
+	ctx := t.Context()
+
+	sender := &raSender{
+		ctx:     ctx,
+		conn:    rec,
+		dst:     &net.UDPAddr{IP: net.ParseIP("ff02::1"), Zone: "ppp9"},
+		ifIndex: 9,
+		ifname:  "ppp9",
+		logger:  warnLogger,
+	}
+
+	// Two consecutive live failures emit exactly one Warn and one report event.
+	sender.send(raRouterLifetime)
+	sender.send(raRouterLifetime)
+
+	lines := bytes.Split(bytes.TrimSpace(logs.Bytes()), []byte("\n"))
+	if len(lines) != 1 {
+		t.Fatalf("consecutive live failures emitted %d Warn line(s), want 1:\n%s", len(lines), logs.String())
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(lines[0], &entry); err != nil {
+		t.Fatalf("decode Warn JSON: %v\n%s", err, lines[0])
+	}
+	if entry["code"] != codePPPIPv6Service {
+		t.Errorf("Warn code = %v, want %s", entry["code"], codePPPIPv6Service)
+	}
+	if entry["interface"] != "ppp9" {
+		t.Errorf("Warn interface = %v, want ppp9", entry["interface"])
+	}
+	if got := len(report.Errors(0)); got != 1 {
+		t.Fatalf("consecutive live failures raised %d report error(s), want 1", got)
+	}
+
+	// A successful send clears the condition so a later failure warns again.
+	rec.sendErr = nil
+	sender.send(raRouterLifetime)
+	rec.sendErr = errors.New("network unreachable")
+	sender.send(raRouterLifetime)
+
+	lines = bytes.Split(bytes.TrimSpace(logs.Bytes()), []byte("\n"))
+	if len(lines) != 2 {
+		t.Fatalf("failure after recovery emitted %d total Warn line(s), want 2:\n%s", len(lines), logs.String())
+	}
+	if got := len(report.Errors(0)); got != 2 {
+		t.Fatalf("failure after recovery raised %d total report error(s), want 2", got)
+	}
+
+	// Abrupt teardown cases must stay silent (no Warn, no report event).
+	logs.Reset()
+	report.ResetForTest()
+
+	// Case 1: interface already removed (ENODEV).
+	teardownRec := &raRecorder{sendErr: syscall.ENODEV}
+	teardownSender := &raSender{
+		ctx:     t.Context(),
+		conn:    teardownRec,
+		dst:     &net.UDPAddr{IP: net.ParseIP("ff02::1"), Zone: "ppp10"},
+		ifIndex: 10,
+		ifname:  "ppp10",
+		logger:  warnLogger,
+	}
+	teardownSender.send(raRouterLifetime)
+
+	// Case 2: normalIPv6CarrierStop after context cancellation.
+	canceledCtx, cancelNow := context.WithCancel(t.Context())
+	cancelNow()
+	teardownRec.sendErr = net.ErrClosed
+	teardownSender.ctx = canceledCtx
+	teardownSender.send(raRouterLifetime)
+
+	// Case 3: final cease advertisement on a closed carrier with nil context.
+	teardownSender.ctx = nil
+	teardownSender.send(raCeaseLifetime)
+
+	if logs.Len() != 0 {
+		t.Errorf("teardown RA send failures unexpectedly logged Warn:\n%s", logs.String())
+	}
+	if got := report.Errors(0); len(got) != 0 {
+		t.Errorf("teardown RA send failures unexpectedly raised %d report error(s): %+v", len(got), got)
 	}
 }

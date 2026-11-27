@@ -78,7 +78,7 @@ child owns the instances under its door's base paths and the zero for them:
 |-------|------|--------|------------------------|--------|
 | `plan/release/fixes/spec-dropped-error-1-bgp-engine.md` | `bgp-engine.md` | `ready` | 48 (was 57) | release fixes |
 | `plan/release/fixes/spec-dropped-error-2-bgp-plugins.md` | `bgp-plugins.md` | `ready` | 63 (was 63) | release fixes |
-| `plan/release/fixes/spec-dropped-error-3-access-security.md` | `access-security.md` | `ready` | 44 (was 60; excludes 2 `mobike.go` sites moved to `spec-ipsec-11-mobike.md` on 2026-11-23) | release fixes |
+| `spec-dropped-error-3-access-security` (closed 2026-11-27) | `access-security.md` | closed | 0 (was 60; excludes 2 `mobike.go` sites moved to `spec-ipsec-11-mobike.md` on 2026-11-23) | release fixes |
 | `plan/release/fixes/spec-dropped-error-4-system-plugins.md` | `system-plugins.md` | `ready` | 50 (was 45) | release fixes |
 | `plan/release/fixes/spec-dropped-error-5-forwarding.md` | `forwarding.md` | `ready` | 36 (was 35) | release fixes |
 | `spec-dropped-error-6-routing-protocols` (closed 2026-11-15 in `f126ead44e`) | `routing-protocols.md` | closed | 0 (was 28) | release fixes |
