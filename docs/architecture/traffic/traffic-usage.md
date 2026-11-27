@@ -1,7 +1,8 @@
 # Traffic Usage: Pure-Go eBPF Byte Accounting
 
 `traffic-usage` does eBPF TCX per-(port, protocol) accounting, and opt-in per-IP
-byte accounting, on operator-selected interfaces, exported as Prometheus metrics.
+byte accounting, for IPv4 and IPv6 on operator-selected interfaces, exported as
+Prometheus metrics.
 
 The hard constraint, set by the owner, is that the eBPF programs ship with
 NOTHING ON DISK: assembled in pure Go from `asm.Instructions` and loaded from
@@ -34,9 +35,13 @@ consumer.
 
 <!-- source: internal/plugins/trafficusage/monitor.go -- attachedIface, reconcile -->
 
-The program is built from `(maxEntries, trackIP)`. When `track-ip` is off, the IP
-maps and the per-packet IP accounting are NOT EMITTED. "Collected only when
-track-ip is set" is enforced in the data plane, not at publish time.
+The program is built from `(maxEntries, trackIP)`. When `track-ip` is off, all
+four IP maps (`tu_ip_in`, `tu_ip_out`, `tu_ip6_in`, `tu_ip6_out`) and the
+per-packet IP accounting are NOT EMITTED. When `track-ip` is on, Ze keeps
+4-byte IPv4 maps and 16-byte IPv6 maps separate. IPv4 deployments keep 4-byte
+keys, and IPv4/IPv6 LRU eviction stays independent. `ze_traffic_usage_map_entries`
+reports each family's fill level (`ip_*` and `ip6_*`) on its own. "Collected
+only when track-ip is set" is enforced in the data plane, not at publish time.
 
 Because the flags are fixed at generation time, reconcile compares the attached
 parameters against the new config and detaches and re-attaches on a change.
@@ -175,16 +180,33 @@ These cost days if rediscovered:
   counts `LoadMapPtr` as two slots, so it points just AFTER the offending
   instruction. Build a u64 stack value with `Mov.Imm` and `StoreMem`.
 - **A BPF `LDX` from packet memory is HOST byte order.** The IPv4 ethertype
-  compares against `0x0008` (`htons(0x0800)`) on a little-endian host. L4 ports
-  need `HostTo(BE, reg, Half)` to store in host order. IPv4 addresses are stored
-  raw and decoded little-endian in userspace.
+  compares against `0x0008` (`htons(0x0800)`) on a little-endian host. IPv6
+  compares against `0xDD86` (`htons(0x86DD)`). L4 ports need
+  `HostTo(BE, reg, Half)` to store in host order. IPv4 uses one `Word`
+  load/store, and IPv6 uses two fixed-offset `DWord` loads/stores into
+  8-byte-aligned `slotIP6Key`. Both preserve wire byte order in the map key.
+  Userspace reads them as `[4]byte` (`netip.AddrFrom4`) and `[16]byte`
+  (`netip.AddrFrom16`) into unified `map[netip.Addr]uint64` counters.
 - **Parse everything first, then do all map operations.** Stage both keys on the
-  stack before the map helpers run, and read every packet-pointer field before
-  the first helper call, so no packet pointer is dereferenced after a call.
-  This sidesteps the verifier's packet-pointer-invalidation rules completely.
+  stack before the map helpers run. Read every packet-pointer field before the
+  first helper call, so no packet pointer is dereferenced after a call. This
+  sidesteps the verifier's packet-pointer-invalidation rules completely. When
+  `track-ip` is enabled, each L3 branch zeroes the other family's stack slot
+  (`slotIP6Key` on IPv4, `slotIPKey` on IPv6). Every stack byte is then
+  initialized if the `!CAP_PERFMON` verifier speculatively checks the untaken
+  `ip_ops` or `ip6_ops` branch.
+- **Fixed 40-byte IPv6 base header.** `parse_v6` checks `data + 54 > data_end`,
+  reads `NextHeader` at offset 6, sets scalar `R9 = 54`, and joins `l4_parse`.
+  TCP and UDP packets directly after the base header get per-port accounting.
+  ICMPv6 (`58`) and packets with extension headers count under `{port: 0,
+  proto: first NextHeader}`. They also count per-IP when `track-ip` is enabled.
+  <!-- source: internal/plugins/trafficusage/program_linux.go -- directionInsns, newLRUMap -->
+  <!-- source: internal/plugins/trafficusage/attach_linux.go -- readIPMap, readIP6Map -->
+  <!-- source: internal/plugins/trafficusage/program_test.go -- TestProgram_IPv6IngressSrcIP, TestProgram_IPv6EgressDstIP, TestProgram_IPv6ExtHeaderPortZero, TestProgram_IPv6TruncatedL4PortZero -->
 - **The L4 port is read with `bpf_skb_load_bytes`, never through a packet
-  pointer.** The TCP or UDP header sits at `14 + ihl*4`, a variable offset.
-  Adding that register to a packet pointer is refused to a loader without
+  pointer.** The TCP or UDP header sits at `14 + ihl*4` for IPv4 (a variable
+  offset) or `54` for IPv6.
+  Adding a register to a packet pointer is refused to a loader without
   `CAP_PERFMON`, which the systemd unit does not grant: in
   `adjust_ptr_min_max_vals` every `BPF_ADD` and `BPF_SUB` on a pointer goes to
   `sanitize_ptr_alu`, whose `can_skip_alu_sanitation` lets it through only for
@@ -207,14 +229,16 @@ These cost days if rediscovered:
   need one branch for each of the eleven valid IHL values.
   <!-- source: internal/plugins/trafficusage/program_linux.go -- directionInsns -->
   <!-- source: internal/plugins/trafficusage/program_test.go -- TestProgram_IPOptionsMoveThePort, TestProgram_TruncatedL4HeaderKeysPortZero, TestProgram_L4OffsetBeyondThePacketKeysPortZero -->
-- **`BPF_PROG_TEST_RUN` cannot feed a truncated IPv4 frame.** It refuses an
-  `ETH_P_IP` frame whose linear part after the Ethernet header is shorter than
-  `struct iphdr`, with EINVAL (`bpf_prog_test_run_skb`, `net/bpf/test_run.c`
-  v7.2, lines 1172-1175: `if (skb_headlen(skb) < sizeof(struct iphdr))`). So
-  `TestProgram_TruncatedPass` sends the 14- to 33-byte frames through a veth
-  pair with the programs attached by TCX, and the 34-byte boundary, the
-  shortest frame that route runs, is `TestProgram_IPv4HeaderEndingTheFrameCounts`.
-  <!-- source: internal/plugins/trafficusage/program_test.go -- TestProgram_TruncatedPass, TestProgram_IPv4HeaderEndingTheFrameCounts -->
+- **`BPF_PROG_TEST_RUN` cannot feed a truncated IPv4 or IPv6 frame.** It refuses
+  `ETH_P_IP` frames shorter than `struct iphdr` (34 bytes total) with EINVAL. It
+  refuses `ETH_P_IPV6` frames shorter than `struct ipv6hdr` (54 bytes total) the
+  same way (`bpf_prog_test_run_skb`, `net/bpf/test_run.c` v7.2).
+  `TestProgram_TruncatedPass` (14 to 33 bytes) and
+  `TestProgram_IPv6TruncatedPass` (14 to 53 bytes) send truncated frames over a
+  veth pair with TCX attached. `TestProgram_IPv4HeaderEndingTheFrameCounts`
+  (34 bytes) and `TestProgram_IPv6HeaderEndingTheFrameCounts` (54 bytes) prove
+  the exact header-only boundaries.
+  <!-- source: internal/plugins/trafficusage/program_test.go -- TestProgram_TruncatedPass, TestProgram_IPv4HeaderEndingTheFrameCounts, TestProgram_IPv6TruncatedPass, TestProgram_IPv6HeaderEndingTheFrameCounts -->
 - **A counting program answers `TCX_NEXT`, never `TCX_PASS`.** `tcx_run` stops
   at the first program that answers anything but `TCX_NEXT`, and
   `sch_handle_ingress` and `sch_handle_egress` skip the legacy clsact filters on

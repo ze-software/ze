@@ -1,12 +1,13 @@
 //go:build integration && linux
 
-// VALIDATES: the hand-assembled eBPF programs parse Ethernet/IPv4/TCP/UDP,
+// VALIDATES: the hand-assembled eBPF programs parse Ethernet/IPv4/IPv6/TCP/UDP,
 // account bytes per source/dest IP and per (port,protocol) into the right maps,
-// pass non-IPv4 and truncated packets without touching the maps, and accumulate.
+// pass non-IP and truncated packets without touching the maps, and accumulate.
 // There is no compiler for this assembly, so running it is the only thing that
 // proves the bytecode is correct (spec assumptions A-1/A-2, ACs 1-6, 9). Most
 // tests run it with BPF_PROG_TEST_RUN; a frame that input refuses goes through
-// a veth pair with the programs attached by TCX (TestProgram_TruncatedPass).
+// a veth pair with the programs attached by TCX (TestProgram_TruncatedPass,
+// TestProgram_IPv6TruncatedPass).
 // PREVENTS: silent miscounting (wrong offset/byte-order), out-of-bounds reads,
 // or dropping legitimate traffic.
 
@@ -17,6 +18,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"net/netip"
 	"runtime"
 	"syscall"
 	"testing"
@@ -67,6 +69,38 @@ func ethIPv4(proto byte, src, dst [4]byte, l4 []byte) []byte {
 	for len(pkt) < 64 {
 		pkt = append(pkt, 0)
 	}
+	return pkt
+}
+
+// ethIPv6Unpadded builds an Ethernet+IPv6 frame carrying l4 with no padding,
+// so skb->len is exactly len(pkt).
+func ethIPv6Unpadded(nextHdr byte, src, dst [16]byte, l4 []byte) []byte {
+	payloadLen := len(l4)
+	pkt := make([]byte, 0, ethHdrLen+ipv6HdrLen+payloadLen)
+	pkt = append(pkt,
+		0, 0, 0, 0, 0, 1, // dst mac
+		0, 0, 0, 0, 0, 2, // src mac
+		0x86, 0xDD, // ethertype IPv6
+		0x60, 0, 0, 0, // version=6, traffic class=0, flow label=0
+		byte(payloadLen>>8), byte(payloadLen), // payload length
+		nextHdr, // next header
+		64,      // hop limit
+	)
+	pkt = append(pkt, src[:]...)
+	pkt = append(pkt, dst[:]...)
+	return append(pkt, l4...)
+}
+
+// ethIPv6 builds an Ethernet+IPv6 frame carrying l4, padded to at least 64 bytes
+// so skb->len is unambiguous.
+func ethIPv6(nextHdr byte, src, dst [16]byte, l4 []byte) []byte {
+	pkt := ethIPv6Unpadded(nextHdr, src, dst, l4)
+	for len(pkt) < 64 {
+		pkt = append(pkt, 0)
+	}
+	payloadLen := len(pkt) - ethHdrLen - ipv6HdrLen
+	pkt[ethHdrLen+4] = byte(payloadLen >> 8)
+	pkt[ethHdrLen+5] = byte(payloadLen)
 	return pkt
 }
 
@@ -123,9 +157,22 @@ func TestProgram_Loads(t *testing.T) {
 			t.Errorf("program %q missing", name)
 		}
 	}
-	for _, name := range []string{mapIPIngress, mapIPEgress, mapPortIngress, mapPortEgress} {
-		if coll.Maps[name] == nil {
+	wantKeySizes := map[string]uint32{
+		mapIPIngress:   keySizeIPv4,
+		mapIPEgress:    keySizeIPv4,
+		mapIP6Ingress:  keySizeIPv6,
+		mapIP6Egress:   keySizeIPv6,
+		mapPortIngress: keySizePort,
+		mapPortEgress:  keySizePort,
+	}
+	for name, wantKeySize := range wantKeySizes {
+		m := coll.Maps[name]
+		if m == nil {
 			t.Errorf("map %q missing", name)
+			continue
+		}
+		if m.KeySize() != wantKeySize {
+			t.Errorf("map %q KeySize = %d, want %d", name, m.KeySize(), wantKeySize)
 		}
 	}
 }
@@ -133,8 +180,10 @@ func TestProgram_Loads(t *testing.T) {
 func TestProgram_TrackIPOffOmitsIPMaps(t *testing.T) {
 	coll := loadColl(t, false)
 	defer coll.Close()
-	if coll.Maps[mapIPIngress] != nil || coll.Maps[mapIPEgress] != nil {
-		t.Error("IP maps must not exist when track-ip is off")
+	for _, name := range []string{mapIPIngress, mapIPEgress, mapIP6Ingress, mapIP6Egress} {
+		if coll.Maps[name] != nil {
+			t.Errorf("IP map %q must not exist when track-ip is off", name)
+		}
 	}
 	if coll.Maps[mapPortIngress] == nil || coll.Maps[mapPortEgress] == nil {
 		t.Error("port maps must always exist")
@@ -233,11 +282,11 @@ func TestProgram_NonIPv4Pass(t *testing.T) {
 	copy(pkt[12:14], []byte{0x08, 0x06})
 	runProg(t, coll.Programs[progIngress], pkt)
 
-	for _, m := range []*ebpf.Map{coll.Maps[mapIPIngress], coll.Maps[mapPortIngress]} {
+	for _, m := range []*ebpf.Map{coll.Maps[mapIPIngress], coll.Maps[mapIP6Ingress], coll.Maps[mapPortIngress]} {
 		var k, v []byte
 		it := m.Iterate()
 		if it.Next(&k, &v) {
-			t.Error("non-IPv4 packet wrote to a map")
+			t.Error("non-IP packet wrote to a map")
 		}
 	}
 }
@@ -327,7 +376,7 @@ func TestProgram_TruncatedPass(t *testing.T) {
 	if len(c.ingressPort) != 1 || c.ingressPort[sentinelKey] != uint64(len(sentinel)) {
 		t.Errorf("ingress ports = %v, want only %+v counted %d bytes (the sentinel)", c.ingressPort, sentinelKey, len(sentinel))
 	}
-	if len(c.ingressIP) != 1 || c.ingressIP[ipv4Key(sentinelSrc)] != uint64(len(sentinel)) {
+	if len(c.ingressIP) != 1 || c.ingressIP[netip.AddrFrom4(sentinelSrc)] != uint64(len(sentinel)) {
 		t.Errorf("ingress addresses = %v, want only %v counted %d bytes (the sentinel)", c.ingressIP, sentinelSrc, len(sentinel))
 	}
 }
@@ -633,5 +682,289 @@ func TestProgram_L4OffsetBeyondThePacketKeysPortZero(t *testing.T) {
 	}
 	if got != uint64(len(pkt)) {
 		t.Errorf("counted %d bytes, want %d (skb->len)", got, len(pkt))
+	}
+}
+
+func TestProgram_IPv6IngressSrcIP(t *testing.T) {
+	coll := loadColl(t, true)
+	defer coll.Close()
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd, 0, 0xe, 0, 0xf}
+	pkt := ethIPv6(protoTCP, src, dst, tcpHdr(1234, 80))
+	prog := coll.Programs[progIngress]
+	runProg(t, prog, pkt)
+	runProg(t, prog, pkt)
+
+	got, ok := lookupU64(t, coll.Maps[mapIP6Ingress], src)
+	if !ok {
+		t.Fatal("ingress IPv6 source IP not counted")
+	}
+	if got != 2*uint64(len(pkt)) {
+		t.Errorf("ingress6[src] = %d, want %d (2 x skb->len)", got, 2*len(pkt))
+	}
+	if _, ok := lookupU64(t, coll.Maps[mapIP6Egress], dst); ok {
+		t.Error("egress IPv6 map written by ingress program")
+	}
+	var k, v []byte
+	if coll.Maps[mapIPIngress].Iterate().Next(&k, &v) {
+		t.Error("IPv4 ingress map written by IPv6 packet")
+	}
+}
+
+func TestProgram_IPv6EgressDstIP(t *testing.T) {
+	coll := loadColl(t, true)
+	defer coll.Close()
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd, 0, 0xe, 0, 0xf}
+	pkt := ethIPv6(protoUDP, src, dst, udpHdr(5000, 53))
+	runProg(t, coll.Programs[progEgress], pkt)
+
+	got, ok := lookupU64(t, coll.Maps[mapIP6Egress], dst)
+	if !ok {
+		t.Fatal("egress IPv6 destination IP not counted")
+	}
+	if got != uint64(len(pkt)) {
+		t.Errorf("egress6[dst] = %d, want %d", got, len(pkt))
+	}
+	if _, ok := lookupU64(t, coll.Maps[mapIP6Ingress], src); ok {
+		t.Error("ingress IPv6 map written by egress program")
+	}
+	var k, v []byte
+	if coll.Maps[mapIPEgress].Iterate().Next(&k, &v) {
+		t.Error("IPv4 egress map written by IPv6 packet")
+	}
+}
+
+func TestProgram_IPv6IngressDstPortTCP(t *testing.T) {
+	coll := loadColl(t, false)
+	defer coll.Close()
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	pkt := ethIPv6(protoTCP, src, dst, tcpHdr(1234, 443))
+	runProg(t, coll.Programs[progIngress], pkt)
+
+	key := bpfPortKey{Port: 443, Protocol: protoTCP}
+	got, ok := lookupU64(t, coll.Maps[mapPortIngress], key)
+	if !ok {
+		t.Fatal("ingress IPv6 dst port/proto not counted")
+	}
+	if got != uint64(len(pkt)) {
+		t.Errorf("ingress port[443,tcp] = %d, want %d", got, len(pkt))
+	}
+}
+
+func TestProgram_IPv6EgressSrcPortUDP(t *testing.T) {
+	coll := loadColl(t, false)
+	defer coll.Close()
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	pkt := ethIPv6(protoUDP, src, dst, udpHdr(12345, 53))
+	runProg(t, coll.Programs[progEgress], pkt)
+
+	key := bpfPortKey{Port: 12345, Protocol: protoUDP}
+	got, ok := lookupU64(t, coll.Maps[mapPortEgress], key)
+	if !ok {
+		t.Fatal("egress IPv6 src port/proto not counted")
+	}
+	if got != uint64(len(pkt)) {
+		t.Errorf("egress port[12345,udp] = %d, want %d", got, len(pkt))
+	}
+}
+
+func TestProgram_IPv6ICMPv6PortZero(t *testing.T) {
+	coll := loadColl(t, true)
+	defer coll.Close()
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	icmp6 := []byte{128, 0, 0, 0, 0, 1, 0, 1}
+	pkt := ethIPv6(protoICMPv6, src, dst, icmp6)
+	runProg(t, coll.Programs[progIngress], pkt)
+
+	key, got := onlyPortEntry(t, coll.Maps[mapPortIngress])
+	want := bpfPortKey{Port: 0, Protocol: protoICMPv6}
+	if key != want {
+		t.Errorf("keyed %+v, want %+v", key, want)
+	}
+	if got != uint64(len(pkt)) {
+		t.Errorf("counted %d bytes, want %d", got, len(pkt))
+	}
+	ipGot, ok := lookupU64(t, coll.Maps[mapIP6Ingress], src)
+	if !ok || ipGot != uint64(len(pkt)) {
+		t.Errorf("ingress6[src] = (%d, %v), want (%d, true)", ipGot, ok, len(pkt))
+	}
+}
+
+// TestProgram_IPv6ExtHeaderPortZero proves IPv6 packets carrying extension
+// headers after the 40-byte base header count per-IP and under port 0 with the
+// first Next Header value (AC-3).
+func TestProgram_IPv6ExtHeaderPortZero(t *testing.T) {
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	for _, row := range []struct {
+		name    string
+		nextHdr byte
+		body    []byte
+	}{
+		{"hop-by-hop", 0, append([]byte{protoTCP, 0, 0, 0, 0, 0, 0, 0}, tcpHdr(1234, 443)...)},
+		{"fragment", 44, append([]byte{protoUDP, 0, 0, 0, 0, 0, 0, 1}, udpHdr(5000, 53)...)},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			coll := loadColl(t, true)
+			defer coll.Close()
+			pkt := ethIPv6(row.nextHdr, src, dst, row.body)
+			runProg(t, coll.Programs[progIngress], pkt)
+
+			key, got := onlyPortEntry(t, coll.Maps[mapPortIngress])
+			want := bpfPortKey{Port: 0, Protocol: row.nextHdr}
+			if key != want {
+				t.Errorf("keyed %+v, want %+v", key, want)
+			}
+			if got != uint64(len(pkt)) {
+				t.Errorf("counted %d bytes, want %d", got, len(pkt))
+			}
+			ipGot, ok := lookupU64(t, coll.Maps[mapIP6Ingress], src)
+			if !ok || ipGot != uint64(len(pkt)) {
+				t.Errorf("ingress6[src] = (%d, %v), want (%d, true)", ipGot, ok, len(pkt))
+			}
+		})
+	}
+}
+
+// TestProgram_IPv6TruncatedL4PortZero proves IPv6 TCP (74B) and UDP (62B)
+// header-fit boundaries: one byte short keys port 0, the exact fit keys the
+// L4 port (AC-3).
+func TestProgram_IPv6TruncatedL4PortZero(t *testing.T) {
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	for _, row := range []struct {
+		name  string
+		proto byte
+		l4    []byte
+		want  uint16
+	}{
+		{"ipv6 tcp header one byte short (73B)", protoTCP, tcpHdr(1234, 443)[:tcpHdrLen-1], 0},
+		{"ipv6 tcp header whole (74B)", protoTCP, tcpHdr(1234, 443), 443},
+		{"ipv6 udp header one byte short (61B)", protoUDP, udpHdr(5000, 53)[:udpHdrLen-1], 0},
+		{"ipv6 udp header whole (62B)", protoUDP, udpHdr(5000, 53), 53},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			coll := loadColl(t, false)
+			defer coll.Close()
+			pkt := ethIPv6Unpadded(row.proto, src, dst, row.l4)
+			runProg(t, coll.Programs[progIngress], pkt)
+
+			key, got := onlyPortEntry(t, coll.Maps[mapPortIngress])
+			want := bpfPortKey{Port: row.want, Protocol: row.proto}
+			if key != want {
+				t.Errorf("keyed %+v, want %+v", key, want)
+			}
+			if got != uint64(len(pkt)) {
+				t.Errorf("counted %d bytes, want %d (skb->len)", got, len(pkt))
+			}
+		})
+	}
+}
+
+// TestProgram_IPv6HeaderEndingTheFrameCounts proves the IPv6 base-header bound
+// lets equality through: an exact 54-byte frame (data + 54 == data_end) counts
+// under port 0 and its source IPv6 address (AC-3).
+// MUTATION: change the IPv6-header bound from JGT to JGE: the frame is not
+// counted and the test goes red.
+func TestProgram_IPv6HeaderEndingTheFrameCounts(t *testing.T) {
+	coll := loadColl(t, true)
+	defer coll.Close()
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd, 0, 0xe, 0, 0xf}
+	pkt := ethIPv6Unpadded(protoTCP, src, dst, nil)
+	if len(pkt) != ethHdrLen+ipv6HdrLen {
+		t.Fatalf("frame is %d bytes, want %d (Ethernet and IPv6 headers only)", len(pkt), ethHdrLen+ipv6HdrLen)
+	}
+	runProg(t, coll.Programs[progIngress], pkt)
+
+	key, got := onlyPortEntry(t, coll.Maps[mapPortIngress])
+	want := bpfPortKey{Port: 0, Protocol: protoTCP}
+	if key != want {
+		t.Errorf("keyed %+v, want %+v (no TCP header fits)", key, want)
+	}
+	if got != uint64(len(pkt)) {
+		t.Errorf("counted %d bytes, want %d (skb->len)", got, len(pkt))
+	}
+	counted, ok := lookupU64(t, coll.Maps[mapIP6Ingress], src)
+	if !ok {
+		t.Fatalf("ingress IPv6 source %x not counted", src)
+	}
+	if counted != uint64(len(pkt)) {
+		t.Errorf("ingress6[%x] = %d, want %d (skb->len)", src, counted, len(pkt))
+	}
+}
+
+// truncatedIPv6Frames returns one frame for each length from the Ethernet
+// header alone (14 bytes) to one byte short of the 40-byte IPv6 base header
+// (53 bytes).
+func truncatedIPv6Frames() [][]byte {
+	src := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	whole := ethIPv6Unpadded(protoTCP, src, dst, tcpHdr(1234, 80))
+	frames := make([][]byte, 0, ipv6HdrLen)
+	for size := ethHdrLen; size < ethHdrLen+ipv6HdrLen; size++ {
+		frames = append(frames, whole[:size:size])
+	}
+	return frames
+}
+
+// TestProgram_IPv6TruncatedPass proves that a frame carrying the IPv6 ethertype
+// that ends inside the 40-byte IPv6 base header (14..53 bytes) passes both
+// programs with TCX_NEXT without writing to any map (AC-4). Mirrors
+// TestProgram_TruncatedPass because BPF_PROG_TEST_RUN rejects ETH_P_IPV6 frames
+// with skb_headlen < sizeof(struct ipv6hdr).
+func TestProgram_IPv6TruncatedPass(t *testing.T) {
+	requireBPF(t)
+	ifindexA := createVethPair(t, "tuv5a", "tuv5b")
+
+	att, err := tcxAttacher{}.Attach(ifindexA, "tuv5a", 1024, true)
+	if err != nil {
+		t.Fatalf("AttachTCX: %v", err)
+	}
+	defer func() {
+		if err := att.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}()
+
+	restore := pinToOneCPU(t)
+	defer restore()
+
+	frames := truncatedIPv6Frames()
+
+	// Egress: send every truncated IPv6 frame out tuv5a; each must reach tuv5b.
+	peer := packetReceiver(t, "tuv5b")
+	for _, frame := range frames {
+		injectFrame(t, "tuv5a", frame)
+	}
+	awaitFrames(t, peer, frames)
+	if err := unix.Close(peer); err != nil {
+		t.Errorf("close the tuv5b receiver: %v", err)
+	}
+
+	// Ingress: send every truncated IPv6 frame out tuv5b to tuv5a's ingress,
+	// then a whole IPv6 sentinel frame that orders after them.
+	sentinelSrc := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 9, 0, 9, 0, 9, 0, 9, 0, 9, 0, 9}
+	sentinelDst := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 9, 0, 9, 0, 9, 0, 9, 0, 9, 0, 10}
+	sentinel := ethIPv6(protoUDP, sentinelSrc, sentinelDst, udpHdr(4000, 9))
+	sentinelKey := portProto{port: 9, proto: protoUDP}
+	for _, frame := range frames {
+		injectFrame(t, "tuv5b", frame)
+	}
+	injectFrame(t, "tuv5b", sentinel)
+	c := waitCounts(t, att, func(c counts) bool { return c.ingressPort[sentinelKey] > 0 })
+
+	if len(c.egressPort) != 0 || len(c.egressIP) != 0 {
+		t.Errorf("truncated IPv6 egress frames were counted: ports %v, addresses %v", c.egressPort, c.egressIP)
+	}
+	if len(c.ingressPort) != 1 || c.ingressPort[sentinelKey] != uint64(len(sentinel)) {
+		t.Errorf("ingress ports = %v, want only %+v counted %d bytes (the sentinel)", c.ingressPort, sentinelKey, len(sentinel))
+	}
+	if len(c.ingressIP) != 1 || c.ingressIP[netip.AddrFrom16(sentinelSrc)] != uint64(len(sentinel)) {
+		t.Errorf("ingress addresses = %v, want only %v counted %d bytes (the sentinel)", c.ingressIP, netip.AddrFrom16(sentinelSrc), len(sentinel))
 	}
 }

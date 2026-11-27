@@ -79,9 +79,9 @@ collision was found at compile time.
 - `ddos/detect` has one rate source: `trafficstat.SubscribeRates`, on the
   service `trafficstat.EnsureGlobal` creates when none exists yet. It never
   answers nil, so the detector has no fallback feed.
-- Per-source-IP data needs either `traffic-usage track-ip` (IPv4, cumulative) or
-  `flow-export` conntrack (v4 and v6, delta, full 5-tuple). Without either, the
-  view degrades to interface rates.
+- Per-source-IP data needs either `traffic-usage track-ip` (IPv4 and IPv6,
+  cumulative) or `flow-export` conntrack (v4 and v6, delta, full 5-tuple).
+  Without either, the view degrades to interface rates.
 - The view is statistical. The feed drops on a full subscriber buffer, so it is
   not suitable for lossless accounting.
 

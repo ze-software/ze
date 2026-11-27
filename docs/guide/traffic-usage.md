@@ -15,22 +15,26 @@ Traffic usage is **monitoring only**. The eBPF programs read packet headers and
 update counters; they never drop, redirect, or modify traffic, and they leave
 each packet to the programs and tc filters that follow them on the interface, so
 a traffic-control policer, an sFlow sampler or a mirror on the same interface
-still runs. Accounting is
-IPv4 only. The plugin is Linux only and is a no-op on other platforms.
+still runs. Accounting covers IPv4 and IPv6. The plugin is Linux only and is a
+no-op on other platforms.
 
 ## How It Works
 
 The plugin attaches one ingress and one egress eBPF program to each configured
 interface using TCX (the kernel's traffic-control express attach point, kernel
-6.6 and later). Each packet's IPv4 header is inspected and a byte count is added
-to per-key maps:
+6.6 and later). Each packet's IPv4 or fixed 40-byte IPv6 base header is
+inspected and a byte count is added to per-key maps:
 
 - **Per-port (always on):** ingress traffic is keyed by destination port and
-  protocol, egress traffic by source port and protocol. Packets with no L4 port
-  (ICMP and other non-port protocols) aggregate under port `0`.
+  protocol, egress traffic by source port and protocol, across both IPv4 and
+  IPv6. Packets with no L4 port (ICMP, ICMPv6, other non-port protocols, or IPv6
+  packets carrying extension headers before TCP/UDP) aggregate under port `0`
+  with their protocol or first `Next Header` number.
 - **Per-IP (opt-in via `track-ip`):** ingress traffic is additionally keyed by
-  source IPv4 address, egress traffic by destination IPv4 address. This is off
-  by default to bound metric cardinality.
+  source IP address, egress traffic by destination IP address, using separate
+  4-byte IPv4 (`tu_ip_in`, `tu_ip_out`) and 16-byte IPv6 (`tu_ip6_in`,
+  `tu_ip6_out`) LRU maps. This is off by default to bound metric cardinality and
+  kernel map memory.
 
 A user-space poller reads the maps on a fixed interval (`interval`), publishes
 the absolute byte totals as Prometheus gauges, and removes metric series that
@@ -97,7 +101,7 @@ interface's `track-ip` or `max-entries` rebuilds and re-attaches its eBPF progra
 | `interfaces` / `interface <name>` / `max-entries` | uint32 | global | 1..4294967295 | Per-interface override of `max-entries`. |
 | `interval` | uint32 (ms) | `1000` | 100..3600000 | Map poll interval in milliseconds (global). |
 | `stale-timeout` | uint32 (ms) | `300000` | 0 disables | Global default: remove a metric series unseen for this long. |
-| `track-ip` | boolean | `false` | - | Global default: also account per source (ingress) / destination (egress) IPv4. Off by default to bound metric cardinality. |
+| `track-ip` | boolean | `false` | - | Global default: also account per source (ingress) / destination (egress) IP address (IPv4 and IPv6). Off by default to bound metric cardinality. |
 | `max-entries` | uint32 | `10240` | 1..4294967295 | Global default: per-map LRU capacity; the kernel evicts the least-recently-used keys (top-talker retention) when a map fills. |
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
 
@@ -147,13 +151,14 @@ cumulative byte totals.
 |--------|------|--------|------|-------------|
 | `ze_traffic_usage_ingress_port_bytes_total` | GaugeVec | interface, dst_port, protocol | always | Ingress bytes per destination port and protocol. |
 | `ze_traffic_usage_egress_port_bytes_total` | GaugeVec | interface, src_port, protocol | always | Egress bytes per source port and protocol. |
-| `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | track-ip only | Ingress bytes per source IPv4. |
-| `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | track-ip only | Egress bytes per destination IPv4. |
-| `ze_traffic_usage_map_entries` | GaugeVec | interface, map | always | Live entry count per BPF map (LRU fill level). |
+| `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | track-ip only | Ingress bytes per source IP (IPv4 or IPv6). |
+| `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | track-ip only | Egress bytes per destination IP (IPv4 or IPv6). |
+| `ze_traffic_usage_map_entries` | GaugeVec | interface, map | always | Live entry count per BPF map (`port_ingress`, `port_egress`, and with `track-ip`: `ip_ingress`, `ip_egress`, `ip6_ingress`, `ip6_egress`). |
 
 The `protocol` label is one of `tcp`, `udp`, `icmp`, `gre`, `esp`, `ah`, or
-`icmpv6`; unknown protocols render as their decimal protocol number. ICMP and
-other packets with no L4 port aggregate under `dst_port`/`src_port` `0`.
+`icmpv6`; unknown protocols render as their decimal protocol number. ICMP,
+ICMPv6, other packets with no L4 port, and IPv6 packets carrying extension
+headers aggregate under `dst_port`/`src_port` `0`.
 <!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
 
 ## Doctor Check
@@ -181,8 +186,10 @@ cannot run it, and says so with `doctor-runtime-not-checked`.
 
 ## Limitations
 
-- **IPv4 only.** Per-port and per-IP accounting cover IPv4 traffic; IPv6 is not
-  counted.
+- **IPv6 extension headers.** The eBPF programs inspect only the fixed 40-byte
+  IPv6 base header. Packets carrying IPv6 extension headers before TCP or UDP
+  still count per-IP (when `track-ip` is enabled) and aggregate under port `0`
+  with the first `Next Header` protocol number.
 - **Monitoring only.** The eBPF programs only read headers and update counters.
   They never drop, redirect, or modify traffic, and they never end the
   interface's tc filter hook: the filters after them still run.

@@ -15,9 +15,9 @@ module ze-traffic-usage-conf {
         container usage {
             description "Ze attaches two eBPF programs to each accounted interface with TCX, one on
                 ingress and one on egress. They count bytes into per-interface LRU hash maps, keyed
-                by L4 port and protocol. Where track-ip is true they also key by IPv4 address. One
-                poll loop reads the maps and publishes the counts as metric series. The programs
-                count only: they drop no packet and they change none.";
+                by L4 port and protocol. Where track-ip is true they also key by IPv4 and IPv6
+                address. One poll loop reads the maps and publishes the counts as metric series. The
+                programs count only: they drop no packet and they change none.";
             ze:help "Per-interface eBPF TCX byte accounting (port/protocol always; per-IP via track-ip).";
 
             leaf enabled {
@@ -67,10 +67,10 @@ module ze-traffic-usage-conf {
                     leaf track-ip {
                         type boolean;
                         description "The leaf overrides the track-ip leaf under usage for this interface
-                            alone, and an unset leaf takes the global value. True adds two more LRU
-                            maps to this interface, one for ingress and one for egress, keyed by
-                            IPv4 address. A change makes Ze attach the eBPF programs again, because
-                            the map set changes.";
+                            alone, and an unset leaf takes the global value. True adds four more LRU
+                            maps to this interface, ingress and egress for IPv4 and ingress and egress
+                            for IPv6. A change makes Ze attach the eBPF programs again, because the
+                            map set changes.";
                         ze:help "Override the global track-ip for this interface (inherits the global value when unset).";
                     }
                     leaf stale-timeout {
@@ -123,7 +123,7 @@ module ze-traffic-usage-conf {
                 default false;
                 description "The address is the source address on ingress and the destination address on egress. The default is
                     false, which limits the number of metric series.";
-                ze:help "Account bytes per IPv4 address as well as per interface.";
+                ze:help "Account bytes per IP address (IPv4 and IPv6) as well as per port and protocol.";
             }
 
             leaf max-entries {
@@ -132,10 +132,10 @@ module ze-traffic-usage-conf {
                 }
                 default 10240;
                 description "The value is the capacity of each LRU map, and an interface takes it unless
-                    its own max-entries leaf overrides it. Ze creates two maps for each accounted
-                    interface, and two more where track-ip is true, so the value sets the memory the
-                    accounting costs. Beyond the capacity the kernel evicts the least recently used
-                    entry, which keeps the top talkers and loses the quiet ones.";
+                    its own max-entries leaf overrides it. Ze creates two port maps for each accounted
+                    interface, plus four IPv4 and IPv6 maps when track-ip is true. The value sets the
+                    memory those maps cost. Beyond the capacity the kernel evicts the least recently
+                    used entry, which keeps the top talkers and loses the quiet ones.";
                 ze:help "Per-map LRU capacity; least-recently-used entries are evicted beyond this, keeping top talkers.";
             }
         }

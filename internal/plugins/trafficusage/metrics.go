@@ -3,7 +3,6 @@
 package trafficusage
 
 import (
-	"net/netip"
 	"strconv"
 	"sync/atomic"
 
@@ -32,8 +31,8 @@ func BindMetrics(reg metrics.Registry) {
 		return
 	}
 	m := &usageMetrics{
-		ingressBytes:     reg.GaugeVec("ze_traffic_usage_ingress_bytes_total", "Ingress bytes per source IPv4 (requires track-ip)", []string{labelInterface, "src_ip"}),
-		egressBytes:      reg.GaugeVec("ze_traffic_usage_egress_bytes_total", "Egress bytes per destination IPv4 (requires track-ip)", []string{labelInterface, "dst_ip"}),
+		ingressBytes:     reg.GaugeVec("ze_traffic_usage_ingress_bytes_total", "Ingress bytes per source IP (requires track-ip)", []string{labelInterface, "src_ip"}),
+		egressBytes:      reg.GaugeVec("ze_traffic_usage_egress_bytes_total", "Egress bytes per destination IP (requires track-ip)", []string{labelInterface, "dst_ip"}),
 		ingressPortBytes: reg.GaugeVec("ze_traffic_usage_ingress_port_bytes_total", "Ingress bytes per destination port and protocol", []string{labelInterface, "dst_port", labelProtocol}),
 		egressPortBytes:  reg.GaugeVec("ze_traffic_usage_egress_port_bytes_total", "Egress bytes per source port and protocol", []string{labelInterface, "src_port", labelProtocol}),
 		mapEntries:       reg.GaugeVec("ze_traffic_usage_map_entries", "Live entry count per BPF map", []string{labelInterface, "map"}),
@@ -62,11 +61,4 @@ func protoName(p uint8) string {
 	default:
 		return strconv.Itoa(int(p))
 	}
-}
-
-// ipString renders a BPF map IPv4 key (the raw header bytes read as a host-order
-// uint32) back to dotted-quad. On a little-endian host the low byte is the first
-// address octet, matching the upstream LittleEndian decode.
-func ipString(raw uint32) string {
-	return netip.AddrFrom4([4]byte{byte(raw), byte(raw >> 8), byte(raw >> 16), byte(raw >> 24)}).String()
 }

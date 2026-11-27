@@ -3,11 +3,10 @@
 package trafficusage
 
 import (
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/observation"
@@ -24,16 +23,15 @@ type portProto struct {
 }
 
 // counts is one interface's accounting snapshot read from the BPF maps. IP keys
-// are the raw uint32 from the IPv4 header (decoded to dotted-quad at render
-// time, matching the upstream little-endian decode). Byte values are absolute
-// cumulative totals.
+// are IPv4 or IPv6 addresses read from the per-family IP maps. Byte values are
+// absolute cumulative totals.
 type counts struct {
 	ifname      string
-	ingressIP   map[uint32]uint64    // source IPv4 -> bytes (track-ip only)
-	egressIP    map[uint32]uint64    // dest IPv4 -> bytes (track-ip only)
-	ingressPort map[portProto]uint64 // dest (port,proto) -> bytes
-	egressPort  map[portProto]uint64 // source (port,proto) -> bytes
-	mapEntries  map[string]int       // map name -> live entry count
+	ingressIP   map[netip.Addr]uint64 // source IP -> bytes (track-ip only)
+	egressIP    map[netip.Addr]uint64 // dest IP -> bytes (track-ip only)
+	ingressPort map[portProto]uint64  // dest (port,proto) -> bytes
+	egressPort  map[portProto]uint64  // source (port,proto) -> bytes
+	mapEntries  map[string]int        // map name -> live entry count
 }
 
 // attachment is one interface's loaded and attached eBPF state.
@@ -421,21 +419,9 @@ func (m *Monitor) publishLocked(snap []counts, now time.Time) {
 			m.lastSeen[seriesID{"port_out", ifname, port, proto}] = seriesEntry{now, func() { pm.egressPortBytes.Delete(ifname, port, proto) }}
 		}
 		for k, v := range c.ingressIP {
-			ip := ipString(k)
+			ip := k.String()
 			pm.ingressBytes.With(ifname, ip).Set(float64(v))
 			m.lastSeen[seriesID{"ip_in", ifname, ip, ""}] = seriesEntry{now, func() { pm.ingressBytes.Delete(ifname, ip) }}
-		}
-		for k, v := range c.egressIP {
-			ip := ipString(k)
-			pm.egressBytes.With(ifname, ip).Set(float64(v))
-			m.lastSeen[seriesID{"ip_out", ifname, ip, ""}] = seriesEntry{now, func() { pm.egressBytes.Delete(ifname, ip) }}
-		}
-		for mapName, n := range c.mapEntries {
-			pm.mapEntries.With(ifname, mapName).Set(float64(n))
-			m.lastSeen[seriesID{"map", ifname, mapName, ""}] = seriesEntry{now, func() { pm.mapEntries.Delete(ifname, mapName) }}
-		}
-
-		for k, v := range c.ingressIP {
 			obs := observation.Observation{
 				Kind:    observation.KindSourceIP,
 				Iface:   ifname,
@@ -443,8 +429,17 @@ func (m *Monitor) publishLocked(snap []counts, now time.Time) {
 				Value:   float64(v),
 				At:      now,
 			}
-			obs.Flow.Src = netip.AddrFrom4([4]byte{byte(k), byte(k >> 8), byte(k >> 16), byte(k >> 24)})
+			obs.Flow.Src = k
 			feed.Publish(obs)
+		}
+		for k, v := range c.egressIP {
+			ip := k.String()
+			pm.egressBytes.With(ifname, ip).Set(float64(v))
+			m.lastSeen[seriesID{"ip_out", ifname, ip, ""}] = seriesEntry{now, func() { pm.egressBytes.Delete(ifname, ip) }}
+		}
+		for mapName, n := range c.mapEntries {
+			pm.mapEntries.With(ifname, mapName).Set(float64(n))
+			m.lastSeen[seriesID{"map", ifname, mapName, ""}] = seriesEntry{now, func() { pm.mapEntries.Delete(ifname, mapName) }}
 		}
 	}
 }

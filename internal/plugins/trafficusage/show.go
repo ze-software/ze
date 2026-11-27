@@ -6,6 +6,8 @@
 package trafficusage
 
 import (
+	"net/netip"
+
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -97,11 +99,11 @@ func renderPorts(byKey map[portProto]uint64) plugin.Slice[plugin.Map] {
 	return out
 }
 
-func renderIPs(byKey map[uint32]uint64) plugin.Slice[plugin.Map] {
+func renderIPs(byKey map[netip.Addr]uint64) plugin.Slice[plugin.Map] {
 	out := make(plugin.Slice[plugin.Map], 0, len(byKey))
 	for k, v := range byKey {
 		out = append(out, plugin.Map{
-			"ip":    ipString(k),
+			"ip":    k.String(),
 			"bytes": v,
 		})
 	}

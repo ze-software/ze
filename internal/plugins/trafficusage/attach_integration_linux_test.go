@@ -10,9 +10,13 @@
 package trafficusage
 
 import (
+	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +30,17 @@ import (
 // etherTypeAllNetwork is ETH_P_ALL in network byte order, as AF_PACKET wants
 // it, on a little-endian host.
 const etherTypeAllNetwork uint16 = unix.ETH_P_ALL<<8 | unix.ETH_P_ALL>>8
+
+// disableIPv6 stops the kernel from assigning link-local addresses and sending
+// unsolicited DAD/RS/MLD IPv6 frames when a test veth pair comes up, so raw
+// AF_PACKET tests observe only the frames they inject.
+func disableIPv6(t *testing.T, ifname string) {
+	t.Helper()
+	err := os.WriteFile("/proc/sys/net/ipv6/conf/"+ifname+"/disable_ipv6", []byte("1"), 0)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("disable ipv6 on %s: %v", ifname, err)
+	}
+}
 
 // createVethPair creates an up/up veth pair and returns the ifindex of `a`.
 func createVethPair(t *testing.T, a, b string) int {
@@ -45,6 +60,8 @@ func createVethPair(t *testing.T, a, b string) int {
 	if err != nil {
 		t.Fatalf("LinkByName %s: %v", b, err)
 	}
+	disableIPv6(t, a)
+	disableIPv6(t, b)
 	if err := netlink.LinkSetUp(linkA); err != nil {
 		t.Fatalf("set up %s: %v", a, err)
 	}
@@ -107,21 +124,74 @@ func TestAttachTCX_CountsTraffic(t *testing.T) {
 	// Ingress: a frame transmitted out the peer (tuv0b) is received on tuv0a.
 	src := [4]byte{10, 1, 1, 1}
 	dst := [4]byte{10, 1, 1, 2}
+	srcAddr := netip.AddrFrom4(src)
+	dstAddr := netip.AddrFrom4(dst)
 	injectFrame(t, "tuv0b", ethIPv4(protoTCP, src, dst, tcpHdr(1234, 80)))
 	c := waitCounts(t, att, func(c counts) bool {
-		return c.ingressIP[ipv4Key(src)] > 0 && c.ingressPort[portProto{port: 80, proto: protoTCP}] > 0
+		return c.ingressIP[srcAddr] > 0 && c.ingressPort[portProto{port: 80, proto: protoTCP}] > 0
 	})
-	if c.egressIP[ipv4Key(dst)] != 0 {
+	if c.egressIP[dstAddr] != 0 {
 		t.Error("ingress frame should not have touched the egress IP map")
 	}
 
 	// Egress: a frame transmitted out tuv0a traverses tuv0a's egress program.
 	injectFrame(t, "tuv0a", ethIPv4(protoUDP, dst, src, udpHdr(5000, 53)))
 	waitCounts(t, att, func(c counts) bool {
-		return c.egressIP[ipv4Key(src)] > 0 && c.egressPort[portProto{port: 5000, proto: protoUDP}] > 0
+		return c.egressIP[srcAddr] > 0 && c.egressPort[portProto{port: 5000, proto: protoUDP}] > 0
 	})
 
 	// Stop detaches both links without error and leaves no TCX filter behind.
+	if err := att.Close(); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+}
+
+// TestAttachTCX_CountsIPv6Traffic validates real TCX ingress/egress accounting
+// for IPv6 TCP, UDP, and ICMPv6 frames on a veth pair, verifying unified
+// netip.Addr readback and ip6_ingress / ip6_egress map entry counts (AC-5).
+func TestAttachTCX_CountsIPv6Traffic(t *testing.T) {
+	requireBPF(t)
+	ifindexA := createVethPair(t, "tuv6a", "tuv6b")
+
+	att, err := tcxAttacher{}.Attach(ifindexA, "tuv6a", 1024, true)
+	if err != nil {
+		t.Fatalf("AttachTCX: %v", err)
+	}
+
+	src6 := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6}
+	dst6 := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd, 0, 0xe, 0, 0xf}
+	srcAddr := netip.AddrFrom16(src6)
+	dstAddr := netip.AddrFrom16(dst6)
+
+	tcpPkt := ethIPv6(protoTCP, src6, dst6, tcpHdr(1234, 443))
+	icmpPkt := ethIPv6(protoICMPv6, src6, dst6, []byte{128, 0, 0, 0, 0, 1, 0, 1})
+	udpPkt := ethIPv6(protoUDP, src6, dst6, udpHdr(5000, 53))
+
+	// Ingress: TCP + ICMPv6 transmitted out peer tuv6b arrive on tuv6a ingress.
+	injectFrame(t, "tuv6b", tcpPkt)
+	injectFrame(t, "tuv6b", icmpPkt)
+	// Egress: UDP transmitted out tuv6a traverses tuv6a egress.
+	injectFrame(t, "tuv6a", udpPkt)
+
+	wantInBytes := uint64(len(tcpPkt) + len(icmpPkt))
+	c := waitCounts(t, att, func(c counts) bool {
+		return c.ingressIP[srcAddr] == wantInBytes &&
+			c.egressIP[dstAddr] == uint64(len(udpPkt)) &&
+			c.ingressPort[portProto{port: 443, proto: protoTCP}] == uint64(len(tcpPkt)) &&
+			c.ingressPort[portProto{port: 0, proto: protoICMPv6}] == uint64(len(icmpPkt)) &&
+			c.egressPort[portProto{port: 5000, proto: protoUDP}] == uint64(len(udpPkt))
+	})
+	if c.mapEntries["ip6_ingress"] != 1 {
+		t.Errorf("mapEntries[ip6_ingress] = %d, want 1", c.mapEntries["ip6_ingress"])
+	}
+	if c.mapEntries["ip6_egress"] != 1 {
+		t.Errorf("mapEntries[ip6_egress] = %d, want 1", c.mapEntries["ip6_egress"])
+	}
+	if c.mapEntries["ip_ingress"] != 0 || c.mapEntries["ip_egress"] != 0 {
+		t.Errorf("IPv4 map entries should be 0 for IPv6-only traffic, got in=%d out=%d",
+			c.mapEntries["ip_ingress"], c.mapEntries["ip_egress"])
+	}
+
 	if err := att.Close(); err != nil {
 		t.Errorf("Close: %v", err)
 	}
@@ -147,12 +217,26 @@ func TestMetricsScrape(t *testing.T) {
 	}
 	defer m.Stop()
 
-	injectFrame(t, "tuv1b", ethIPv4(protoTCP, [4]byte{172, 16, 0, 1}, [4]byte{172, 16, 0, 2}, tcpHdr(1111, 443)))
-	// Let the receive path settle, then publish one cycle.
-	time.Sleep(200 * time.Millisecond)
-	m.mu.Lock()
-	m.publishLocked(m.snapshotLocked(), time.Now())
-	m.mu.Unlock()
+	src4 := [4]byte{172, 16, 0, 1}
+	src6 := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	dst6 := [16]byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
+	injectFrame(t, "tuv1b", ethIPv4(protoTCP, src4, [4]byte{172, 16, 0, 2}, tcpHdr(1111, 443)))
+	injectFrame(t, "tuv1b", ethIPv6(protoTCP, src6, dst6, tcpHdr(2222, 8443)))
+
+	// Wait until both IPv4 and IPv6 frames land in the BPF maps, then publish.
+	addr4 := netip.AddrFrom4(src4)
+	addr6 := netip.AddrFrom16(src6)
+	settleDeadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(settleDeadline) {
+		snap := m.Snapshot()
+		if len(snap) == 1 && snap[0].ingressIP[addr4] > 0 && snap[0].ingressIP[addr6] > 0 {
+			m.mu.Lock()
+			m.publishLocked(snap, time.Now())
+			m.mu.Unlock()
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	// replaced the gated exporter Server.Start (and its start-error
 	// check) with httptest.NewServer(reg.Handler()) to drop this test's
@@ -165,19 +249,29 @@ func TestMetricsScrape(t *testing.T) {
 	var body string
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(ts.URL) //nolint:noctx // test code
+		req, reqErr := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+		if reqErr != nil {
+			t.Fatalf("new request: %v", reqErr)
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err == nil {
-			b := make([]byte, 1<<16)
-			n, _ := resp.Body.Read(b)
+			b, _ := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
-			body = string(b[:n])
+			body = string(b)
 			if strings.Contains(body, "ze_traffic_usage_") {
 				break
 			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	if !strings.Contains(body, "ze_traffic_usage_ingress_port_bytes_total") {
-		t.Errorf("/metrics missing ze_traffic_usage_ingress_port_bytes_total; got:\n%s", body)
+	for _, want := range []string{
+		"ze_traffic_usage_ingress_port_bytes_total",
+		`src_ip="172.16.0.1"`,
+		`src_ip="2001:db8::1"`,
+		`map="ip6_ingress"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/metrics missing %q; got:\n%s", want, body)
+		}
 	}
 }

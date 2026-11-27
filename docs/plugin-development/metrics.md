@@ -241,11 +241,11 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_ospf_auth_failures_total` | CounterVec | interface, reason | ospf (engine) |
 | `ze_ospf_af_instances` | GaugeVec | af | ospf (RFC 5838 multi-AF) |
 | `ze_ospf_af_bit_mismatch_total` | CounterVec | af | ospf (RFC 5838 multi-AF) |
-| `ze_traffic_usage_ingress_port_bytes_total` | GaugeVec | interface, dst_port, protocol | traffic-usage |
-| `ze_traffic_usage_egress_port_bytes_total` | GaugeVec | interface, src_port, protocol | traffic-usage |
-| `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip) |
-| `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | traffic-usage (track-ip) |
-| `ze_traffic_usage_map_entries` | GaugeVec | interface, map | traffic-usage |
+| `ze_traffic_usage_ingress_port_bytes_total` | GaugeVec | interface, dst_port, protocol | traffic-usage (IPv4 and IPv6) |
+| `ze_traffic_usage_egress_port_bytes_total` | GaugeVec | interface, src_port, protocol | traffic-usage (IPv4 and IPv6) |
+| `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip, IPv4 and IPv6) |
+| `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | traffic-usage (track-ip, IPv4 and IPv6) |
+| `ze_traffic_usage_map_entries` | GaugeVec | interface, map | traffic-usage (`port_*`, plus `ip_*` and `ip6_*` when track-ip is enabled) |
 | `ze_traffic_qdisc_bytes_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc transmitted bytes (raw kernel counter) <!-- source: internal/component/traffic/metrics.go -- newStatsGaugeSet, qdiscMetricsPoller --> |
 | `ze_traffic_qdisc_packets_total` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc transmitted packets (raw kernel counter) |
 | `ze_traffic_qdisc_qlen` | GaugeVec | interface, qdisc, handle | traffic (1s push collector): qdisc instantaneous queued packets |

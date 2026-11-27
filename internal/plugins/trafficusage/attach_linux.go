@@ -7,6 +7,7 @@ package trafficusage
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -108,16 +109,28 @@ func (a *tcxAttachment) Counts() (counts, error) {
 	c.mapEntries["port_egress"] = len(c.egressPort)
 
 	if a.trackIP {
-		c.ingressIP = make(map[uint32]uint64)
-		c.egressIP = make(map[uint32]uint64)
-		if err := readIPMap(a.coll.Maps[mapIPIngress], c.ingressIP); err != nil {
+		c.ingressIP = make(map[netip.Addr]uint64)
+		c.egressIP = make(map[netip.Addr]uint64)
+		nIPIn, err := readIPMap(a.coll.Maps[mapIPIngress], c.ingressIP)
+		if err != nil {
 			return c, fmt.Errorf("read ip ingress map: %w", err)
 		}
-		if err := readIPMap(a.coll.Maps[mapIPEgress], c.egressIP); err != nil {
+		nIPOut, err := readIPMap(a.coll.Maps[mapIPEgress], c.egressIP)
+		if err != nil {
 			return c, fmt.Errorf("read ip egress map: %w", err)
 		}
-		c.mapEntries["ip_ingress"] = len(c.ingressIP)
-		c.mapEntries["ip_egress"] = len(c.egressIP)
+		nIP6In, err := readIP6Map(a.coll.Maps[mapIP6Ingress], c.ingressIP)
+		if err != nil {
+			return c, fmt.Errorf("read ipv6 ingress map: %w", err)
+		}
+		nIP6Out, err := readIP6Map(a.coll.Maps[mapIP6Egress], c.egressIP)
+		if err != nil {
+			return c, fmt.Errorf("read ipv6 egress map: %w", err)
+		}
+		c.mapEntries["ip_ingress"] = nIPIn
+		c.mapEntries["ip_egress"] = nIPOut
+		c.mapEntries["ip6_ingress"] = nIP6In
+		c.mapEntries["ip6_egress"] = nIP6Out
 	}
 	return c, nil
 }
@@ -166,15 +179,32 @@ func readPortMap(m *ebpf.Map, dst map[portProto]uint64) error {
 	return it.Err()
 }
 
-func readIPMap(m *ebpf.Map, dst map[uint32]uint64) error {
+func readIPMap(m *ebpf.Map, dst map[netip.Addr]uint64) (int, error) {
 	if m == nil {
-		return nil
+		return 0, nil
 	}
-	var k uint32
+	var k [4]byte
 	var v uint64
+	n := 0
 	it := m.Iterate()
 	for it.Next(&k, &v) {
-		dst[k] = v
+		dst[netip.AddrFrom4(k)] = v
+		n++
 	}
-	return it.Err()
+	return n, it.Err()
+}
+
+func readIP6Map(m *ebpf.Map, dst map[netip.Addr]uint64) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	var k [16]byte
+	var v uint64
+	n := 0
+	it := m.Iterate()
+	for it.Next(&k, &v) {
+		dst[netip.AddrFrom16(k)] = v
+		n++
+	}
+	return n, it.Err()
 }

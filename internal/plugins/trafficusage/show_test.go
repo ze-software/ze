@@ -5,6 +5,7 @@
 package trafficusage
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 
@@ -39,7 +40,7 @@ func TestShowTrafficUsage(t *testing.T) {
 	fa.result = counts{
 		ingressPort: map[portProto]uint64{{port: 443, proto: 6}: 1000},
 		egressPort:  map[portProto]uint64{{port: 53, proto: 17}: 500},
-		ingressIP:   map[uint32]uint64{0x0100000a: 2000}, // 10.0.0.1
+		ingressIP:   map[netip.Addr]uint64{netip.MustParseAddr("10.0.0.1"): 2000},
 		mapEntries:  map[string]int{"port_ingress": 1},
 	}
 	m := newMonitor(fa, stubResolver(map[string]int{"eth0": 10}))
@@ -69,4 +70,57 @@ func TestShowTrafficUsage(t *testing.T) {
 	// unknown interface -> error.
 	resp, _ = handleShowTrafficUsage(nil, commandtest.Args("name", "missing"))
 	assert.Equal(t, plugin.StatusError, resp.Status)
+}
+
+// VALIDATES: AC-6 — show traffic usage renders canonical RFC 5952 IPv6
+// addresses in ingress-ips / egress-ips, icmpv6 in ingress-ports, and
+// ip6_ingress / ip6_egress in map-entries.
+func TestShowTrafficUsageIPv6(t *testing.T) {
+	fa := newFakeAttacher()
+	fa.result = counts{
+		ingressPort: map[portProto]uint64{{port: 0, proto: 58}: 640},
+		egressPort:  map[portProto]uint64{{port: 53, proto: 17}: 320},
+		ingressIP: map[netip.Addr]uint64{
+			netip.MustParseAddr("10.0.0.1"):                                1000,
+			netip.MustParseAddr("2001:0db8:0000:0000:0000:0000:0000:0001"): 4096,
+		},
+		egressIP: map[netip.Addr]uint64{
+			netip.MustParseAddr("2001:0db8:0000:0000:0000:0000:0000:0002"): 2048,
+		},
+		mapEntries: map[string]int{
+			"port_ingress": 1,
+			"ip_ingress":   1,
+			"ip6_ingress":  1,
+			"ip6_egress":   1,
+		},
+	}
+	m := newMonitor(fa, stubResolver(map[string]int{"eth0": 10}))
+	_ = m.Reconcile(&Config{Enabled: true, Interval: time.Second, Interfaces: ifcList(1024, true, "eth0")})
+	activeMonitor.Store(m)
+	defer activeMonitor.Store(nil)
+
+	resp, err := handleShowTrafficUsage(nil, commandtest.Args("name", "eth0"))
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+
+	one, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+
+	inPorts, ok := one["ingress-ports"].(plugin.Slice[plugin.Map])
+	require.True(t, ok)
+	assert.Contains(t, inPorts, plugin.Map{"port": 0, "protocol": "icmpv6", "bytes": uint64(640)})
+
+	inIPs, ok := one["ingress-ips"].(plugin.Slice[plugin.Map])
+	require.True(t, ok)
+	assert.Contains(t, inIPs, plugin.Map{"ip": "10.0.0.1", "bytes": uint64(1000)})
+	assert.Contains(t, inIPs, plugin.Map{"ip": "2001:db8::1", "bytes": uint64(4096)})
+
+	outIPs, ok := one["egress-ips"].(plugin.Slice[plugin.Map])
+	require.True(t, ok)
+	assert.Contains(t, outIPs, plugin.Map{"ip": "2001:db8::2", "bytes": uint64(2048)})
+
+	entries, ok := one["map-entries"].(plugin.Map)
+	require.True(t, ok)
+	assert.Equal(t, 1, entries["ip6_ingress"])
+	assert.Equal(t, 1, entries["ip6_egress"])
 }

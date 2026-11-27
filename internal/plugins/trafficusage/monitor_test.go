@@ -8,6 +8,10 @@ package trafficusage
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -276,7 +280,7 @@ func TestPublishAndStaleCleanup(t *testing.T) {
 	snap := []counts{{
 		ifname:      "eth0",
 		ingressPort: map[portProto]uint64{{port: 443, proto: 6}: 1000},
-		ingressIP:   map[uint32]uint64{0x0100000a: 2000}, // 10.0.0.1
+		ingressIP:   map[netip.Addr]uint64{netip.MustParseAddr("10.0.0.1"): 2000},
 		mapEntries:  map[string]int{"port_ingress": 1},
 	}}
 	m.publishLocked(snap, t0)
@@ -374,9 +378,10 @@ func TestTrafficUsagePublishesSourceObs(t *testing.T) {
 	})
 	defer feed.Unsubscribe(subID)
 
+	srcV4 := netip.MustParseAddr("10.0.0.1")
 	snap := []counts{{
 		ifname:    "eth0",
-		ingressIP: map[uint32]uint64{0x0100000a: 42}, // 10.0.0.1 in LE
+		ingressIP: map[netip.Addr]uint64{srcV4: 42},
 	}}
 	m.mu.Lock()
 	m.publishLocked(snap, time.Now())
@@ -410,6 +415,112 @@ func TestTrafficUsagePublishesSourceObs(t *testing.T) {
 	}
 	if obs.Iface != "eth0" {
 		t.Errorf("iface = %q, want eth0", obs.Iface)
+	}
+	if obs.Flow.Src != srcV4 {
+		t.Errorf("flow.src = %v, want %v", obs.Flow.Src, srcV4)
+	}
+}
+
+// VALIDATES: AC-6 — IPv4 and IPv6 netip.Addr entries publish to Prometheus
+// ze_traffic_usage_* series (including icmpv6 and ip6_ingress/ip6_egress map
+// entries), flow into observation.Global() with IPv6 Flow.Src, and expire under
+// stale-timeout.
+func TestMonitorPublishesIPv6MetricsAndObservations(t *testing.T) {
+	reg := metrics.NewPrometheusRegistry()
+	BindMetrics(reg)
+	m := newMonitor(newFakeAttacher(), stubResolver(nil))
+	m.cfg = &Config{Enabled: true, Interval: time.Second, StaleTimeout: 5 * time.Minute, MaxEntries: 1024, TrackIP: true}
+
+	feed := observation.Global()
+	var received []observation.Observation
+	var mu sync.Mutex
+	subID := feed.Subscribe("test-ipv6", func(obs observation.Observation) {
+		mu.Lock()
+		received = append(received, obs)
+		mu.Unlock()
+	})
+	defer feed.Unsubscribe(subID)
+
+	srcV4 := netip.MustParseAddr("10.0.0.1")
+	srcV6 := netip.MustParseAddr("2001:db8::1")
+	dstV6 := netip.MustParseAddr("2001:db8::2")
+	t0 := time.Unix(2000, 0)
+
+	snap := []counts{{
+		ifname: "eth0",
+		ingressPort: map[portProto]uint64{
+			{port: 0, proto: 58}: 512,
+		},
+		ingressIP: map[netip.Addr]uint64{
+			srcV4: 1024,
+			srcV6: 4096,
+		},
+		egressIP: map[netip.Addr]uint64{
+			dstV6: 2048,
+		},
+		mapEntries: map[string]int{
+			"ip_ingress":  1,
+			"ip6_ingress": 1,
+			"ip6_egress":  1,
+		},
+	}}
+	m.mu.Lock()
+	m.publishLocked(snap, t0)
+	m.mu.Unlock()
+
+	scrape := func() string {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+		reg.Handler().ServeHTTP(rec, req)
+		return rec.Body.String()
+	}
+
+	body := scrape()
+	for _, want := range []string{
+		`ze_traffic_usage_ingress_bytes_total{interface="eth0",src_ip="10.0.0.1"} 1024`,
+		`ze_traffic_usage_ingress_bytes_total{interface="eth0",src_ip="2001:db8::1"} 4096`,
+		`ze_traffic_usage_egress_bytes_total{dst_ip="2001:db8::2",interface="eth0"} 2048`,
+		`ze_traffic_usage_ingress_port_bytes_total{dst_port="0",interface="eth0",protocol="icmpv6"} 512`,
+		`ze_traffic_usage_map_entries{interface="eth0",map="ip6_ingress"} 1`,
+		`ze_traffic_usage_map_entries{interface="eth0",map="ip6_egress"} 1`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/metrics missing %q; got:\n%s", want, body)
+		}
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	var sawIPv6Obs bool
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		for _, obs := range received {
+			if obs.Kind == observation.KindSourceIP && obs.Feature == observation.FeatureRxBytes &&
+				obs.Iface == "eth0" && obs.Flow.Src == srcV6 && obs.Value == 4096 {
+				sawIPv6Obs = true
+				break
+			}
+		}
+		mu.Unlock()
+		if sawIPv6Obs {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if !sawIPv6Obs {
+		t.Fatalf("observation.Global() did not receive IPv6 SourceIP observation for %s", srcV6)
+	}
+
+	// Past stale-timeout with no republish -> IPv6 and IPv4 series are deleted.
+	m.mu.Lock()
+	m.staleCleanupLocked(t0.Add(10 * time.Minute))
+	remaining := len(m.lastSeen)
+	m.mu.Unlock()
+	if remaining != 0 {
+		t.Errorf("stale series not cleaned: %d remain", remaining)
+	}
+	after := scrape()
+	if strings.Contains(after, `src_ip="2001:db8::1"`) || strings.Contains(after, `dst_ip="2001:db8::2"`) {
+		t.Errorf("stale IPv6 series still present after cleanup:\n%s", after)
 	}
 }
 

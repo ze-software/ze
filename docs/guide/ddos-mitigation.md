@@ -117,10 +117,10 @@ surgical rule and then narrow the local drop in place:
 - **generic-flood** -- no clear signature (includes fragment floods, which have no
   on-box conntrack signal): coarse destination-prefix drop.
 
-The recent-flow ring is IPv4 and IPv6 capable, so IPv6 victims (invisible to the
-IPv4-only `traffic-usage` map) are resolved from the ring. Characterization runs
-off the detection hot path with a bounded timeout and degrades to the coarse
-target when no flow source-ipv4 is reachable.
+Both `traffic-usage` and the recent-flow ring handle IPv4 and IPv6, so IPv6
+victims resolve from either source. Characterization runs off the detection hot
+path with a bounded timeout and degrades to the coarse target when no flow
+source-ipv4 is reachable.
 <!-- source: internal/plugins/ddos/detect/characterize.go -- classifyFlows: family + narrowest VectorTuple from the recent-flow ring -->
 
 **Characterization refreshes the ring on demand.** The recent-flow ring is

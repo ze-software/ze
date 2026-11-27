@@ -23,8 +23,9 @@ The victim is the highest-byte destination, taken as a host prefix (/32 for IPv4
 /128 for IPv6). trafficusage already ranks egress IPs by bytes, and `ddos-local`
 drops a single victim, so a heuristic aggregate buys nothing.
 
-trafficusage is IPv4-only. An IPv6 victim therefore resolves from the flow ring
-through `dominantDestination`.
+trafficusage tracks both IPv4 and IPv6 egress IPs when `track-ip` is enabled.
+When trafficusage returns no destination, the victim resolves from the flow
+ring through `dominantDestination`.
 
 The fallback is the pre-stage-2 behavior: an empty target and
 `FamilyGenericFlood`, used when the dispatch is nil, the source errors, or the

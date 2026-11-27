@@ -42,12 +42,3 @@ func TestProtocolName(t *testing.T) {
 		}
 	}
 }
-
-func TestIPString(t *testing.T) {
-	// Map key is the raw IPv4 header bytes read as a host-order uint32; on a
-	// little-endian host 127.0.0.1 is stored as 0x0100007f and must render back
-	// to the dotted quad (matches upstream LittleEndian decode).
-	if got := ipString(0x0100007f); got != "127.0.0.1" {
-		t.Errorf("ipString(0x0100007f) = %q, want 127.0.0.1", got)
-	}
-}
