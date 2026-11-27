@@ -95,6 +95,33 @@ func (a boundStoreAuthorizer) AuthorizeLocalScope(username, command string, args
 	return a.store.AuthorizeWithProfiles(username, a.profiles, canonical, isReadOnly) != Deny
 }
 
+func explicitTypedCommand(tokens []string) string {
+	if len(tokens) == 0 {
+		return ""
+	}
+	return aaa.CanonicalCommand("", tokens, "")
+}
+
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer. A missing store, empty
+// profile binding, or empty token stream always fails closed.
+func (a boundStoreAuthorizer) AuthorizeExplicit(
+	username, _, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	if a.store == nil {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	typedCommand := explicitTypedCommand(tokens)
+	if typedCommand == "" {
+		return false
+	}
+	return a.store.authorizeExplicitWithProfiles(username, a.profiles, canonicalPath, typedCommand, isReadOnly) == Allow
+}
+
 // Authorize implements aaa.Authorizer.
 func (a StoreAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	if a.Store == nil {
@@ -123,6 +150,28 @@ func (a StoreAuthorizer) AuthorizeLocalScope(username, command string, args []st
 	}
 	canonical := canonicalCommandForIdentity(username, command, args, "")
 	return a.Store.Authorize(username, canonical, isReadOnly) != Deny
+}
+
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer. When a.Store is nil,
+// every non-plugin identity fails closed while plugin identities continue to be
+// evaluated against their compiled bus command profiles under explicit-entry
+// rules.
+func (a StoreAuthorizer) AuthorizeExplicit(
+	username, _, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	typedCommand := explicitTypedCommand(tokens)
+	if typedCommand == "" {
+		return false
+	}
+	if a.Store == nil {
+		if endpoint, isPlugin := aaa.PluginEndpointFromIdentity(username); isPlugin {
+			return authorizePluginIdentityExplicit(username, endpoint, canonicalPath, typedCommand, isReadOnly) == Allow
+		}
+		return false
+	}
+	return a.Store.AuthorizeExplicit(username, canonicalPath, typedCommand, isReadOnly) == Allow
 }
 
 // localBackend is the AAA backend for built-in bcrypt user authentication.

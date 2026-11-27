@@ -13,6 +13,7 @@ Ze keeps a local structured audit log for operator actions that change state or 
 | `daemon-reload` | SIGHUP, and `request reload` through the daemon on any surface |
 | `data-key-change` | `delete data key` and `update data key` through the daemon on any surface, which `ze data rm` and `ze data write` also send while ze runs |
 | `data-config-import` | `update data config` through the daemon on any surface, which `ze data import` also sends while ze runs. The detail holds the name and the placeholder in place of the content |
+| `pki-private-key-export` | `show pki certificate name <name> bundle pem confirm` through the daemon on any surface. Records `success`, `denied` (authorization refusal or missing `confirm`), and `error` outcomes with redacted command detail and zero private-key bytes |
 | `auth-fail` | SSH, web, REST, gRPC, gNMI, MCP |
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.
@@ -22,7 +23,13 @@ one successful `config-commit` entry after publication. The detail is the same
 path-qualified, secret-masked review shown before committing. A refused commit
 keeps the pending changes and records no successful commit entry.
 
-A daemon command records an entry only when it succeeds: a refused or failed command records nothing. Its `detail` is the command line as typed, with every credential value and the value after `content` replaced by `<redacted>`, so a key's bytes never reach the log.
+An ordinary daemon command records an entry only when it succeeds. A refused or
+failed ordinary command records nothing. Commands that register
+`RequireExplicitAuthz` (such as `pki-private-key-export`) also record `denied`
+when authorization or mandatory argument checks refuse the request, and `error`
+when the handler refuses it. In every case, `detail` holds only the redacted
+command line (never the response body), with credential values, `content`
+payloads, and any private-key PEM blocks replaced by `<redacted>`.
 
 A discard record's `detail` lists only the changes that discard dropped. `discard <path>` keeps your changes outside that path, so they are not in its record, and they appear in the commit record that later applies them. One exception: the SSH editor's diff lines carry no path, so when two places hold the same pending line (two peers both changed to the same hold time, say) and `discard <path>` drops one of them, the SSH record can also name the line you kept. The web records are exact. A whole discard run with nothing pending still writes a record, with an empty `detail`, on every surface, so the trail shows every discard an operator ran. A rollback record's `detail` is the rollback itself (the command in the web terminal, `rollback <backup>` in the SSH editor), a download record's is the file name, and an upload record's is `uploaded configuration`.
 
@@ -45,7 +52,8 @@ that user.
 <!-- source: internal/component/gnmi/server.go -- gNMI auth-fail audit recording -->
 <!-- source: internal/component/gnmi/set.go -- gNMI config-commit audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->
-<!-- source: internal/component/plugin/server/command.go -- recordCommandAudit -->
+<!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, recordCommandAuditOutcome -->
+<!-- source: internal/core/audit/action_pki_private_key.go -- ActionPKIPrivateKeyExport -->
 <!-- source: internal/component/config/storage/cli/register_data_rpc.go -- data-key-delete AuditAction -->
 
 ## Storage

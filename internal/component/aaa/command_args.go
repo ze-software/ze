@@ -55,6 +55,35 @@ func AuthorizeLocalScope(authorizer Authorizer, username, command string, args [
 	return localScope.AuthorizeLocalScope(username, command, args, isReadOnly), true
 }
 
+// ExplicitAuthorizer evaluates commands that require an explicit default-deny
+// authorization grant (such as private-key export). Implementations MUST fail
+// closed when RBAC is unconfigured, when a profile permits only via
+// default-action allow, or for reserved/break-glass identities.
+//
+// canonicalPath is the registered canonical command path (for example
+// "show pki certificate name bundle pem"). tokens is the typed command token
+// stream preserving inline selectors and argument boundaries.
+type ExplicitAuthorizer interface {
+	AuthorizeExplicit(username, remoteAddr, canonicalPath string, tokens []string, isReadOnly bool) bool
+}
+
+// AuthorizeExplicit evaluates an explicit default-deny authorization grant when
+// authorizer implements ExplicitAuthorizer. When authorizer is nil or does not
+// implement ExplicitAuthorizer, it returns (false, false) so callers fail
+// closed without falling back to permissive Authorize semantics.
+func AuthorizeExplicit(
+	authorizer Authorizer,
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) (allowed, supported bool) {
+	explicit, ok := authorizer.(ExplicitAuthorizer)
+	if !ok {
+		return false, false
+	}
+	return explicit.AuthorizeExplicit(username, remoteAddr, canonicalPath, tokens, isReadOnly), true
+}
+
 const (
 	// FleetDeviceReadCommand is the canonical read command evaluated locally to
 	// project per-device fleet visibility.

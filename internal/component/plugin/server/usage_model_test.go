@@ -133,7 +133,7 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		// keyword-introduced value.
 		{"show pki certificate name", "show pki certificate name <name>"},
 		{"show pki certificate name pem", "show pki certificate name <name> pem"},
-		{"show pki certificate name bundle pem", "show pki certificate name <name> bundle pem"},
+		{"show pki certificate name bundle pem", "show pki certificate name <name> bundle pem confirm"},
 		{
 			"show pki certificate name fingerprint",
 			"show pki certificate name <name> fingerprint [sha256|sha384|sha512]",

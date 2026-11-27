@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 func TestTranscriptWriterRecordsCommands(t *testing.T) {
@@ -214,5 +215,57 @@ func TestSetTranscriptKeepsNilExecutorGuard(t *testing.T) {
 	}
 	if msg.err == nil || msg.err.Error() != errNoDaemonConnectionOperationalModeRequires.Error() {
 		t.Fatalf("err = %v, want %v", msg.err, errNoDaemonConnectionOperationalModeRequires)
+	}
+}
+
+// VALIDATES: AC-6, transcript half: TranscriptWriter.Record redacts PEM
+// private-key blocks from recorded output (both rendered multiline PEM and
+// JSON-encoded interactive responses) while preserving certificate blocks and
+// command metadata.
+// PREVENTS: cleartext private keys exported via `show pki certificate name
+// <name> bundle pem confirm` being written to disk when ze.cli.transcript=true.
+func TestRedactPrivateKeyPEMAndTranscript(t *testing.T) {
+	const (
+		certBody = "CERTBODYFORTRANSCRIPT"
+		keyBody  = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwTRANSCRIPTSECRET"
+	)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "transcript.log")
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tw := NewTranscriptWriter(f, "exporter", "10.0.0.1:2222")
+	multilineBundle := "-----BEGIN CERTIFICATE-----\n" + certBody + "\n-----END CERTIFICATE-----\n" +
+		"-----BEGIN PRIVATE KEY-----\n" + keyBody + "\n-----END PRIVATE KEY-----\n" // secret-scan: allow
+	jsonBundle := `{"pem":"-----BEGIN CERTIFICATE-----\n` + certBody + `\n-----END CERTIFICATE-----\n-----BEGIN PRIVATE KEY-----\n` + keyBody + `\n-----END PRIVATE KEY-----\n"}` // secret-scan: allow
+	tw.Record("show pki certificate name dev-1 bundle pem confirm", multilineBundle)
+	tw.Record("show pki certificate name dev-1 bundle pem confirm | json", jsonBundle)
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, "] > show pki certificate name dev-1 bundle pem confirm") {
+		t.Error("transcript missing bundle pem command metadata")
+	}
+	if !strings.Contains(content, certBody) {
+		t.Error("transcript should preserve certificate PEM block")
+	}
+	if strings.Contains(content, keyBody) {
+		t.Error("transcript leaked private-key body bytes to disk")
+	}
+	if strings.Contains(content, "PRIVATE KEY") {
+		t.Error("transcript leaked PRIVATE KEY PEM markers to disk")
+	}
+	if !strings.Contains(content, redact.Placeholder) {
+		t.Errorf("transcript missing %q placeholder where private key was redacted", redact.Placeholder)
 	}
 }

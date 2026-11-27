@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
@@ -596,10 +597,18 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 		return emptyResult, err
 	}
 	readOnly := false
-	if builtin := ctx.Dispatcher().Lookup(cmdName); builtin != nil {
+	builtin := ctx.Dispatcher().Lookup(cmdName)
+	if builtin != nil {
 		readOnly = builtin.ReadOnly
 	}
-	if !ctx.Dispatcher().isAuthorizedCommandArgs(ctx, cmdName, completedArgs, "*", readOnly) {
+	var authorized bool
+	if builtin != nil && builtin.RequireExplicitAuthz {
+		typedTokens := aaa.CanonicalCommandTokens(builtin.Name, completedArgs, "*")
+		authorized = ctx.Dispatcher().isAuthorizedExplicit(ctx, builtin.Name, typedTokens, readOnly)
+	} else {
+		authorized = ctx.Dispatcher().isAuthorizedCommandArgs(ctx, cmdName, completedArgs, "*", readOnly)
+	}
+	if !authorized {
 		refusal := opererr.Wrap(ErrUnauthorized,
 			"argument completion is not permitted for "+cmdName,
 			"your session cannot access this command's runtime values",

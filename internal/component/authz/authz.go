@@ -216,6 +216,176 @@ func (s *Section) evaluate(command string) Action {
 	return s.Default
 }
 
+// tokensContainInOrder reports whether every lowercased token in target appears
+// in tokens in the same relative order.
+func tokensContainInOrder(tokens, target []string) bool {
+	if len(target) == 0 {
+		return false
+	}
+	if len(tokens) < len(target) {
+		return false
+	}
+	ti := 0
+	for _, tok := range tokens {
+		if tok == target[ti] {
+			ti++
+			if ti == len(target) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// matchedCanonicalIndices locates the index in typedLower of each token in
+// canonicalTokens in order. Returns (nil, false) when typedLower does not
+// contain every canonical token in order.
+func matchedCanonicalIndices(typedLower, canonicalTokens []string) ([]int, bool) {
+	if len(canonicalTokens) == 0 {
+		return nil, false
+	}
+	if len(typedLower) < len(canonicalTokens) {
+		return nil, false
+	}
+	indices := make([]int, 0, len(canonicalTokens))
+	ci := 0
+	for i, tok := range typedLower {
+		if tok == canonicalTokens[ci] {
+			indices = append(indices, i)
+			ci++
+			if ci == len(canonicalTokens) {
+				return indices, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (e *Entry) compiledRegexp() (*regexp.Regexp, bool) {
+	if e.compiled != nil {
+		return e.compiled, true
+	}
+	r, err := regexp.Compile(e.Match)
+	if err != nil {
+		return nil, false
+	}
+	return r, true
+}
+
+// matchesExplicitAllow reports whether an Allow entry explicitly grants the
+// command described by (canonicalPath, canonicalTokens, typedCommand,
+// typedRawTokens, canonicalIndices) without relying on a broad prefix or
+// wildcard regex.
+func (e *Entry) matchesExplicitAllow(
+	canonicalPath string,
+	canonicalTokens []string,
+	typedCommand string,
+	typedRawTokens []string,
+	canonicalIndices []int,
+) bool {
+	if e.Regex {
+		return e.matchesExplicitAllowRegex(canonicalPath, canonicalTokens, typedCommand, typedRawTokens, canonicalIndices)
+	}
+	matchTokens := strings.Fields(strings.ToLower(e.Match))
+	if len(matchTokens) == 0 {
+		return false
+	}
+	if slices.Equal(matchTokens, canonicalTokens) {
+		return true
+	}
+	return e.matches(typedCommand) && tokensContainInOrder(matchTokens, canonicalTokens)
+}
+
+func (e *Entry) matchesExplicitAllowRegex(
+	canonicalPath string,
+	canonicalTokens []string,
+	typedCommand string,
+	typedRawTokens []string,
+	canonicalIndices []int,
+) bool {
+	r, ok := e.compiledRegexp()
+	if !ok {
+		return false
+	}
+	if !r.MatchString(typedCommand) && !r.MatchString(canonicalPath) {
+		return false
+	}
+	// Reject wildcard or overly broad regexes that match the empty string or
+	// any proper prefix of the canonical command path.
+	if r.MatchString("") {
+		return false
+	}
+	for i := 1; i < len(canonicalTokens); i++ {
+		if r.MatchString(strings.Join(canonicalTokens[:i], " ")) {
+			return false
+		}
+	}
+	// Reject regexes that match any proper prefix of the typed command before
+	// the final canonical command token appears.
+	lastCanonicalIdx := canonicalIndices[len(canonicalIndices)-1]
+	for i := 1; i <= lastCanonicalIdx; i++ {
+		if r.MatchString(strings.Join(typedRawTokens[:i], " ")) {
+			return false
+		}
+	}
+	// Reject regexes that still match when any single canonical command token
+	// is removed (prevents unanchored or wildcard-middle regexes from granting
+	// explicit commands via sibling-command patterns).
+	if len(canonicalTokens) == 1 {
+		probe := "unrelated"
+		if canonicalTokens[0] == probe {
+			probe = "other"
+		}
+		return !r.MatchString(probe)
+	}
+	omittedTyped := make([]string, 0, len(typedRawTokens)-1)
+	for _, skipIdx := range canonicalIndices {
+		omittedTyped = omittedTyped[:0]
+		omittedTyped = append(omittedTyped, typedRawTokens[:skipIdx]...)
+		omittedTyped = append(omittedTyped, typedRawTokens[skipIdx+1:]...)
+		if r.MatchString(strings.Join(omittedTyped, " ")) {
+			return false
+		}
+	}
+	omittedCanonical := make([]string, 0, len(canonicalTokens)-1)
+	for skipIdx := range canonicalTokens {
+		omittedCanonical = omittedCanonical[:0]
+		omittedCanonical = append(omittedCanonical, canonicalTokens[:skipIdx]...)
+		omittedCanonical = append(omittedCanonical, canonicalTokens[skipIdx+1:]...)
+		if r.MatchString(strings.Join(omittedCanonical, " ")) {
+			return false
+		}
+	}
+	return true
+}
+
+// evaluateExplicit walks entries in order for a default-deny explicit-grant
+// command. It never falls back to s.Default.
+func (s *Section) evaluateExplicit(
+	canonicalPath string,
+	canonicalTokens []string,
+	typedCommand string,
+	typedRawTokens []string,
+	canonicalIndices []int,
+) (Action, bool) {
+	for i := range s.Entries {
+		entry := &s.Entries[i]
+		if entry.Action == Deny {
+			if entry.matches(typedCommand) {
+				return Deny, true
+			}
+			if entry.matches(canonicalPath) {
+				return Deny, true
+			}
+			continue
+		}
+		if entry.matchesExplicitAllow(canonicalPath, canonicalTokens, typedCommand, typedRawTokens, canonicalIndices) {
+			return Allow, true
+		}
+	}
+	return Deny, false
+}
+
 // Profile defines authorization rules for a set of commands.
 type Profile struct {
 	Name string  // Profile identifier
@@ -387,6 +557,133 @@ func (s *Store) AuthorizeWithProfiles(username string, profiles []string, comman
 	return s.authorize(username, profiles, true, command, isReadOnly)
 }
 
+// AuthorizeExplicit evaluates whether username holds an explicit RBAC grant for
+// a default-deny command. Unlike Authorize, it never falls back to a section's
+// Default action, never allows via ReservedInternalRPCIdentity,
+// ReservedSharedAPIUsername, or ReservedRecoveryProfile, and rejects broad
+// prefixes or wildcard regexes.
+func (s *Store) AuthorizeExplicit(username, canonicalPath, typedCommand string, isReadOnly bool) Action {
+	return s.authorizeExplicit(username, nil, false, canonicalPath, typedCommand, isReadOnly)
+}
+
+// authorizeExplicitWithProfiles evaluates one authenticated session's resolved
+// profile names for an explicit default-deny command.
+func (s *Store) authorizeExplicitWithProfiles(
+	username string,
+	profiles []string,
+	canonicalPath, typedCommand string,
+	isReadOnly bool,
+) Action {
+	return s.authorizeExplicit(username, profiles, true, canonicalPath, typedCommand, isReadOnly)
+}
+
+func (s *Store) authorizeExplicit(
+	username string,
+	loginNames []string,
+	hasLoginNames bool,
+	canonicalPath, typedCommand string,
+	isReadOnly bool,
+) Action {
+	if s == nil {
+		return Deny
+	}
+	canonicalTokens := strings.Fields(strings.ToLower(canonicalPath))
+	if len(canonicalTokens) == 0 {
+		return Deny
+	}
+	typedRawTokens := strings.Fields(typedCommand)
+	if len(typedRawTokens) == 0 {
+		return Deny
+	}
+	typedLowerTokens := strings.Fields(strings.ToLower(typedCommand))
+	canonicalIndices, ok := matchedCanonicalIndices(typedLowerTokens, canonicalTokens)
+	if !ok {
+		return Deny
+	}
+
+	if username == aaa.ReservedInternalRPCIdentity {
+		authzLogger.Info("denied explicit command: internal RPC identity",
+			"identity", username, "command", canonicalPath)
+		return Deny
+	}
+	if endpoint, isPlugin := aaa.PluginEndpointFromIdentity(username); isPlugin {
+		return authorizePluginIdentityExplicit(username, endpoint, canonicalPath, typedCommand, isReadOnly)
+	}
+	if strings.HasPrefix(username, aaa.ReservedInternalPluginPrefix) {
+		authzLogger.Warn("denied explicit command: malformed plugin identity",
+			"identity", username, "command", canonicalPath,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+	if username == aaa.ReservedSharedAPIUsername {
+		authzLogger.Info("denied explicit command: shared API identity",
+			"command", canonicalPath)
+		return Deny
+	}
+	if username == "" {
+		authzLogger.Info("denied explicit command: empty identity",
+			"command", canonicalPath)
+		return Deny
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var profileNames []string
+	var hasAssignment bool
+	if hasLoginNames {
+		// Explicit-grant commands never short-circuit Allow for
+		// ReservedRecoveryProfile; only configured store profiles count.
+		profileNames = make([]string, 0, len(loginNames))
+		for _, name := range loginNames {
+			if name == aaa.ReservedRecoveryProfile {
+				continue
+			}
+			if s.profiles[name] != nil {
+				profileNames = append(profileNames, name)
+			}
+		}
+		hasAssignment = len(profileNames) > 0
+	} else {
+		profileNames, hasAssignment = s.assignments[username]
+	}
+	if !hasAssignment {
+		authzLogger.Info("denied explicit command: no applicable profile",
+			"username", username, "command", canonicalPath)
+		return Deny
+	}
+	if len(profileNames) == 0 {
+		authzLogger.Info("denied explicit command: no applicable profile",
+			"username", username, "command", canonicalPath)
+		return Deny
+	}
+
+	for _, name := range profileNames {
+		if name == aaa.ReservedRecoveryProfile {
+			continue
+		}
+		p := s.profiles[name]
+		if p == nil {
+			continue
+		}
+
+		var section *Section
+		if isReadOnly {
+			section = &p.Run
+		} else {
+			section = &p.Edit
+		}
+
+		if action, matched := section.evaluateExplicit(canonicalPath, canonicalTokens, typedCommand, typedRawTokens, canonicalIndices); matched {
+			return action
+		}
+	}
+
+	authzLogger.Info("denied explicit command: no explicit grant entry matched",
+		"username", username, "command", canonicalPath)
+	return Deny
+}
+
 func (s *Store) authorize(username string, loginNames []string, hasLoginNames bool, command string, isReadOnly bool) Action {
 	// Trusted in-process RPC caller carrying no bus participant identity.
 	// Match the complete identity rather than a prefix so no plugin or other
@@ -451,13 +748,18 @@ func (s *Store) authorize(username string, loginNames []string, hasLoginNames bo
 	} else {
 		profileNames, hasAssignment = s.assignments[username]
 	}
-	if !hasAssignment || len(profileNames) == 0 {
+	if !hasAssignment {
 		// Fail closed: authenticated but no applicable profile resolved. Was:
 		// the built-in admin profile's allow-all default whenever no local user
 		// was assigned
 		// (hasUsers == false) -- the privilege escalation this store's existence
 		// now closes. The store existing IS the "authorization is in use" signal.
 		authzLogger.Warn("denied: no applicable profile",
+			"username", username, "command", command)
+		return Deny
+	}
+	if len(profileNames) == 0 {
+		authzLogger.Info("denied: no applicable profile",
 			"username", username, "command", command)
 		return Deny
 	}
@@ -570,6 +872,71 @@ func authorizePluginIdentity(username, endpoint, command string, isReadOnly bool
 
 	authzLogger.Warn("denied: plugin command not permitted by bus profile",
 		"identity", username, "endpoint", endpoint, "command", command,
+		"code", diagnostic.CodeDoctorPluginRequestRefused)
+	return Deny
+}
+
+// authorizePluginIdentityExplicit evaluates a plugin identity against its
+// compiled bus command profile under explicit default-deny entry rules. Broad
+// prefixes (such as "show" or "show pki") do not satisfy explicit-grant
+// commands; the compiled bus profile must explicitly grant the command path.
+func authorizePluginIdentityExplicit(username, endpoint, canonicalPath, typedCommand string, isReadOnly bool) Action {
+	canonicalTokens := strings.Fields(strings.ToLower(canonicalPath))
+	if len(canonicalTokens) == 0 {
+		return Deny
+	}
+	typedRawTokens := strings.Fields(typedCommand)
+	if len(typedRawTokens) == 0 {
+		return Deny
+	}
+	typedLowerTokens := strings.Fields(strings.ToLower(typedCommand))
+	canonicalIndices, ok := matchedCanonicalIndices(typedLowerTokens, canonicalTokens)
+	if !ok {
+		return Deny
+	}
+
+	prof, ok := aaa.LookupPluginCommandProfile(endpoint)
+	if !ok {
+		authzLogger.Warn("denied explicit command: plugin identity has no command profile",
+			"identity", username, "endpoint", endpoint, "command", canonicalPath,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+	if prof.AllowNone {
+		authzLogger.Warn("denied explicit command: plugin command profile allows no commands",
+			"identity", username, "endpoint", endpoint, "command", canonicalPath,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+	if len(prof.AllowedPrefixes) == 0 {
+		authzLogger.Warn("denied explicit command: plugin command profile has no allowed prefixes",
+			"identity", username, "endpoint", endpoint, "command", canonicalPath,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+
+	profile := compilePluginProfile(endpoint, prof.AllowedPrefixes)
+	var section *Section
+	if isReadOnly {
+		section = &profile.Run
+	} else {
+		section = &profile.Edit
+	}
+	if len(section.Entries) == 0 {
+		authzLogger.Warn("denied explicit command: plugin command profile has no non-empty prefixes",
+			"identity", username, "endpoint", endpoint, "command", canonicalPath,
+			"code", diagnostic.CodeDoctorPluginRequestRefused)
+		return Deny
+	}
+
+	if action, matched := section.evaluateExplicit(canonicalPath, canonicalTokens, typedCommand, typedRawTokens, canonicalIndices); matched && action == Allow {
+		authzLogger.Debug("authorized explicit command: plugin identity by bus profile",
+			"identity", username, "endpoint", endpoint, "command", canonicalPath)
+		return Allow
+	}
+
+	authzLogger.Warn("denied explicit command: plugin bus profile lacks explicit grant",
+		"identity", username, "endpoint", endpoint, "command", canonicalPath,
 		"code", diagnostic.CodeDoctorPluginRequestRefused)
 	return Deny
 }

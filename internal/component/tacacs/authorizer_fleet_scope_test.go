@@ -189,3 +189,149 @@ func TestTacacsAuthorizerLocalScopeFailClosedCases(t *testing.T) {
 	assert.Equal(t, int64(0), remoteCalls.Load(),
 		"local scope projection must never send any remote TACACS+ packet")
 }
+
+func explicitPKIStoreForTest() *authz.Store {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "admin",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Allow},
+	})
+	store.AddProfile(authz.Profile{
+		Name: "pki-exporter",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{
+			Default: authz.Deny,
+			Entries: []authz.Entry{
+				{Number: 10, Action: authz.Allow, Match: "show pki certificate name bundle pem"},
+			},
+		},
+	})
+	store.AssignProfiles("admin-user", []string{"admin"})
+	store.AssignProfiles("exporter", []string{"pki-exporter"})
+	return store
+}
+
+// VALIDATES: tacacsAuthorizer.AuthorizeExplicit sends an RFC 8907 AUTHOR
+// REQUEST for the typed tokens, honors server PASS_ADD and FAIL without
+// fallback on explicit FAIL, and when unreachable falls back strictly to
+// aaa.AuthorizeExplicit(a.local, ...) unless strictFallback is true or a.local
+// is missing/unsupported.
+// PREVENTS: TACACS+ fallback permitting explicit default-deny commands via
+// default-action allow, unsupported local authorizers, or strictFallback bypass.
+func TestTacacsAuthorizerAuthorizeExplicit(t *testing.T) {
+	const (
+		canonicalPath = "show pki certificate name bundle pem"
+		remoteAddr    = "198.51.100.30:22"
+	)
+	tokens := []string{"show", "pki", "certificate", "name", "dev-1", "bundle", "pem", "confirm"}
+	wantTacacsArgs := []string{
+		"service=shell",
+		"cmd=show",
+		"cmd-arg=pki",
+		"cmd-arg=certificate",
+		"cmd-arg=name",
+		"cmd-arg=dev-1",
+		"cmd-arg=bundle",
+		"cmd-arg=pem",
+		"cmd-arg=confirm",
+	}
+
+	t.Run("reachable server receives typed tokens and enforces PASS_ADD and FAIL", func(t *testing.T) {
+		key := []byte("secret")
+		var gotArgs []string
+		var gotErr error
+
+		passSrv := newTestServer(t, key, func(hdr PacketHeader, body []byte) []byte {
+			gotArgs, gotErr = decodeAuthorRequestArgs(body)
+			return authorReply(AuthorStatusPassAdd)(hdr, body)
+		})
+		t.Cleanup(passSrv.close)
+
+		passClient := NewTacacsClient(TacacsClientConfig{
+			Servers: []TacacsServer{{Address: passSrv.addr(), Key: key}},
+			Timeout: 2 * time.Second,
+		})
+		t.Cleanup(passClient.Close)
+
+		store := explicitPKIStoreForTest()
+		passAuth := newTacacsAuthorizer(passClient, authz.StoreAuthorizer{Store: store})
+
+		allowed, supported := aaa.AuthorizeExplicit(passAuth, "admin-user", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.True(t, allowed, "TACACS+ PASS_ADD must authorize explicit command")
+		require.NoError(t, gotErr)
+		assert.Equal(t, wantTacacsArgs, gotArgs)
+
+		// Server FAIL must deny even when local store has an explicit grant.
+		failSrv := newTestServer(t, key, authorReply(AuthorStatusFail))
+		t.Cleanup(failSrv.close)
+
+		failClient := NewTacacsClient(TacacsClientConfig{
+			Servers: []TacacsServer{{Address: failSrv.addr(), Key: key}},
+			Timeout: 2 * time.Second,
+		})
+		t.Cleanup(failClient.Close)
+
+		failAuth := newTacacsAuthorizer(failClient, authz.StoreAuthorizer{Store: store})
+		allowed, supported = aaa.AuthorizeExplicit(failAuth, "exporter", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed, "TACACS+ FAIL must deny without falling back to local")
+	})
+
+	t.Run("unreachable server falls back strictly to explicit local policy", func(t *testing.T) {
+		// Create a client pointed at a closed local server so SendAuthorization fails immediately.
+		key := []byte("secret")
+		deadSrv := newTestServer(t, key, authorReply(AuthorStatusPassAdd))
+		deadAddr := deadSrv.addr()
+		deadSrv.close()
+
+		client := NewTacacsClient(TacacsClientConfig{
+			Servers: []TacacsServer{{Address: deadAddr, Key: key}},
+			Timeout: 200 * time.Millisecond,
+		})
+		t.Cleanup(client.Close)
+
+		store := explicitPKIStoreForTest()
+		auth := newTacacsAuthorizerWithFallback(client, authz.StoreAuthorizer{Store: store}, nil, false)
+
+		allowed, supported := aaa.AuthorizeExplicit(auth, "exporter", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.True(t, allowed, "explicit local grant must succeed on non-strict fallback")
+
+		allowed, supported = aaa.AuthorizeExplicit(auth, "admin-user", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed, "default-action allow profile must deny on explicit fallback")
+
+		// Profile-bound remote session with explicit profile allows; empty binding denies.
+		boundExplicit := auth.BindProfiles([]string{"pki-exporter"})
+		allowed, supported = aaa.AuthorizeExplicit(boundExplicit, "remote-op", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.True(t, allowed)
+
+		boundEmpty := auth.BindProfiles(nil)
+		allowed, supported = aaa.AuthorizeExplicit(boundEmpty, "exporter", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed, "empty bound profiles must fail closed on explicit fallback")
+
+		// Nil local authorizer fails closed.
+		nilLocal := newTacacsAuthorizerWithFallback(client, nil, nil, false)
+		allowed, supported = aaa.AuthorizeExplicit(nilLocal, "exporter", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed)
+
+		// Unsupported local authorizer fails closed without calling Authorize.
+		legacy := &fakeLocalAuthz{allow: true}
+		legacyLocal := newTacacsAuthorizerWithFallback(client, legacy, nil, false)
+		allowed, supported = aaa.AuthorizeExplicit(legacyLocal, "exporter", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed)
+		assert.Equal(t, 0, legacy.calls, "unsupported local authorizer must not have Authorize called")
+
+		// strictFallback denies even when local store has an explicit grant.
+		strictAuth := newTacacsAuthorizerWithFallback(client, authz.StoreAuthorizer{Store: store}, nil, true)
+		allowed, supported = aaa.AuthorizeExplicit(strictAuth, "exporter", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed, "strictFallback must deny when TACACS+ server is unreachable")
+	})
+}

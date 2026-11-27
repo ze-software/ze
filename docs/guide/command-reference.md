@@ -1732,18 +1732,33 @@ for compact diffing across snapshots.
 
 ### show traffic control
 
-Traffic control (TC) state. Queries the active traffic-control backend for qdisc, class,
-and filter state per interface. Returns "traffic control not available on
-this platform" when no traffic-control backend is loaded (e.g. on macOS).
+Traffic control (TC) state and live qdisc/class statistics. Queries the active
+traffic-control backend when configured, or falls back to the stateless
+read-only `kernel` reader on Linux even when `traffic { control { } }` is absent.
+Returns `"traffic control not available on this platform"` when neither an active
+backend nor a platform reader is registered (e.g. on macOS).
 
 ```
 ze show traffic control            # Summary of all interfaces with qdiscs
-ze show traffic control <ifname>   # Detail for one interface
+ze show traffic control <ifname>   # Detail for one interface (with stats and classes)
 ```
+
+Each summary row reports `interface`, `qdisc` (the real kernel qdisc kind such as
+`htb`, `tbf`, `fq_codel`, `pfifo_fast`, or `noqueue`), `handle`, `rate-bps`,
+`class-count`, and `filter-count`. When the backend reports queue statistics
+(Linux kernel), summary rows also carry flat `bytes`, `packets`, `qlen`,
+`backlog`, `drops`, `overlimits`, and `requeues` fields. Single-interface detail
+returns `interface`, `qdisc`, `handle`, `rate-bps`, `class-count`,
+`default-class`, a `stats` object (when available), and a `classes` array where
+each entry carries `name`, `handle`, `rate-bps`, `ceil-bps`, `priority`, and its
+own `stats` object (when available). Under `backend vpp`, `stats` is omitted
+rather than reporting synthetic zeros.
 
 For a Linux TBF root, `rate-bps` reports the kernel's rate in bits per second,
 not its native byte-per-second unit. It is zero when the root has no TBF rate.
 TBF has no configured classes; its rate is a root property.
+<!-- source: internal/component/traffic/cmd/traffic.go -- handleShowTraffic, buildTrafficDetail, buildTrafficSummaryRow -->
+<!-- source: internal/component/traffic/backend.go -- ReadQdiscs, ReadAllQdiscs -->
 
 ### show flow export
 
@@ -2125,7 +2140,7 @@ the `pki {}` config section.
 ze show pki certificates                                # List all loaded certs (CA + device)
 ze show pki certificate name <name>                     # Full details for a named certificate
 ze show pki certificate name <name> pem                 # PEM-encoded certificate (+ intermediate)
-ze show pki certificate name <name> bundle pem          # Certificate + private key in one PEM
+ze show pki certificate name <name> bundle pem confirm  # Certificate + private key (explicit RBAC + confirm)
 ze show pki certificate name <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
 ze show pki certificate name <name> fingerprint sha512  # SHA-512 fingerprint
 ze show pki local-ca pem                                # Root of the local certificate authority
@@ -2142,9 +2157,13 @@ key usage, private key presence, and chain validation status.
 **`show pki certificate name <name> pem`** returns the certificate in PEM
 format. Includes the intermediate certificate if one is stored.
 
-**`show pki certificate name <name> bundle pem`** returns the certificate
-and its private key concatenated in PEM format (device certificates
-only). Useful for clients that need a single PEM file (e.g. OpenConnect).
+**`show pki certificate name <name> bundle pem confirm`** returns the
+certificate and its PKCS#8 private key in one PEM stream (device certificates
+only). This command requires both an explicit RBAC `edit` grant and the
+`confirm` keyword. Every allowed export and every refused attempt writes a
+redacted `pki-private-key-export` audit entry with zero private-key bytes.
+Certificate-only `show pki certificate name <name> pem` needs neither grant nor
+`confirm`.
 
 **`show pki certificate name <name> fingerprint [sha256|sha384|sha512]`**
 returns the DER fingerprint as colon-separated hex. Defaults to SHA-256.

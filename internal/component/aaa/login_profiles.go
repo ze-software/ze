@@ -129,6 +129,28 @@ func (a acceptedGenerationAuthorizer) AuthorizeLocalScope(
 	return allowed
 }
 
+// AuthorizeExplicit implements ExplicitAuthorizer. Explicit-grant commands fail
+// closed whenever the authenticated local user's generation has retired, when
+// no underlying authorizer is installed (a.next == nil), or when a.next does
+// not implement ExplicitAuthorizer.
+func (a acceptedGenerationAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	if !acceptedLocalUserHolds(username, a.generation) {
+		return false
+	}
+	if a.next == nil {
+		return false
+	}
+	allowed, supported := AuthorizeExplicit(a.next, username, remoteAddr, canonicalPath, tokens, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // resultAuthorizingAuthenticator rejects reserved identities and binds
 // authorization to each successful authentication result.
 type resultAuthorizingAuthenticator struct {

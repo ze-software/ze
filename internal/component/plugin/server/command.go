@@ -105,6 +105,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 		if err := d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
 			Hidden:                    command.HiddenAtPath(cmdTree, strings.Fields(name)),
 			ReadOnly:                  IsReadOnlyPath(name) && !reg.NotReadOnly,
+			RequireExplicitAuthz:      reg.RequireExplicitAuthz,
 			RequiresSelector:          reg.RequiresSelector,
 			AcceptsPeerConnection:     reg.AcceptsPeerConnection,
 			AcceptsDestinationSession: reg.AcceptsDestinationSession,
@@ -168,6 +169,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 			if err := d.RegisterWithOptions(name, handler, pathToDesc[name], RegisterOptions{
 				Hidden:                    command.HiddenAtPath(cmdTree, strings.Fields(name)),
 				ReadOnly:                  IsReadOnlyPath(name) && !reg.NotReadOnly,
+				RequireExplicitAuthz:      reg.RequireExplicitAuthz,
 				RequiresSelector:          reg.RequiresSelector,
 				AcceptsPeerConnection:     reg.AcceptsPeerConnection,
 				AcceptsDestinationSession: reg.AcceptsDestinationSession,
@@ -730,6 +732,7 @@ type Command struct {
 	// summary, and no one-line surface reads it at all.
 	Description               string
 	ReadOnly                  bool             // True if command only reads state (safe for "ze show")
+	RequireExplicitAuthz      bool             // True if command requires an explicit default-deny RBAC grant.
 	Hidden                    bool             // Hidden from discovery; full-path execution remains available.
 	RequiresSelector          bool             // True if command requires an explicit selector instead of implicit/all scope
 	AcceptsPeerConnection     bool             // Registration-owned opt-in for physical peer constraints.
@@ -776,6 +779,7 @@ func (c *Command) TakesInlineSelector() bool {
 type RegisterOptions struct {
 	Hidden                    bool                                      // Schema visibility, including hidden ancestors.
 	ReadOnly                  bool                                      // True if command only reads state
+	RequireExplicitAuthz      bool                                      // True if command requires an explicit default-deny RBAC grant.
 	RequiresSelector          bool                                      // True if the command requires an explicit selector value
 	AcceptsPeerConnection     bool                                      // Registration-owned opt-in for physical peer constraints.
 	AcceptsDestinationSession bool                                      // Opt-in for original destination-session constraints.
@@ -879,6 +883,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		ShortHelp:                 help,
 		Description:               opts.Description,
 		ReadOnly:                  opts.ReadOnly,
+		RequireExplicitAuthz:      opts.RequireExplicitAuthz,
 		Hidden:                    opts.Hidden,
 		RequiresSelector:          opts.RequiresSelector,
 		AcceptsPeerConnection:     opts.AcceptsPeerConnection,
@@ -1228,6 +1233,33 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, tokens []st
 	return authorizer.Authorize(username, remoteAddr, input, readOnly)
 }
 
+// isAuthorizedExplicit evaluates a RequireExplicitAuthz command against the
+// caller's authorizer. Unlike isAuthorized, it fails closed when ctx is nil,
+// when no authorizer is installed, when typedTokens is empty, or when the
+// installed authorizer does not implement aaa.ExplicitAuthorizer.
+func (d *Dispatcher) isAuthorizedExplicit(
+	ctx *CommandContext,
+	canonicalPath string,
+	typedTokens []string,
+	isReadOnly bool,
+) bool {
+	if ctx == nil {
+		return false
+	}
+	authorizer := d.authorizer
+	if ctx.Authorizer != nil {
+		authorizer = ctx.Authorizer
+	}
+	if authorizer == nil {
+		return false
+	}
+	if len(typedTokens) == 0 {
+		return false
+	}
+	allowed, supported := aaa.AuthorizeExplicit(authorizer, ctx.Username, ctx.RemoteAddr, canonicalPath, typedTokens, isReadOnly)
+	return supported && allowed
+}
+
 // isAuthorizedCommandArgs checks if the user is allowed to execute a typed
 // command dispatch. This must prefer aaa.CommandArgsAuthorizer when available,
 // so built-in policy sees the exact command, args, and selector scope.
@@ -1511,7 +1543,15 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 		}
 
 		// Authorization check, after command resolution, before execution.
-		if !d.isAuthorized(ctx, input, line.TypedTokens(), matchedCmd.ReadOnly) {
+		if matchedCmd.RequireExplicitAuthz {
+			if !d.isAuthorizedExplicit(ctx, matchedCmd.Name, line.TypedTokens(), matchedCmd.ReadOnly) {
+				d.recordCommandAuditOutcome(ctx, matchedCmd.AuditAction, input, audit.OutcomeDenied)
+				return &plugin.Response{
+					Status: plugin.StatusError,
+					Error:  unauthorizedError(input),
+				}, ErrUnauthorized
+			}
+		} else if !d.isAuthorized(ctx, input, line.TypedTokens(), matchedCmd.ReadOnly) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  unauthorizedError(input),
@@ -1544,6 +1584,9 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 			flagArgs = validated.PositionalTokens()
 		}
 		if flag := firstFlagToken(flagArgs); flag != "" {
+			if matchedCmd.RequireExplicitAuthz {
+				d.recordCommandAuditOutcome(ctx, matchedCmd.AuditAction, input, audit.OutcomeDenied)
+			}
 			flagErr := flagRefusal(matchedCmd.Name, flag, input)
 			return &plugin.Response{
 				Status: plugin.StatusError,
@@ -1555,6 +1598,12 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 		// here, not where it was computed, so authorization and the flag check
 		// keep answering first.
 		if argErr != nil {
+			if matchedCmd.RequireExplicitAuthz {
+				d.recordCommandAuditOutcome(ctx, matchedCmd.AuditAction, input, audit.OutcomeDenied)
+				if refusal, matched := singleMissingArgOperatorError(argErr, tokens, args); matched {
+					return plugin.OperatorErrorResponse(refusal), refusal
+				}
+			}
 			// Only an exact local-data registration shares the local route's
 			// help hint. Other handlers already own their complete model fix.
 			if handler, rest := command.LookupLocalData(strings.Fields(matchedCmd.Name)); handler != nil {
@@ -1584,7 +1633,7 @@ func (d *Dispatcher) dispatchLine(ctx *CommandContext, line command.DispatchLine
 		}
 
 		resp, handlerErr := d.invokeHandlerBounded(ctx, matchedCmd, validated)
-		d.recordCommandAudit(ctx, matchedCmd.AuditAction, input, resp, handlerErr)
+		d.recordCommandAudit(ctx, matchedCmd, input, resp, handlerErr)
 		if shapeErr := checkOverrideAnswer(matchedCmd.Name, declared, resp, handlerErr); shapeErr != nil {
 			return plugin.OperatorErrorResponse(shapeErr), shapeErr
 		}
@@ -1790,17 +1839,71 @@ func firstFlagToken(args []string) string {
 	return ""
 }
 
+// singleMissingArgOperatorError restates a single missing mandatory argument as
+// an operator error whose fix preserves the typed command head (including any
+// inline selector) and appends the missing keyword or argument form.
+func singleMissingArgOperatorError(argErr error, tokens, args []string) (*opererr.Error, bool) {
+	if faults, listed := errors.AsType[*command.ArgumentFaults](argErr); listed {
+		if len(faults.Faults()) != 1 {
+			return nil, false
+		}
+	}
+	missing, ok := errors.AsType[*command.MissingArgumentError](argErr)
+	if !ok {
+		return nil, false
+	}
+	usage := missing.Usage()
+	if usage == "" {
+		usage = missing.Leaf
+	}
+	var fix textbuf.Buffer
+	fix.Str(typedCommandHead(tokens, args))
+	for _, arg := range args {
+		fix.Byte(' ')
+		command.WriteInvocationValue(&fix, arg)
+	}
+	fix.Byte(' ').Str(usage)
+	return opererr.New(missing.Problem(), missing.Why(), fix.String()), true
+}
+
 // recordCommandAudit records one audit entry for a builtin command that ran,
-// under action, the audit action its registration declares
-// (RPCRegistration.AuditAction). An empty action records nothing, and so does
-// a handler that failed or refused: the log records what changed state. The
-// detail is the command line through config.DisplayCommand, so a secret or a
-// `content` value reads as the placeholder.
-func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, action, input string, resp *plugin.Response, err error) {
-	if d.audit == nil || action == "" || err != nil {
+// under the audit action its registration declares (RPCRegistration.AuditAction).
+// An empty action records nothing. For ordinary commands, a failed or refused
+// handler records nothing because the log records what changed state; for
+// RequireExplicitAuthz commands, handler errors and error responses record
+// OutcomeError so failed attempts remain visible in the audit trail.
+func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, cmd *Command, input string, resp *plugin.Response, err error) {
+	if d.audit == nil {
 		return
 	}
+	if cmd == nil {
+		return
+	}
+	if cmd.AuditAction == "" {
+		return
+	}
+	failed := err != nil
 	if resp != nil && resp.Status == plugin.StatusError {
+		failed = true
+	}
+	if failed {
+		if !cmd.RequireExplicitAuthz {
+			return
+		}
+		d.recordCommandAuditOutcome(ctx, cmd.AuditAction, input, audit.OutcomeError)
+		return
+	}
+	d.recordCommandAuditOutcome(ctx, cmd.AuditAction, input, audit.OutcomeSuccess)
+}
+
+// recordCommandAuditOutcome records one structured audit entry under action and
+// outcome with the redacted command line as its detail. It never records
+// response payloads.
+func (d *Dispatcher) recordCommandAuditOutcome(ctx *CommandContext, action, input, outcome string) {
+	if d.audit == nil {
+		return
+	}
+	if action == "" {
 		return
 	}
 	input = config.DisplayCommand(input)
@@ -1808,7 +1911,7 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, action, input strin
 		Surface: audit.CLI,
 		Action:  action,
 		Detail:  input,
-		Outcome: audit.OutcomeSuccess,
+		Outcome: outcome,
 	}
 	if ctx != nil {
 		entry.Actor = ctx.Username

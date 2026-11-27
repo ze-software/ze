@@ -272,10 +272,13 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 	return tokens
 }
 
-// usageLeafKind answers UsageFlag for a flag definition, and kind for every
-// definition that takes a value.
+// usageLeafKind answers UsageKeyword for a mandatory flag, UsageFlag for an
+// optional flag, and kind for every definition that takes a value.
 func usageLeafKind(def *ArgDef, kind UsageKind) UsageKind {
 	if def.kind == ArgFlag {
+		if def.mandatory {
+			return UsageKeyword
+		}
 		return UsageFlag
 	}
 	return kind

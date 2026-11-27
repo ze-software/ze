@@ -699,3 +699,65 @@ func TestModifierChildrenRecursesOnlyIntoTheOneOf(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: a mandatory YANG `type empty` flag leaf (ArgFlag with Mandatory:
+// true) renders as an unbracketed keyword (`confirm`), while an optional
+// ArgFlag keeps square brackets (`[flag]`).
+// PREVENTS: `show pki certificate name <name> bundle pem [confirm]` misleading
+// operators into thinking the mandatory confirmation keyword is optional.
+func TestUsageRendersMandatoryFlagWithoutBrackets(t *testing.T) {
+	t.Run("mandatory flag renders without brackets", func(t *testing.T) {
+		node := &Node{
+			Name:       "pem",
+			WireMethod: "ze-pki:show-certificate-bundle-pem",
+			ArgDefs: []ArgDef{
+				mustArgDef(NewStringArg("name", nil, nil, ArgOptions{Mandatory: true})),
+				mustArgDef(NewFlagArg("confirm", ArgOptions{Mandatory: true})),
+			},
+		}
+		path := []string{"show", "pki", "certificate", "name", "bundle", "pem"}
+		tokens := Usage(path, node)
+		const want = "show pki certificate name <name> bundle pem confirm"
+		if got := UsageLine(tokens); got != want {
+			t.Errorf("the line reads %q, want %q", got, want)
+		}
+		last := tokens[len(tokens)-1]
+		if last.Text != "confirm" || last.Kind != UsageKeyword {
+			t.Errorf("last token = %+v, want {Text:confirm Kind:UsageKeyword}", last)
+		}
+	})
+
+	t.Run("optional flag keeps square brackets", func(t *testing.T) {
+		node := &Node{
+			Name:       "reset",
+			WireMethod: "ze-test:reset",
+			ArgDefs: []ArgDef{
+				mustArgDef(NewFlagArg("flag", ArgOptions{})),
+			},
+		}
+		tokens := Usage([]string{"request", "reset"}, node)
+		const want = "request reset [flag]"
+		if got := UsageLine(tokens); got != want {
+			t.Errorf("the line reads %q, want %q", got, want)
+		}
+		last := tokens[len(tokens)-1]
+		if last.Text != "flag" || last.Kind != UsageFlag {
+			t.Errorf("last token = %+v, want {Text:flag Kind:UsageFlag}", last)
+		}
+	})
+
+	t.Run("mandatory flag precedes optional flag", func(t *testing.T) {
+		node := &Node{
+			Name:       "export",
+			WireMethod: "ze-test:export",
+			ArgDefs: []ArgDef{
+				mustArgDef(NewFlagArg("force", ArgOptions{})),
+				mustArgDef(NewFlagArg("confirm", ArgOptions{Mandatory: true})),
+			},
+		}
+		const want = "request export confirm [force]"
+		if got := UsageLine(Usage([]string{"request", "export"}, node)); got != want {
+			t.Errorf("the line reads %q, want %q", got, want)
+		}
+	})
+}

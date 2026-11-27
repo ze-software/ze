@@ -789,6 +789,19 @@ func fixture10PKIData(ctx context.Context, plugin *sdk.Plugin, command, label st
 	return fixture10Object(fixture10Call(ctx, plugin, command), label)
 }
 
+func fixture10RequireBundleRefused(reply fixture10Reply, label string) error {
+	if reply.status != statusError && reply.err == nil {
+		return fmt.Errorf("%s: expected refusal for external plugin private-key bundle export, got status=%q data=%s", label, reply.status, reply.raw)
+	}
+	if strings.Contains(string(reply.raw), "PRIVATE KEY") {
+		return fmt.Errorf("%s: refusal data leaked private-key material", label)
+	}
+	if reply.err != nil && strings.Contains(reply.err.Error(), "PRIVATE KEY") {
+		return fmt.Errorf("%s: refusal error leaked private-key material", label)
+	}
+	return nil
+}
+
 // fixture10PKIExport reads the certificate surfaces, which say nothing about
 // BGP. It still waits for the End-of-RIB first, because
 // `pki-certificate-export-show.ci` pins that message on its peer and Observe
@@ -807,14 +820,11 @@ func fixture10PKIExport(ctx context.Context, plugin *sdk.Plugin) error {
 	if !strings.Contains(pemText, "BEGIN CERTIFICATE") || strings.Contains(pemText, "PRIVATE KEY") {
 		return fmt.Errorf("pem: certificate-only PEM contract failed")
 	}
-	bundle, err := fixture10PKIData(ctx, plugin, "show pki certificate name dev-1 bundle pem", "bundle")
-	if err != nil {
+	if err := fixture10RequireBundleRefused(fixture10Call(ctx, plugin, "show pki certificate name dev-1 bundle pem"), "bundle-unconfirmed"); err != nil {
 		return err
 	}
-	bundleText, _ := bundle["pem"].(string)
-	certAt, keyAt := strings.Index(bundleText, "BEGIN CERTIFICATE"), strings.Index(bundleText, "BEGIN PRIVATE KEY")
-	if certAt < 0 || keyAt < 0 || certAt > keyAt {
-		return fmt.Errorf("bundle: certificate/key ordering contract failed")
+	if err := fixture10RequireBundleRefused(fixture10Call(ctx, plugin, "show pki certificate name dev-1 bundle pem confirm"), "bundle-confirmed"); err != nil {
+		return err
 	}
 	fingerprint, err := fixture10PKIData(ctx, plugin, "show pki certificate name dev-1 fingerprint", "fingerprint")
 	if err != nil {
@@ -831,11 +841,10 @@ func fixture10PKIExport(ctx context.Context, plugin *sdk.Plugin) error {
 	if !strings.Contains(fmt.Sprint(ca["pem"]), "BEGIN CERTIFICATE") {
 		return fmt.Errorf("ca-pem: missing certificate header")
 	}
-	caBundle := fixture10Call(ctx, plugin, "show pki certificate name test-ca bundle pem")
-	if caBundle.status != statusError && caBundle.err == nil {
-		return fmt.Errorf("ca-bundle: expected error for CA certificate")
+	if err := fixture10RequireBundleRefused(fixture10Call(ctx, plugin, "show pki certificate name test-ca bundle pem confirm"), "ca-bundle"); err != nil {
+		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: PKI PEM, bundle, fingerprint, CA, and CA refusal contracts held")
+	fmt.Fprintln(os.Stderr, "OK: PKI PEM, fingerprint, CA, and external-plugin bundle refusal contracts held")
 	return nil
 }
 

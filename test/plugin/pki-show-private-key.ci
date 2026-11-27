@@ -1,0 +1,202 @@
+# Test: explicit RBAC grant, mandatory confirm, and redacted audit on `show pki certificate name <name> bundle pem confirm`
+#
+# The one question: over a real authenticated SSH/CLI daemon, does `show pki
+# certificate name <name> bundle pem` fail closed without an explicit RBAC
+# `edit` grant (including unconfigured RBAC, `read-only`, and `admin` with
+# `default-action allow`), refuse missing `confirm` even for an authorized
+# operator, return the cert-chain + PKCS#8 key bundle once authorized and
+# confirmed, record redacted `pki-private-key-export` audit entries with zero
+# private-key bytes in audit or daemon logs, and leave certificate-only `pem`
+# unguarded for `read-only`? Unit tests check the authorizer, dispatcher, and
+# handler separately; only a running daemon proves SSH authentication, login
+# profile resolution, YANG argument validation, dispatcher enforcement, and
+# audit persistence agree end to end.
+#
+# VALIDATES: spec-pki-show-private-key AC-3-bundle, AC-4, AC-5, AC-6.
+# PREVENTS: unconfigured RBAC, `default-action allow`, or missing `confirm`
+#   extracting a stored private key over SSH/CLI, or private-key bytes leaking
+#   into audit entries or daemon logs.
+
+option=storage:value=disk
+option=timeout:value=90s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ZE_SSH_PASSWORD:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT2
+EOF_INIT
+
+tmpfs=pki-no-rbac.conf:terminator=EOF_NO_RBAC
+pki {
+    ca test-ca {
+        certificate MIIBejCCAR+gAwIBAgIUASUIVXkq6uaKIefHVx5TTlbqBa0wCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHVGVzdCBDQTAeFw0yNjA1MjcyMTEzMzlaFw0zNjA1MjQyMTEzMzlaMBIxEDAOBgNVBAMMB1Rlc3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARqGLUVOKEwCqhSj29rXAWT18dt8Q/OxiPHQOL0UgVRPaEb3efVwRRoEYy1NXgzPZ99UpShLzyYUMgfxCwy2xXuo1MwUTAdBgNVHQ4EFgQURqPveUJj82PXb4jn5zwIY/G3TNgwHwYDVR0jBBgwFoAURqPveUJj82PXb4jn5zwIY/G3TNgwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAoRUwCiZXZZUbUl/Z2K2leoWBtxmwwHel90o1gHUKKoUCIQCjRFKmgUxiRiNLiFhXcgbkD8glVlwbVbxkW2d8MT7X1g==
+    }
+    certificate dev-1 {
+        certificate MIIBbDCCARKgAwIBAgIUaqCyTtq9FBqPTZhuFff2Mpzuf7UwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHVGVzdCBDQTAeFw0yNjA1MjcyMTEzMzlaFw0zNjA1MjQyMTEzMzlaMBYxFDASBgNVBAMMC1Rlc3QgRGV2aWNlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJaBraKhv1svTYU3pLuHZzLRDloOaD9Pu4XYDTAxBsNh3/SGG2Kfd3XdfinZ9SarAZjgAHm20Oo0hPX+lguH4S6NCMEAwHQYDVR0OBBYEFB9fIwVA4QHPQxi1fkDCKVx7C5SuMB8GA1UdIwQYMBaAFEaj73lCY/Nj12+I5+c8CGPxt0zYMAoGCCqGSM49BAMCA0gAMEUCIQDBx83D3sYBj67cznpq1vhqXpRNdlA0Smw40BpaTnDGLwIgbLWaxwZ/e+4qpZ08K1578o73K/nm4QQ1loJRZW1Y9yQ=
+        private {
+            key MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgcB7/8yWgsXMhdewDNNnoIrIm0uflDeXk7p+tYC4A3UqhRANCAAQloGtoqG/Wy9NhTeku4dnMtEOWg5oP0+7hdgNMDEGw2Hf9IYbYp93dd1+Kdn1JqsBmOAAebbQ6jSE9f6WC4fhL
+        }
+    }
+}
+
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+EOF_NO_RBAC
+
+tmpfs=pki-rbac.conf:terminator=EOF_RBAC
+pki {
+    ca test-ca {
+        certificate MIIBejCCAR+gAwIBAgIUASUIVXkq6uaKIefHVx5TTlbqBa0wCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHVGVzdCBDQTAeFw0yNjA1MjcyMTEzMzlaFw0zNjA1MjQyMTEzMzlaMBIxEDAOBgNVBAMMB1Rlc3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARqGLUVOKEwCqhSj29rXAWT18dt8Q/OxiPHQOL0UgVRPaEb3efVwRRoEYy1NXgzPZ99UpShLzyYUMgfxCwy2xXuo1MwUTAdBgNVHQ4EFgQURqPveUJj82PXb4jn5zwIY/G3TNgwHwYDVR0jBBgwFoAURqPveUJj82PXb4jn5zwIY/G3TNgwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAoRUwCiZXZZUbUl/Z2K2leoWBtxmwwHel90o1gHUKKoUCIQCjRFKmgUxiRiNLiFhXcgbkD8glVlwbVbxkW2d8MT7X1g==
+    }
+    certificate dev-1 {
+        certificate MIIBbDCCARKgAwIBAgIUaqCyTtq9FBqPTZhuFff2Mpzuf7UwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHVGVzdCBDQTAeFw0yNjA1MjcyMTEzMzlaFw0zNjA1MjQyMTEzMzlaMBYxFDASBgNVBAMMC1Rlc3QgRGV2aWNlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJaBraKhv1svTYU3pLuHZzLRDloOaD9Pu4XYDTAxBsNh3/SGG2Kfd3XdfinZ9SarAZjgAHm20Oo0hPX+lguH4S6NCMEAwHQYDVR0OBBYEFB9fIwVA4QHPQxi1fkDCKVx7C5SuMB8GA1UdIwQYMBaAFEaj73lCY/Nj12+I5+c8CGPxt0zYMAoGCCqGSM49BAMCA0gAMEUCIQDBx83D3sYBj67cznpq1vhqXpRNdlA0Smw40BpaTnDGLwIgbLWaxwZ/e+4qpZ08K1578o73K/nm4QQ1loJRZW1Y9yQ=
+        private {
+            key MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgcB7/8yWgsXMhdewDNNnoIrIm0uflDeXk7p+tYC4A3UqhRANCAAQloGtoqG/Wy9NhTeku4dnMtEOWg5oP0+7hdgNMDEGw2Hf9IYbYp93dd1+Kdn1JqsBmOAAebbQ6jSE9f6WC4fhL
+        }
+    }
+}
+
+system {
+    authorization {
+        profile admin {
+            run { default-action allow; }
+            edit { default-action allow; }
+        }
+        profile read-only {
+            run {
+                default-action allow
+                entry 10 { action deny; match debug; }
+                entry 20 { action deny; match clear; }
+            }
+            edit { default-action deny; }
+        }
+        profile pki-exporter {
+            run { default-action allow; }
+            edit {
+                default-action deny
+                entry 10 {
+                    action allow
+                    match "show pki certificate name bundle pem"
+                }
+            }
+        }
+    }
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile [ admin ]
+        }
+        user plainadmin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile [ admin ]
+        }
+        user noc {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile [ read-only ]
+        }
+        user exporter {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile [ pki-exporter ]
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+EOF_RBAC
+
+# Step 1: initialize local CLI credentials targeting 127.0.0.1:$PORT2.
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+
+# Step 2: unconfigured RBAC fails closed on `bundle pem confirm` with zero key bytes.
+cmd=background:seq=2:exec=ze start pki-no-rbac.conf:name=daemon-no-rbac:ready=Ze running.
+
+cmd=foreground:seq=3:exec=ze cli --user admin -c "show pki certificate name dev-1 bundle pem confirm":exit=1
+expect=stderr:contains=command restricted by access control
+reject=stdout:contains=PRIVATE KEY
+reject=stderr:contains=PRIVATE KEY
+
+cmd=foreground:seq=4:exec=ze cli --user admin -c "show audit action pki-private-key-export | json":exit=0
+expect=stdout:pattern="action":\s*"pki-private-key-export"
+expect=stdout:pattern="outcome":\s*"denied"
+reject=stdout:contains=PRIVATE KEY
+reject=stdout:contains=cB7/8yWgsXMhdewDNNnoIrIm0uflDeXk7p
+
+cmd=stop:seq=5:name=daemon-no-rbac:signal=term
+
+# Step 3: RBAC-configured daemon enforces explicit grant + mandatory confirm + redacted audit.
+cmd=background:seq=6:exec=ze start pki-rbac.conf:name=daemon-rbac:ready=Ze running.
+
+# AC-5: certificate-only `pem` stays unguarded for `read-only` without `confirm`.
+cmd=foreground:seq=7:exec=ze cli --user noc -c "show pki certificate name dev-1 pem | json":exit=0
+expect=stdout:contains=BEGIN CERTIFICATE
+reject=stdout:contains=PRIVATE KEY
+
+# AC-3-bundle: `read-only` refused on `bundle pem confirm` with zero key bytes.
+cmd=foreground:seq=8:exec=ze cli --user noc -c "show pki certificate name dev-1 bundle pem confirm":exit=1
+expect=stderr:contains=command restricted by access control
+reject=stdout:contains=PRIVATE KEY
+reject=stderr:contains=PRIVATE KEY
+
+# AC-3-bundle: `admin` (`default-action allow` only) refused on `bundle pem confirm` with zero key bytes.
+cmd=foreground:seq=9:exec=ze cli --user plainadmin -c "show pki certificate name dev-1 bundle pem confirm":exit=1
+expect=stderr:contains=command restricted by access control
+reject=stdout:contains=PRIVATE KEY
+reject=stderr:contains=PRIVATE KEY
+
+# AC-3-bundle: explicitly authorized operator omitting `confirm` refused with operator error naming `confirm`.
+cmd=foreground:seq=10:exec=ze cli --user exporter -c "show pki certificate name dev-1 bundle pem":exit=1
+expect=stderr:contains=confirm
+expect=stderr:contains=show pki certificate name dev-1 bundle pem confirm
+reject=stdout:contains=PRIVATE KEY
+reject=stderr:contains=PRIVATE KEY
+
+# AC-4: explicitly authorized operator with `confirm` receives cert chain + PKCS#8 PRIVATE KEY bundle.
+cmd=foreground:seq=11:exec=ze cli --user exporter -c "show pki certificate name dev-1 bundle pem confirm | json":exit=0
+expect=stdout:contains=BEGIN CERTIFICATE
+expect=stdout:contains=BEGIN PRIVATE KEY
+expect=stdout:pattern=BEGIN CERTIFICATE.*BEGIN PRIVATE KEY
+
+# AC-4 / AC-6: audit log holds `pki-private-key-export` denied and success entries with zero private-key bytes.
+cmd=foreground:seq=12:exec=ze cli --user exporter -c "show audit action pki-private-key-export | json":exit=0
+expect=stdout:pattern="action":\s*"pki-private-key-export"
+expect=stdout:pattern="outcome":\s*"denied"
+expect=stdout:pattern="outcome":\s*"success"
+expect=stdout:pattern="actor":\s*"noc"
+expect=stdout:pattern="actor":\s*"plainadmin"
+expect=stdout:pattern="actor":\s*"exporter"
+reject=stdout:contains=PRIVATE KEY
+reject=stdout:contains=cB7/8yWgsXMhdewDNNnoIrIm0uflDeXk7p
+
+# AC-6: daemon recent logs contain zero private-key PEM bytes.
+cmd=foreground:seq=13:exec=ze cli --user exporter -c "show log recent | json":exit=0
+reject=stdout:contains=PRIVATE KEY
+reject=stdout:contains=cB7/8yWgsXMhdewDNNnoIrIm0uflDeXk7p
+
+cmd=stop:seq=14:name=daemon-rbac:signal=term

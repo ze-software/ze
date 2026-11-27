@@ -143,6 +143,31 @@ func (a *tacacsAuthorizer) AuthorizeCommandArgs(username, remoteAddr, command st
 	})
 }
 
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// It sends an RFC 8907 AUTHOR REQUEST for the typed command tokens. When the
+// TACACS+ server is unreachable and strictFallback is false, it falls back
+// strictly to aaa.AuthorizeExplicit on a.local, failing closed if a.local is
+// nil, does not implement aaa.ExplicitAuthorizer, or denies the command.
+func (a *tacacsAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	if a == nil {
+		return false
+	}
+	if strings.TrimSpace(canonicalPath) == "" {
+		return false
+	}
+	if len(tokens) == 0 {
+		return false
+	}
+	authCommand := aaa.CanonicalCommand("", tokens, "")
+	return a.authorize(username, remoteAddr, authCommand, splitTacacsTokens(tokens), func() bool {
+		return a.fallbackExplicit(username, remoteAddr, canonicalPath, tokens, isReadOnly)
+	})
+}
+
 func (a *tacacsAuthorizer) authorize(username, remoteAddr, command string, args []string, fallback func() bool) bool {
 	req := &AuthorRequest{
 		AuthenMethod:  AuthenMethodTACACS,
@@ -308,4 +333,22 @@ func (a *tacacsAuthorizer) fallbackArgs(username, remoteAddr, command string, ar
 		return authzArgs.AuthorizeCommandArgs(username, remoteAddr, command, args, peer, isReadOnly)
 	}
 	return a.local.Authorize(username, remoteAddr, aaa.CanonicalCommand(command, args, peer), isReadOnly)
+}
+
+func (a *tacacsAuthorizer) fallbackExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	if a.profilesBound && !a.hasProfiles {
+		return false
+	}
+	if a.local == nil {
+		return false
+	}
+	allowed, supported := aaa.AuthorizeExplicit(a.local, username, remoteAddr, canonicalPath, tokens, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
 }

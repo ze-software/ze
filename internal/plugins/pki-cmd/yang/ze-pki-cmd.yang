@@ -5,6 +5,7 @@ module ze-pki-cmd {
     import ze-cli-show-cmd  { prefix clishowcmd; }
     description "PKI show commands: certificate listing and detailed inspection.
          Relocated from the central show schema for plugin self-containment.";
+    revision 2026-11-27 { description "show pki certificate name bundle pem requires the mandatory confirm keyword beside an explicit RBAC grant before returning private-key bytes."; }
     revision 2026-09-03 { description "show pki local-ca pem exports the root of the certificate authority this daemon issues its own components' certificates from. It is a separate noun from certificate, which addresses an operator-configured store entry by name, because the local root is generated at first start and is named by nothing."; }
     revision 2026-08-30 { description "Each output form of show pki certificate name is its own command: pem, bundle pem and fingerprint. The forms are mutually exclusive tails, so the model states them as sibling containers rather than a description stating an alternation a handler switch reads."; }
     revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
@@ -91,6 +92,12 @@ Check here to find certificates approaching expiration.";
                                              and a device certificate with no private key are each
                                              refused.";
                                 ze:help "Certificate name";
+                            }
+                            leaf confirm {
+                                type empty;
+                                mandatory true;
+                                description "Confirm exporting the private key in cleartext; also requires an explicit RBAC grant.";
+                                ze:help "Confirm cleartext private-key export.";
                             }
                         }
                     }

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
@@ -633,15 +634,42 @@ func TestShowPKICertPEMNotFound(t *testing.T) {
 	}
 }
 
+func confirmedBundleArgs(t *testing.T, name string) command.ValidatedArgs {
+	t.Helper()
+	defs := []command.ArgDef{
+		commandtest.Must(command.NewStringArg("name", nil, nil, command.ArgOptions{Mandatory: true})),
+		commandtest.Must(command.NewFlagArg("confirm", command.ArgOptions{Mandatory: true})),
+	}
+	validated, err := command.ValidateArgs([]string{name, "confirm"}, defs, nil)
+	if err != nil {
+		t.Fatalf("ValidateArgs(%q, confirm): %v", name, err)
+	}
+	return validated
+}
+
 func TestShowPKICertBundlePEM(t *testing.T) {
 	cfg := testPKIConfig(t)
 	if err := Load(cfg); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateBundlePEM(nil, commandtest.Args("dev-1"))
+	unconfirmed, err := handleShowPKICertificateBundlePEM(nil, commandtest.Args("dev-1"))
 	if err != nil {
-		t.Fatalf("show pki certificate name dev-1 bundle pem: %v", err)
+		t.Fatalf("unconfirmed bundle pem returned unexpected error: %v", err)
+	}
+	if unconfirmed.Status != plugin.StatusError {
+		t.Fatalf("expected error without confirm, got %q", unconfirmed.Status)
+	}
+	if !strings.Contains(strings.ToLower(unconfirmed.Error), "confirm") {
+		t.Errorf("unconfirmed refusal %q does not name confirm", unconfirmed.Error)
+	}
+	if unconfirmed.Data != nil {
+		t.Errorf("unconfirmed refusal leaked data: %v", unconfirmed.Data)
+	}
+
+	resp, err := handleShowPKICertificateBundlePEM(nil, confirmedBundleArgs(t, "dev-1"))
+	if err != nil {
+		t.Fatalf("show pki certificate name dev-1 bundle pem confirm: %v", err)
 	}
 	data, ok := resp.Data.(plugin.Map)
 	if !ok {
@@ -670,12 +698,15 @@ func TestShowPKICertBundlePEMRejectsCA(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	resp, err := handleShowPKICertificateBundlePEM(nil, commandtest.Args("test-ca"))
+	resp, err := handleShowPKICertificateBundlePEM(nil, confirmedBundleArgs(t, "test-ca"))
 	if err != nil {
-		t.Fatalf("show pki certificate name test-ca bundle pem: %v", err)
+		t.Fatalf("show pki certificate name test-ca bundle pem confirm: %v", err)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error for CA cert, got %q", resp.Status)
+	}
+	if !strings.Contains(resp.Error, "device certificates") {
+		t.Errorf("expected CA refusal message, got %q", resp.Error)
 	}
 }
 
@@ -703,12 +734,15 @@ func TestShowPKICertBundlePEMNoKey(t *testing.T) {
 		t.Fatalf("Load: %v", lErr)
 	}
 
-	resp, rErr := handleShowPKICertificateBundlePEM(nil, commandtest.Args("no-key"))
+	resp, rErr := handleShowPKICertificateBundlePEM(nil, confirmedBundleArgs(t, "no-key"))
 	if rErr != nil {
-		t.Fatalf("show pki certificate name no-key bundle pem: %v", rErr)
+		t.Fatalf("show pki certificate name no-key bundle pem confirm: %v", rErr)
 	}
 	if resp.Status != "error" {
 		t.Errorf("expected error for cert without key, got %q", resp.Status)
+	}
+	if !strings.Contains(resp.Error, "has no private key") {
+		t.Errorf("expected no-private-key refusal message, got %q", resp.Error)
 	}
 }
 

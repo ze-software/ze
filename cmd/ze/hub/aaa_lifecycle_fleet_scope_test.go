@@ -412,3 +412,166 @@ func TestHubAAAWrappersNoRBACAndUnsupportedProvider(t *testing.T) {
 		assert.Equal(t, 0, unsupported.calls, "unsupported provider must not have Authorize called")
 	})
 }
+
+func explicitPKIStoreForHubTest() *authz.Store {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{
+		Name: "admin",
+		Run:  authz.Section{Default: authz.Allow},
+		Edit: authz.Section{Default: authz.Allow},
+	})
+	store.AddProfile(authz.Profile{
+		Name: "pki-exporter",
+		Run:  authz.Section{Default: authz.Deny},
+		Edit: authz.Section{
+			Default: authz.Deny,
+			Entries: []authz.Entry{
+				{Number: 10, Action: authz.Allow, Match: "show pki certificate name bundle pem"},
+			},
+		},
+	})
+	store.AssignProfiles("admin-op", []string{"admin"})
+	store.AssignProfiles("exporter-op", []string{"pki-exporter"})
+	return store
+}
+
+// VALIDATES: all six hub AAA authorizer wrappers implement ExplicitAuthorizer,
+// delegate explicit default-deny grants, fail closed when no store or bundle is
+// installed or after generation retirement, and never allow via
+// ReservedRecoveryProfile.
+// PREVENTS: any surface wrapper silently bypassing explicit RBAC or permitting
+// private-key export through recovery or unconfigured-store fallthrough.
+func TestHubAuthorizerWrappersAuthorizeExplicit(t *testing.T) {
+	const (
+		canonicalPath = "show pki certificate name bundle pem"
+		remoteAddr    = "198.51.100.40:22"
+	)
+	tokens := []string{"show", "pki", "certificate", "name", "dev-1", "bundle", "pem", "confirm"}
+
+	t.Run("all six wrappers allow explicit grants and deny default-allow and recovery", func(t *testing.T) {
+		resetAAABundleForTest(t)
+		store := explicitPKIStoreForHubTest()
+		publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
+			[]aaa.UserCredential{{Name: fleetScopeRecoveryUser, Hash: "h1", Profiles: []string{aaa.ReservedRecoveryProfile}}},
+			store,
+			nil,
+			"",
+		))
+		liveGen := acceptedLocalIdentity.Load().authzGeneration
+		require.NotZero(t, liveGen)
+		swapAAABundle(&aaa.Bundle{Authorizer: liveLocalAuthorizer{}}, nil)
+
+		exporterWrappers := map[string]aaa.Authorizer{
+			"liveLocalAuthorizer":                    liveLocalAuthorizer{},
+			"liveLocalProfileAuthorizer":             liveLocalProfileAuthorizer{profiles: []string{"pki-exporter"}},
+			"acceptedLocalGenerationAuthorizer":      acceptedLocalGenerationAuthorizer{store: store, generation: liveGen},
+			"acceptedLocalGenerationProfileFallback": acceptedLocalGenerationProfileFallback{store: store, generation: liveGen, profiles: []string{"pki-exporter"}},
+			"liveAAABundleAuthorizer":                liveAAABundleAuthorizer{},
+			"liveAAABundleProfileAuthorizer":         liveAAABundleProfileAuthorizer{profiles: []string{"pki-exporter"}},
+		}
+		for name, wrapper := range exporterWrappers {
+			allowed, supported := aaa.AuthorizeExplicit(wrapper, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+			assert.True(t, supported, "%s must implement aaa.ExplicitAuthorizer", name)
+			assert.True(t, allowed, "%s must allow explicit grant", name)
+		}
+
+		adminWrappers := map[string]aaa.Authorizer{
+			"liveLocalAuthorizer":                    liveLocalAuthorizer{},
+			"liveLocalProfileAuthorizer":             liveLocalProfileAuthorizer{profiles: []string{"admin"}},
+			"acceptedLocalGenerationAuthorizer":      acceptedLocalGenerationAuthorizer{store: store, generation: liveGen},
+			"acceptedLocalGenerationProfileFallback": acceptedLocalGenerationProfileFallback{store: store, generation: liveGen, profiles: []string{"admin"}},
+			"liveAAABundleAuthorizer":                liveAAABundleAuthorizer{},
+			"liveAAABundleProfileAuthorizer":         liveAAABundleProfileAuthorizer{profiles: []string{"admin"}},
+		}
+		for name, wrapper := range adminWrappers {
+			allowed, supported := aaa.AuthorizeExplicit(wrapper, "admin-op", remoteAddr, canonicalPath, tokens, false)
+			assert.True(t, supported, "%s must implement aaa.ExplicitAuthorizer", name)
+			assert.False(t, allowed, "%s must deny default-action allow profile", name)
+		}
+
+		// Recovery profile MUST NEVER satisfy AuthorizeExplicit on any wrapper.
+		users, err := liveAcceptedLocalUsers()
+		require.NoError(t, err)
+		require.Len(t, users, 1)
+		recoveryGrant := aaa.AuthorizerForResult(liveAAABundleAuthorizer{}, aaa.AuthResult{
+			Authenticated:  true,
+			Source:         aaa.SourceLocal,
+			Profiles:       []string{aaa.ReservedRecoveryProfile},
+			UserGeneration: users[0].UserGeneration,
+		})
+		recoveryWrappers := map[string]aaa.Authorizer{
+			"AuthorizerForResult(recovery)":            recoveryGrant,
+			"liveLocalProfileAuthorizer(recovery)":     liveLocalProfileAuthorizer{profiles: []string{aaa.ReservedRecoveryProfile}},
+			"acceptedLocalGenerationProfileFallback":   acceptedLocalGenerationProfileFallback{store: store, generation: liveGen, profiles: []string{aaa.ReservedRecoveryProfile}},
+			"liveAAABundleProfileAuthorizer(recovery)": liveAAABundleProfileAuthorizer{profiles: []string{aaa.ReservedRecoveryProfile}},
+		}
+		for name, wrapper := range recoveryWrappers {
+			allowed, supported := aaa.AuthorizeExplicit(wrapper, fleetScopeRecoveryUser, remoteAddr, canonicalPath, tokens, false)
+			assert.True(t, supported, "%s must implement aaa.ExplicitAuthorizer", name)
+			assert.False(t, allowed, "%s must never allow via ReservedRecoveryProfile", name)
+		}
+	})
+
+	t.Run("missing store, missing bundle, nil bundle authorizer, retired generation, and unsupported provider fail closed", func(t *testing.T) {
+		resetAAABundleForTest(t)
+
+		// Absent identity and absent bundle deny on all six wrappers.
+		store := explicitPKIStoreForHubTest()
+		for name, wrapper := range map[string]aaa.Authorizer{
+			"liveLocalAuthorizer":                    liveLocalAuthorizer{},
+			"liveLocalProfileAuthorizer":             liveLocalProfileAuthorizer{profiles: []string{"pki-exporter"}},
+			"acceptedLocalGenerationAuthorizer":      acceptedLocalGenerationAuthorizer{store: store, generation: 1},
+			"acceptedLocalGenerationProfileFallback": acceptedLocalGenerationProfileFallback{store: store, generation: 1, profiles: []string{"pki-exporter"}},
+			"liveAAABundleAuthorizer":                liveAAABundleAuthorizer{},
+			"liveAAABundleProfileAuthorizer":         liveAAABundleProfileAuthorizer{profiles: []string{"pki-exporter"}},
+		} {
+			allowed, supported := aaa.AuthorizeExplicit(wrapper, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+			assert.True(t, supported, "%s must implement aaa.ExplicitAuthorizer", name)
+			assert.False(t, allowed, "%s must fail closed with no accepted identity/bundle", name)
+		}
+
+		// Live policy-free hub (nil store, nil bundle authorizer) still fails closed, including for recovery.
+		publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, nil, ""))
+		liveGen := acceptedLocalIdentity.Load().authzGeneration
+		swapAAABundle(&aaa.Bundle{Authorizer: nil}, nil)
+
+		for name, wrapper := range map[string]aaa.Authorizer{
+			"liveLocalAuthorizer(nil store)":                       liveLocalAuthorizer{},
+			"liveLocalProfileAuthorizer(recovery, nil store)":      liveLocalProfileAuthorizer{profiles: []string{aaa.ReservedRecoveryProfile}},
+			"acceptedLocalGenerationAuthorizer(nil store)":         acceptedLocalGenerationAuthorizer{store: nil, generation: liveGen},
+			"acceptedLocalGenerationProfileFallback(recovery)":     acceptedLocalGenerationProfileFallback{store: nil, generation: liveGen, profiles: []string{aaa.ReservedRecoveryProfile}},
+			"liveAAABundleAuthorizer(nil bundle authorizer)":       liveAAABundleAuthorizer{},
+			"liveAAABundleProfileAuthorizer(recovery, nil author)": liveAAABundleProfileAuthorizer{profiles: []string{aaa.ReservedRecoveryProfile}},
+		} {
+			allowed, supported := aaa.AuthorizeExplicit(wrapper, fleetScopeRecoveryUser, remoteAddr, canonicalPath, tokens, false)
+			assert.True(t, supported, "%s must implement aaa.ExplicitAuthorizer", name)
+			assert.False(t, allowed, "%s must fail closed when no store/authorizer is installed", name)
+		}
+
+		// Generation retirement denies acceptedLocalGeneration wrappers.
+		publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, store, nil, ""))
+		gen1 := acceptedLocalIdentity.Load().authzGeneration
+		swapAAABundle(&aaa.Bundle{Authorizer: liveLocalAuthorizer{}}, nil)
+
+		genAuth := acceptedLocalGenerationAuthorizer{store: store, generation: gen1}
+		genFallback := acceptedLocalGenerationProfileFallback{store: store, generation: gen1, profiles: []string{"pki-exporter"}}
+		allowed, _ := aaa.AuthorizeExplicit(genAuth, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, allowed)
+		allowed, _ = aaa.AuthorizeExplicit(genFallback, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, allowed)
+
+		publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, store, nil, ""))
+		allowed, _ = aaa.AuthorizeExplicit(genAuth, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+		assert.False(t, allowed, "retired generation must deny acceptedLocalGenerationAuthorizer")
+		allowed, _ = aaa.AuthorizeExplicit(genFallback, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+		assert.False(t, allowed, "retired generation must deny acceptedLocalGenerationProfileFallback")
+
+		// Unsupported bundle authorizer fails closed without invoking Authorize.
+		unsupported := &unsupportedBundleAuthorizer{}
+		swapAAABundle(&aaa.Bundle{Authorizer: unsupported}, nil)
+		allowed, supported := aaa.AuthorizeExplicit(liveAAABundleAuthorizer{}, "exporter-op", remoteAddr, canonicalPath, tokens, false)
+		assert.True(t, supported)
+		assert.False(t, allowed)
+		assert.Equal(t, 0, unsupported.calls, "unsupported bundle authorizer must not have Authorize called")
+	})
+}

@@ -16,6 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -36,8 +38,11 @@ func init() {
 			Handler:    handleShowPKICertificatePEM,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-pki:show-certificate-bundle-pem",
-			Handler:    handleShowPKICertificateBundlePEM,
+			WireMethod:           "ze-pki:show-certificate-bundle-pem",
+			Handler:              handleShowPKICertificateBundlePEM,
+			NotReadOnly:          true,
+			RequireExplicitAuthz: true,
+			AuditAction:          audit.ActionPKIPrivateKeyExport,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-pki:show-certificate-fingerprint",
@@ -218,11 +223,54 @@ func handleShowPKICertificatePEM(ctx *pluginserver.CommandContext, validated com
 	return certPEM(cert.ca, cert.entry)
 }
 
+// flagConfirm is the mandatory confirmation keyword declared on
+// `show pki certificate name <name> bundle pem confirm`.
+const flagConfirm = "confirm"
+
 // handleShowPKICertificateBundlePEM answers the `bundle pem` form: the
-// certificate, its intermediates and its private key.
+// certificate, its intermediates and its private key. As defense-in-depth
+// behind the YANG mandatory confirm leaf and dispatcher explicit-authz gate,
+// it refuses any call that lacks the validated confirm flag before touching
+// private-key material.
 func handleShowPKICertificateBundlePEM(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	cert, errResp := certNamed(ctx, args)
+	posArgs := validated.PositionalTokens()
+	if !validated.Flag(flagConfirm) {
+		certName, _ := certSelected(ctx, posArgs)
+		if certName == "" {
+			if name, ok := validated.Value(selectorName); ok {
+				certName = name
+			}
+		}
+		var fix textbuf.Buffer
+		fix.Str("show pki certificate name ")
+		if certName == "" {
+			fix.Str("<name>")
+		} else {
+			fix.Str(certName)
+		}
+		fix.Str(" bundle pem confirm")
+		refusal := opererr.New(
+			"required argument missing: confirm",
+			"exporting a certificate bundle outputs the private key in cleartext and requires explicit confirmation",
+			fix.String(),
+		)
+		return plugin.OperatorErrorResponse(refusal), nil
+	}
+	var cert selectedCert
+	var errResp *plugin.Response
+	if (ctx == nil || ctx.Selector(selectorName) == "") && len(posArgs) == 0 {
+		if name, ok := validated.Value(selectorName); ok && name != "" {
+			resolved, ca, entry, lookupErr := lookupCert(name)
+			if lookupErr != nil {
+				return lookupErr, nil
+			}
+			cert = selectedCert{name: resolved, ca: ca, entry: entry}
+		} else {
+			cert, errResp = certNamed(ctx, posArgs)
+		}
+	} else {
+		cert, errResp = certNamed(ctx, posArgs)
+	}
 	if errResp != nil {
 		return errResp, nil
 	}

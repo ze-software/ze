@@ -5,10 +5,10 @@
 | Status | skeleton |
 | Priority | P3 |
 | Release reason | Key-only PEM output is an absent command and can wait independently of guarding existing bundle export. |
-| Depends | `plan/release/fixes/spec-pki-show-private-key.md` |
+| Depends | `spec-pki-show-private-key` (landed) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-22 |
+| Updated | 2026-11-27 |
 
 ## Task
 
@@ -16,7 +16,7 @@ Add the originally requested key-only PKCS#8 PEM output after the existing key-e
 
 ## Source and Evidence
 
-Split from `plan/release/fixes/spec-pki-show-private-key.md` under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The complete original design, decisions, evidence and implementation history are preserved under Historical Combined Specification in `plan/release/fixes/spec-pki-show-private-key.md`. Read that history before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
+Split from `spec-pki-show-private-key` under the release-scope and spec-split rules in `ai/META-DECISIONS.md`. The landed bundle-guard design is documented in `docs/architecture/pki/pki-store.md`, `docs/guide/authorization.md`, and `docs/guide/audit.md`, and the complete original history is preserved in git history under `spec-pki-show-private-key`. Read those pages before design; no historical claim is freshly verified by this migration. The source lifecycle is retained on the original identity; this new work item begins as a skeleton, not an inferred readiness promotion.
 
 ## Acceptance Criteria
 
@@ -32,10 +32,10 @@ The 2026-10-22 portfolio split changes planning ownership only. Status, existing
 
 | Work | Implementation owner |
 |------|----------------------|
-| Existing bundle guard, original AC-4 and certificate-only AC-5; original AC-3 for the existing bundle | `plan/release/fixes/spec-pki-show-private-key.md` |
+| Existing bundle guard, original AC-4 and certificate-only AC-5; original AC-3 for the existing bundle | `spec-pki-show-private-key` (closed) |
 | New command, original AC-1/AC-2 and original AC-3 for the new form | `plan/post-release/features/spec-pki-key-only-output.md` |
 
-Work assigned to `plan/release/fixes/spec-pki-show-private-key.md` is not performed or closed by this spec. Shared mechanisms are reused, not independently reimplemented. No feature is declared complete by the release repair or validation disposition.
+Work assigned to `spec-pki-show-private-key` is not performed or closed by this spec. Shared mechanisms (`RequireExplicitAuthz`, mandatory `confirm`, and `audit.ActionPKIPrivateKeyExport`) are reused, not independently reimplemented. No feature is declared complete by the release repair or validation disposition.
 
 ## Implementation Ownership
 

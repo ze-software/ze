@@ -1034,7 +1034,10 @@ address; neither zero nor an address lookup substitutes a different peer.
 | `ze-anomaly:show-shape` (no args) | `handleShowAnomalyShape` in `internal/plugins/anomaly/shape/show.go` | Shadow-first responder status: `{"enabled": bool, "mode": "shadow"\|"armed", "action": "limit"\|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}`. `enabled` is false before configuration. In shadow mode (default) nothing is installed; armed sources carry a live per-source firewall action with a timed auto-revert. |
 | `ze-trafficusage:show-traffic-usage` (args: `[name <interface>]`) | `handleShowTrafficUsage` in `internal/plugins/trafficusage/show.go` | No arg: JSON array of per-interface objects. `name <interface>`: single interface object. Per-interface fields: `ingress-ports`, `egress-ports`, `map-entries`, and (only when `track-ip` is enabled) `ingress-ips`, `egress-ips`. Bad args: error `usage: show traffic usage [name <interface>]`. When unconfigured: `{"status": "not-configured"}`. |
 | `ze-pki:show-certificates` | `handleShowPKICertificates` in `internal/component/pki/show.go` | `{"certificates": [CertSummary, ...], "count": N}` |
-| `ze-pki:show-certificate` (args: `<name> [pem \| bundle pem \| fingerprint [algo]]`) | `handleShowPKICertificate` in `internal/component/pki/show.go` | No sub-command: full detail map. `pem`: `{"pem": "..."}`. `bundle pem`: `{"pem": "cert+key"}`. `fingerprint`: `{"name": "...", "algorithm": "sha256", "fingerprint": "aa:bb:..."}`. |
+| `ze-pki:show-certificate` (args: `<name>`) | `handleShowPKICertificate` in `internal/component/pki/show.go` | Full detail map for the named certificate. |
+| `ze-pki:show-certificate-pem` (args: `<name>`) | `handleShowPKICertificatePEM` in `internal/component/pki/show.go` | Certificate and intermediates only (`{"pem": "..."}`). No private key and no explicit RBAC guard. |
+| `ze-pki:show-certificate-bundle-pem` (args: `<name> confirm`) | `handleShowPKICertificateBundlePEM` in `internal/component/pki/show.go` | `{"pem": "cert+key"}` for device certificates. Requires an explicit RBAC `edit` grant (`RequireExplicitAuthz`), mandatory `confirm`, and records redacted `pki-private-key-export` audit entries. |
+| `ze-pki:show-certificate-fingerprint` (args: `<name> [sha256\|sha384\|sha512]`) | `handleShowPKICertificateFingerprint` in `internal/component/pki/show.go` | `{"name": "...", "algorithm": "sha256", "fingerprint": "aa:bb:..."}`. |
 
 Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
@@ -1136,6 +1139,10 @@ An already supplied raw invocation retains its text and selector values while
 extra parameters follow as keywords, written before the first pipe of a line
 that holds a chain. Malformed flag values refuse before a
 handler runs and name the command's help.
+
+A mandatory `type empty` flag leaf renders as an unbracketed keyword (such as
+`confirm`) in generated usage lines. Optional flags keep square brackets
+(`[flag]`).
 <!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->
 <!-- source: internal/component/command/invocation_match.go -- MatchInvocationPath -->
 <!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->

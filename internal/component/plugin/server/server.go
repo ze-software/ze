@@ -17,12 +17,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/ipc"
@@ -281,11 +283,20 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 		// Username is NOT read from client params — identity must be injected
 		// by the transport layer (see loader.go SSH wiring, dispatch.go plugin wiring).
 
-		// Authorization check — same path as Dispatch() in command.go
-		if s.dispatcher != nil && !s.dispatcher.IsAuthorized(ctx, cliCommand, readOnly) {
-			// The code stays "unauthorized" (wire contract); only the human
-			// text carries the operator-facing wording.
-			return nil, rpc.NewCodedError("unauthorized", plugin.UnauthorizedMessage)
+		// Authorization check — same path as Dispatch() in command.go.
+		if s.dispatcher != nil {
+			if cmd := s.dispatcher.Lookup(cliCommand); cmd != nil && cmd.RequireExplicitAuthz {
+				typedTokens := aaa.CanonicalCommandTokens(cmd.Name, rpcParams.Args, ctx.Peer)
+				if !s.dispatcher.isAuthorizedExplicit(ctx, cmd.Name, typedTokens, readOnly) {
+					auditInput := aaa.CanonicalCommand(cmd.Name, rpcParams.Args, ctx.Peer)
+					s.dispatcher.recordCommandAuditOutcome(ctx, cmd.AuditAction, auditInput, audit.OutcomeDenied)
+					return nil, rpc.NewCodedError("unauthorized", plugin.UnauthorizedMessage)
+				}
+			} else if !s.dispatcher.IsAuthorized(ctx, cliCommand, readOnly) {
+				// The code stays "unauthorized" (wire contract); only the human
+				// text carries the operator-facing wording.
+				return nil, rpc.NewCodedError("unauthorized", plugin.UnauthorizedMessage)
+			}
 		}
 
 		// Route R4: the params' tokens are judged against the leaves the model

@@ -16,7 +16,7 @@ redact credential tokens in the command log.
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath, MaskSecretInMessage, RejectMaskedSecretLeaves -->
 <!-- source: internal/component/config/schema.go -- Schema.LookupTokenPath -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->
-<!-- source: internal/core/redact/redact.go -- IsBcryptHash, IsPasswordHash, Command, JSON, URL, URLError, Placeholder -->
+<!-- source: internal/core/redact/redact.go -- IsBcryptHash, IsPasswordHash, PrivateKeyPEM, Command, JSON, URL, URLError, Placeholder -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter.Record -->
 
 ## Decisions
@@ -122,16 +122,24 @@ CLI-format settings, which are not configuration assignments. Other command
 records reach it through `DisplayCommand`: the accounting record
 (`Dispatcher.BeginAccounting`, and `beginAccountingArgs` for a typed
 inter-plugin call), the audit log entry (`recordCommandAudit`, which records
-only a builtin whose registration declares an `AuditAction`, today
-`request reload` and `delete data key`), the
+builtins whose registration declares an `AuditAction`, and records denied and
+error outcomes for `RequireExplicitAuthz` commands), the
 SSH exec log (`loggedCommand`), the CLI session transcript
 (`TranscriptWriter.Record`), the unauthorized refusal, the dispatch failure log
 lines and the TACACS+ authorization log lines. The transcript is the one that
 writes to a FILE, so a credential typed at the prompt outlived the session until
 `Record` was routed through it.
 
+**Private-key PEM blocks are scrubbed fail-closed.** `redact.PrivateKeyPEM`
+replaces any `-----BEGIN ... PRIVATE KEY-----` block (PKCS#8, RSA, EC, or
+OpenSSH) with `<redacted>` while `CERTIFICATE` blocks stay readable. If an end
+marker is missing or truncated, redaction continues to the end of the string.
+`redact.Command`, `redact.JSON`, and `TranscriptWriter.Record` (on command
+output) all call `redact.PrivateKeyPEM` so private-key bytes never reach logs,
+command history, or transcript files.
+
 <!-- source: internal/component/config/mask.go -- DisplayCommand -->
-<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, beginAccountingArgs, recordCommandAudit -->
+<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, beginAccountingArgs, recordCommandAudit, recordCommandAuditOutcome -->
 <!-- source: internal/component/ssh/passwordauth.go -- loggedCommand -->
 
 **A daemon command that carries caller bytes names them `content`, and

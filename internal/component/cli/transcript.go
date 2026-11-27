@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -65,9 +66,10 @@ func (w *TranscriptWriter) writeHeader(t time.Time, username, remoteHost string)
 // The command is redacted first. The transcript is a FILE, so a credential
 // typed at the prompt outlives the session, and `ze cli -c "... <leaf>
 // <value>" would store it. config.DisplayCommand is the same answer the SSH exec log
-// already takes (internal/component/ssh/passwordauth.go, loggedCommand). The
-// output needs no pass of its own: every command that echoes a config value
-// masks it at its own producer, through config.DisplayValueAtPath.
+// already takes (internal/component/ssh/passwordauth.go, loggedCommand). Output
+// passes through redact.PrivateKeyPEM so explicitly exported PEM private keys
+// never land in transcript files while certificates and other outputs remain
+// readable.
 func (w *TranscriptWriter) Record(command, output string) {
 	if w == nil || w.file == nil {
 		return
@@ -76,7 +78,7 @@ func (w *TranscriptWriter) Record(command, output string) {
 	defer buf.Release()
 	buf.Byte('[').Str(time.Now().Format("15:04:05")).Str("] > ").Str(config.DisplayCommand(command)).Byte('\n')
 	if output != "" {
-		buf.Str(output).Byte('\n')
+		buf.Str(redact.PrivateKeyPEM(output)).Byte('\n')
 	}
 	buf.Byte('\n')
 	w.file.WriteString(buf.String()) //nolint:errcheck // best-effort transcript

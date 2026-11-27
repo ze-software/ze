@@ -160,23 +160,24 @@ func redactValue(v any, secret bool) any {
 		if IsPasswordHash(t) {
 			return Placeholder
 		}
-		return t
+		return PrivateKeyPEM(t)
 	default:
 		return v
 	}
 }
 
-// Command returns a copy of a command line safe to log: every password-hash
-// token (IsPasswordHash) is replaced with Placeholder, and the value token
-// immediately following a credential keyword (isCredentialKey: the password
-// family, "plaintext-*" and "content") is replaced with Placeholder even when it
-// is a plaintext secret rather than a hash. A command with no credential token is returned
-// unchanged (whitespace preserved). Redaction runs on the full command; callers
-// truncate the result AFTER, so a secret straddling a truncation boundary can
-// never half-leak.
+// Command returns a copy of a command line safe to log: every PEM private-key
+// block (PrivateKeyPEM) and password-hash token (IsPasswordHash) is replaced
+// with Placeholder, and the value token immediately following a credential
+// keyword (isCredentialKey: the password family, "plaintext-*" and "content")
+// is replaced with Placeholder even when it is a plaintext secret rather than a
+// hash. A command with no credential token is returned unchanged (whitespace
+// preserved). Redaction runs on the full command; callers truncate the result
+// AFTER, so a secret straddling a truncation boundary can never half-leak.
 func Command(cmd string) string {
-	fields := strings.Fields(cmd)
-	changed := false
+	redacted := PrivateKeyPEM(cmd)
+	changed := redacted != cmd
+	fields := strings.Fields(redacted)
 	prevKey := false
 	for i, tok := range fields {
 		switch {
@@ -240,4 +241,122 @@ func URLError(err error) error {
 		return err
 	}
 	return &url.Error{Op: wrapped.Op, URL: URL(wrapped.URL), Err: wrapped.Err}
+}
+
+const (
+	pemBeginMarker = "-----BEGIN "
+	pemEndPrefix   = "-----END "
+	pemSuffix      = "-----"
+	pemPrivateKey  = "PRIVATE KEY"
+)
+
+// toASCIIUpper uppercases ASCII letters only, preserving exact byte offsets so
+// slices of s can be indexed directly by positions found in the uppercased copy.
+func toASCIIUpper(s string) string {
+	var b strings.Builder
+	for i := range len(s) {
+		c := s[i]
+		if c >= 'a' && c <= 'z' {
+			if b.Len() == 0 {
+				b.Grow(len(s))
+				b.WriteString(s[:i])
+			}
+			b.WriteByte(c - ('a' - 'A'))
+		} else if b.Len() > 0 {
+			b.WriteByte(c)
+		}
+	}
+	if b.Len() == 0 {
+		return s
+	}
+	return b.String()
+}
+
+// PrivateKeyPEM replaces any PEM private-key block (including PKCS#8, RSA, EC,
+// DSA, OpenSSH, encrypted, and truncated or unclosed blocks) in s with
+// Placeholder while leaving non-key PEM blocks such as CERTIFICATE intact.
+//
+// It fails CLOSED: a BEGIN header whose label names PRIVATE KEY with no
+// matching END marker is redacted through the end of s so truncated key bytes
+// cannot survive.
+func PrivateKeyPEM(s string) string {
+	if !strings.Contains(s, pemSuffix) {
+		return s
+	}
+	upper := toASCIIUpper(s)
+	if !strings.Contains(upper, pemPrivateKey) {
+		return s
+	}
+
+	var out strings.Builder
+	pos := 0
+	written := 0
+	changed := false
+	for pos < len(s) {
+		beginRel := strings.Index(upper[pos:], pemBeginMarker)
+		if beginRel < 0 {
+			break
+		}
+		beginIdx := pos + beginRel
+		labelStart := beginIdx + len(pemBeginMarker)
+		suffixRel := strings.Index(upper[labelStart:], pemSuffix)
+		if suffixRel < 0 {
+			// Unclosed BEGIN header: if it already names PRIVATE KEY, redact to EOF.
+			if strings.Contains(upper[labelStart:], pemPrivateKey) {
+				if !changed {
+					out.Grow(len(s))
+					changed = true
+				}
+				if beginIdx > written {
+					out.WriteString(s[written:beginIdx])
+				}
+				out.WriteString(Placeholder)
+				written = len(s)
+			}
+			break
+		}
+		labelEnd := labelStart + suffixRel
+		label := upper[labelStart:labelEnd]
+		// A PEM header label sits on one line.
+		if strings.ContainsAny(label, "\r\n") {
+			pos = labelStart
+			continue
+		}
+		headerEnd := labelEnd + len(pemSuffix)
+		if !strings.Contains(label, pemPrivateKey) {
+			// Advance to labelEnd (not headerEnd) so a malformed non-key header
+			// sharing 5-9 dashes with an adjacent BEGIN private-key header
+			// cannot skip past the real BEGIN marker.
+			pos = labelEnd
+			continue
+		}
+
+		if !changed {
+			out.Grow(len(s))
+			changed = true
+		}
+		if beginIdx > written {
+			out.WriteString(s[written:beginIdx])
+		}
+		out.WriteString(Placeholder)
+
+		endMarker := pemEndPrefix + label + pemSuffix
+		endRel := strings.Index(upper[headerEnd:], endMarker)
+		if endRel < 0 {
+			written = len(s)
+			break
+		}
+		endAfter := headerEnd + endRel + len(endMarker)
+		written = endAfter
+		// Re-scan from the trailing dashes of endMarker so an immediately
+		// adjacent END-to-BEGIN private-key boundary (5-9 dashes) is caught.
+		pos = endAfter - len(pemSuffix)
+	}
+	if !changed {
+		return s
+	}
+	if written < len(s) {
+		out.WriteString(s[written:])
+	}
+	return out.String()
 }

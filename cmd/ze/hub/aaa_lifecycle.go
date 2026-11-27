@@ -426,6 +426,24 @@ func (liveLocalAuthorizer) AuthorizeLocalScope(username, command string, args []
 		AuthorizeLocalScope(username, command, args, isReadOnly)
 }
 
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// An absent accepted local identity fails closed. A live accepted identity
+// delegates to authz.StoreAuthorizer.AuthorizeExplicit, which fails closed when
+// no local store is configured for human/reserved identities while evaluating
+// plugin identities against their compiled bus profiles.
+func (liveLocalAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	state := acceptedLocalIdentity.Load()
+	if state == nil {
+		return false
+	}
+	return (authz.StoreAuthorizer{Store: state.authorizer}).
+		AuthorizeExplicit(username, remoteAddr, canonicalPath, tokens, isReadOnly)
+}
+
 // BindProfiles returns an authorizer that keeps one authentication result's
 // profile names while reading the accepted profile definitions on each command.
 func (liveLocalAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
@@ -496,6 +514,38 @@ func (a liveLocalProfileAuthorizer) AuthorizeLocalScope(username, command string
 		username,
 		command,
 		args,
+		isReadOnly,
+	)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// A missing accepted identity, empty bound profile list, missing local store,
+// or ReservedRecoveryProfile fails closed.
+func (a liveLocalProfileAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	state := acceptedLocalIdentity.Load()
+	if state == nil {
+		return false
+	}
+	if state.authorizer == nil {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	allowed, supported := aaa.AuthorizeExplicit(
+		(authz.StoreAuthorizer{Store: state.authorizer}).BindProfiles(a.profiles),
+		username,
+		remoteAddr,
+		canonicalPath,
+		tokens,
 		isReadOnly,
 	)
 	if !supported {
@@ -589,6 +639,43 @@ func (a acceptedLocalGenerationAuthorizer) AuthorizeLocalScope(username, command
 	return allowed
 }
 
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// Generation retirement, bundle retirement, a missing store/authorizer, or an
+// unsupported underlying authorizer fails closed.
+func (a acceptedLocalGenerationAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	if !a.generationHolds() {
+		return false
+	}
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	var local aaa.Authorizer = authz.StoreAuthorizer{Store: a.store}
+	if a.profilesBound {
+		local = acceptedLocalGenerationProfileFallback{
+			store:      a.store,
+			generation: a.generation,
+			profiles:   a.profiles,
+		}
+	}
+	authorizer := bundle.AuthorizerWithLocalFallback(local)
+	if authorizer == nil {
+		return false
+	}
+	if a.profilesBound {
+		authorizer = aaa.BindProfiles(authorizer, a.profiles)
+	}
+	allowed, supported := aaa.AuthorizeExplicit(authorizer, username, remoteAddr, canonicalPath, tokens, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // BindProfiles keeps the successful result's profiles with its accepted store.
 func (a acceptedLocalGenerationAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
 	a.profiles = append([]string(nil), profiles...)
@@ -672,6 +759,44 @@ func (a acceptedLocalGenerationProfileFallback) AuthorizeLocalScope(username, co
 		username,
 		command,
 		args,
+		isReadOnly,
+	)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// Generation retirement, an empty profile binding, a missing local store, or
+// ReservedRecoveryProfile fails closed.
+func (a acceptedLocalGenerationProfileFallback) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	if a.generation == 0 {
+		return false
+	}
+	live := acceptedLocalIdentity.Load()
+	if live == nil {
+		return false
+	}
+	if live.authzGeneration != a.generation {
+		return false
+	}
+	if a.store == nil {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	allowed, supported := aaa.AuthorizeExplicit(
+		(authz.StoreAuthorizer{Store: a.store}).BindProfiles(a.profiles),
+		username,
+		remoteAddr,
+		canonicalPath,
+		tokens,
 		isReadOnly,
 	)
 	if !supported {
@@ -805,6 +930,29 @@ func (liveAAABundleAuthorizer) AuthorizeLocalScope(username, command string, arg
 	return allowed
 }
 
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// A retired or absent bundle, a bundle with no authorizer installed (for
+// non-plugin identities), or an unsupported authorizer fails closed.
+func (liveAAABundleAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	if bundle.Authorizer == nil {
+		return (authz.StoreAuthorizer{Store: nil}).
+			AuthorizeExplicit(username, remoteAddr, canonicalPath, tokens, isReadOnly)
+	}
+	allowed, supported := aaa.AuthorizeExplicit(bundle.Authorizer, username, remoteAddr, canonicalPath, tokens, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
 // BindProfiles keeps one authentication result's profile names with the live
 // bundle authorizer. Without it, aaa.BindProfiles returns this value unchanged
 // and a bound session is authorized by USERNAME instead, which is the lookup
@@ -888,6 +1036,33 @@ func (a liveAAABundleProfileAuthorizer) AuthorizeLocalScope(username, command st
 	}
 	authorizer := aaa.BindProfiles(bundle.Authorizer, a.profiles)
 	allowed, supported := aaa.AuthorizeLocalScope(authorizer, username, command, args, isReadOnly)
+	if !supported {
+		return false
+	}
+	return allowed
+}
+
+// AuthorizeExplicit implements aaa.ExplicitAuthorizer.
+// A retired or absent bundle, a bundle with no authorizer installed, an empty
+// profile binding, ReservedRecoveryProfile, or an unsupported authorizer fails
+// closed.
+func (a liveAAABundleProfileAuthorizer) AuthorizeExplicit(
+	username, remoteAddr, canonicalPath string,
+	tokens []string,
+	isReadOnly bool,
+) bool {
+	bundle := aaaBundle.Load()
+	if bundle == nil {
+		return false
+	}
+	if bundle.Authorizer == nil {
+		return false
+	}
+	if len(a.profiles) == 0 {
+		return false
+	}
+	authorizer := aaa.BindProfiles(bundle.Authorizer, a.profiles)
+	allowed, supported := aaa.AuthorizeExplicit(authorizer, username, remoteAddr, canonicalPath, tokens, isReadOnly)
 	if !supported {
 		return false
 	}

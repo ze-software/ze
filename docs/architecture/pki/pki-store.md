@@ -44,6 +44,20 @@ handler switch where no operator and no catalog can read it. Four sibling
 containers, each with its own `ze:command` and its own handler, put the grammar
 in the model instead.
 
+**Private-key export requires an explicit RBAC grant and `confirm`.**
+`ze-pki:show-certificate-bundle-pem` registers `NotReadOnly`,
+`RequireExplicitAuthz`, and `AuditAction: audit.ActionPKIPrivateKeyExport`.
+`ze-pki-cmd.yang` adds a mandatory `type empty` `confirm` leaf on `bundle/pem`.
+The daemon dispatcher denies callers without an explicit `edit` grant, even
+when RBAC is unconfigured or a profile sets `default-action allow`.
+
+The handler checks `validated.Flag("confirm")` again before it reads or
+marshals any key. Both allowed exports and refused attempts write a redacted
+`pki-private-key-export` audit entry with zero private-key bytes.
+Certificate-only `show pki certificate name <name> pem` stays unguarded.
+<!-- source: internal/plugins/pki-cmd/yang/ze-pki-cmd.yang -- confirm leaf on bundle pem -->
+<!-- source: internal/core/audit/action_pki_private_key.go -- ActionPKIPrivateKeyExport -->
+
 **Certificate values are PEM or base64-encoded DER.** A leaf that opens
 `-----BEGIN` is read as PEM and a broken one is refused as PEM, so a truncated
 paste is never reported as a base64 error. Base64 DER is the compact form and

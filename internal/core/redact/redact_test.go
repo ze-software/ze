@@ -234,3 +234,98 @@ func TestIsCredentialKeywordAgreesWithCommand(t *testing.T) {
 	assert.True(t, IsCredentialKeyword("content"))
 	assert.False(t, IsCredentialKeyword("key"))
 }
+
+// VALIDATES: AC-6, PEM redaction half: PrivateKeyPEM replaces PKCS#8, RSA, EC,
+// OpenSSH, encrypted, and truncated/unclosed PEM private-key blocks with
+// Placeholder while preserving CERTIFICATE blocks; Command and JSON invoke it
+// so private-key PEM blocks never survive in logs or captured payloads.
+// PREVENTS: cleartext PEM private keys persisting in audit logs, daemon logs,
+// or captured JSON payloads, including when a key block is truncated before its
+// END marker.
+func TestRedactPrivateKeyPEMAndTranscript(t *testing.T) {
+	const (
+		certBlock  = "-----BEGIN CERTIFICATE-----\nCERTBODYDATA\n-----END CERTIFICATE-----\n"
+		keyPayload = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwPRIVATEKEYDATA"
+	)
+
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{
+			name: "PKCS8 private key",
+			in:   "-----BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "RSA private key",
+			in:   "-----BEGIN RSA PRIVATE KEY-----\n" + keyPayload + "\n-----END RSA PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "EC private key",
+			in:   "-----BEGIN EC PRIVATE KEY-----\n" + keyPayload + "\n-----END EC PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "OpenSSH private key",
+			in:   "-----BEGIN OPENSSH PRIVATE KEY-----\n" + keyPayload + "\n-----END OPENSSH PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "encrypted private key",
+			in:   "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" + keyPayload + "\n-----END ENCRYPTED PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "truncated unclosed private key fails closed",
+			in:   "-----BEGIN PRIVATE KEY-----\n" + keyPayload, // secret-scan: allow
+		},
+		{
+			name: "adjacent malformed begin header cannot hide private key",
+			in:   "-----BEGIN FAKE-----BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "6-dash malformed begin header cannot hide private key",
+			in:   "-----BEGIN FAKE------BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "repeated begin prefix cannot hide private key",
+			in:   "-----BEGIN -----BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "adjacent end-to-begin private keys redact both keys",
+			in:   "-----BEGIN PRIVATE KEY-----\nFIRSTKEY\n-----END PRIVATE KEY-----BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----\n", // secret-scan: allow
+		},
+		{
+			name: "6-dash adjacent end-to-begin private keys redact both keys",
+			in:   "-----BEGIN PRIVATE KEY-----\nFIRSTKEY\n-----END PRIVATE KEY------BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----\n", // secret-scan: allow
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := PrivateKeyPEM(certBlock + tc.in)
+			assert.Contains(t, out, "BEGIN CERTIFICATE", "certificate block must remain visible")
+			assert.Contains(t, out, "CERTBODYDATA", "certificate body must remain visible")
+			assert.NotContains(t, out, "PRIVATE KEY", "private-key header/footer must not survive")
+			assert.NotContains(t, out, "FIRSTKEY", "first private-key body must not survive")
+			assert.NotContains(t, out, keyPayload, "private-key body must not survive")
+			assert.Contains(t, out, Placeholder)
+		})
+	}
+
+	t.Run("Command redacts embedded private key PEM", func(t *testing.T) {
+		in := "set pki certificate dev-1 key -----BEGIN PRIVATE KEY-----\n" + keyPayload + "\n-----END PRIVATE KEY-----" // secret-scan: allow
+		out := Command(in)
+		assert.NotContains(t, out, keyPayload)
+		assert.NotContains(t, out, "PRIVATE KEY")
+		assert.Contains(t, out, Placeholder)
+	})
+
+	t.Run("JSON redacts private key PEM while keeping certificate PEM", func(t *testing.T) {
+		in := []byte(`{"pem":"-----BEGIN CERTIFICATE-----\nCERTBODYDATA\n-----END CERTIFICATE-----\n-----BEGIN PRIVATE KEY-----\n` + keyPayload + `\n-----END PRIVATE KEY-----\n"}`) // secret-scan: allow
+		out, err := JSON(in)
+		assert.NoError(t, err)
+		got := string(out)
+		assert.Contains(t, got, "CERTBODYDATA")
+		assert.NotContains(t, got, keyPayload)
+		assert.NotContains(t, got, "PRIVATE KEY")
+		assert.Contains(t, got, Placeholder)
+	})
+}

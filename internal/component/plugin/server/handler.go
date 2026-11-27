@@ -389,8 +389,13 @@ type RPCRegistration struct {
 	Handler    Handler // Handler function
 	// NotReadOnly requires edit authorization even for a show command whose
 	// private answer grants access equivalent to changing configuration.
-	NotReadOnly      bool
-	RequiresSelector bool // True if peer commands must have explicit selector (not default "*")
+	NotReadOnly bool
+	// RequireExplicitAuthz requires an explicit allow entry in the caller's
+	// authorization policy (fail-closed default-deny), never falling back to
+	// default-action allow, unconfigured RBAC, recovery break-glass, shared API
+	// identity, or internal RPC identity.
+	RequireExplicitAuthz bool
+	RequiresSelector     bool // True if peer commands must have explicit selector (not default "*")
 	// AcceptsPeerConnection binds the handler to the supplied original physical
 	// peer. The dispatcher refuses this constraint for every other command.
 	AcceptsPeerConnection     bool

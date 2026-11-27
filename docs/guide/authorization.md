@@ -521,6 +521,59 @@ deployments that do not use authorization.
 | No assignments configured | Allow all | Allow all | N/A |
 | Assignments configured | Deny | Deny | Evaluate profiles |
 
+### Explicit-grant commands (default-deny)
+
+Sensitive commands that expose secret material register `RequireExplicitAuthz`
+and `NotReadOnly`. Today `show pki certificate name <name> bundle pem confirm`
+uses this gate.
+
+An explicit-grant command always defaults to deny. It refuses unconfigured
+RBAC, `default-action allow` (including `admin`), `read-only`, and the recovery
+account. It also refuses shared or unauthenticated API callers, internal RPC,
+and plugin endpoints without an explicit compiled bus grant. Broad prefixes
+(such as `show` or `show pki`) and wildcard regexes (such as `.*`) do not grant
+access.
+
+To allow private-key bundle export, add an explicit `allow` entry in the
+profile's `edit` section. Write either the canonical command path (for all
+certificates) or the certificate-scoped form (for one certificate):
+
+```
+system {
+    authorization {
+        profile pki-exporter {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action deny
+                entry 10 {
+                    action allow
+                    match "show pki certificate name bundle pem"
+                }
+            }
+        }
+        profile pki-dev1-only {
+            run {
+                default-action allow
+            }
+            edit {
+                default-action deny
+                entry 10 {
+                    action allow
+                    match "show pki certificate name dev-1 bundle pem"
+                }
+            }
+        }
+    }
+}
+```
+
+A `deny` entry with a lower sequence number overrides a later `allow` entry.
+When TACACS+ command authorization is enabled, Ze sends the command tokens over
+RFC 8907. If the server is unreachable and strict fallback is off, Ze falls back
+only to local explicit-grant evaluation.
+
 ## Validation
 
 `ze config validate` checks that:
@@ -558,15 +611,15 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 | Profile evaluation | `internal/component/authz/authz.go` |
 | Store (thread-safe registry) | `internal/component/authz/authz.go` |
 | StoreAuthorizer adapter | `internal/component/authz/register.go` |
-| Canonical command builder | `internal/component/aaa/command_args.go` |
+| Canonical command builder | `internal/component/aaa/command_args.go` (`CanonicalCommand`, `ExplicitAuthorizer`, `AuthorizeExplicit`) |
 | Read-only verb classification | `internal/component/plugin/server/command.go` (`IsReadOnlyPath`) |
-| Dispatcher authorization check | `internal/component/plugin/server/command.go` (`isAuthorized`, `isAuthorizedCommandArgs`) |
+| Dispatcher authorization check | `internal/component/plugin/server/command.go` (`isAuthorized`, `isAuthorizedExplicit`, `isAuthorizedCommandArgs`) |
 | Configuration-mode permission table | `internal/component/cli/config_permission.go` (`ConfigPermission`) |
 | SSH editor authorizer binding | `cmd/ze/hub/session_factory.go` (`buildSessionModelFactory`) |
 | Built-in admin profile | `internal/component/authz/authz.go` (`builtinAdminProfile`) |
 | Built-in read-only profile | `internal/component/authz/authz.go` (`builtinReadOnlyProfile`) |
 
-<!-- source: internal/component/authz/authz.go -- Entry.matches, Section.evaluate -->
+<!-- source: internal/component/authz/authz.go -- Entry.matches, Section.evaluate, Store.AuthorizeExplicit -->
 <!-- source: internal/component/authz/register.go -- StoreAuthorizer -->
-<!-- source: internal/component/aaa/command_args.go -- CanonicalCommand -->
-<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, isAuthorized -->
+<!-- source: internal/component/aaa/command_args.go -- CanonicalCommand, ExplicitAuthorizer, AuthorizeExplicit -->
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, isAuthorized, isAuthorizedExplicit -->
