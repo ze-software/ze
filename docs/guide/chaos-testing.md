@@ -72,6 +72,43 @@ ze start chaos.conf
 ./le chaos run --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
 ```
 
+### Interface Faults (Linux netns)
+
+`iface-link-flap` and `iface-addr-remove` manipulate a Linux interface through
+netlink (link down/up cycles or address remove/restore). On a plain loopback run
+with no interface configured, both actions are no-ops. Inside a network
+namespace carrying a veth pair between Ze and the simulated peers, configure the
+target interface and peer source address on the command line:
+
+```bash
+# Inside a Linux network namespace with veth0 (10.242.0.1/24) <-> veth1 (10.242.0.2/24):
+./le chaos run \
+  --local-addr 10.242.0.1 \
+  --peer-local-addr 10.242.0.2 \
+  --chaos-actions iface-link-flap,iface-addr-remove \
+  --fault-iface veth1 \
+  --fault-addr 10.242.0.2/24 \
+  --fault-iface-cycles 1 \
+  --fault-iface-interval 500ms \
+  --duration 60s
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--fault-iface <name>` | Interface targeted by `iface-link-flap` and `iface-addr-remove` | *(empty — no-op)* |
+| `--fault-addr <cidr>` | IP/prefix cycled on `--fault-iface` by `iface-addr-remove` | *(empty — no-op)* |
+| `--fault-iface-cycles <N>` | Link down/up cycles per `iface-link-flap` (1–20) | `1` |
+| `--fault-iface-interval <dur>` | Pause between interface fault state transitions | `500ms` |
+| `--peer-local-addr <addr>` | Optional source IP simulated peers bind when connecting to Ze | *(kernel default)* |
+
+Configured interface fault parameters apply to both automatic scheduled ticks
+and manual triggers (web dashboard or MCP `chaos_control`) when a trigger omits
+explicit `iface`/`addr` parameters; explicit trigger parameters take precedence.
+<!-- source: internal/chaos/orchestrator/cli.go -- validateIfaceFaultFlags, buildIfaceFaultParams -->
+<!-- source: internal/chaos/engine/scheduler.go -- SchedulerConfig.ActionParams -->
+<!-- source: internal/chaos/inprocess/chaos.go -- DispatchManualTrigger, mergeActionParams -->
+<!-- source: internal/chaos/peer/simulator_actions_iface_linux.go -- executeIfaceLinkFlap, executeIfaceAddrRemove -->
+
 ### Session Start
 
 A simulated peer starts its session as a BGP speaker does. When the daemon

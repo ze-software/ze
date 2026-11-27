@@ -311,3 +311,68 @@ func TestSchedulerChaosActionsFilter(t *testing.T) {
 	assert.True(t, seen[ActionRouteFlap], "RouteFlap should appear when enabled")
 	assert.False(t, seen[ActionClockDrift], "ClockDrift should not appear when not enabled")
 }
+
+// TestSchedulerActionParams verifies that SchedulerConfig.ActionParams attaches
+// cloned default parameters to scheduled actions of the matching type while
+// leaving unconfigured action types with nil Params.
+//
+// VALIDATES: --fault-iface / --fault-addr defaults reach scheduled interface faults.
+// PREVENTS: Scheduler emitting empty Params for iface-link-flap / iface-addr-remove
+// or sharing one mutable map across emissions.
+func TestSchedulerActionParams(t *testing.T) {
+	inputParams := map[ActionType]map[string]string{
+		ActionIfaceLinkFlap: {
+			ParamIface:    "ze_cf0",
+			ParamCycles:   "2",
+			ParamInterval: "50ms",
+		},
+		ActionIfaceAddrRemove: {
+			ParamIface:    "ze_cf0",
+			ParamAddr:     "10.242.0.2/24",
+			ParamInterval: "50ms",
+		},
+	}
+	cfg := SchedulerConfig{
+		Seed:           42,
+		PeerCount:      4,
+		Rate:           1.0,
+		Interval:       1 * time.Second,
+		Warmup:         0,
+		EnabledActions: []ActionType{ActionIfaceLinkFlap, ActionIfaceAddrRemove},
+		ActionParams:   inputParams,
+	}
+
+	s := NewScheduler(cfg)
+	// Mutating caller map after NewScheduler must not affect scheduled actions.
+	inputParams[ActionIfaceLinkFlap][ParamIface] = "mutated"
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	established := []bool{true, true, true, true}
+
+	var flapCount, addrCount int
+	for i := range 200 {
+		now := start.Add(time.Duration(i) * time.Second)
+		for _, a := range s.Tick(now, established) {
+			// Only interface fault actions carry configured ActionParams here.
+			//exhaustive:ignore
+			switch a.Action.Type {
+			case ActionIfaceLinkFlap:
+				flapCount++
+				assert.Equal(t, "ze_cf0", a.Action.Params[ParamIface])
+				assert.Equal(t, "2", a.Action.Params[ParamCycles])
+				assert.Equal(t, "50ms", a.Action.Params[ParamInterval])
+				// Mutating an emitted action must not leak into later ticks.
+				a.Action.Params[ParamIface] = "corrupted"
+			case ActionIfaceAddrRemove:
+				addrCount++
+				assert.Equal(t, "ze_cf0", a.Action.Params[ParamIface])
+				assert.Equal(t, "10.242.0.2/24", a.Action.Params[ParamAddr])
+				assert.Equal(t, "50ms", a.Action.Params[ParamInterval])
+			default:
+				assert.Nil(t, a.Action.Params, "unconfigured action %s should have nil Params", a.Action.Type)
+			}
+		}
+	}
+	assert.Positive(t, flapCount, "expected iface-link-flap to be scheduled")
+	assert.Positive(t, addrCount, "expected iface-addr-remove to be scheduled")
+}

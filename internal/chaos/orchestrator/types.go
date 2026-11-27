@@ -26,6 +26,10 @@ type ChaosConfig struct {
 	// EnabledActions is the set of v2 action types enabled for scheduling.
 	// Parsed from --chaos-actions flag. Nil means only legacy actions.
 	EnabledActions []engine.ActionType
+
+	// ActionParams supplies default parameter maps attached to scheduled and
+	// manual actions of the matching type (e.g. --fault-iface / --fault-addr).
+	ActionParams map[engine.ActionType]map[string]string
 }
 
 // RouteConfig holds route dynamics parameters passed from CLI flags.
@@ -50,6 +54,7 @@ type orchestratorConfig struct {
 	Target              scenario.Target
 	Seed                uint64
 	LocalAddr           string
+	PeerLocalAddr       string
 	ZePort              int
 	Verbose             bool
 	Quiet               bool

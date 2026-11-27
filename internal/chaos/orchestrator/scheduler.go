@@ -159,6 +159,7 @@ func runScheduler(
 		Interval:       cfg.Interval,
 		Warmup:         cfg.Warmup,
 		EnabledActions: cfg.EnabledActions,
+		ActionParams:   cfg.ActionParams,
 	})
 
 	ticker := time.NewTicker(cfg.Interval)
@@ -214,7 +215,7 @@ func runScheduler(
 			rate := cmd.Rate
 			inprocess.ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlTypeRate, Rate: &rate})
 		case ctrlTypeTrigger:
-			res := inprocess.DispatchManualTrigger(cmd.Trigger, peerCount, es.Snapshot(), g, channels, nil, quiet)
+			res := inprocess.DispatchManualTrigger(cmd.Trigger, peerCount, es.Snapshot(), g, channels, cfg.ActionParams, nil, quiet)
 			inprocess.ReplyControl(cmd.Reply, res)
 		case ctrlTypeStop:
 			if !quiet {

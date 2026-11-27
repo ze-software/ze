@@ -93,6 +93,10 @@ func CLIRun(args []string) int {
 	var v2tb textbuf.Buffer
 	v2List := v2tb.Join(engine.V2ActionNames(), ",").String()
 	chaosActions := fs.String("chaos-actions", "", v2tb.Reset().Str("Enable v2 chaos actions (comma-sep: ").Str(v2List).Byte(')').String())
+	faultIface := fs.String("fault-iface", "", "Network interface targeted by iface-link-flap and iface-addr-remove faults (Linux netns)")
+	faultAddr := fs.String("fault-addr", "", "CIDR address cycled on --fault-iface by iface-addr-remove (e.g. 10.242.0.2/24)")
+	faultIfaceCycles := fs.Int("fault-iface-cycles", engine.DefaultIfaceFlapCycles, "Link down/up cycles per iface-link-flap fault (1-20)")
+	faultIfaceInterval := fs.Duration("fault-iface-interval", engine.DefaultIfaceFlapInterval, "Pause between interface fault state transitions")
 
 	// Route dynamics flags
 	routeRate := fs.Float64("route-rate", 0.0, "Per-peer probability of route action per interval (0.0-1.0, 0=disabled)")
@@ -104,6 +108,7 @@ func CLIRun(args []string) int {
 	listenDefault, listenDesc := env.PortDefault("ze.chaos.listen.base", 1950, "Base port for tool to listen on")
 	listenBase := fs.Int("listen-base", listenDefault, listenDesc)
 	localAddr := fs.String("local-addr", "127.0.0.1", "Local address")
+	peerLocalAddr := fs.String("peer-local-addr", "", "Optional source IP for simulated peers to bind when connecting to Ze (e.g. veth IP)")
 
 	// SSH flags (env-aware)
 	sshDefault, sshDesc := env.PortDefault("ze.chaos.ssh.port", 0, "Enable SSH server on port (user: test, password: test)")
@@ -192,6 +197,10 @@ Chaos:
   --chaos-rate <float>       Per-peer probability of chaos per interval (default: 0.1)
   --chaos-interval <dur>     Time between chaos checks (default: 1s)
   --chaos-actions <list>     Enable v2 actions (comma-sep: `).Str(v2List).Str(`)
+  --fault-iface <name>       Interface targeted by iface-link-flap / iface-addr-remove (Linux netns)
+  --fault-addr <cidr>        CIDR address cycled on --fault-iface by iface-addr-remove
+  --fault-iface-cycles <N>   Down/up cycles per iface-link-flap (default: 1, max: 20)
+  --fault-iface-interval <d> Pause between interface fault transitions (default: 500ms)
 
 Route Dynamics:
   --route-rate <float>       Per-peer probability of route action per interval (default: 0, disabled)
@@ -201,6 +210,7 @@ Network:
   --port <N>                 Base BGP port for Ze to listen on (default: 1850)
   --listen-base <N>          Base port for tool to listen on (default: 1950)
   --local-addr <addr>        Local address (default: 127.0.0.1)
+  --peer-local-addr <addr>   Optional source IP for simulated peers to bind (e.g. veth IP)
 
 Output:
   --config-out <path>        Write Ze config to file instead of stdout
@@ -415,6 +425,12 @@ Control:
 			"The route scheduler needs a positive time between checks.", "./le chaos run --route-interval 5s").Error())
 		return 1
 	}
+	if err := validateIfaceFaultFlags(*faultIface, *faultAddr, *faultIfaceCycles, *faultIfaceInterval, *peerLocalAddr); err != nil {
+		var tb textbuf.Buffer
+		tb.Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+		return 1
+	}
+	actionParams := buildIfaceFaultParams(*faultIface, *faultAddr, *faultIfaceCycles, *faultIfaceInterval)
 
 	// Validate chaos-rate.
 	if *chaosRate < 0 || *chaosRate > 1.0 {
@@ -766,6 +782,7 @@ Control:
 			Warmup:               *warmup,
 			BaseRoutes:           *routes,
 			EnabledActions:       parseChaosActions(*chaosActions),
+			ActionParams:         actionParams,
 			Control:              controlCh,
 			RouteControl:         routeControlCh,
 			OnChaosSchedulerDone: finishSched,
@@ -894,6 +911,7 @@ Control:
 		Interval:       *chaosInterval,
 		Warmup:         *warmup,
 		EnabledActions: parseChaosActions(*chaosActions),
+		ActionParams:   actionParams,
 	}
 
 	routeCfg := RouteConfig{
@@ -922,6 +940,7 @@ Control:
 			Target:              target,
 			Seed:                *seed,
 			LocalAddr:           *localAddr,
+			PeerLocalAddr:       *peerLocalAddr,
 			ZePort:              *port,
 			Verbose:             *verbose,
 			Quiet:               *quiet,
@@ -1034,6 +1053,85 @@ func parseChaosActions(s string) []engine.ActionType {
 		}
 	}
 	return actions
+}
+
+// validateIfaceFaultFlags validates CLI flags configuring netns interface faults
+// and peer source-address binding.
+func validateIfaceFaultFlags(iface, addr string, cycles int, interval time.Duration, peerLocalAddr string) error {
+	if addr != "" && iface == "" {
+		return opererr.New("--fault-addr requires --fault-iface",
+			"iface-addr-remove needs the interface name that holds the address.",
+			"./le chaos run --fault-iface veth0 --fault-addr 10.242.0.2/24")
+	}
+	if addr != "" {
+		if _, err := netip.ParsePrefix(addr); err != nil {
+			var tb textbuf.Buffer
+			return opererr.New(
+				tb.Str("invalid --fault-addr ").Quoted(addr).String(),
+				"iface-addr-remove requires a valid IP/prefix in CIDR notation.",
+				"./le chaos run --fault-iface veth0 --fault-addr 10.242.0.2/24",
+			)
+		}
+	}
+	if cycles < 1 {
+		var tb textbuf.Buffer
+		return opererr.New(
+			tb.Str("--fault-iface-cycles must be at least 1, got ").Int(int64(cycles)).String(),
+			"iface-link-flap needs at least one down/up cycle.",
+			"./le chaos run --fault-iface veth0 --fault-iface-cycles 1",
+		)
+	}
+	if cycles > engine.MaxIfaceFlapCycles {
+		var tb textbuf.Buffer
+		return opererr.New(
+			tb.Str("--fault-iface-cycles must be at most ").Int(engine.MaxIfaceFlapCycles).Str(", got ").Int(int64(cycles)).String(),
+			"iface-link-flap cycles are bounded to prevent runaway flaps.",
+			"./le chaos run --fault-iface veth0 --fault-iface-cycles 1",
+		)
+	}
+	if interval <= 0 {
+		return opererr.New("--fault-iface-interval must be positive",
+			"Interface fault transitions need a positive pause between down and up states.",
+			"./le chaos run --fault-iface veth0 --fault-iface-interval 500ms")
+	}
+	if peerLocalAddr != "" {
+		if _, err := netip.ParseAddr(peerLocalAddr); err != nil {
+			var tb textbuf.Buffer
+			return opererr.New(
+				tb.Str("invalid --peer-local-addr ").Quoted(peerLocalAddr).String(),
+				"Peer source binding requires a valid IP address without a prefix length.",
+				"./le chaos run --local-addr 10.242.0.1 --peer-local-addr 10.242.0.2",
+			)
+		}
+	}
+	return nil
+}
+
+// buildIfaceFaultParams constructs default ActionParams for interface fault actions
+// from CLI flags. Returns nil when no fault interface is configured.
+func buildIfaceFaultParams(iface, addr string, cycles int, interval time.Duration) map[engine.ActionType]map[string]string {
+	if iface == "" {
+		return nil
+	}
+	var tb textbuf.Buffer
+	cyclesStr := tb.Int(int64(cycles)).String()
+	intervalStr := interval.String()
+
+	params := map[engine.ActionType]map[string]string{
+		engine.ActionIfaceLinkFlap: {
+			engine.ParamIface:    iface,
+			engine.ParamCycles:   cyclesStr,
+			engine.ParamInterval: intervalStr,
+		},
+	}
+	if addr != "" {
+		params[engine.ActionIfaceAddrRemove] = map[string]string{
+			engine.ParamIface:    iface,
+			engine.ParamAddr:     addr,
+			engine.ParamInterval: intervalStr,
+		}
+	}
+	return params
 }
 
 func printAIHelp() {

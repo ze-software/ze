@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"maps"
 	"math/rand"
 	"time"
 )
@@ -28,6 +29,11 @@ type SchedulerConfig struct {
 	// When nil or empty, only legacy actions (v1) are used.
 	// Only v2 actions listed here are added to the weight pool.
 	EnabledActions []ActionType
+
+	// ActionParams supplies default parameter maps attached to scheduled actions
+	// of the matching type (for example, iface/addr/cycles/interval for
+	// ActionIfaceLinkFlap and ActionIfaceAddrRemove).
+	ActionParams map[ActionType]map[string]string
 }
 
 // ScheduledAction pairs a chaos action with its target peer.
@@ -99,6 +105,16 @@ func NewScheduler(cfg SchedulerConfig) *Scheduler {
 		total += w.weight
 	}
 
+	if len(cfg.ActionParams) > 0 {
+		copied := make(map[ActionType]map[string]string, len(cfg.ActionParams))
+		for k, v := range cfg.ActionParams {
+			if len(v) > 0 {
+				copied[k] = maps.Clone(v)
+			}
+		}
+		cfg.ActionParams = copied
+	}
+
 	return &Scheduler{
 		rng:         rng,
 		cfg:         cfg,
@@ -164,7 +180,11 @@ func (s *Scheduler) selectAction() ChaosAction {
 	for _, w := range s.weights {
 		cumulative += w.weight
 		if roll < cumulative {
-			return ChaosAction{Type: w.action}
+			var params map[string]string
+			if defaults := s.cfg.ActionParams[w.action]; len(defaults) > 0 {
+				params = maps.Clone(defaults)
+			}
+			return ChaosAction{Type: w.action, Params: params}
 		}
 	}
 

@@ -352,3 +352,78 @@ func TestControlDispatcherSynchronousOutcomes(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopped")
 }
+
+// TestBuildIfaceFaultParamsAndTriggerDefaults verifies CLI default interface
+// fault params propagate to manual triggers and allow per-trigger overrides.
+//
+// VALIDATES: buildIfaceFaultParams and DispatchManualTrigger parameter merging.
+// PREVENTS: Manual triggers dropping CLI --fault-iface/--fault-addr defaults or
+// ignoring explicit per-trigger overrides.
+func TestBuildIfaceFaultParamsAndTriggerDefaults(t *testing.T) {
+	assert.Nil(t, buildIfaceFaultParams("", "", 1, 500*time.Millisecond))
+
+	onlyIface := buildIfaceFaultParams("veth1", "", 2, 100*time.Millisecond)
+	require.Contains(t, onlyIface, engine.ActionIfaceLinkFlap)
+	assert.NotContains(t, onlyIface, engine.ActionIfaceAddrRemove)
+	assert.Equal(t, "veth1", onlyIface[engine.ActionIfaceLinkFlap][engine.ParamIface])
+	assert.Equal(t, "2", onlyIface[engine.ActionIfaceLinkFlap][engine.ParamCycles])
+	assert.Equal(t, "100ms", onlyIface[engine.ActionIfaceLinkFlap][engine.ParamInterval])
+
+	both := buildIfaceFaultParams("veth1", "10.242.0.2/24", 1, 250*time.Millisecond)
+	require.Contains(t, both, engine.ActionIfaceAddrRemove)
+	assert.Equal(t, "10.242.0.2/24", both[engine.ActionIfaceAddrRemove][engine.ParamAddr])
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	es := newEstablishedState(1)
+	es.Set(0, true)
+	g := guard.New(1)
+	g.OnEstablished(0)
+	channels := []chan engine.ChaosAction{make(chan engine.ChaosAction, 2)}
+	controlCh := make(chan web.ControlCommand, 8)
+	schedDone := make(chan struct{})
+	var doneOnce sync.Once
+	finish := func() { doneOnce.Do(func() { close(schedDone) }) }
+
+	go runScheduler(ctx, ChaosConfig{
+		Rate:         0,
+		Interval:     50 * time.Millisecond,
+		Warmup:       time.Hour,
+		ActionParams: both,
+	}, 42, 1, es, g, channels, controlCh, time.Time{}, true, finish)
+	defer func() {
+		cancel()
+		<-schedDone
+	}()
+
+	dispatch := newControlDispatcher(ctx, controlCh, schedDone, nil)
+
+	// Trigger without params inherits CLI defaults.
+	res, err := dispatch(web.ControlCommand{
+		Type:    "trigger",
+		Trigger: &web.ManualTrigger{ActionType: engine.NameIfaceAddrRemove, Peers: []int{0}},
+	})
+	require.NoError(t, err)
+	require.NoError(t, res.Err)
+	got := <-channels[0]
+	assert.Equal(t, "veth1", got.Params[engine.ParamIface])
+	assert.Equal(t, "10.242.0.2/24", got.Params[engine.ParamAddr])
+	assert.Equal(t, "250ms", got.Params[engine.ParamInterval])
+
+	// Explicit trigger params override matching defaults while keeping others.
+	res, err = dispatch(web.ControlCommand{
+		Type: "trigger",
+		Trigger: &web.ManualTrigger{
+			ActionType: engine.NameIfaceLinkFlap,
+			Peers:      []int{0},
+			Params:     map[string]string{engine.ParamCycles: "3"},
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, res.Err)
+	got = <-channels[0]
+	assert.Equal(t, "veth1", got.Params[engine.ParamIface])
+	assert.Equal(t, "3", got.Params[engine.ParamCycles])
+	assert.Equal(t, "250ms", got.Params[engine.ParamInterval])
+}

@@ -116,6 +116,10 @@ type RunConfig struct {
 	// EnabledActions lists opt-in v2 chaos actions enabled for automatic scheduling.
 	EnabledActions []engine.ActionType
 
+	// ActionParams supplies default parameters attached to scheduled and manual
+	// actions of the matching type (for example, iface/addr for interface faults).
+	ActionParams map[engine.ActionType]map[string]string
+
 	// Control receives live chaos control commands (pause, resume, rate, trigger, stop)
 	// from the web dashboard or MCP server. When non-nil, the chaos scheduler and
 	// per-peer reconnect loop are enabled even when ChaosRate is 0.
@@ -486,8 +490,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			Interval:       chaosInterval,
 			Warmup:         warmup,
 			EnabledActions: cfg.EnabledActions,
+			ActionParams:   cfg.ActionParams,
 		})
-		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick, cfg.Control, chaosProg, cfg.OnChaosSchedulerDone)
+		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick, cfg.Control, cfg.ActionParams, chaosProg, cfg.OnChaosSchedulerDone)
 	}
 	if routeEnabled {
 		routeInterval := cfg.RouteInterval

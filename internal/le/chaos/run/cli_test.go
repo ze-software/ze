@@ -235,6 +235,43 @@ func TestRunInvalidPort(t *testing.T) {
 	assert.Equal(t, 1, code)
 }
 
+// TestRunIfaceFaultFlags verifies valid and invalid interface fault flags.
+//
+// VALIDATES: --fault-iface, --fault-addr, --fault-iface-cycles, --fault-iface-interval,
+// and --peer-local-addr validation at CLI entry.
+// PREVENTS: Silent no-ops or runtime panics from malformed CIDR, missing interface,
+// out-of-range cycles, non-positive interval, or invalid peer source IP.
+func TestRunIfaceFaultFlags(t *testing.T) {
+	valid := chaosRun(t, []string{
+		"--config-only", "--seed", "42", "--peers", "2", "--quiet",
+		"--local-addr", "10.242.0.1",
+		"--peer-local-addr", "10.242.0.2",
+		"--chaos-actions", "iface-link-flap,iface-addr-remove",
+		"--fault-iface", "ze_cf1",
+		"--fault-addr", "10.242.0.2/24",
+		"--fault-iface-cycles", "2",
+		"--fault-iface-interval", "100ms",
+	})
+	assert.Equal(t, 0, valid)
+
+	invalidCases := []struct {
+		name string
+		args []string
+	}{
+		{"addr-without-iface", []string{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--fault-addr", "10.242.0.2/24"}},
+		{"bad-cidr", []string{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--fault-iface", "veth0", "--fault-addr", "10.242.0.2"}},
+		{"zero-cycles", []string{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--fault-iface", "veth0", "--fault-iface-cycles", "0"}},
+		{"excess-cycles", []string{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--fault-iface", "veth0", "--fault-iface-cycles", "21"}},
+		{"zero-interval", []string{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--fault-iface", "veth0", "--fault-iface-interval", "0s"}},
+		{"bad-peer-local-addr", []string{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--peer-local-addr", "10.242.0.2/24"}},
+	}
+	for _, tc := range invalidCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, 1, chaosRun(t, tc.args))
+		})
+	}
+}
+
 func itoa(n int) string {
 	return strconv.Itoa(n)
 }

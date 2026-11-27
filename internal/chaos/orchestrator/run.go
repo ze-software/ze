@@ -141,6 +141,7 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 				srcAddr = prof.Address.String()
 			} else {
 				peerAddr = tb.Reset().Str(cfg.LocalAddr).Byte(':').Int(int64(prof.ZePort)).String()
+				srcAddr = cfg.PeerLocalAddr
 			}
 
 			simCfg := peer.SimulatorConfig{

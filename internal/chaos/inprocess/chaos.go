@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"net"
 	"sync"
@@ -310,12 +311,15 @@ func ReplyControl(reply chan<- web.ControlResult, res web.ControlResult) {
 
 // DispatchManualTrigger validates and dispatches a manual chaos trigger across
 // the target peers, returning a synchronous ControlResult with per-peer outcomes.
+// When defaultParams supplies entries for the triggered action type, they fill
+// in any parameter keys omitted by t.Params.
 func DispatchManualTrigger(
 	t *web.ManualTrigger,
 	peerCount int,
 	snap []bool,
 	g *guard.Guard,
 	channels []chan engine.ChaosAction,
+	defaultParams map[engine.ActionType]map[string]string,
 	onDispatch func(int, engine.ActionType),
 	quiet bool,
 ) web.ControlResult {
@@ -336,6 +340,8 @@ func DispatchManualTrigger(
 	if targetErr != nil {
 		return web.ControlResult{Action: ctrlTrigger, ChaosAction: actionType.String(), Err: targetErr}
 	}
+
+	mergedParams := mergeActionParams(defaultParams[actionType], t.Params)
 
 	res := web.ControlResult{
 		Action:      ctrlTrigger,
@@ -360,7 +366,11 @@ func DispatchManualTrigger(
 			}
 			continue
 		}
-		action := engine.ChaosAction{Type: actionType, Params: t.Params}
+		var actionParams map[string]string
+		if len(mergedParams) > 0 {
+			actionParams = maps.Clone(mergedParams)
+		}
+		action := engine.ChaosAction{Type: actionType, Params: actionParams}
 		if !quiet {
 			var tb textbuf.Buffer
 			tb.Str("le chaos run | scheduler | manual ").Str(actionType.String()).
@@ -419,6 +429,18 @@ func resolveTriggerTargets(requested []int, peerCount int, snap []bool) ([]int, 
 	return []int{established[rand.IntN(len(established))]}, nil //nolint:gosec // chaos simulator, not crypto
 }
 
+// mergeActionParams combines default action parameters with trigger-level
+// overrides. Trigger values take precedence over defaults.
+func mergeActionParams(defaults, overrides map[string]string) map[string]string {
+	if len(defaults) == 0 && len(overrides) == 0 {
+		return nil
+	}
+	merged := make(map[string]string, len(defaults)+len(overrides))
+	maps.Copy(merged, defaults)
+	maps.Copy(merged, overrides)
+	return merged
+}
+
 // chaosSchedulerLoop ticks the chaos scheduler using virtual time, processes
 // live control commands, and dispatches actions to per-peer channels.
 func chaosSchedulerLoop(
@@ -429,6 +451,7 @@ func chaosSchedulerLoop(
 	channels []chan engine.ChaosAction,
 	tickCh <-chan time.Time,
 	controlCh <-chan web.ControlCommand,
+	actionParams map[engine.ActionType]map[string]string,
 	inFlight *chaosProgress,
 	onDone func(),
 ) {
@@ -460,7 +483,7 @@ func chaosSchedulerLoop(
 				rate := cmd.Rate
 				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlRate, Rate: &rate})
 			case ctrlTrigger:
-				res := DispatchManualTrigger(cmd.Trigger, len(channels), es.Snapshot(), g, channels, inFlight.Dispatched, true)
+				res := DispatchManualTrigger(cmd.Trigger, len(channels), es.Snapshot(), g, channels, actionParams, inFlight.Dispatched, true)
 				ReplyControl(cmd.Reply, res)
 			case ctrlStop:
 				ReplyControl(cmd.Reply, web.ControlResult{Action: ctrlStop})
