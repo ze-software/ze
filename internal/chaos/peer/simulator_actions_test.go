@@ -27,17 +27,17 @@ func TestExecuteChaosSlowReadToggle(t *testing.T) {
 		emit := func(Event) {}
 
 		// Toggle ON: should store defaultSlowReadDelay (1s).
-		result := executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result := executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 1)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(defaultSlowReadDelay), readDelayNs.Load(), "first toggle should enable default delay")
 
 		// Toggle OFF: should store 0.
-		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 2)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(0), readDelayNs.Load(), "second toggle should disable delay")
 
 		// Toggle ON again: should restore defaultSlowReadDelay.
-		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 3)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(defaultSlowReadDelay), readDelayNs.Load(), "third toggle should re-enable default delay")
 	})
@@ -50,17 +50,17 @@ func TestExecuteChaosSlowReadToggle(t *testing.T) {
 		emit := func(Event) {}
 
 		// Toggle ON: should use configured delay (5s), not default.
-		result := executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result := executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 1)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(5*time.Second), readDelayNs.Load(), "should use configured delay")
 
 		// Toggle OFF.
-		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 2)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(0), readDelayNs.Load())
 
 		// Toggle ON again: should restore configured delay.
-		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 3)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(5*time.Second), readDelayNs.Load(), "should restore configured delay")
 	})
@@ -75,12 +75,12 @@ func TestExecuteChaosSlowReadToggle(t *testing.T) {
 		emit := func(Event) {}
 
 		// First toggle: already slow, should turn OFF.
-		result := executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result := executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 1)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(0), readDelayNs.Load(), "should toggle OFF when already slow")
 
 		// Second toggle: should turn ON with configured delay.
-		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs)
+		result = executeChaos(context.Background(), action, nil, func() {}, p, cfg, emit, &readDelayNs, 2)
 		assert.False(t, result.Disconnected)
 		assert.Equal(t, int64(2*time.Second), readDelayNs.Load(), "should toggle ON with configured delay")
 	})
@@ -184,4 +184,52 @@ func TestExecuteReconnectStormCancelsOnContext(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("executeReconnectStorm did not exit promptly after context cancellation")
 	}
+}
+
+// TestPickRandomRoutesDeterministic verifies pickRandomRoutes is strictly
+// deterministic for a given (seed, peerIndex, seq) and varies across seq.
+//
+// VALIDATES: Simulator route-selection actions do not depend on wall-clock time.
+// PREVENTS: Non-deterministic route subsets breaking --check-determinism replay.
+func TestPickRandomRoutesDeterministic(t *testing.T) {
+	routes := []netip.Prefix{
+		netip.MustParsePrefix("10.0.1.0/24"),
+		netip.MustParsePrefix("10.0.2.0/24"),
+		netip.MustParsePrefix("10.0.3.0/24"),
+		netip.MustParsePrefix("10.0.4.0/24"),
+		netip.MustParsePrefix("10.0.5.0/24"),
+		netip.MustParsePrefix("10.0.6.0/24"),
+	}
+
+	first := pickRandomRoutes(routes, 3, 42, 1, 7)
+	second := pickRandomRoutes(routes, 3, 42, 1, 7)
+	assert.Equal(t, first, second, "identical (seed, peerIndex, seq) must pick identical routes")
+
+	other := pickRandomRoutes(routes, 3, 42, 1, 8)
+	assert.Len(t, other, 3)
+}
+
+// TestBuildOpenGracefulRestart verifies BuildOpen encodes RFC 4724 Graceful
+// Restart capability when requested.
+//
+// VALIDATES: Peer simulator can negotiate Graceful Restart in swarm fuzzing.
+// PREVENTS: GracefulRestart flag silently omitted from OPEN capabilities.
+func TestBuildOpenGracefulRestart(t *testing.T) {
+	withoutGR, err := BuildOpen(SessionConfig{
+		ASN:      65001,
+		RouterID: netip.MustParseAddr("10.0.0.2"),
+		HoldTime: 90,
+		Families: []string{"ipv4/unicast"},
+	})
+	assert.NoError(t, err)
+
+	withGR, err := BuildOpen(SessionConfig{
+		ASN:             65001,
+		RouterID:        netip.MustParseAddr("10.0.0.2"),
+		HoldTime:        90,
+		Families:        []string{"ipv4/unicast"},
+		GracefulRestart: true,
+	})
+	assert.NoError(t, err)
+	assert.Greater(t, withGR.Len(nil), withoutGR.Len(nil), "GracefulRestart capability must expand OPEN optional params")
 }

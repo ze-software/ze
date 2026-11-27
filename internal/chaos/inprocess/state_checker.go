@@ -3,6 +3,7 @@
 package inprocess
 
 import (
+	"encoding/json"
 	"hash/fnv"
 	"slices"
 
@@ -72,13 +73,24 @@ type seenTransitionKey struct {
 	reason    string
 }
 
+type peerCounterSnapshot struct {
+	established uint32
+	dropped     uint32
+	updatesIn   uint32
+	updatesOut  uint32
+}
+
 // StateChecker performs TigerBeetle VOPR-style online invariant checks directly
 // against the live in-process reactor on every simulation tick and at settle:
 //   - RFC 4271 Section 8.2.2 FSM transition legality across every peer's history
 //   - RFC 4271 Section 4.2 non-zero remote BGP Identifier while Established
+//   - RFC 4271 Section 4.2 legal negotiated HoldTime / KeepaliveTime bounds
+//   - Monotonic per-peer lifetime counter progression
+//   - Live bgp-rib status check at settle (running, non-negative route counts)
 //   - Deterministic FNV-64a checkpoint state hashing across sorted peers
 type StateChecker struct {
 	seenByPeer      map[string]map[seenTransitionKey]struct{}
+	lastCounters    map[string]peerCounterSnapshot
 	reported        map[string]struct{}
 	violations      []string
 	transitionCount int
@@ -88,8 +100,9 @@ type StateChecker struct {
 // NewStateChecker constructs an online reactor invariant checker.
 func NewStateChecker() *StateChecker {
 	return &StateChecker{
-		seenByPeer: make(map[string]map[seenTransitionKey]struct{}),
-		reported:   make(map[string]struct{}),
+		seenByPeer:   make(map[string]map[seenTransitionKey]struct{}),
+		lastCounters: make(map[string]peerCounterSnapshot),
+		reported:     make(map[string]struct{}),
 	}
 }
 
@@ -141,21 +154,113 @@ func (sc *StateChecker) Sample(r *bgpreactor.Reactor) uint64 {
 			}
 		}
 
-		// RFC 4271 Section 4.2: an Established peer must hold a non-zero BGP Identifier.
-		if state == bgpreactor.PeerStateEstablished && p.RemoteRouterID() == 0 {
-			msg := tb.Reset().
-				Str("remote-router-id: peer ").Str(addr).
-				Str(" is Established with zero RemoteRouterID").String()
-			sc.recordViolation(msg)
+		// RFC 4271 Section 4.2: an Established peer must hold a non-zero BGP Identifier
+		// and legal negotiated HoldTime / KeepaliveTime values.
+		remoteRID := p.RemoteRouterID()
+		holdTime := p.NegotiatedHoldTime()
+		keepaliveTime := p.NegotiatedKeepaliveTime()
+		if state == bgpreactor.PeerStateEstablished {
+			if remoteRID == 0 {
+				msg := tb.Reset().
+					Str("remote-router-id: peer ").Str(addr).
+					Str(" is Established with zero RemoteRouterID").String()
+				sc.recordViolation(msg)
+			}
+			if timerErr := ValidateNegotiatedTimers(addr, holdTime, keepaliveTime); timerErr != "" {
+				sc.recordViolation(timerErr)
+			}
 		}
 
+		// Monotonic lifetime counters across ticks (detects accidental counter reset/underflow).
+		stats := p.Stats()
+		cur := peerCounterSnapshot{
+			established: stats.ConnectionsEstablished,
+			dropped:     stats.ConnectionsDropped,
+			updatesIn:   stats.UpdatesReceived,
+			updatesOut:  stats.UpdatesSent,
+		}
+		if prev, ok := sc.lastCounters[addr]; ok {
+			if cur.established < prev.established || cur.dropped < prev.dropped ||
+				cur.updatesIn < prev.updatesIn || cur.updatesOut < prev.updatesOut {
+				msg := tb.Reset().
+					Str("peer-counters: peer ").Str(addr).
+					Str(" lifetime counter regressed").String()
+				sc.recordViolation(msg)
+			}
+		}
+		sc.lastCounters[addr] = cur
+
 		// Feed deterministic peer snapshot into checkpoint hash.
-		tb.Reset().Str(addr).Byte('=').Str(state.String()).Byte('|')
+		tb.Reset().Str(addr).Byte('=').Str(state.String()).
+			Str(",hold=").Uint32(holdTime).
+			Str(",rid=").Uint32(remoteRID).Byte('|')
 		_, _ = h.Write(tb.Bytes())
 	}
 
 	sc.lastHash = h.Sum64()
 	return sc.lastHash
+}
+
+// ValidateNegotiatedTimers verifies RFC 4271 Section 4.2 hold/keepalive bounds
+// for an Established peer and returns a violation description or "".
+func ValidateNegotiatedTimers(peerLabel string, holdTime, keepaliveTime uint32) string {
+	var tb textbuf.Buffer
+	if holdTime > 0 && holdTime < 3 {
+		return tb.Str("negotiated-timers: peer ").Str(peerLabel).
+			Str(" has illegal RFC 4271 HoldTime=").Uint32(holdTime).
+			Str(" (must be 0 or >= 3)").String()
+	}
+	if holdTime > 0 && keepaliveTime > holdTime/2 {
+		return tb.Str("negotiated-timers: peer ").Str(peerLabel).
+			Str(" has KeepaliveTime=").Uint32(keepaliveTime).
+			Str(" > HoldTime/2 (HoldTime=").Uint32(holdTime).Byte(')').String()
+	}
+	return ""
+}
+
+// CheckLiveRIB queries the reactor's live bgp-rib plugin at settle and verifies
+// it is running with valid non-negative route counts.
+func (sc *StateChecker) CheckLiveRIB(r *bgpreactor.Reactor) {
+	if r == nil {
+		return
+	}
+	out, err := r.ExecuteCommand("show bgp rib status")
+	if err != nil {
+		var tb textbuf.Buffer
+		sc.recordViolation(tb.Str("live-rib: show bgp rib status failed: ").Err(err).String())
+		return
+	}
+	var status struct {
+		Running   bool `json:"running"`
+		RoutesIn  int  `json:"routes-in"`
+		RoutesOut int  `json:"routes-out"`
+	}
+	if err := json.Unmarshal([]byte(out), &status); err != nil {
+		var tb textbuf.Buffer
+		sc.recordViolation(tb.Str("live-rib: invalid show bgp rib status payload: ").Err(err).String())
+		return
+	}
+	if !status.Running {
+		sc.recordViolation("live-rib: bgp-rib reports running=false at settle")
+	}
+	if status.RoutesIn < 0 || status.RoutesOut < 0 {
+		var tb textbuf.Buffer
+		sc.recordViolation(tb.Str("live-rib: negative route count (in=").Int(int64(status.RoutesIn)).
+			Str(", out=").Int(int64(status.RoutesOut)).Byte(')').String())
+	}
+}
+
+// CheckReadPoolLeaks compares the current reactor read-buffer pool in-use counts
+// against pre-run baselines and returns a violation message if buffers leaked.
+func CheckReadPoolLeaks(baselineStd, baselineExt int) string {
+	afterStd, afterExt := bgpreactor.ReadPoolInUse()
+	if afterStd <= baselineStd && afterExt <= baselineExt {
+		return ""
+	}
+	var tb textbuf.Buffer
+	return tb.Str("read-pool-leak: in-use buffers grew after teardown (std ").
+		Int(int64(baselineStd)).Str("->").Int(int64(afterStd)).
+		Str(", ext ").Int(int64(baselineExt)).Str("->").Int(int64(afterExt)).Byte(')').String()
 }
 
 func (sc *StateChecker) recordViolation(msg string) {

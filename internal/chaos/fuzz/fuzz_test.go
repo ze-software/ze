@@ -21,7 +21,7 @@ func TestSwarmProfileDeterministicAndDiverse(t *testing.T) {
 	p2 := SwarmProfile(42, 6, 20)
 	assert.Equal(t, p1, p2, "same seed must yield identical swarm profile")
 
-	var sawFrag, sawBlackhole, sawReset, sawChaos, sawRoute bool
+	var sawFrag, sawBlackhole, sawReset, sawChaos, sawRoute, sawGR, sawMulticast bool
 	peerCounts := make(map[int]bool)
 	for seed := uint64(1); seed <= 40; seed++ {
 		p := SwarmProfile(seed, 6, 20)
@@ -45,6 +45,14 @@ func TestSwarmProfileDeterministicAndDiverse(t *testing.T) {
 		if p.RouteRate > 0 {
 			sawRoute = true
 		}
+		if p.GracefulRestart {
+			sawGR = true
+		}
+		for _, fam := range p.Families {
+			if fam == "ipv4/multicast" || fam == "ipv6/multicast" {
+				sawMulticast = true
+			}
+		}
 	}
 	assert.GreaterOrEqual(t, len(peerCounts), 3, "swarm should vary peer counts")
 	assert.True(t, sawFrag, "swarm should exercise wire fragmentation")
@@ -52,6 +60,8 @@ func TestSwarmProfileDeterministicAndDiverse(t *testing.T) {
 	assert.True(t, sawReset, "swarm should exercise stream resets")
 	assert.True(t, sawChaos, "swarm should exercise BGP chaos actions")
 	assert.True(t, sawRoute, "swarm should exercise route dynamics")
+	assert.True(t, sawGR, "swarm should exercise Graceful Restart negotiation")
+	assert.True(t, sawMulticast, "swarm should exercise multicast families")
 
 	repro := p1.ReproCommand(15 * time.Second)
 	assert.Contains(t, repro, "./le chaos run --in-process --seed 42")
@@ -76,20 +86,23 @@ func TestSwarmRunExecutesMultipleSeeds(t *testing.T) {
 		MaxRoutes:           6,
 		StepDelay:           25 * time.Millisecond,
 		ConvergenceDeadline: 10 * time.Second,
+		Workers:             2,
+		CheckLeaks:          true,
 		Out:                 &out,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, summary.TotalSeeds)
 	assert.Equal(t, 2, summary.Passed, "failures: %+v\noutput:\n%s", summary.Failures, out.String())
 	assert.Equal(t, 0, summary.Failed)
+	assert.Empty(t, summary.PoolLeak, "read-buffer pool should not leak after teardown")
 	assert.Positive(t, summary.TotalEvents)
 	assert.Positive(t, summary.TotalFSMTransitions)
 }
 
 // TestCLIRunFlagValidation verifies invalid fuzz CLI flags are rejected cleanly.
 //
-// VALIDATES: Boundary checks on --seeds, --duration, --max-peers, --max-routes.
-// PREVENTS: Zero/negative seed counts or unbounded peer counts entering fuzz.Run.
+// VALIDATES: Boundary checks on --seeds, --duration, --max-peers, --max-routes, --workers, --time-budget.
+// PREVENTS: Zero/negative seed counts or unbounded worker/peer counts entering fuzz.Run.
 func TestCLIRunFlagValidation(t *testing.T) {
 	assert.Equal(t, 0, CLIRun([]string{"--help"}))
 	assert.Equal(t, 1, CLIRun([]string{"--seeds", "0"}))
@@ -99,4 +112,7 @@ func TestCLIRunFlagValidation(t *testing.T) {
 	assert.Equal(t, 1, CLIRun([]string{"--max-routes", "0"}))
 	assert.Equal(t, 1, CLIRun([]string{"--max-routes", "501"}))
 	assert.Equal(t, 1, CLIRun([]string{"--convergence-deadline", "0s"}))
+	assert.Equal(t, 1, CLIRun([]string{"--workers", "0"}))
+	assert.Equal(t, 1, CLIRun([]string{"--workers", "17"}))
+	assert.Equal(t, 1, CLIRun([]string{"--time-budget", "-1s"}))
 }

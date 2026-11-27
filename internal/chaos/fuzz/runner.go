@@ -12,6 +12,8 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/engine"
@@ -23,7 +25,8 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugin"      // register bgp top-level config/bus
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rib" // register bgp-rib plugin for in-process reactor
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/rs"  // register bgp-rs plugin for in-process reactor
-	_ "github.com/ze-software/ze/internal/component/plugin/all"      // register YANG schemas and plugins
+	bgpreactor "github.com/ze-software/ze/internal/component/bgp/reactor"
+	_ "github.com/ze-software/ze/internal/component/plugin/all" // register YANG schemas and plugins
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -48,14 +51,18 @@ type Config struct {
 	MaxRoutes           int
 	StepDelay           time.Duration
 	ConvergenceDeadline time.Duration
+	Workers             int
+	TimeBudget          time.Duration
 	CheckDeterminism    bool
+	Shrink              bool
+	CheckLeaks          bool
 	OutDir              string
 	Quiet               bool
 	Out                 io.Writer
 }
 
 func (c *Config) defaults() {
-	if c.Seeds <= 0 {
+	if c.Seeds <= 0 && c.TimeBudget <= 0 {
 		c.Seeds = defaultFuzzSeeds
 	}
 	if c.Duration <= 0 {
@@ -72,6 +79,9 @@ func (c *Config) defaults() {
 	}
 	if c.ConvergenceDeadline <= 0 {
 		c.ConvergenceDeadline = defaultFuzzConvergenceDeadline
+	}
+	if c.Workers <= 0 {
+		c.Workers = 1
 	}
 	if c.Out == nil {
 		c.Out = os.Stderr
@@ -91,6 +101,7 @@ type SeedReport struct {
 	FinalStateHash uint64
 	Elapsed        time.Duration
 	Repro          string
+	Shrunk         *ShrinkResult
 }
 
 // Summary aggregates results across all seeds in a swarm fuzzing run.
@@ -104,11 +115,13 @@ type Summary struct {
 	TotalFSMTransitions int
 	TotalStreamFaults   mocknet.StreamFaultStats
 	Failures            []SeedReport
+	PoolLeak            string
 	Elapsed             time.Duration
 }
 
-// Run executes cfg.Seeds deterministic in-process swarm scenarios, validating
-// online reactor invariants and BGP properties on every seed.
+// Run executes deterministic in-process swarm scenarios, validating online
+// reactor invariants, BGP properties, and optional post-campaign read-pool
+// leak invariants across cfg.Workers workers.
 func Run(ctx context.Context, cfg Config) (*Summary, error) {
 	cfg.defaults()
 
@@ -124,16 +137,24 @@ func Run(ctx context.Context, cfg Config) (*Summary, error) {
 		}
 	}
 
-	start := time.Now()
-	summary := &Summary{BaseSeed: baseSeed}
+	var baseStd, baseExt int
+	if cfg.CheckLeaks {
+		baseStd, baseExt = bgpreactor.ReadPoolInUse()
+	}
 
-	for i := range cfg.Seeds {
-		if err := ctx.Err(); err != nil {
-			summary.Elapsed = time.Since(start)
-			return summary, err
-		}
-		seed := baseSeed + uint64(i)
-		rep := runOneSeed(ctx, seed, cfg)
+	start := time.Now()
+	var deadline time.Time
+	if cfg.TimeBudget > 0 {
+		deadline = start.Add(cfg.TimeBudget)
+	}
+
+	summary := &Summary{BaseSeed: baseSeed}
+	var mu sync.Mutex
+	var nextIdx atomic.Int64
+
+	record := func(rep SeedReport) {
+		mu.Lock()
+		defer mu.Unlock()
 		summary.TotalSeeds++
 		summary.TotalVirtualTime += cfg.Duration
 		summary.TotalEvents += rep.Events
@@ -151,11 +172,50 @@ func Run(ctx context.Context, cfg Config) (*Summary, error) {
 		}
 
 		if !cfg.Quiet {
-			writeSeedLine(cfg.Out, i+1, cfg.Seeds, &rep)
+			writeSeedLine(cfg.Out, summary.TotalSeeds, cfg.Seeds, &rep)
 		}
 	}
 
+	workerLoop := func() {
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+			if !deadline.IsZero() && time.Now().After(deadline) {
+				return
+			}
+			idx := int(nextIdx.Add(1) - 1)
+			if cfg.Seeds > 0 && idx >= cfg.Seeds {
+				return
+			}
+			seed := baseSeed + uint64(idx)
+			rep := runOneSeed(ctx, seed, cfg)
+			record(rep)
+		}
+	}
+
+	workers := cfg.Workers
+	if cfg.Seeds > 0 && workers > cfg.Seeds {
+		workers = cfg.Seeds
+	}
+	if workers <= 1 {
+		workerLoop()
+	} else {
+		var wg sync.WaitGroup
+		for range workers {
+			wg.Go(workerLoop)
+		}
+		wg.Wait()
+	}
+
+	if cfg.CheckLeaks {
+		summary.PoolLeak = inprocess.CheckReadPoolLeaks(baseStd, baseExt)
+	}
+
 	summary.Elapsed = time.Since(start)
+	if err := ctx.Err(); err != nil {
+		return summary, err
+	}
 	return summary, nil
 }
 
@@ -208,6 +268,9 @@ func runOneSeed(ctx context.Context, seed uint64, cfg Config) SeedReport {
 	if cfg.OutDir != "" {
 		_ = writeFailureLog(cfg.OutDir, prof, res, cfg)
 	}
+	if cfg.Shrink && ctx.Err() == nil {
+		rep.Shrunk = ShrinkFailure(ctx, prof, res, cfg)
+	}
 	return rep
 }
 
@@ -223,6 +286,9 @@ func executeProfile(ctx context.Context, prof Profile, cfg Config) (*inprocess.R
 	})
 	if err != nil {
 		return nil, nil, err
+	}
+	for i := range profiles {
+		profiles[i].GracefulRestart = prof.GracefulRestart
 	}
 
 	seedCtx, cancel := context.WithTimeout(ctx, max(cfg.Duration+defaultFuzzPerSeedTimeout, defaultFuzzPerSeedTimeout))
@@ -326,7 +392,11 @@ func writeSeedLine(w io.Writer, idx, total int, rep *SeedReport) {
 		status = "FAIL"
 	}
 	var tb textbuf.Buffer
-	tb.Str("[").Int(int64(idx)).Byte('/').Int(int64(total)).Str("] ").
+	tb.Byte('[').Int(int64(idx))
+	if total > 0 {
+		tb.Byte('/').Int(int64(total))
+	}
+	tb.Str("] ").
 		Str(status).Str(" seed=").Uint(rep.Seed).
 		Str(" peers=").Int(int64(rep.Profile.Peers)).
 		Str(" routes=").Int(int64(rep.Profile.Routes)).
@@ -352,6 +422,9 @@ func writeSummary(w io.Writer, s *Summary) {
 		Str(" | fsm-transitions: ").Int(int64(s.TotalFSMTransitions)).
 		Str(" | stream-faults: ").Int(s.TotalStreamFaults.Total()).
 		Str(" | elapsed: ").Str(s.Elapsed.Truncate(time.Millisecond).String()).Byte('\n')
+	if s.PoolLeak != "" {
+		tb.Str("LEAK ").Str(s.PoolLeak).Byte('\n')
+	}
 	for i := range s.Failures {
 		f := &s.Failures[i]
 		tb.Str("FAIL seed=").Uint(f.Seed)
@@ -363,6 +436,15 @@ func writeSummary(w io.Writer, s *Summary) {
 			tb.Str("  - ").Str(v).Byte('\n')
 		}
 		tb.Str("  repro: ").Str(f.Repro).Byte('\n')
+		if f.Shrunk != nil {
+			tb.Str("  minimized: ").Str(f.Shrunk.Repro).
+				Str(" (probes=").Int(int64(f.Shrunk.Steps))
+			if f.Shrunk.ShrunkEvents > 0 {
+				tb.Str(", events=").Int(int64(f.Shrunk.OriginalEvents)).
+					Str("->").Int(int64(f.Shrunk.ShrunkEvents))
+			}
+			tb.Str(")\n")
+		}
 	}
 	_, _ = w.Write(tb.Bytes())
 }
@@ -377,7 +459,10 @@ func CLIRun(args []string) int {
 	maxPeers := fs.Int("max-peers", defaultFuzzMaxPeers, "Maximum simulated peers per seed (2-16)")
 	maxRoutes := fs.Int("max-routes", defaultFuzzMaxRoutes, "Maximum routes per peer (1-500)")
 	convergenceDeadline := fs.Duration("convergence-deadline", defaultFuzzConvergenceDeadline, "Route convergence deadline per seed")
+	workers := fs.Int("workers", 1, "Concurrent seed workers (1-16)")
+	timeBudget := fs.Duration("time-budget", 0, "Wall-clock campaign budget (e.g. 5m); sweeps until budget expires")
 	checkDeterminism := fs.Bool("check-determinism", false, "Run each seed twice and verify identical state hash and verdict")
+	shrinkFail := fs.Bool("shrink", false, "Automatically minimize failing seeds and event traces")
 	outDir := fs.String("out-dir", "", "Directory to save NDJSON event logs for failing seeds")
 	quiet := fs.Bool("quiet", false, "Suppress per-seed progress lines")
 
@@ -389,13 +474,16 @@ Usage:
   le chaos fuzz [options]
 
 Options:
-  --seeds <N>                Number of seeds to run (default: 10)
+  --seeds <N>                Number of seeds to run (default: 10; unbounded if only --time-budget is set)
   --base-seed <uint64>       Starting seed (default: random, printed in summary)
   --duration <dur>           Virtual time simulated per seed (default: 15s)
   --max-peers <N>            Maximum peers per seed (2-16, default: 4)
   --max-routes <N>           Maximum routes per peer (1-500, default: 12)
   --convergence-deadline <d> Convergence property deadline (default: 10s)
+  --workers <N>              Concurrent seed workers (1-16, default: 1)
+  --time-budget <dur>        Stop dispatching new seeds after this wall-clock duration
   --check-determinism        Run each seed twice and assert identical state hash
+  --shrink                   Automatically minimize failing profiles and event traces
   --out-dir <dir>            Write NDJSON event logs for failing seeds
   --quiet                    Print summary only
 `)
@@ -409,20 +497,35 @@ Options:
 		return 1
 	}
 
-	if err := validateCLIFlags(*seeds, *duration, *maxPeers, *maxRoutes, *convergenceDeadline); err != nil {
+	seedsExplicit := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "seeds" {
+			seedsExplicit = true
+		}
+	})
+	seedCount := *seeds
+	if *timeBudget > 0 && !seedsExplicit {
+		seedCount = 0
+	}
+
+	if err := validateCLIFlags(seedCount, *timeBudget, *duration, *maxPeers, *maxRoutes, *convergenceDeadline, *workers); err != nil {
 		var tb textbuf.Buffer
 		tb.Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
 		return 1
 	}
 
 	summary, err := Run(context.Background(), Config{
-		Seeds:               *seeds,
+		Seeds:               seedCount,
 		BaseSeed:            *baseSeed,
 		Duration:            *duration,
 		MaxPeers:            *maxPeers,
 		MaxRoutes:           *maxRoutes,
 		ConvergenceDeadline: *convergenceDeadline,
+		Workers:             *workers,
+		TimeBudget:          *timeBudget,
 		CheckDeterminism:    *checkDeterminism,
+		Shrink:              *shrinkFail,
+		CheckLeaks:          true,
 		OutDir:              *outDir,
 		Quiet:               *quiet,
 		Out:                 os.Stderr,
@@ -437,11 +540,19 @@ Options:
 	if summary.Failed > 0 {
 		return 1
 	}
+	if summary.PoolLeak != "" {
+		return 1
+	}
 	return 0
 }
 
-func validateCLIFlags(seeds int, duration time.Duration, maxPeers, maxRoutes int, deadline time.Duration) error {
-	if seeds < 1 {
+func validateCLIFlags(seeds int, timeBudget, duration time.Duration, maxPeers, maxRoutes int, deadline time.Duration, workers int) error {
+	if timeBudget < 0 {
+		return opererr.New("--time-budget must not be negative",
+			"A fuzzing campaign time budget must be zero (disabled) or positive.",
+			"./le chaos fuzz --time-budget 5m")
+	}
+	if seeds < 1 && timeBudget == 0 {
 		return opererr.New("--seeds must be at least 1",
 			"Swarm fuzzing needs at least one seed to execute.",
 			"./le chaos fuzz --seeds 10")
@@ -475,6 +586,16 @@ func validateCLIFlags(seeds int, duration time.Duration, maxPeers, maxRoutes int
 		return opererr.New("--convergence-deadline must be positive",
 			"Convergence validation needs a positive latency limit.",
 			"./le chaos fuzz --convergence-deadline 10s")
+	}
+	if workers < 1 {
+		return opererr.New("--workers must be between 1 and 16",
+			"Swarm fuzzing needs at least one worker.",
+			"./le chaos fuzz --workers 4")
+	}
+	if workers > 16 {
+		return opererr.New("--workers must be between 1 and 16",
+			"Swarm fuzzing bounds concurrent in-process reactors to avoid host saturation.",
+			"./le chaos fuzz --workers 4")
 	}
 	return nil
 }

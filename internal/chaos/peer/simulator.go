@@ -38,15 +38,16 @@ var (
 // SimProfile holds the peer identity and route parameters for a simulator.
 // It mirrors the fields from scenario.PeerProfile needed at runtime.
 type SimProfile struct {
-	Index      int
-	ASN        uint32
-	RouterID   netip.Addr
-	IsIBGP     bool
-	HoldTime   uint16
-	RouteCount int
-	TotalPeers int
-	Families   []string
-	SlowRead   time.Duration
+	Index           int
+	ASN             uint32
+	RouterID        netip.Addr
+	IsIBGP          bool
+	HoldTime        uint16
+	RouteCount      int
+	TotalPeers      int
+	Families        []string
+	SlowRead        time.Duration
+	GracefulRestart bool
 
 	// RouteSet is the exact IPv4 unicast routes the peer announces, each with
 	// its own next hop and AS path, in place of RouteCount routes generated
@@ -474,6 +475,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		routeCh = make(<-chan route.Action)
 	}
 
+	var actionSeq uint64
 	for {
 		select {
 		case <-ctx.Done():
@@ -502,7 +504,8 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				return
 			}
 		case action := <-chaosCh:
-			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit, &readDelayNs)
+			actionSeq++
+			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit, &readDelayNs, actionSeq)
 			if result.Disconnected {
 				// Before the event, not after. A watcher that counts executed
 				// actions must never see this action complete while the peer
@@ -516,7 +519,8 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				return
 			}
 		case action := <-routeCh:
-			executeRoute(action, conn, routes, sender, p, cfg, emit)
+			actionSeq++
+			executeRoute(action, conn, routes, sender, p, cfg, emit, actionSeq)
 			emit(Event{Type: EventRouteAction, RouteAction: action.Type.String()})
 		}
 	}

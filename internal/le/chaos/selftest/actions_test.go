@@ -108,7 +108,7 @@ func TestChaosActionsKeepExactCommandsAndEnvironments(t *testing.T) {
 			verb: "cli-unit",
 			argv: []string{
 				"go", "test", "-timeout", "7m", "-tags",
-				"ze_core ze_bgp", "./internal/le/chaos/run",
+				"ze_core ze_bgp", "./internal/le/chaos/run", "./internal/le/chaos/fuzz",
 			},
 			overrides: []string{
 				"GOCACHE=" + cache,
@@ -241,7 +241,7 @@ func TestNamedToolFailureKeepsItsReportAndCode(t *testing.T) {
 		t.Fatalf("answer = %#v, want the tool's own gaterun.ActionReport", answer)
 	}
 	wantCommand := []string{
-		"go", "test", "-timeout", "7m", "-tags", "ze_core ze_bgp", "./internal/le/chaos/run",
+		"go", "test", "-timeout", "7m", "-tags", "ze_core ze_bgp", "./internal/le/chaos/run", "./internal/le/chaos/fuzz",
 	}
 	if report.Action != "cli-unit" || report.Code != failureCode {
 		t.Errorf("report = %#v", report)

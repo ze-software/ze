@@ -975,11 +975,13 @@ The convergence tracker (`internal/chaos/validation/convergence.go`) supports pe
 
 ### In-Process Wire Faults, Online StateChecker, and Swarm Fuzzing
 
-In `--in-process` mode, `mocknet.NewFaultConn` wraps mocknet connection pairs with seeded read/write fragmentation (default chunk bound 19 bytes to split BGP headers), virtual-clock asymmetric blackholes, and mid-frame resets. `inprocess.StateChecker` samples every peer's `FSMHistory()` (`internal/component/bgp/reactor/peer_history.go`) on every virtual tick and at settle to assert RFC 4271 Section 8.2.2 transition legality, non-zero `RemoteRouterID`, and an FNV-64a checkpoint hash. `internal/chaos/fuzz` drives multi-seed swarm sweeps through `./le chaos fuzz`, varying topology, v2 action subsets, and stream fault rates per seed and printing exact `./le chaos run --in-process` reproducers on failure.
+In `--in-process` mode, `mocknet.NewFaultConn` wraps mocknet connection pairs with seeded read/write fragmentation (default chunk bound 19 bytes to split BGP headers), virtual-clock asymmetric blackholes, and mid-frame resets. `inprocess.StateChecker` samples every peer's `FSMHistory()` (`internal/component/bgp/reactor/peer_history.go`) on every virtual tick and at settle to assert RFC 4271 Section 8.2.2 transition legality, non-zero `RemoteRouterID`, RFC 4271 Section 4.2 negotiated hold/keepalive bounds, monotonic lifetime counters, live `bgp-rib` status, post-teardown `reactor.ReadPoolInUse()` leak checks, and an FNV-64a checkpoint hash. `internal/chaos/fuzz` drives multi-seed parallel swarm sweeps (`--workers`, `--time-budget`, `--shrink`, `--check-determinism`) through `./le chaos fuzz`, varying topology, unicast/multicast families, Graceful Restart negotiation, protocol/v2 action subsets, and stream fault rates per seed and minimizing failing profiles and event traces on failure.
 <!-- source: internal/chaos/mocknet/fault_conn.go -- StreamFaultConfig, FaultConn, NewFaultConn -->
-<!-- source: internal/chaos/inprocess/state_checker.go -- StateChecker, IsLegalFSMTransition -->
+<!-- source: internal/chaos/inprocess/state_checker.go -- StateChecker, IsLegalFSMTransition, ValidateNegotiatedTimers, CheckReadPoolLeaks -->
 <!-- source: internal/component/bgp/reactor/peer_history.go -- Peer.FSMHistory -->
+<!-- source: internal/component/bgp/reactor/session.go -- ReadPoolInUse -->
 <!-- source: internal/chaos/fuzz/swarm.go -- SwarmProfile -->
+<!-- source: internal/chaos/fuzz/shrink.go -- MinimizeProfile, ShrinkFailure -->
 <!-- source: internal/chaos/fuzz/runner.go -- Run, CLIRun -->
 <!-- source: internal/chaos/web/dashboard.go -- Dashboard implementation -->
 <!-- source: internal/chaos/web/state.go -- state management -->

@@ -66,6 +66,10 @@ type PeerProfile struct {
 	// Zero means normal read speed (no artificial delay).
 	SlowRead time.Duration
 
+	// GracefulRestart instructs the simulated peer to advertise the RFC 4724
+	// Graceful Restart capability in its OPEN message.
+	GracefulRestart bool
+
 	// RouteSet is the exact IPv4 unicast routes this peer announces, each with
 	// its own next hop and AS path. Nil means the peer announces RouteCount
 	// routes generated from the scenario seed, as every profile of Generate

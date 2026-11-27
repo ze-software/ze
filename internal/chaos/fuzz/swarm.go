@@ -11,11 +11,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// swarmV2Actions lists v2 chaos actions effective on in-process mocknet
-// connections (excludes Linux netns iface actions and kernel TCP socket-buffer
-// actions like slow-peer/zero-window which require *net.TCPConn; wire-level
-// slowness and stalls are injected via mocknet.FaultConn instead).
-var swarmV2Actions = []engine.ActionType{
+const (
+	famIPv4Unicast   = "ipv4/unicast"
+	famIPv6Unicast   = "ipv6/unicast"
+	famIPv4Multicast = "ipv4/multicast"
+	famIPv6Multicast = "ipv6/multicast"
+)
+
+// swarmActions lists BGP chaos actions effective on in-process mocknet
+// connections (includes RFC 7606 malformed-update handling and v2 route/timer
+// disruptions; excludes Linux netns iface actions and kernel TCP socket-buffer
+// actions like slow-peer/zero-window which require *net.TCPConn, since
+// wire-level slowness and stalls are injected via mocknet.FaultConn instead).
+var swarmActions = []engine.ActionType{
+	engine.ActionMalformedUpdate,
 	engine.ActionClockDrift,
 	engine.ActionRouteBurst,
 	engine.ActionWithdrawalBurst,
@@ -27,15 +36,16 @@ var swarmV2Actions = []engine.ActionType{
 // activates a randomized subset of fault mechanisms and rates so different
 // seeds stress distinct extreme combinations rather than averaging them out.
 type Profile struct {
-	Seed           uint64
-	Peers          int
-	IBGPRatio      float64
-	Routes         int
-	Families       []string
-	ChaosRate      float64
-	RouteRate      float64
-	EnabledActions []engine.ActionType
-	StreamFaults   mocknet.StreamFaultConfig
+	Seed            uint64
+	Peers           int
+	IBGPRatio       float64
+	Routes          int
+	Families        []string
+	GracefulRestart bool
+	ChaosRate       float64
+	RouteRate       float64
+	EnabledActions  []engine.ActionType
+	StreamFaults    mocknet.StreamFaultConfig
 }
 
 // SwarmProfile deterministically derives a swarm fuzzing Profile from seed,
@@ -65,11 +75,15 @@ func SwarmProfile(seed uint64, maxPeers, maxRoutes int) Profile {
 	}
 
 	familyChoices := [][]string{
-		{"ipv4/unicast"},
-		{"ipv6/unicast"},
-		{"ipv4/unicast", "ipv6/unicast"},
+		{famIPv4Unicast},
+		{famIPv6Unicast},
+		{famIPv4Unicast, famIPv6Unicast},
+		{famIPv4Unicast, famIPv4Multicast},
+		{famIPv4Unicast, famIPv6Unicast, famIPv6Multicast},
 	}
 	families := familyChoices[rng.IntN(len(familyChoices))]
+
+	gracefulRestart := rng.IntN(2) == 1
 
 	chaosRates := []float64{0.0, 0.05, 0.15, 0.30}
 	chaosRate := chaosRates[rng.IntN(len(chaosRates))]
@@ -78,7 +92,7 @@ func SwarmProfile(seed uint64, maxPeers, maxRoutes int) Profile {
 	routeRate := routeRates[rng.IntN(len(routeRates))]
 
 	var enabled []engine.ActionType
-	for _, act := range swarmV2Actions {
+	for _, act := range swarmActions {
 		if rng.IntN(2) == 1 {
 			enabled = append(enabled, act)
 		}
@@ -98,14 +112,15 @@ func SwarmProfile(seed uint64, maxPeers, maxRoutes int) Profile {
 	}
 
 	return Profile{
-		Seed:           seed,
-		Peers:          peers,
-		IBGPRatio:      ibgpRatio,
-		Routes:         routes,
-		Families:       families,
-		ChaosRate:      chaosRate,
-		RouteRate:      routeRate,
-		EnabledActions: enabled,
+		Seed:            seed,
+		Peers:           peers,
+		IBGPRatio:       ibgpRatio,
+		Routes:          routes,
+		Families:        families,
+		GracefulRestart: gracefulRestart,
+		ChaosRate:       chaosRate,
+		RouteRate:       routeRate,
+		EnabledActions:  enabled,
 		StreamFaults: mocknet.StreamFaultConfig{
 			Seed:              seed,
 			FragmentRate:      fragRate,

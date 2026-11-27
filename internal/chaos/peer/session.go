@@ -29,6 +29,9 @@ type SessionConfig struct {
 	// Families is the list of address families to negotiate.
 	// Empty defaults to ["ipv4/unicast"].
 	Families []string
+
+	// GracefulRestart advertises RFC 4724 Graceful Restart capability in OPEN.
+	GracefulRestart bool
 }
 
 // BuildOpen constructs a BGP OPEN message from the session config.
@@ -48,6 +51,7 @@ func BuildOpen(cfg SessionConfig) (*message.Open, error) {
 	}
 
 	var caps []capability.Capability
+	var grFamilies []capability.GracefulRestartFamily
 	for _, f := range families {
 		fam, ok := family.LookupFamily(f)
 		if !ok {
@@ -57,8 +61,20 @@ func BuildOpen(cfg SessionConfig) (*message.Open, error) {
 			AFI:  fam.AFI,
 			SAFI: fam.SAFI,
 		})
+		if cfg.GracefulRestart {
+			grFamilies = append(grFamilies, capability.GracefulRestartFamily{
+				AFI:  fam.AFI,
+				SAFI: fam.SAFI,
+			})
+		}
 	}
 	caps = append(caps, &capability.ASN4{ASN: cfg.ASN}, &capability.RouteRefresh{})
+	if cfg.GracefulRestart {
+		caps = append(caps, &capability.GracefulRestart{
+			RestartTime: 60,
+			Families:    grFamilies,
+		})
+	}
 
 	// One Capabilities parameter for every capability, framed by the one packer.
 	// RFC 9072 Section 2

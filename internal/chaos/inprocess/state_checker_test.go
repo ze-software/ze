@@ -82,3 +82,18 @@ func TestValidateFSMTransitionsFlagsIllegalJump(t *testing.T) {
 	assert.Contains(t, violations[0], "IDLE -> ESTABLISHED")
 	assert.Contains(t, violations[0], "bug")
 }
+
+// TestValidateNegotiatedTimers verifies RFC 4271 Section 4.2 HoldTime and
+// KeepaliveTime invariants.
+//
+// VALIDATES: Illegal HoldTime (1 or 2) and Keepalive > Hold/2 are rejected.
+// PREVENTS: Silently accepting invalid negotiated BGP timers.
+func TestValidateNegotiatedTimers(t *testing.T) {
+	assert.Empty(t, ValidateNegotiatedTimers("127.0.0.2", 0, 0))
+	assert.Empty(t, ValidateNegotiatedTimers("127.0.0.2", 90, 30))
+	assert.Empty(t, ValidateNegotiatedTimers("127.0.0.2", 3, 1))
+
+	assert.Contains(t, ValidateNegotiatedTimers("127.0.0.2", 1, 0), "HoldTime=1")
+	assert.Contains(t, ValidateNegotiatedTimers("127.0.0.2", 2, 0), "HoldTime=2")
+	assert.Contains(t, ValidateNegotiatedTimers("127.0.0.2", 90, 50), "KeepaliveTime=50")
+}

@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"os"
@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/route"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // defaultSlowReadDelay is the read delay applied when ActionSlowRead toggles
@@ -31,7 +32,7 @@ const defaultSlowReadDelay = 1 * time.Second
 // readDelayNs is the atomic read delay (nanoseconds) shared with readLoop.
 func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 	stopKeepalive func(), p SimProfile, cfg SimulatorConfig, emit func(Event),
-	readDelayNs *atomic.Int64,
+	readDelayNs *atomic.Int64, actionSeq uint64,
 ) chaosResult {
 	switch action.Type {
 	case engine.ActionTCPDisconnect:
@@ -105,19 +106,19 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 		return chaosResult{Disconnected: false}
 
 	case engine.ActionClockDrift:
-		executeClockDrift(ctx, action, conn, p, emit)
+		executeClockDrift(ctx, action, conn, p, cfg.Clock, emit)
 		return chaosResult{Disconnected: false}
 
 	case engine.ActionRouteBurst:
-		executeRouteBurst(ctx, action, conn, p, cfg, emit)
+		executeRouteBurst(ctx, action, conn, p, cfg, actionSeq, emit)
 		return chaosResult{Disconnected: false}
 
 	case engine.ActionWithdrawalBurst:
-		executeWithdrawalBurst(action, conn, p, cfg, emit)
+		executeWithdrawalBurst(action, conn, p, cfg, actionSeq, emit)
 		return chaosResult{Disconnected: false}
 
 	case engine.ActionRouteFlap:
-		executeRouteFlap(ctx, action, conn, p, cfg, emit)
+		executeRouteFlap(ctx, action, conn, p, cfg, actionSeq, emit)
 		return chaosResult{Disconnected: false}
 
 	case engine.ActionSlowPeer:
@@ -144,13 +145,13 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 // executeRoute handles a single route dynamics action on the simulator's live connection.
 // Route actions never disconnect the session — they only modify the route table.
 func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
-	sender *Sender, p SimProfile, cfg SimulatorConfig, emit func(Event),
+	sender *Sender, p SimProfile, cfg SimulatorConfig, emit func(Event), actionSeq uint64,
 ) {
 	switch action.Type {
 	case route.ActionChurn:
 		// Churn: withdraw N routes, then immediately re-announce them.
 		// Simulates normal internet route instability.
-		selected := pickRandomRoutes(routes, action.ChurnCount, cfg.Seed, p.Index)
+		selected := pickRandomRoutes(routes, action.ChurnCount, cfg.Seed, p.Index, actionSeq)
 		if err := sendWithdrawal(conn, selected, emit); err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending churn withdrawal: %w", err)})
 			return
@@ -165,7 +166,7 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 		}
 
 	case route.ActionPartialWithdraw:
-		if err := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit); err != nil {
+		if err := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, actionSeq, emit); err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending partial withdrawal: %w", err)})
 		}
 
@@ -178,16 +179,18 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 	}
 }
 
-// pickRandomRoutes selects n random routes using a deterministic PRNG.
-func pickRandomRoutes(routes []netip.Prefix, n int, seed uint64, peerIndex int) []netip.Prefix {
+// pickRandomRoutes selects n random routes using a strictly deterministic PCG
+// seeded from (seed, peerIndex, seq) — no wall-clock entropy.
+func pickRandomRoutes(routes []netip.Prefix, n int, seed uint64, peerIndex int, seq uint64) []netip.Prefix {
 	if len(routes) == 0 || n <= 0 {
 		return nil
 	}
 	if n > len(routes) {
 		n = len(routes)
 	}
-	//nolint:gosec // Deterministic PRNG intentional for reproducibility.
-	rng := rand.New(rand.NewSource(int64(seed) + int64(peerIndex) + time.Now().UnixNano()))
+	s1 := seed ^ ((seq + 1) * 0x9e3779b97f4a7c15)
+	s2 := uint64(peerIndex+1)*0x517cc1b727220a95 ^ seq
+	rng := rand.New(rand.NewPCG(s1, s2)) //nolint:gosec // Deterministic simulation PRNG.
 	indices := rng.Perm(len(routes))
 	selected := make([]netip.Prefix, n)
 	for i := range n {
@@ -308,6 +311,23 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 }
 
 func waitWithContext(ctx context.Context, d time.Duration) bool {
+	return waitWithClock(ctx, nil, d)
+}
+
+func waitWithClock(ctx context.Context, clk clock.Clock, d time.Duration) bool {
+	if d <= 0 {
+		return ctx.Err() == nil
+	}
+	if clk != nil {
+		t := clk.NewTimer(d)
+		defer t.Stop()
+		select {
+		case <-t.C():
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
 	timer := time.NewTimer(d)
 	defer timer.Stop()
 	select {
@@ -348,23 +368,13 @@ func sendWithdrawal(conn io.Writer, prefixes []netip.Prefix, emit func(Event)) e
 
 // withdrawFraction withdraws a subset chosen using the peer's deterministic seed.
 func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
-	seed uint64, peerIndex int, emit func(Event),
+	seed uint64, peerIndex int, seq uint64, emit func(Event),
 ) error {
 	if len(routes) == 0 || fraction <= 0 {
 		return nil
 	}
 
 	count := min(max(int(float64(len(routes))*fraction), 1), len(routes))
-
-	// Shuffle and pick first 'count' routes using deterministic PRNG.
-	//nolint:gosec // Deterministic PRNG intentional for reproducibility.
-	rng := rand.New(rand.NewSource(int64(seed) + int64(peerIndex)))
-	indices := rng.Perm(len(routes))
-
-	selected := make([]netip.Prefix, count)
-	for i := range count {
-		selected[i] = routes[indices[i]]
-	}
-
+	selected := pickRandomRoutes(routes, count, seed, peerIndex, seq)
 	return sendWithdrawal(conn, selected, emit)
 }

@@ -85,28 +85,32 @@ TigerBeetle's VOPR simulator:
   writes truncated frames before abruptly resetting the connection.
 - **Online `StateChecker`**: samples every live reactor peer on each virtual
   tick and at settle, checking all recorded `Peer.FSMHistory()` transitions
-  against RFC 4271 Section 8.2.2, checking non-zero `RemoteRouterID` while
-  Established (RFC 4271 Section 4.2), and computing a deterministic FNV-64a
-  checkpoint hash.
-- **Multi-seed swarm runner (`./le chaos fuzz`)**: sweeps N random seeds in fast
-  in-process mode, randomizing peer topology, v2 fault subsets, and stream fault
-  rates per seed (swarm testing), checking all BGP properties and online reactor
-  invariants, and printing a copy-paste `./le chaos run --in-process ...`
-  reproducer for any failure.
+  against RFC 4271 Section 8.2.2, checking non-zero `RemoteRouterID` and legal
+  negotiated `HoldTime`/`KeepaliveTime` bounds while Established (RFC 4271
+  Section 4.2), asserting monotonic per-peer lifetime counters, querying
+  `show bgp rib status` at settle, computing a deterministic FNV-64a checkpoint
+  hash, and checking `reactor.ReadPoolInUse()` for buffer leaks after teardown.
+- **Multi-seed swarm runner (`./le chaos fuzz`)**: sweeps random seeds in fast
+  in-process mode, randomizing peer topology, address families (unicast and
+  multicast), Graceful Restart OPEN negotiation, BGP chaos actions (including
+  RFC 7606 `malformed-update`), and stream fault rates per seed. Supports
+  parallel `--workers <N>`, wall-clock `--time-budget <dur>`, `--check-determinism`,
+  and `--shrink` to automatically minimize failing profiles and event traces.
 
 ```bash
-# Sweep 20 random seeds with randomized fault profiles
-./le chaos fuzz --seeds 20 --duration 15s
+# Sweep 20 random seeds across 4 concurrent workers with automatic failure shrinking
+./le chaos fuzz --seeds 20 --workers 4 --duration 15s --shrink
 
-# Reproducible sweep starting at seed 1000, verifying run-to-run state hash determinism
-./le chaos fuzz --base-seed 1000 --seeds 10 --check-determinism --out-dir tmp/fuzz-failures
+# Run a 5-minute continuous campaign checking run-to-run state hash determinism
+./le chaos fuzz --time-budget 5m --workers 4 --check-determinism --out-dir tmp/fuzz-failures
 
 # Reproduce a single seed with wire-level fragmentation enabled
 ./le chaos run --in-process --seed 1000 --duration 15s --stream-fragment-rate 0.5 --properties all
 ```
 <!-- source: internal/chaos/mocknet/fault_conn.go -- StreamFaultConfig, NewFaultConn, FaultConn -->
-<!-- source: internal/chaos/inprocess/state_checker.go -- StateChecker, IsLegalFSMTransition -->
+<!-- source: internal/chaos/inprocess/state_checker.go -- StateChecker, IsLegalFSMTransition, ValidateNegotiatedTimers, CheckReadPoolLeaks -->
 <!-- source: internal/chaos/fuzz/swarm.go -- SwarmProfile, Profile.ReproCommand -->
+<!-- source: internal/chaos/fuzz/shrink.go -- MinimizeProfile, ShrinkFailure -->
 <!-- source: internal/chaos/fuzz/runner.go -- Run, CLIRun -->
 <!-- source: internal/le/chaos/fuzz/fuzz.go -- Answer -->
 

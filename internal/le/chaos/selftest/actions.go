@@ -26,9 +26,10 @@ const allVerb = "all"
 const (
 	chaosPackages = "./internal/chaos/..."
 	chaosCLITags  = "ze_core ze_bgp"
-	// chaosCLIPackage is the `le chaos run` entry, whose tests drive the
-	// orchestrator's command line through the command a developer types.
-	chaosCLIPackage = "./internal/le/chaos/run"
+	// chaosCLIPackage and chaosFuzzCLIPackage are the `le chaos run` and
+	// `le chaos fuzz` entries, whose tests drive the CLI commands directly.
+	chaosCLIPackage     = "./internal/le/chaos/run"
+	chaosFuzzCLIPackage = "./internal/le/chaos/fuzz"
 )
 
 type commandKind uint8
@@ -62,7 +63,7 @@ func (g Action) Argv(tc gotoolchain.Toolchain) []string {
 		return tc.GoTest(gotoolchain.TestOptions{Race: true}, chaosPackages)
 	case commandCLI:
 		return []string{
-			"go", "test", "-timeout", tc.Timeout, "-tags", chaosCLITags, chaosCLIPackage,
+			"go", "test", "-timeout", tc.Timeout, "-tags", chaosCLITags, chaosCLIPackage, chaosFuzzCLIPackage,
 		}
 	case commandUnspecified:
 		panic("BUG: chaosselftest.Action has no command kind")

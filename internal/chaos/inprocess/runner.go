@@ -398,16 +398,17 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		// Build SimulatorConfig with optional chaos/route channels and dialer.
 		simCfg := peer.SimulatorConfig{
 			Profile: peer.SimProfile{
-				Index:      profile.Index,
-				ASN:        profile.ASN,
-				RouterID:   profile.RouterID,
-				IsIBGP:     profile.IsIBGP,
-				HoldTime:   profile.HoldTime,
-				RouteCount: profile.RouteCount,
-				TotalPeers: peerCount,
-				Families:   profile.Families,
-				SlowRead:   profile.SlowRead,
-				RouteSet:   profile.RouteSet,
+				Index:           profile.Index,
+				ASN:             profile.ASN,
+				RouterID:        profile.RouterID,
+				IsIBGP:          profile.IsIBGP,
+				HoldTime:        profile.HoldTime,
+				RouteCount:      profile.RouteCount,
+				TotalPeers:      peerCount,
+				Families:        profile.Families,
+				SlowRead:        profile.SlowRead,
+				GracefulRestart: profile.GracefulRestart,
+				RouteSet:        profile.RouteSet,
 			},
 			Seed:   cfg.Seed,
 			Addr:   "",
@@ -936,6 +937,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		settleCancel()
 	}
 	finalHash := stateChecker.Sample(reactor)
+	stateChecker.CheckLiveRIB(reactor)
 
 	// Stop simulators and reactor.
 	observationEnd := time.Now()

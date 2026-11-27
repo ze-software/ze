@@ -11,12 +11,14 @@ import (
 	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // executeClockDrift skews the next keepalive by the drift amount.
 // Positive drift = late keepalive, negative = early.
-// The drift is applied as a one-shot sleep before sending a keepalive.
-func executeClockDrift(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, emit func(Event)) {
+// The drift is applied as a one-shot sleep (via virtual clock when provided)
+// before sending a keepalive.
+func executeClockDrift(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, clk clock.Clock, emit func(Event)) {
 	holdTime := time.Duration(p.HoldTime) * time.Second
 	params, err := engine.ParseClockDriftParams(action.Params, holdTime)
 	if err != nil {
@@ -25,9 +27,7 @@ func executeClockDrift(ctx context.Context, action engine.ChaosAction, conn net.
 	}
 
 	if params.Drift > 0 {
-		select {
-		case <-time.After(params.Drift):
-		case <-ctx.Done():
+		if !waitWithClock(ctx, clk, params.Drift) {
 			return
 		}
 	}
@@ -36,11 +36,13 @@ func executeClockDrift(ctx context.Context, action engine.ChaosAction, conn net.
 	}
 }
 
-// executeRouteBurst announces extra routes in rapid succession.
-func executeRouteBurst(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, emit func(Event)) {
+// executeRouteBurst announces extra routes in rapid succession using a
+// deterministic seed derived from cfg.Seed and actionSeq.
+func executeRouteBurst(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, actionSeq uint64, emit func(Event)) {
 	params := engine.ParseRouteBurstParams(action.Params)
 
-	routes := scenario.GenerateIPv4Routes(cfg.Seed+uint64(time.Now().UnixNano()), p.Index, params.Count, p.TotalPeers)
+	burstSeed := cfg.Seed ^ ((actionSeq + 1) * 0x9e3779b97f4a7c15)
+	routes := scenario.GenerateIPv4Routes(burstSeed, p.Index, params.Count, p.TotalPeers)
 
 	sender := NewSender(SenderConfig{
 		ASN:     p.ASN,
@@ -62,7 +64,7 @@ func executeRouteBurst(ctx context.Context, action engine.ChaosAction, conn net.
 
 // executeWithdrawalBurst withdraws a configurable number of routes rapidly.
 // If count exceeds available routes, withdraws all.
-func executeWithdrawalBurst(action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, emit func(Event)) {
+func executeWithdrawalBurst(action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, actionSeq uint64, emit func(Event)) {
 	params := engine.ParseWithdrawalBurstParams(action.Params)
 
 	routes := ipv4Routes(cfg.Seed, p)
@@ -71,14 +73,14 @@ func executeWithdrawalBurst(action engine.ChaosAction, conn net.Conn, p SimProfi
 		return
 	}
 
-	selected := pickRandomRoutes(routes, count, cfg.Seed, p.Index)
+	selected := pickRandomRoutes(routes, count, cfg.Seed, p.Index, actionSeq)
 	if err := sendWithdrawal(conn, selected, emit); err != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("withdrawal-burst: %w", err)})
 	}
 }
 
 // executeRouteFlap withdraws and re-announces the same routes in cycles.
-func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, emit func(Event)) {
+func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, actionSeq uint64, emit func(Event)) {
 	params := engine.ParseRouteFlapParams(action.Params)
 
 	routes := ipv4Routes(cfg.Seed, p)
@@ -87,7 +89,7 @@ func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.C
 		return
 	}
 
-	selected := pickRandomRoutes(routes, count, cfg.Seed, p.Index)
+	selected := pickRandomRoutes(routes, count, cfg.Seed, p.Index, actionSeq)
 	sender := newIPv4Sender(p)
 
 	for cycle := range params.Cycles {
@@ -113,11 +115,9 @@ func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.C
 			}
 		}
 
-		// Inter-cycle delay.
+		// Inter-cycle delay (virtual clock when running in-process).
 		if cycle < params.Cycles-1 {
-			select {
-			case <-time.After(params.Interval):
-			case <-ctx.Done():
+			if !waitWithClock(ctx, cfg.Clock, params.Interval) {
 				return
 			}
 		}

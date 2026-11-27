@@ -126,9 +126,7 @@ func establishSession(ctx context.Context, cfg SimulatorConfig, emit func(Event)
 			break
 		}
 		emit(Event{Type: EventReconnecting, Count: attempt, Err: lastErr})
-		select {
-		case <-time.After(backoff):
-		case <-ctx.Done():
+		if !waitWithClock(ctx, cfg.Clock, backoff) {
 			emit(Event{Type: EventDisconnected, PlannedShutdown: true})
 			return nil, false
 		}
@@ -174,10 +172,11 @@ func exchangeOpen(ctx context.Context, cfg SimulatorConfig, conn net.Conn) error
 
 	p := cfg.Profile
 	open, err := BuildOpen(SessionConfig{
-		ASN:      p.ASN,
-		RouterID: p.RouterID,
-		HoldTime: p.HoldTime,
-		Families: p.Families,
+		ASN:             p.ASN,
+		RouterID:        p.RouterID,
+		HoldTime:        p.HoldTime,
+		Families:        p.Families,
+		GracefulRestart: p.GracefulRestart,
 	})
 	if err != nil {
 		return fmt.Errorf("building OPEN: %w", err)
