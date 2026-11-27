@@ -7,6 +7,10 @@ author: Thomas Mangin
 description: How Ze adapts TigerBeetle VOPR-style swarm fuzzing, wire-level stream faults, white-box reactor checks and automatic shrinking for BGP in Go, and where standard Go differs from a deterministic hypervisor like Antithesis.
 
 deck: Running one chaos seed shows what happened under one fault mix; deterministic simulation lets a single machine explore many combinations and shrink any failure to its smallest cause.
+
+image: assets/blog/deterministic-simulation-testing-bgp.svg
+image-dark: assets/blog/deterministic-simulation-testing-bgp-dark.svg
+image-alt: Three-stage deterministic BGP simulation pipeline showing swarm seed profiles, sub-header wire stream faults, live white-box reactor invariant checks, and two-level automatic shrinking to a minimal seed reproducer.
 ---
 
 In [Breaking BGP on purpose with Le Chaos](../le-chaos/), we discussed Le Chaos, our seeded chaos runner that drives real and in-process BGP sessions under seventeen fault types. Choosing one seed and one set of fault weights still tests only the scenario someone thought to configure, whereas the defects that reach production networks usually appear where several protocol features and transport failures collide.
