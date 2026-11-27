@@ -238,6 +238,10 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_managed_config_changed_pushed_total` | Counter | | managed (hub server) |
 | `ze_managed_device_records_written_total` | CounterVec | result | managed (hub server): device history writes (`ok` or `failed`) |
 | `ze_managed_config_held_total` | CounterVec | result | managed (hub server): held configuration copies received (`stored` or `refused`) |
+| `ze_managed_chain_mismatches_total` | Counter | | managed (hub server): SHA-1 configuration hash chain mismatches observed on client messages and replies <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer, incChainMismatches --> |
+| `ze_managed_chain_resyncs_total` | CounterVec | method, result | managed (hub server): configuration hash chain resync outcomes by `method` (`diff`, `full`, `reanchor`) and `result` (`ok`, `failed`) <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer, incChainResync --> |
+| `ze_managed_client_chain_mismatches_total` | Counter | | managed (client): SHA-1 configuration hash chain mismatches detected on hub replies <!-- source: internal/component/managed/chain.go -- newClientChainMetrics, checkReplyChain --> |
+| `ze_managed_client_resyncs_total` | CounterVec | method, result | managed (client): configuration resync attempts by `method` (`diff`, `full`) and `result` (`applied`, `fallback`, `failed`) <!-- source: internal/component/managed/chain.go -- newClientChainMetrics, recordResync --> |
 | `ze_plugin_write_watchdog_total` | CounterVec | transport | plugin (server) |
 | `ze_plugin_delivery_failures_total` | CounterVec | plugin | plugin (process): event batches sent with no caller waiting that failed to reach the plugin |
 | `ze_plugin_delivery_slow_batches_total` | CounterVec | plugin | plugin (process): event batches that took over 500 ms to deliver, on any transport |
@@ -272,6 +276,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_dns_resolver_listener_up` | GaugeVec | protocol, address | dnsresolver: 1 while a listener socket is bound, by protocol and address with port |
 | `ze_dns_tcp_connection_refused_total` | Counter | | DNS server harness: one per TCP connection closed at accept because its listener held `Options.TCPConnMax` (the LAN resolver sets it) |
 | `ze_dns_source_snapshots_rejected_total` | CounterVec | consumer | dnsresolver (`dns-resolver`) and dhcpserver (`dhcpserver`): one per system-dns snapshot the consumer received and could not apply; it keeps its previous learned resolvers, logs the cause at WARN and goes on to the next snapshot |
+| `ze_dhcp_reply_write_errors_total` | CounterVec | interface | dhcpserver: one per failed UDP reply write on the listen interface. The first failure each minute also logs WARN and raises `doctor-dhcp-reply-write-failed` <!-- source: internal/plugins/dhcpserver/register.go -- configureMetrics, replyWriteErrorsCounter, serveRequests --> |
 | `ze_dns_source_records` | GaugeVec | origin | system-dns registry (`config/system` `Resolvers.SetMetrics`): the learned resolver records each origin holds, zero once its leases are withdrawn |
 | `ze_dns_source_selection_changes_total` | CounterVec | consumer | system-dns registry: one per change of a consumer's published dns-source selection after its first, the router's under consumer `system` |
 

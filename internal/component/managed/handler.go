@@ -5,7 +5,6 @@ package managed
 
 import (
 	"encoding/base64"
-	"fmt"
 
 	"github.com/ze-software/ze/pkg/fleet"
 )
@@ -42,24 +41,37 @@ func (h *Handler) ProcessConfig(resp fleet.ConfigFetchResponse) fleet.ConfigAck 
 	return ack
 }
 
+// ValidateRawConfig runs the configured full YANG validation callback against
+// raw configuration bytes (used for both full configs and diff-reconstructed
+// configs before staging).
+func (h *Handler) ValidateRawConfig(data []byte) error {
+	if h == nil {
+		return nil
+	}
+	if h.Validate == nil {
+		return nil
+	}
+	return h.Validate(data)
+}
+
 // ValidateConfig decodes and validates a config received from the hub.
 func (h *Handler) ValidateConfig(resp fleet.ConfigFetchResponse) ([]byte, fleet.ConfigAck) {
 	data, err := base64.StdEncoding.DecodeString(resp.Config)
 	if err != nil {
 		return nil, fleet.ConfigAck{
-			Version: resp.Version,
-			OK:      false,
-			Error:   fmt.Sprintf("decode config: %v", err),
+			Version:    resp.Version,
+			OK:         false,
+			Error:      "decode config: " + err.Error(),
+			RejectKind: fleet.RejectKindResync,
 		}
 	}
 
-	if h.Validate != nil {
-		if err := h.Validate(data); err != nil {
-			return nil, fleet.ConfigAck{
-				Version: resp.Version,
-				OK:      false,
-				Error:   fmt.Sprintf("validate config: %v", err),
-			}
+	if err := h.ValidateRawConfig(data); err != nil {
+		return nil, fleet.ConfigAck{
+			Version:    resp.Version,
+			OK:         false,
+			Error:      "config failed validation",
+			RejectKind: fleet.RejectKindVerify,
 		}
 	}
 

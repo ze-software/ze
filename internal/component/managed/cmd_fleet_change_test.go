@@ -91,6 +91,7 @@ func TestFleetStatusReportsStopping(t *testing.T) {
 	assert.Equal(t, clientReport{
 		client: clientStopping, connection: connectionUp, holding: holdNo,
 		heldByHub: hubAnswerNotFetched, revertOffered: hubAnswerNotFetched,
+		chainState: ChainStateUninitialized, lastResync: LastResyncNone,
 	}, report)
 }
 

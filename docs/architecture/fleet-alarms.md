@@ -29,7 +29,7 @@ Alarm delays, resource thresholds, software-behind threshold, and episode retent
 
 ## Alarm kinds
 
-An alarm is a derived condition true right now; nothing is acknowledged or silenced. Kinds register into an open hub registry so later features add a condition without editing a central list. Eight kinds ship in the first release; `relay-not-granted` joins through that same registration seam when `fleet-9` supplies relay capability and an explicit grant state (an unavailable provider or unknown grant opens no alarm).
+An alarm is a derived condition true right now; nothing is acknowledged or silenced. Kinds register into an open hub registry so later features add a condition without editing a central list. Eight built-in kinds register in `internal/component/plugin/server`, `config-resync-failed` registers from `internal/component/managed`, and `relay-not-granted` joins through that same registration seam when `fleet-9` supplies relay capability and an explicit grant state (an unavailable provider or unknown grant opens no alarm).
 
 | Kind | Scope | Severity | Caused by | Opens when |
 |------|-------|----------|-----------|------------|
@@ -37,7 +37,8 @@ An alarm is a derived condition true right now; nothing is acknowledged or silen
 | `component-down` | Device | Critical | `device-offline` | Latest device health report names a component down |
 | `component-degraded` | Device | Warning | `device-offline` | Latest device health report names a component degraded |
 | `config-diverged` | Device | Warning | - | Device holds a locally edited configuration |
-| `config-rejected` | Device | Warning | - | Device refused the configuration the hub sent |
+| `config-rejected` | Device | Warning | - | Device refused the configuration the hub sent at YANG verification (`RejectKind: "verify"` or unset) |
+| `config-resync-failed` | Device | Warning | `device-offline` | Non-holding device's diff resync and full replay both failed (`RejectKind: "resync"` or `"commit"`, or applied chain mismatch) and its last reported chain head still disagrees with the hub's expected chain head |
 | `resource-high` | Device | Warning | `device-offline` (settles) | Fresh CPU, memory, or storage samples stay at or above threshold for `resource-duration` |
 | `software-behind` | Device | Informational | - | Device runs a version at least `software-behind-versions` behind the newest ordered estate version |
 | `history-full` | Hub | Warning | - | Metric history reached its size cap and is dropping samples early |
@@ -45,11 +46,18 @@ An alarm is a derived condition true right now; nothing is acknowledged or silen
 <!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindRegistry, RegisterAlarmKind, ValidateCauses, registerBuiltinAlarmKinds -->
 <!-- source: internal/component/plugin/server/managed_alarms_version.go -- parseSoftwareVersion, buildUniqueOrderedVersions -->
 <!-- source: internal/component/plugin/server/register_alarms.go -- init -->
+<!-- source: internal/component/managed/alarm_resync.go -- AlarmKindConfigResyncFailed, registerResyncFailedAlarm, evaluateResyncFailedAlarm -->
+
+`config-resync-failed` (shown as **Configuration resync failed**) is distinct from both `config-rejected` and `config-diverged`. A full replay refused during client YANG validation carries `RejectKind: "verify"` and opens `config-rejected` instead of `config-resync-failed`. A device whose active configuration differs from its baseline holds locally and opens `config-diverged`; no resync runs while it holds, so `config-resync-failed` clears. When both the diff resync and the full replay fail for a non-verify delivery, decode, hash, or commit reason on a non-holding device, the hub derives `config-resync-failed` from its per-client chain state (`ManagedResyncFailure`), naming the device, UTC failure time, bounded diff and full-replay causes (hashes and codes only, never configuration text), and fix `ze show doctor`. It declares `device-offline` as its cause so it hides behind `device-offline` while the device is disconnected, and clears automatically once the client and hub hash chains agree again.
+<!-- source: internal/component/managed/alarm_resync.go -- AlarmKindConfigResyncFailed, registerResyncFailedAlarm, evaluateResyncFailedAlarm -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleConfigAck, recordAckResyncFailure, clearChainResyncFailure -->
+<!-- source: internal/component/plugin/server/managed_chain.go -- ManagedResyncFailure, recordResyncFailure, clearResyncFailure -->
 
 ## Alarm causes
 
-An alarm kind declares its same-device causes (`Causes`) and settling flag (`Settles`) as pure values on its own `AlarmKindSpec` registration. No central cause list exists, so later features (such as `config-resync-failed`) declare `device-offline` in their own registration without editing the hub alarm engine. Among the first-release kinds, `component-down`, `component-degraded`, and `resource-high` declare `device-offline` as their cause; `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and the future `relay-not-granted` declare no cause because the hub holds those facts independently of connectivity.
+An alarm kind declares its same-device causes (`Causes`) and settling flag (`Settles`) as pure values on its own `AlarmKindSpec` registration. No central cause list exists, so later features declare causes in their own registration without editing the hub alarm engine. `component-down`, `component-degraded`, `resource-high`, and `config-resync-failed` declare `device-offline` as their cause; `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and the future `relay-not-granted` declare no cause because the hub holds those facts independently of connectivity.
 <!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindSpec, registerBuiltinAlarmKinds -->
+<!-- source: internal/component/managed/alarm_resync.go -- AlarmKindConfigResyncFailed, registerResyncFailedAlarm -->
 
 At hub alarm startup, `ValidateCauses` verifies the complete registered cause graph before serving. It refuses an unknown cause name, any cycle (self-reference or multi-hop), a cause with lower severity than the kind it would hide (so a warning never hides a critical alarm), or a hub-scoped kind declaring or named as a cause, naming both kinds and the defect.
 <!-- source: internal/component/plugin/server/managed_alarms_kinds.go -- AlarmKindRegistry.ValidateCauses -->

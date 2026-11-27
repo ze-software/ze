@@ -94,6 +94,9 @@ type managedClientRun struct {
 	// lastFailure is the last attempt that failed before the hub session
 	// opened; cleared when a session authenticates.
 	lastFailure atomic.Pointer[managed.HubSessionFailure]
+	// chainStatus is the running client's last reported SHA-1 configuration
+	// hash chain status; nil until the client reports one.
+	chainStatus atomic.Pointer[managed.ChainStatus]
 }
 
 // storeConnection records the client's connection state and clears the last
@@ -138,6 +141,23 @@ func (r *managedClientRun) lastHubAnswer() managed.HubAnswer {
 	return *answer
 }
 
+// storeChainStatus keeps the client's last reported SHA-1 hash chain status
+// (managed.ClientConfig.OnChainState).
+func (r *managedClientRun) storeChainStatus(status managed.ChainStatus) {
+	r.chainStatus.Store(&status)
+}
+
+// loadChainStatus returns the client's last reported SHA-1 hash chain status,
+// or the zero ChainStatus before any status has been reported.
+func (r *managedClientRun) loadChainStatus() managed.ChainStatus {
+	status := r.chainStatus.Load()
+	// refuse-by-default: guards managedClientRun -- nil means no chain status has been reported yet
+	if status == nil {
+		return managed.ChainStatus{}
+	}
+	return *status
+}
+
 // finished reports whether the client's goroutine has returned, read from
 // done, so an answer that says stopped states what the goroutine did.
 func (r *managedClientRun) finished() bool {
@@ -159,6 +179,7 @@ func (r *managedClientRun) state() managed.ClientState {
 	return managed.ClientState{
 		Running: running, Connected: r.connected.Load(), Holding: r.holding.Load(),
 		HubAnswer: r.lastHubAnswer(), LastFailure: r.loadLastFailure(),
+		Chain: r.loadChainStatus(),
 	}
 }
 
@@ -234,6 +255,7 @@ func (o *managedClientOwner) startWith(storeFlag func() error) (bool, error) {
 	client.OnSessionFailure = run.storeSessionFailure
 	client.OnHold = run.holding.Store
 	client.OnHubAnswer = run.storeHubAnswer
+	client.OnChainState = run.storeChainStatus
 	ctx, cancel := context.WithCancel(context.Background())
 	run.cancel = cancel
 	go o.serve(ctx, run, *client)

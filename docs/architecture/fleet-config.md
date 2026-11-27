@@ -280,8 +280,8 @@ publishes its record after `Start` attempts its configured addresses, and
 A startup failure that prevents publication remains visible with its cause.
 When a configuration drops a client, its last named rejection clears.
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, notifyDropped -->
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedHistoryCheckpoint, checkManagedHistoryCapacity, checkManagedHistoryCorrupt -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, notifyDropped, appendChainHealth -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedHistoryCheckpoint, checkManagedHistoryCapacity, checkManagedHistoryCorrupt, checkManagedChainDrift, checkManagedChainUnreadable -->
 
 | Event | Recorded as | Doctor code |
 |-------|-------------|-------------|
@@ -301,6 +301,8 @@ When a configuration drops a client, its last named rejection clears.
 | A hub metric history checkpoint or deletion-intent flush fails | failure timestamp, error detail, and age since the last successful checkpoint; dirty samples stay in memory for retry | `doctor-managed-history-checkpoint-failed` (error) |
 | Hub metric history shortens retention oldest-first under per-device or hub-wide byte caps | used bytes, configured budgets, and shortened effective retention while recent samples and latest observations remain kept | `doctor-managed-history-capacity-pressure` (warning) |
 | A persisted fleet metric history latest record or compressed shard fails startup validation | per-device failure with key and decode error; healthy shards stay readable and the next valid sample report replaces it | `doctor-managed-history-corrupt` (warning) |
+| A client's SHA-1 configuration hash chain fails to converge after both diff resync and full replay (non-verify failure) | per-client drift entry (`ManagedChainDoctorEntry`) with UTC failure time, client and expected chain hashes, and bounded failure reason; cleared when chains agree again or the client holds | `doctor-managed-chain-drift` (warning) |
+| A persisted hub chain key (`meta/managed/client/<name>/chain`) fails read, strict JSON decode, or write | per-client unreadable entry (`ManagedChainUnreadableEntry`) naming the key and error; never treated as absent and healed on the next confirmed full replay | `doctor-managed-chain-unreadable` (warning) |
 | A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 
 ### Config Storage (Hub Side)
@@ -382,8 +384,9 @@ is not connected is owed nothing: it fetches when it connects.
 The managed listener exposes Prometheus metrics: `ze_managed_clients_declared` (gauge),
 `ze_managed_clients_connected` (gauge), `ze_managed_handshakes_pending` (gauge),
 `ze_managed_config_fetch_total{result}`, `ze_managed_config_changed_pushed_total`,
-`ze_managed_device_records_written_total{result}`, and `ze_managed_config_held_total{result}`.
-<!-- source: internal/component/plugin/server/managed_serve.go -- metric registration -->
+`ze_managed_device_records_written_total{result}`, `ze_managed_config_held_total{result}`,
+`ze_managed_chain_mismatches_total`, and `ze_managed_chain_resyncs_total{method,result}`.
+<!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer, metric registration -->
 
 ### Device history on the hub
 
@@ -437,7 +440,8 @@ The managed client's local tree caches the config received from the hub. The con
 | Local plugins | `server local { }` block |
 | Managed mode toggle | `meta/instance/managed` in the live store |
 | Baseline: the hash of the last configuration the hub made active | `meta/managed/base-version` in the live store (see "The baseline and the hold") |
-<!-- source: pkg/zefs/keys.go -- KeyInstanceManaged, KeyManagedBaseVersion -->
+| Configuration hash chain state (`version` + 40-hex SHA-1 `chain`) | `meta/managed/chain-state` in the live store (see "Configuration hash chain and diff-based resync") |
+<!-- source: pkg/zefs/keys.go -- KeyInstanceManaged, KeyManagedBaseVersion, KeyManagedChainState -->
 
 The `meta/instance/managed` flag says whether the device follows its hub. Two
 commands change it, and with it the hub connection, without changing the
@@ -480,8 +484,10 @@ does not end a connection in use.
 `show fleet status` reports the flag. From a running daemon it also reports
 `client` (`running`, `stopping` while a stop is in progress, `stopped`, or
 `not-started` for a daemon that started unmanaged), `connection`
-(`connected`, `not-connected`) and `holding` (`holding`, `not-holding`). The
-report never waits for a stop to finish.
+(`connected`, `not-connected`), `holding` (`holding`, `not-holding`), and the
+hash-chain fields `chain-hash` (40-hex SHA-1 digest or `none`), `chain-state`
+(`in-sync`, `mismatched`, `uninitialized`, or `no-daemon`), and `last-resync`
+(`none`, `diff`, or `full-replay`). The report never waits for a stop to finish.
 
 `frozen` is true only when the store refuses an operator's change to the
 device's own configuration (see "The freeze"): the device is managed and its
@@ -947,33 +953,42 @@ After `#0 auth`, the hub knows the client's name. All RPCs are scoped to that na
 
 | Verb | Direction | Payload | Response |
 |------|-----------|---------|----------|
-| `config-fetch` | Client to hub | `{"version":"<hash-or-empty>"}` | `ok {"version":"<hash>","config":"<base64>"}` or `ok {"status":"current"}` |
-| `config-changed` | Hub to client | `{"version":"<hash>"}` | `ok {}` |
-| `config-ack` | Client to hub | `{"version":"<hash>","ok":true}` or `{"version":"<hash>","ok":false,"error":"..."}`, and `"holding":true` on a hold | `ok {}` |
-| `config-held` | Client to hub | `{"version":"<hash>","config":"<base64>","edited-at":"<RFC 3339 time>"}` | `ok {}`; an error with code `config-held-refused` for a copy the hub refused; any other error from a hub that does not take the verb |
+| `config-fetch` | Client to hub | `{"version":"<hash-or-empty>","chain-hash":"<40-hex>","resync":"diff\|full"}` (`chain-hash`, `resync` optional) | `ok {"version":"<hash>","mode":"diff","base-version":"<hash>","diff":"<base64>","chain-hash":"<40-hex>"}`, `ok {"version":"<hash>","mode":"full","config":"<base64>","chain-hash":"<40-hex>"}`, or `ok {"status":"current","chain-hash":"<40-hex>"}` (with optional `"reanchor":true`) |
+| `config-changed` | Hub to client | `{"version":"<hash>","chain-hash":"<40-hex>"}` (`chain-hash` optional) | `ok {"chain-hash":"<40-hex>"}` (`ManagedReply`) |
+| `config-ack` | Client to hub | `{"version":"<hash>","ok":true,"chain-hash":"<40-hex>"}` or `{"version":"<hash>","ok":false,"error":"...","holding":true,"reject-kind":"verify\|commit\|resync","chain-hash":"<40-hex>"}` | `ok {"chain-hash":"<40-hex>"}` (`ManagedReply`) |
+| `config-held` | Client to hub | `{"version":"<hash>","config":"<base64>","edited-at":"<RFC 3339 time>","chain-hash":"<40-hex>"}` | `ok {"chain-hash":"<40-hex>"}` (`ManagedReply`); an error with code `config-held-refused` for a copy the hub refused; any other error from a hub that does not take the verb |
 | `inventory-report` | Client to hub | Compact JSON `InventoryReport` (max 64 KiB, per-section `available` flags, optional ECC counters, no raw SMART or drive serials) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
 | `health-report` | Client to hub | Compact JSON `HealthReport` (max 64 KiB, matching `/health` JSON status and component rows) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
 | `sample-report` | Client to hub | Compact JSON `SampleReport` (max 8 KiB, `schema-version: 1`, optional diagnostic `device-time`, up to 16 registered finite scalar readings) | `ok {}`; RPC error on invalid, oversized, disabled, stale-session, clock-regression, or rate-limited report |
-| `ping` | Either direction | `{}` | `ok {}` |
+| `ping` | Either direction | `{"chain-hash":"<40-hex>"}` (`PingRequest`, `chain-hash` optional) | `ok {"chain-hash":"<40-hex>"}` (`ManagedReply`) |
 
 The `config-fetch` answer that carries a configuration may also carry
 `"held-version":"<hash>"` and `"discard-version":"<hash>"`, and any successful
-`config-fetch` answer (both full-config and `"current"`) may carry
+`config-fetch` answer (both configuration delivery and `"current"`) may carry
 `"sample-interval-seconds":<N>` when hub-side metric sampling is enabled. Every
-field added after the first four verbs is optional and omitted when unset, and the
-payload of `config-held` and every report verb names no client: the hub takes the name from the
-authenticated session. A peer built before them decodes each message as it
-did, because Go's JSON decoder ignores a key its type does not declare, and a
-hub built before `config-held` or `sample-report` answers it with an unknown-method error.
+field added after the first four verbs is optional (`omitempty`) and omitted
+when unset, and the payload of `config-held` and every report verb names no
+client: the hub takes the name from the authenticated session. An empty legacy
+`ok` reply decodes via `DecodeManagedReply` as an empty `ManagedReply` with no
+false drift, Go's JSON decoder ignores unknown fields on older peers, and a hub
+built before `config-held` or `sample-report` answers it with an unknown-method
+error.
 
 | Field | Message | Meaning |
 |-------|---------|---------|
+| `chain-hash` | `ManagedReply`, `PingRequest`, `ConfigFetchRequest`, `ConfigFetchResponse`, `ConfigChanged`, `ConfigAck`, `ConfigHeld` | Sender's current or expected 40-character lowercase hex SHA-1 configuration hash chain head |
+| `resync` | `ConfigFetchRequest` | Explicit resync request: `"diff"` (`ResyncModeDiff`) on chain mismatch first, or `"full"` (`ResyncModeFull`) on bounded full-replay fallback |
+| `mode` | `ConfigFetchResponse` | Delivery mode: `"diff"` (`FetchModeDiff`) for a deterministic line patch over `base-version`, or `"full"` (`FetchModeFull`, or omitted) for full base64 configuration bytes |
+| `base-version` | `ConfigFetchResponse` (`mode: "diff"`) | 16-hex `VersionHash` of the base configuration bytes the hub diffed from |
+| `diff` | `ConfigFetchResponse` (`mode: "diff"`) | Base64-encoded compact JSON `[]DiffOp` line patch reconstructing exact target bytes |
+| `reanchor` | `ConfigFetchResponse` (`mode: "diff"` or `status: "current"`) | `true` when the base chain head re-anchors to `FoldFull(baseBytes)` (or `FoldFull(activeBytes)` on `"current"`) instead of folding over a prior stored chain head |
+| `reject-kind` | `ConfigAck` (`ok: false`) | Structured refusal class: `"verify"` (`RejectKindVerify`, YANG validation refusal opening `config-rejected`), `"commit"` (`RejectKindCommit`), or `"resync"` (`RejectKindResync`); non-holding `"commit"` and `"resync"` failures feed `config-resync-failed` and `doctor-managed-chain-drift` |
 | `held-version` | `config-fetch` answer | The version hash of the configuration the hub holds as this client's held copy. Absent when the hub holds none |
-| `discard-version` | `config-fetch` answer | Present only when the hub's operator decided that a client running exactly this version drops it and applies the configuration of the answer |
-| `sample-interval-seconds` | `config-fetch` answer (full or `current`) | Hub-configured periodic metric sample interval in seconds (`1..3600`). Omitted when sampling is disabled (`interval 0`) or by older hubs |
+| `discard-version` | `config-fetch` answer | Present only when the hub's operator decided that a client running exactly this version drops it and applies the configuration of the answer (always delivered in full mode) |
+| `sample-interval-seconds` | `config-fetch` answer (full, diff, or `current`) | Hub-configured periodic metric sample interval in seconds (`1..3600`). Omitted when sampling is disabled (`interval 0`) or by older hubs |
 | `holding` | `config-ack` | `true` when the client refused because it holds a configuration of its own, not because the hub's one is invalid |
 | `edited-at` | `config-held` | When the version the client runs was written into its store (the stamp of its active version). Absent when the client's store records no such stamp |
-<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, VerbSampleReport, ConfigHeld, ConfigFetchResponse, ConfigAck -->
+<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, VerbSampleReport, ManagedReply, DecodeManagedReply, PingRequest, ConfigFetchRequest, ConfigFetchResponse, ConfigChanged, ConfigAck, ConfigHeld, FetchModeFull, FetchModeDiff, ResyncModeDiff, ResyncModeFull, RejectKindVerify, RejectKindCommit, RejectKindResync -->
 <!-- test: pkg/fleet/envelope_test.go TestConfigHeldEnvelopeRoundTrip, TestOldPeerIgnoresNewFields -->
 
 The hub caps concurrent unauthenticated handshakes at 32 (`managedMaxHandshakes`)
@@ -1204,6 +1219,143 @@ per-device rows through the same local scope.
 ### Version Hash
 
 Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Computed from content, never stored separately. Same content = same hash.
+<!-- source: pkg/fleet/version.go -- VersionHash -->
+
+### Configuration hash chain and diff-based resync
+
+Managed clients and their hub continuously verify that they agree on every
+applied hub-driven configuration change by folding each change into a
+persistent 40-character lowercase hexadecimal SHA-1 hash chain and carrying the
+chain head (`chain-hash`) on every managed channel request and reply (`ping`,
+`config-fetch`, `config-ack`, `config-changed`, `config-held`). SHA-1 is used
+strictly as a non-adversarial sync checksum over the already-authenticated TLS
+1.3 channel.
+
+#### SHA-1 hash chain fold
+
+Each persisted `ChainState` pairs a 16-hex `VersionHash` (`version`) with its
+40-hex SHA-1 `chain` head. `ValidChainHash` accepts only 40 lowercase hex
+characters (`ChainHashLen == 40`) and rejects malformed strings on both wire
+and store decode:
+
+- **`FoldFull(config []byte) string`**: computes
+  `SHA-1(20 zero bytes || "full\n" || config)` to anchor a chain from zero on
+  first boot, revert, adopt re-anchor, or full-replay fallback.
+- **`FoldDiff(prevHex, baseVer, targetVer string, delta []byte) (string, error)`**:
+  decodes `prevHex` into 20 bytes and computes
+  `SHA-1(prev20 || "diff\n" || baseVer || "\n" || targetVer || "\n" || delta)`
+  so hub and client fold identical bytes for every applied delta.
+<!-- source: pkg/fleet/chain.go -- ChainHashLen, ChainState, ValidChainHash, FoldFull, FoldDiff -->
+
+#### Deterministic line diff and patch
+
+Instead of sending full configuration bytes on every edit, the hub computes a
+deterministic, terminator-preserving line diff (`ComputeDiff`) between the
+client's historical base configuration resolved from the hub's versioned store
+(`NewStoreBaseVersionReader`) and the new target configuration. The diff is
+encoded as compact JSON `[]DiffOp` with two operation kinds: `copy`
+(`DiffOpCopy`: 0-based `start` and `count` lines from `base`) and `ins`
+(`DiffOpInsert`: verbatim `lines` with exact `\n`/`\r\n` endings preserved).
+Because reconstruction is byte-exact, raw-byte `VersionHash` equality,
+comments, `$9$` secrets, and `unchecked-plugins` external sections survive
+untouched.
+
+`ComputeDiff` bounds edit operations to `MaxDiffOps` (65,536) and sets
+`worthSending` false when the operation cap is exceeded, when the target is not
+valid UTF-8, or when `len(delta) >= len(target)`. `ApplyDiff` decodes strictly
+(`DisallowUnknownFields`, no trailing JSON), validates `len(ops) <= MaxDiffOps`
+and all `copy` bounds, checks total reconstructed byte length against
+`maxOutput` (`rpc.MaxMessageSize`, 16 MiB) before allocating, and never
+modifies `base`.
+<!-- source: pkg/fleet/diff.go -- MaxDiffOps, DiffOpCopy, DiffOpInsert, DiffOp, ComputeDiff, ApplyDiff -->
+<!-- source: internal/component/plugin/server/managed_chain.go -- NewStoreBaseVersionReader -->
+
+#### Resync flow, `Reanchor`, full-replay fallback, and hold precedence
+
+Normal pushes (`config-changed` -> `config-fetch`) and heartbeat/reply
+mismatches follow one hub-to-client synchronization path:
+
+1. **Steady-state comparison:** Every 30 seconds `sendPing` sends
+   `PingRequest{ChainHash}` with a 10-second per-call timeout (`pingTimeout`).
+   The hub reads its expected chain head (`ExpectedChainHash`, performing zero
+   store writes on ping) and returns `ManagedReply{ChainHash}`. Any mismatch on
+   a reply (`checkReplyChain`) increments the mismatch counter and signals
+   `notificationLoopWithDrift` over a non-blocking `driftCh` so resync runs
+   serially with `config-changed`.
+2. **Hold precedence (`fleet-6`/`fleet-7`):** Before sending any resync fetch,
+   the client checks `Diverged(active, baseline)` and never overwrites a local
+   edit. Committing any reconstructed diff or full replay still goes through
+   `ClientConfig.CommitOver` -> `StageMachineCandidateOver` over
+   `activeCheck(decided)` -> `doReload`, so a racing local commit always wins
+   and holds.
+3. **Diff resync and `Reanchor`:** On mismatch, the client sends
+   `ConfigFetchRequest{Version, ChainHash, Resync: "diff"}`.
+   - If `req.Version` already matches the hub's active config, `handleCurrentFetch`
+     returns `status: "current"` with the expected `chain-hash` (setting
+     `reanchor: true` when only the chain head drifted or was uninitialized). A
+     non-holding client verifies `FoldFull(activeBytes)` and persists its chain
+     anchor locally without sending an extra `config-ack`.
+   - Otherwise, `buildDiffOrFullResponse` resolves `req.Version` from hub
+     version history and, when `ComputeDiff` reports `worthSending`, returns
+     `mode: "diff"` with `base-version`, base64 `diff`, `chain-hash`, and
+     `reanchor: true` if the base chain folded from `FoldFull(baseBytes)`
+     instead of the prior stored head.
+   - The client verifies `VersionHash(activeBytes) == base-version`,
+     `FoldDiff(...) == resp.ChainHash`, `ApplyDiff(...)` bounded by
+     `rpc.MaxMessageSize`, `VersionHash(reconstructed) == resp.Version`, and
+     full YANG validation (`Handler.ValidateRawConfig`) before staging and
+     reloading.
+4. **Full config replay (preserved):** The hub delivers full configuration
+   bytes (`mode: "full"`, `chain-hash = FoldFull(target)`) automatically on
+   first boot (`req.Version == ""`), operator revert (`discard-version != ""`),
+   missing historical base, oversized or non-UTF-8 diff, or an explicit client
+   `resync: "full"` fallback. If a client's diff verification, reconstruction,
+   or validation fails, it retries once with `resync: "full"`. If full replay
+   also fails, the client sends `ConfigAck{OK: false, RejectKind}` (`"verify"`
+   for YANG validation refusal, `"commit"` for staging/commit refusal, or
+   `"resync"` for decode/hash mismatch), latches the failed target chain for
+   the current connection so subsequent 30-second pings do not loop (cleared on
+   reconnect or when the hub publishes a new target), and raises a transient
+   warning under `doctor-managed-chain-drift`.
+<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch, handleCurrentFetch, buildDiffOrFullResponse, ExpectedChainHash, BuildConfigChanged -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- handleRequest, handleConfigAck, applyAckChainState, recordAckResyncFailure, clearChainResyncFailure, pushConfigChanged -->
+<!-- source: internal/component/managed/chain.go -- ChainAccess, reconstructAndVerifyDiff, checkReplyChain, persistChainState, recordChainDriftFailure -->
+<!-- source: internal/component/managed/client.go -- sendPing, handleDriftMismatchWithSampler, applyFullFetched, notificationLoopWithDrift -->
+
+#### Store keys, doctor codes, alarms, and Prometheus metrics
+
+- **Store keys:** The client persists `fleet.ChainState` under
+  `meta/managed/chain-state` (`KeyManagedChainState`, Private, 4 KiB) via
+  `ChainAccess`, and the hub persists per-client chain state under
+  `meta/managed/client/{name}/chain` (`KeyManagedClientChain`, Private, 4 KiB)
+  via `managedChainStore`. Both use the daemon's borrowed `storage.Storage`
+  handle and decode strictly; unreadable or corrupt keys are never treated as
+  absent and heal when the next confirmed full replay overwrites them.
+- **Doctor checks and codes:** `CodeDoctorManagedChainDrift`
+  (`doctor-managed-chain-drift`, warning) and
+  `CodeDoctorManagedChainUnreadable` (`doctor-managed-chain-unreadable`,
+  warning) are declared once in `internal/component/plugin/server/doctor_codes.go`
+  and reported by `managed-chain` (client post-config),
+  `managed-client-chain-drift` (client runtime + transient report-bus warning),
+  `managed-chain-drift` (hub runtime), and `managed-chain-unreadable` (hub
+  runtime).
+- **Hub alarm:** When both diff resync and full replay fail on a non-holding
+  device for a non-verify cause (`RejectKind: "resync"` or `"commit"`, or an
+  applied chain mismatch), the hub opens `config-resync-failed`
+  (**Configuration resync failed**, Warning, caused by `device-offline`; see
+  [fleet-alarms.md](fleet-alarms.md)), distinct from `config-rejected`
+  (`RejectKind: "verify"`) and `config-diverged` (local hold).
+- **Prometheus metrics:** Hub counters `ze_managed_chain_mismatches_total` and
+  `ze_managed_chain_resyncs_total{method,result}` (`method`:
+  `diff`|`full`|`reanchor`, `result`: `ok`|`failed`), plus client counters
+  `ze_managed_client_chain_mismatches_total` and
+  `ze_managed_client_resyncs_total{method,result}` (`method`: `diff`|`full`,
+  `result`: `applied`|`fallback`|`failed`).
+<!-- source: pkg/zefs/keys.go -- KeyManagedChainState, KeyManagedClientChain, ManagedChainStateValueMax, ManagedClientChainValueMax -->
+<!-- source: internal/component/plugin/server/managed_chain.go -- ManagedClientChainKey, managedChainStore, ManagedResyncFailure, ManagedChainDoctorEntry, ManagedChainUnreadableEntry -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorManagedChainDrift, CodeDoctorManagedChainUnreadable -->
+<!-- source: internal/component/managed/chain.go -- newClientChainMetrics, NewChainAccess, ReadChainState, RecordActiveChainAnchor -->
+<!-- source: internal/component/managed/alarm_resync.go -- AlarmKindConfigResyncFailed, registerResyncFailedAlarm, evaluateResyncFailedAlarm -->
 
 ### Connection Lifecycle
 
@@ -1212,11 +1364,11 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 3. Client connects via TLS to hub address
 4. Client sends `#0 auth` with token and name
 5. Hub validates token against `client` entry nested under the relevant `server` block
-6. Client sends `config-fetch` with current version hash (or empty on first boot)
-7. Hub reads the client's stored config and computes its hash
-8. If hashes match: `{"status":"current"}`; if different: full config in response
-9. Client persists the config and starts or reloads BGP
-10. Heartbeat: `ping` every 30 seconds, timeout after 3 missed (90 seconds)
+6. Client sends `config-fetch` with current version hash (or empty on first boot) and current `chain-hash`
+7. Hub reads the client's stored config and computes its version and expected chain hash
+8. If versions match: `{"status":"current","chain-hash":"..."}` (with `"reanchor":true` if chain head drifted); if different: deterministic line diff (`mode:"diff"`) when the base version is in hub history and smaller than target, otherwise full config (`mode:"full"`)
+9. Client verifies and validates the config, persists it and its chain state, and starts or reloads BGP
+10. Heartbeat: `ping {"chain-hash":"..."}` every 30 seconds (10s per-call timeout), timeout after 3 missed (90 seconds); any `chain-hash` mismatch triggers diff-based resync with bounded full-replay fallback
 11. On a write through the hub's own store: hub sends `config-changed` to the connected client. See "Config Storage (Hub Side)" for which writes reach that store
 
 Every `config-fetch` the client sends waits at most 30 seconds for its
@@ -1286,14 +1438,14 @@ during it too, the client applies nothing, logs that at Info and ends the
 connection; the reconnect's fetch decides again over what it then runs. Any other refusal of the stage (a confirmed-commit
 window, a candidate already staged, a failed reload) is acked
 `config-ack {"ok":false}` with its cause and starts no second fetch.
-<!-- source: internal/component/managed/client.go -- holdOrApply, applyFetched, activeCheck, refetchOverLocalCommit -->
+<!-- source: internal/component/managed/client.go -- holdOrApplyWithDrift, applyFullFetched, activeCheck, refetchOverLocalCommitWithDrift -->
 <!-- source: cmd/ze/hub/managed.go -- wireManagedCommit -->
 
 A client whose running configuration differs from its baseline fetches and
 then goes no further: it does not validate or apply what the hub returned. It
 holds, and answers `config-ack {"ok":false}` with the hold text (see "The
 baseline and the hold").
-<!-- source: internal/component/managed/client.go -- fetchAgainstBaseline, holdFetched -->
+<!-- source: internal/component/managed/client.go -- fetchAgainstBaselineWithMode, holdFetched -->
 
 The client controls timing. A router in the middle of graceful restart or convergence is not forced to reload.
 
@@ -1608,7 +1760,6 @@ their failure state as soon as a session authenticates.
 | New server component | Hub already exists; extend it |
 | Special metadata keys for the running hub connection | Config declares the hub connection; the `meta/managed/hub/` address and secret bootstrap the first start only. The stored root is the exception: it anchors the hub whenever the config names no `ca` |
 | Multi-hub replication | One hub sufficient; HA via client cached config |
-| Incremental config updates | Full config on change; configs are small (< 10KB typically) |
 
 ---
 
@@ -1618,9 +1769,9 @@ Reference spec: `plan/spec-fleet-config.md`
 
 | Package | Purpose |
 |---------|---------|
-| `pkg/fleet/` | Shared types: version hash, config envelope, RPC verbs |
-| `internal/component/plugin/server/` | Hub extensions: named server/client blocks, per-client auth, config-fetch handler |
-| `internal/component/managed/` | Client: connection manager, reconnect, heartbeat |
+| `pkg/fleet/` | Shared types: version hash, SHA-1 hash chain, deterministic line diff/patch, config envelope, RPC verbs |
+| `internal/component/plugin/server/` | Hub extensions: named server/client blocks, per-client auth, config-fetch diff/full handler, per-client chain store |
+| `internal/component/managed/` | Client: connection manager, reconnect, heartbeat, hash-chain resync, status and doctor checks |
 | `cmd/ze/main.go` | cmdStart() extended for managed mode detection + CLI flag overrides |
 <!-- source: internal/component/plugin/server/ -- hub server infrastructure -->
 <!-- source: internal/component/config/storage/ -- shared live-store interface -->

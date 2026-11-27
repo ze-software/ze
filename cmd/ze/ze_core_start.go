@@ -30,11 +30,13 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/managed"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -437,6 +439,11 @@ func cacheFirstConfig(store storage.Storage, configName string, configData []byt
 			"the baseline is how this device tells a local change from the configuration its hub gave it",
 			"ze show data check")
 	}
+	if _, chainErr := managed.RecordActiveChainAnchor(store); chainErr != nil {
+		return opererr.Wrap(chainErr, "the configuration hash chain anchor of the config fetched from the hub could not be recorded",
+			"the chain anchor is how this device detects configuration drift with its hub",
+			"ze show data check")
+	}
 	return nil
 }
 
@@ -503,6 +510,10 @@ func extractManagedClientConfig(store storage.Storage, configName string) (*mana
 		// place the client is given the store's baseline, beside the other
 		// callback that reads the store.
 		Baseline: managed.NewBaselineAccess(store),
+		// Persisted SHA-1 configuration hash chain state and Prometheus
+		// metrics registry for continuous drift detection.
+		Chain:   managed.NewChainAccess(store),
+		Metrics: pluginregistry.GetMetricsRegistry(),
 	}, nil
 }
 
@@ -778,6 +789,19 @@ func fetchInitialConfig(boot managedBootstrap) ([]byte, *x509.Certificate, error
 	data, err := base64.StdEncoding.DecodeString(resp.Config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("decode config: %w", err)
+	}
+	if resp.Version != "" {
+		if got := fleet.VersionHash(data); got != resp.Version {
+			return nil, nil, fmt.Errorf("hub config version mismatch: got %s, hub declared %s", got, resp.Version)
+		}
+	}
+	if resp.ChainHash != "" {
+		if !fleet.ValidChainHash(resp.ChainHash) {
+			return nil, nil, fmt.Errorf("hub returned invalid chain hash %q", resp.ChainHash)
+		}
+		if got := fleet.FoldFull(data); got != resp.ChainHash {
+			return nil, nil, fmt.Errorf("hub config chain hash mismatch: got %s, hub declared %s", got, resp.ChainHash)
+		}
 	}
 
 	return data, keptRoot(), nil

@@ -103,6 +103,7 @@ func TestFleetStatusStoreOnly(t *testing.T) {
 		assert.Equal(t, fleetStatus{
 			Client: runtimeNoDaemon, Connection: runtimeNoDaemon, Holding: runtimeNoDaemon,
 			HeldByHub: runtimeNoDaemon, RevertOffered: runtimeNoDaemon,
+			ChainHash: ChainHashNone, ChainState: ChainStateNoDaemon, LastResync: LastResyncNone,
 		}, got)
 	})
 
@@ -117,6 +118,7 @@ func TestFleetStatusStoreOnly(t *testing.T) {
 			ActiveRecorded: true, ActiveHash: activeHash,
 			Client: runtimeNoDaemon, Connection: runtimeNoDaemon, Holding: runtimeNoDaemon,
 			HeldByHub: runtimeNoDaemon, RevertOffered: runtimeNoDaemon,
+			ChainHash: ChainHashNone, ChainState: ChainStateNoDaemon, LastResync: LastResyncNone,
 		}, got)
 	})
 
@@ -751,5 +753,117 @@ func TestFleetStatusHeldFields(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, hubCopy, status.HeldByHub)
 		assert.Equal(t, revertStale, status.RevertOffered)
+	})
+}
+
+// TestShowFleetStatusReportsChainFields proves `show fleet status` reports
+// chain-hash, chain-state, and last-resync accurately both when the daemon is
+// running (from ClientState) and when stopped (from meta/managed/chain-state),
+// and refuses with fix `ze show data check` when the chain key is corrupt.
+//
+// VALIDATES: spec-fleet-10 AC-12 (`show fleet status` chain fields running and stopped).
+// PREVENTS: missing chain observability in show fleet status or silent zeroing
+// of a corrupt chain-state key.
+func TestShowFleetStatusReportsChainFields(t *testing.T) {
+	noDaemon := func() (fleetStatus, error) { return fleetStatus{}, errNoDaemon }
+	daemonAsksNobody := func() (fleetStatus, error) { //nolint:unparam // must satisfy daemonAsk
+		t.Error("the daemon route asked a daemon")
+		return fleetStatus{}, errNoDaemon
+	}
+
+	ver := fleet.VersionHash([]byte(fleetStatusConfig))
+	chainHash := fleet.FoldFull([]byte(fleetStatusConfig))
+	storedJSON := `{"version":"` + ver + `","chain":"` + chainHash + `"}`
+
+	t.Run("stopped daemon reads stored chain hash with no-daemon state", func(t *testing.T) {
+		fleetStatusStore(t,
+			map[string]string{
+				zefs.KeyInstanceManaged.Pattern:   "true\n",
+				zefs.KeyManagedChainState.Pattern: storedJSON,
+			},
+			map[string]string{fleetStatusConfigName: fleetStatusConfig})
+
+		got := fleetStatusOn(t, command.AnswerLocal, noDaemon)
+		assert.False(t, got.DaemonAnswered)
+		assert.Equal(t, chainHash, got.ChainHash)
+		assert.Equal(t, ChainStateNoDaemon, got.ChainState)
+		assert.Equal(t, LastResyncNone, got.LastResync)
+	})
+
+	t.Run("stopped daemon without chain key reports none", func(t *testing.T) {
+		fleetStatusStore(t,
+			map[string]string{zefs.KeyInstanceManaged.Pattern: "true\n"},
+			map[string]string{fleetStatusConfigName: fleetStatusConfig})
+
+		got := fleetStatusOn(t, command.AnswerLocal, noDaemon)
+		assert.Equal(t, ChainHashNone, got.ChainHash)
+		assert.Equal(t, ChainStateNoDaemon, got.ChainState)
+		assert.Equal(t, LastResyncNone, got.LastResync)
+	})
+
+	t.Run("running daemon reports live chain-hash, chain-state, and last-resync", func(t *testing.T) {
+		fleetStatusStore(t,
+			map[string]string{
+				zefs.KeyInstanceManaged.Pattern:   "true\n",
+				zefs.KeyManagedChainState.Pattern: storedJSON,
+			},
+			map[string]string{fleetStatusConfigName: fleetStatusConfig})
+
+		var state ClientState
+		installFleetTarget(t, &FleetTarget{
+			StartClient: func(func() error) (bool, error) { return false, nil },
+			StopClient:  stopsWith(),
+			ClientState: func() ClientState { return state },
+		})
+
+		state = ClientState{
+			Running:   true,
+			Connected: true,
+			Chain: ChainStatus{
+				ChainHash:  chainHash,
+				ChainState: ChainStateInSync,
+				LastResync: LastResyncDiff,
+			},
+		}
+		got := fleetStatusOn(t, command.AnswerRemote, daemonAsksNobody)
+		assert.True(t, got.DaemonAnswered)
+		assert.Equal(t, chainHash, got.ChainHash)
+		assert.Equal(t, ChainStateInSync, got.ChainState)
+		assert.Equal(t, LastResyncDiff, got.LastResync)
+
+		state.Chain = ChainStatus{
+			ChainHash:  chainHash,
+			ChainState: ChainStateMismatched,
+			LastResync: LastResyncFullReplay,
+			DriftError: "commit rejected",
+		}
+		got = fleetStatusOn(t, command.AnswerRemote, daemonAsksNobody)
+		assert.Equal(t, ChainStateMismatched, got.ChainState)
+		assert.Equal(t, LastResyncFullReplay, got.LastResync)
+	})
+
+	t.Run("corrupt chain-state key refuses with ze show data check", func(t *testing.T) {
+		fleetStatusStore(t,
+			map[string]string{
+				zefs.KeyInstanceManaged.Pattern:   "true\n",
+				zefs.KeyManagedChainState.Pattern: "{corrupt",
+			},
+			map[string]string{fleetStatusConfigName: fleetStatusConfig})
+
+		validated, err := command.ValidateArgs(nil, nil, nil)
+		require.NoError(t, err)
+		got := command.AnswerLocal(func(args command.ValidatedArgs) command.LocalAnswer {
+			return answerFleetStatusWith(args, noDaemon)
+		}, validated)
+		assert.NotEqual(t, 0, got.Code)
+		assert.Contains(t, got.Diagnostic, fixCheckStore)
+	})
+
+	t.Run("local route decodes chain JSON fields from daemon", func(t *testing.T) {
+		status, err := decodeDaemonFleetStatus(`{"daemon-answered":true,"chain-hash":"` + chainHash + `","chain-state":"in-sync","last-resync":"diff"}`)
+		require.NoError(t, err)
+		assert.Equal(t, chainHash, status.ChainHash)
+		assert.Equal(t, ChainStateInSync, status.ChainState)
+		assert.Equal(t, LastResyncDiff, status.LastResync)
 	})
 }

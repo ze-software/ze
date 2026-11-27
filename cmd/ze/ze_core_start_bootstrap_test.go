@@ -8,9 +8,13 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"io/fs"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,6 +24,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/fleet"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -476,4 +481,264 @@ func TestBaselineStableAcrossRestart(t *testing.T) {
 	if clientCfg.Baseline == nil {
 		t.Error("the start path built a managed client with no baseline access, so it would not hold")
 	}
+	if clientCfg.Chain == nil {
+		t.Error("the start path built a managed client with no chain access")
+	}
+}
+
+// chainBootHub starts a minimal TLS 1.3 hub answering one request handler per
+// admitted session and returns its address and CA root.
+func chainBootHub(t *testing.T, onFetch func(fleet.ConfigFetchRequest) fleet.ConfigFetchResponse, onUnexpected func(method string)) (string, *pki.Root) {
+	t.Helper()
+	root, err := pki.LoadOrGenerateRoot(bootStore(t))
+	if err != nil {
+		t.Fatalf("hub authority: %v", err)
+	}
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		MinVersion: tls.VersionTLS13,
+		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+			cert, issueErr := root.IssueLeaf("ze-managed-hub", []string{"127.0.0.1"})
+			return &cert, issueErr
+		},
+	})
+	if err != nil {
+		t.Fatalf("tls.Listen: %v", err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			conn, acceptErr := ln.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func() {
+				defer conn.Close() //nolint:errcheck // test cleanup
+				if _, readErr := readAuthLine(conn, 512); readErr != nil {
+					return
+				}
+				if _, writeErr := conn.Write([]byte("#0 ok\n")); writeErr != nil {
+					return
+				}
+				rc := rpc.NewConn(conn, conn)
+				for {
+					req, reqErr := rc.ReadRequest(context.Background())
+					if reqErr != nil {
+						return
+					}
+					if req.Method != fleet.VerbConfigFetch {
+						if onUnexpected != nil {
+							onUnexpected(req.Method)
+						}
+						_ = rc.SendOK(context.Background(), req.ID)
+						continue
+					}
+					var fetchReq fleet.ConfigFetchRequest
+					if jsonErr := json.Unmarshal(req.Params, &fetchReq); jsonErr != nil {
+						return
+					}
+					_ = rc.SendResult(context.Background(), req.ID, onFetch(fetchReq))
+				}
+			}()
+		}
+	}()
+	t.Cleanup(func() {
+		_ = ln.Close()
+		<-done
+	})
+	return ln.Addr().String(), root
+}
+
+// failingWriteStore wraps storage.Storage and fails WriteFile to prove a failed
+// bootstrap cache persists neither baseline nor chain anchor.
+type failingWriteStore struct {
+	storage.Storage
+}
+
+func (f failingWriteStore) WriteFile(string, []byte, fs.FileMode) error {
+	return errors.New("simulated write failure")
+}
+
+// TestFirstBootPersistsInitialChainAnchor proves AC-3:
+//   - fetchInitialConfig verifies Version and ChainHash == FoldFull(data)
+//     before closing the bootstrap connection and sends no bootstrap config-ack.
+//   - cacheFirstConfig persists both meta/managed/base-version and
+//     meta/managed/chain-state = {V1, FoldFull(B)}, and persists neither if
+//     caching fails.
+//   - On the first steady-state connection, the client sends V1 and FoldFull(B),
+//     converges on Status=="current" with matching ChainHash, and sends no ack.
+//
+// VALIDATES: spec-fleet-10 AC-3 (first-boot anchor verification, persistence,
+// failure atomicity, and steady-state current convergence without ack).
+// PREVENTS: first boot dropping the initial chain anchor or accepting corrupt
+// bootstrap bytes without verifying Version and FoldFull.
+func TestFirstBootPersistsInitialChainAnchor(t *testing.T) {
+	v1Bytes := []byte(managedClientConfigText)
+	v1 := fleet.VersionHash(v1Bytes)
+	c1 := fleet.FoldFull(v1Bytes)
+
+	t.Run("rejects mismatched version and chain hash before returning", func(t *testing.T) {
+		badVerAddr, badVerRoot := chainBootHub(t, func(fleet.ConfigFetchRequest) fleet.ConfigFetchResponse {
+			return fleet.ConfigFetchResponse{
+				Version:   "0000000000000000",
+				Config:    base64.StdEncoding.EncodeToString(v1Bytes),
+				ChainHash: c1,
+			}
+		}, nil)
+		_, _, err := fetchInitialConfig(managedBootstrap{server: badVerAddr, name: bootClient, token: bootToken, root: badVerRoot.Certificate()})
+		if err == nil || !strings.Contains(err.Error(), "version mismatch") {
+			t.Fatalf("expected version mismatch error, got %v", err)
+		}
+
+		badChainAddr, badChainRoot := chainBootHub(t, func(fleet.ConfigFetchRequest) fleet.ConfigFetchResponse {
+			return fleet.ConfigFetchResponse{
+				Version:   v1,
+				Config:    base64.StdEncoding.EncodeToString(v1Bytes),
+				ChainHash: strings.Repeat("a", fleet.ChainHashLen),
+			}
+		}, nil)
+		_, _, err = fetchInitialConfig(managedBootstrap{server: badChainAddr, name: bootClient, token: bootToken, root: badChainRoot.Certificate()})
+		if err == nil || !strings.Contains(err.Error(), "chain hash mismatch") {
+			t.Fatalf("expected chain hash mismatch error, got %v", err)
+		}
+	})
+
+	t.Run("cache failure persists neither baseline nor chain anchor", func(t *testing.T) {
+		store := bootStore(t)
+		writeKey(t, store, zefs.KeyInstanceName.Pattern, bootClient)
+		if err := cacheFirstConfig(failingWriteStore{Storage: store}, bootClient+".conf", v1Bytes); err == nil {
+			t.Fatal("expected cacheFirstConfig to fail on WriteFile error")
+		}
+		baseline, err := managed.BaselineVersion(store)
+		if err != nil {
+			t.Fatalf("BaselineVersion: %v", err)
+		}
+		if baseline.Recorded() {
+			t.Error("baseline was persisted despite cache write failure")
+		}
+		_, present, err := managed.ReadChainState(store)
+		if err != nil {
+			t.Fatalf("ReadChainState: %v", err)
+		}
+		if present {
+			t.Error("chain state was persisted despite cache write failure")
+		}
+	})
+
+	t.Run("first boot caches anchor and steady-state current converges with no ack", func(t *testing.T) {
+		var unexpectedRPC atomic.Int32
+		var steadyFetch atomic.Pointer[fleet.ConfigFetchRequest]
+		steadySeen := make(chan struct{}, 1)
+
+		addr, root := chainBootHub(t, func(req fleet.ConfigFetchRequest) fleet.ConfigFetchResponse {
+			if req.Version == "" {
+				return fleet.ConfigFetchResponse{
+					Mode:      fleet.FetchModeFull,
+					Version:   v1,
+					Config:    base64.StdEncoding.EncodeToString(v1Bytes),
+					ChainHash: c1,
+				}
+			}
+			copied := req
+			steadyFetch.Store(&copied)
+			select {
+			case steadySeen <- struct{}{}:
+			default:
+			}
+			return fleet.ConfigFetchResponse{
+				Status:    "current",
+				ChainHash: c1,
+			}
+		}, func(method string) {
+			if method == fleet.VerbConfigAck {
+				unexpectedRPC.Add(1)
+			}
+		})
+
+		fetched, _, err := fetchInitialConfig(managedBootstrap{
+			server: addr,
+			name:   bootClient,
+			token:  bootToken,
+			root:   root.Certificate(),
+		})
+		if err != nil {
+			t.Fatalf("fetchInitialConfig: %v", err)
+		}
+		if string(fetched) != string(v1Bytes) {
+			t.Fatalf("fetched config bytes differ from hub bytes")
+		}
+		if unexpectedRPC.Load() != 0 {
+			t.Fatalf("bootstrap connection sent %d unexpected config-ack RPCs", unexpectedRPC.Load())
+		}
+
+		store := bootStore(t)
+		configName := bootClient + ".conf"
+		writeKey(t, store, zefs.KeyInstanceName.Pattern, bootClient)
+		writeKey(t, store, zefs.KeyInstanceManaged.Pattern, "true\n")
+		if err := cacheFirstConfig(store, configName, fetched); err != nil {
+			t.Fatalf("cacheFirstConfig: %v", err)
+		}
+
+		st, present, err := managed.ReadChainState(store)
+		if err != nil {
+			t.Fatalf("ReadChainState: %v", err)
+		}
+		if !present {
+			t.Fatal("cacheFirstConfig did not persist meta/managed/chain-state")
+		}
+		if st.Version != v1 || st.Chain != c1 {
+			t.Fatalf("chain state = %+v, want {Version:%s Chain:%s}", st, v1, c1)
+		}
+
+		clientCfg, err := extractManagedClientConfig(store, configName)
+		if err != nil {
+			t.Fatalf("extractManagedClientConfig: %v", err)
+		}
+		clientCfg.Server = addr
+		clientCfg.Token = bootToken
+		clientCfg.CA = ""
+		clientCfg.HubRoot = root.Certificate()
+		inSync := make(chan managed.ChainStatus, 4)
+		clientCfg.OnChainState = func(cs managed.ChainStatus) {
+			if cs.ChainState == managed.ChainStateInSync {
+				select {
+				case inSync <- cs:
+				default:
+				}
+			}
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			managed.RunManagedClient(ctx, *clientCfg)
+		}()
+		t.Cleanup(func() {
+			cancel()
+			<-done
+		})
+
+		select {
+		case <-steadySeen:
+		case <-time.After(5 * time.Second):
+			t.Fatal("steady-state client did not fetch from hub")
+		}
+		select {
+		case cs := <-inSync:
+			if cs.ChainHash != c1 {
+				t.Fatalf("in-sync chain hash = %s, want %s", cs.ChainHash, c1)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("steady-state client did not report chain-state in-sync")
+		}
+
+		req := steadyFetch.Load()
+		if req == nil || req.Version != v1 || req.ChainHash != c1 {
+			t.Fatalf("steady-state fetch = %+v, want version=%s chain=%s", req, v1, c1)
+		}
+		if unexpectedRPC.Load() != 0 {
+			t.Fatalf("steady-state current fetch sent %d unexpected config-ack RPCs", unexpectedRPC.Load())
+		}
+	})
 }

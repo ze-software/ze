@@ -128,6 +128,9 @@ type ClientState struct {
 	// LastFailure is the last attempt that failed before the hub session
 	// opened. Cleared when a session authenticates and zero when no client runs.
 	LastFailure HubSessionFailure
+	// Chain is the running client's SHA-1 configuration hash chain status.
+	// Zero value means no chain status has been reported yet.
+	Chain ChainStatus
 }
 
 // RevertOffer is what one fetch answer said of a revert: whether the hub
@@ -251,20 +254,25 @@ func InstallFleetTarget(target *FleetTarget) {
 }
 
 // clientReport is the fields of an answer that only a running daemon fills:
-// its hub client, that client's connection, whether it holds, and what the
-// hub's last fetch answer said of its copy of the hold and of a revert.
+// its hub client, that client's connection, whether it holds, what the
+// hub's last fetch answer said of its copy of the hold and of a revert, and
+// its runtime SHA-1 configuration hash chain state.
 type clientReport struct {
 	client        string
 	connection    string
 	holding       string
 	heldByHub     string
 	revertOffered string
+	chainHash     string
+	chainState    string
+	lastResync    string
 }
 
 // noDaemonReport is the report of an answer no daemon gave.
 var noDaemonReport = clientReport{
 	client: runtimeNoDaemon, connection: runtimeNoDaemon, holding: runtimeNoDaemon,
 	heldByHub: runtimeNoDaemon, revertOffered: runtimeNoDaemon,
+	chainHash: ChainHashNone, chainState: ChainStateNoDaemon, lastResync: LastResyncNone,
 }
 
 // daemonClientReport is the report a daemon gives: its hub client's state, or,
@@ -275,6 +283,7 @@ func daemonClientReport(target *FleetTarget) clientReport {
 		return clientReport{
 			client: clientNotStarted, connection: connectionDown, holding: holdNo,
 			heldByHub: hubAnswerNotFetched, revertOffered: hubAnswerNotFetched,
+			chainState: ChainStateUninitialized, lastResync: LastResyncNone,
 		}
 	}
 	return reportOf(target.ClientState())
@@ -282,9 +291,18 @@ func daemonClientReport(target *FleetTarget) clientReport {
 
 // reportOf words one state of a hub client.
 func reportOf(state ClientState) clientReport {
+	chainState := state.Chain.ChainState
+	if chainState == "" {
+		chainState = ChainStateUninitialized
+	}
+	lastResync := state.Chain.LastResync
+	if lastResync == "" {
+		lastResync = LastResyncNone
+	}
 	report := clientReport{
 		client: clientStopped, connection: connectionDown, holding: holdNo,
 		heldByHub: heldByHubWord(state.HubAnswer), revertOffered: revertOfferedWord(state.HubAnswer.Revert),
+		chainHash: state.Chain.ChainHash, chainState: chainState, lastResync: lastResync,
 	}
 	if state.Running {
 		report.client = clientRunning
@@ -344,6 +362,13 @@ type fleetStatus struct {
 	// version), not-fetched or no-daemon.
 	HeldByHub     string `json:"held-by-hub"`
 	RevertOffered string `json:"revert-offered"`
+	// ChainHash is the persisted or runtime 40-hex SHA-1 configuration hash
+	// chain head, or "none" when unanchored. ChainState is "in-sync",
+	// "mismatched", "uninitialized", or "no-daemon". LastResync is "none",
+	// "diff", or "full-replay".
+	ChainHash  string `json:"chain-hash"`
+	ChainState string `json:"chain-state"`
+	LastResync string `json:"last-resync"`
 }
 
 // errNotFleetStatus is a daemon answer that is not a daemon's fleet status.
@@ -402,6 +427,22 @@ func storeFleetStatus(daemonAnswered bool, report clientReport) command.LocalAns
 	status.Holding = report.holding
 	status.HeldByHub = report.heldByHub
 	status.RevertOffered = report.revertOffered
+	if daemonAnswered {
+		if report.chainHash != "" {
+			status.ChainHash = report.chainHash
+		}
+		status.ChainState = report.chainState
+		if status.ChainState == "" {
+			status.ChainState = ChainStateUninitialized
+		}
+		status.LastResync = report.lastResync
+		if status.LastResync == "" {
+			status.LastResync = LastResyncNone
+		}
+	} else {
+		status.ChainState = ChainStateNoDaemon
+		status.LastResync = LastResyncNone
+	}
 	return command.LocalAnswer{Payload: status}
 }
 
@@ -457,12 +498,24 @@ func readFleetStatus(store, frozenOn storage.Storage) (fleetStatus, error) {
 	if err != nil {
 		return fleetStatus{}, err
 	}
+	chainState, chainPresent, err := ReadChainState(store)
+	if err != nil {
+		return fleetStatus{}, opererr.Wrap(err,
+			"the configuration hash chain ("+zefs.KeyManagedChainState.Pattern+") could not be read from the store",
+			"it tracks whether this device agrees with its hub on applied configuration changes",
+			fixCheckStore)
+	}
+	chainHash := ChainHashNone
+	if chainPresent {
+		chainHash = chainState.Chain
+	}
 
 	status := fleetStatus{
 		Managed:          managed,
 		Frozen:           frozen,
 		BaselineRecorded: baseline.Recorded(),
 		BaselineHash:     baseline.Hash(),
+		ChainHash:        chainHash,
 	}
 	if !stored {
 		return status, nil

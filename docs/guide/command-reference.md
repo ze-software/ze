@@ -1219,13 +1219,17 @@ two you are reading.
 | `holding` | `holding` when the client's last fetch applied nothing, because the configuration the device runs differs from its baseline or could not be compared with it; `not-holding` otherwise. `no-daemon` when no daemon answered |
 | `held-by-hub` | The version of the copy of this device's configuration the hub keeps, as the hub's last fetch answer named it (`held-version`): what `update fleet divergence name <client> adopt version <hash>` and the revert on the hub take. `none` when the hub keeps no copy, `not-fetched` before the hub answered a fetch of this run of the client or when the daemon runs no hub client. `no-daemon` when no daemon answered |
 | `revert-offered` | What the hub's last fetch answer said of a revert (`discard-version`): `none` when it offered none, `offered` when it offered to discard the version this device runs, `stale` when it named another version, so the offer does not apply to what the device runs now. `not-fetched` and `no-daemon` as for `held-by-hub` |
+| `chain-hash` | The persisted or runtime 40-character lowercase hex SHA-1 configuration hash chain head (`meta/managed/chain-state`), or `none` when unanchored |
+| `chain-state` | Runtime hash-chain synchronization state: `in-sync` (client and hub chains agree), `mismatched` (chains disagree or resync failed), `uninitialized` (not yet anchored), or `no-daemon` when no daemon answered |
+| `last-resync` | Delivery method of the last configuration change applied in this daemon run: `none`, `diff`, or `full-replay` |
 
 The command refuses, and prints no status, when the store cannot be opened or
 one of the keys above cannot be read: `ze show data check` says why. It also
 refuses when the `plugin` block of the configuration cannot be read, and names
 `ze config validate`.
 
-<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport, hubAnswerOf, heldByHubWord, revertOfferedWord -->
+<!-- source: internal/component/managed/cmd_fleet.go -- fleetStatus, answerFleetStatusWith, readFleetStatus, decodeDaemonFleetStatus, daemonClientReport, reportOf, hubAnswerOf, heldByHubWord, revertOfferedWord -->
+<!-- source: internal/component/managed/chain.go -- ChainStatus, ReadChainState, ChainStateInSync, ChainStateMismatched, ChainStateUninitialized, ChainStateNoDaemon, LastResyncNone, LastResyncDiff, LastResyncFullReplay -->
 
 ### show fleet devices
 

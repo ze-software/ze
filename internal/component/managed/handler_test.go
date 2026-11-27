@@ -94,7 +94,9 @@ func TestClientValidateConfigBad(t *testing.T) {
 
 	assert.False(t, ack.OK, "should reject invalid config")
 	assert.Equal(t, "some-version-hash", ack.Version)
-	assert.NotEmpty(t, ack.Error)
+	assert.Equal(t, "config failed validation", ack.Error)
+	assert.Equal(t, fleet.RejectKindVerify, ack.RejectKind)
+	assert.NotContains(t, ack.Error, assert.AnError.Error(), "raw validation error must not leak into ConfigAck.Error")
 	assert.False(t, cacheWasCalled, "cache should not be called on invalid config")
 }
 

@@ -1919,23 +1919,27 @@ served.
 | `managed-history-corrupt` | runtime | `doctor-managed-history-corrupt` (warning) | each persisted fleet metric history latest record or compressed shard that failed size, version, or integrity validation on startup load while healthy shards remained readable | inspect with `ze show fleet sample storage`; the next valid sample report replaces the damaged record |
 | `managed-alarm-write` | runtime | `doctor-managed-alarm-write-failed` (error) | a failed hub fleet alarm shard persistence attempt while dirty shards remain queued for retry and durability is degraded; live alarms remain derived in memory | run `ze show data check` and `ze show fleet alarm`, then repair the daemon state store before the next alarm flush |
 | `managed-alarm-corrupt` | runtime | `doctor-managed-alarm-corrupt` (warning) | persisted fleet alarm shards that failed byte-bound, version, or schema validation on startup load and were skipped while healthy shards remained readable | inspect `ze show fleet alarm` and `ze show warnings`; the next alarm state transition replaces the damaged shard |
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedAlarmWrite, checkManagedAlarmCorrupt -->
+| `managed-chain-drift` | runtime | `doctor-managed-chain-drift` (warning) | each managed client whose SHA-1 configuration hash chain failed to converge after diff resync and full replay, naming the client, UTC failure time, client and expected chain hashes, and bounded failure reason | run `ze show fleet status` on the client and `ze show fleet alarm` on the hub, resolve the reported cause, then let the client resync or reconnect |
+| `managed-chain-unreadable` | runtime | `doctor-managed-chain-unreadable` (warning) | each hub-side persisted client chain key (`meta/managed/client/<name>/chain`) that failed read, strict JSON decode, or write; never treated as absent and healed on the next confirmed full replay | run `ze show data check`, then let the client complete a full configuration replay to rewrite the key |
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedAlarmWrite, checkManagedAlarmCorrupt, checkManagedChainDrift, checkManagedChainUnreadable -->
 <!-- source: internal/component/plugin/doctor/register_external.go -- init, registerOrPanic -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorManagedChainDrift, CodeDoctorManagedChainUnreadable -->
 
-The managed client has four checks of its own, and its hub one more, all
-registered by `internal/component/managed`. The first four are post-config checks,
-so they report with the daemon running or stopped; the fifth (`hub-session`) runs
-in the runtime phase and reads the running daemon's hub client state. The first two read the
-configuration tree. The third reads the store only: the managed flag, the hash
-of the configuration the device runs, and the baseline. The fourth runs on a
-hub and reads the copies the hub keeps of what holding clients run, and the
-serving blocks of the tree. A client that holds is seen from its hub in that
-fourth row once the hub keeps its copy; a hold with no copy (a configuration
-over the bound, a copy that failed, a client built before the copy existed)
-stays a config it refused to apply, in the `managed-client-rejected` row
-above.
+The managed client has six checks of its own, and its hub one more, all
+registered by `internal/component/managed`. Five are post-config checks, so
+they report with the daemon running or stopped; two (`hub-session` and
+`managed-client-chain-drift`) run in the runtime phase and read the running
+daemon's hub client state. The first two read the configuration tree.
+`managed-diverged` and `managed-chain` read the store only: the managed flag,
+the active configuration hash, the baseline, and the persisted SHA-1 chain state
+(`meta/managed/chain-state`). `managed-client-diverged` runs on a hub and reads
+the copies the hub keeps of what holding clients run, and the serving blocks of
+the tree. A client that holds is seen from its hub in that row once the hub
+keeps its copy; a hold with no copy (a configuration over the bound, a copy that
+failed, a client built before the copy existed) stays a config it refused to
+apply, in the `managed-client-rejected` row above.
 <!-- source: internal/component/managed/register.go -- init -->
-<!-- source: internal/component/managed/doctor.go -- hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck, hubSessionDoctorCheck -->
+<!-- source: internal/component/managed/doctor.go -- hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck, hubSessionDoctorCheck, managedChainDoctorCheck, managedChainDriftDoctorCheck -->
 
 | Check | Phase | Code | Reports | Fix |
 |-------|-------|------|---------|-----|
@@ -1946,7 +1950,9 @@ above.
 | `hub-client-missing` | post-config | `doctor-hub-client-missing` (warning) | a managed client (`meta/instance/managed` is `true`) whose configuration has no hub `client` block, so it follows no hub | add the block on the hub, then `ze init --managed --force` |
 | `managed-diverged` | post-config | `doctor-managed-diverged` (warning) | a managed client whose active configuration differs from its baseline (`meta/managed/base-version`), so it holds and applies nothing its hub sends; also a managed client whose store cannot answer one of the two values. Silent on a device that is not managed, on one with no baseline, and on one whose two hashes are equal | one line that names the hub commands over the device's name and the version it runs: `show fleet divergence name <client>`, then `update fleet divergence name <client> adopt version <hash>` to keep it or `request fleet divergence name <client> revert version <hash> hub-version <hub-version>` to discard it, the hub hash being the one the hub's show answers. For a configuration larger than the 1 MiB copy a hub takes, the two manual routes instead: give the hub the device's configuration, or discard it on the device (`docs/guide/fleet-config.md`, "When a Client Holds"). `ze show data check` when the store cannot answer |
 | `managed-client-diverged` | post-config | `doctor-managed-client-diverged` (warning) | on a hub, each copy it keeps of the configuration a holding client runs (`meta/config/client-<name>.conf/held`), with the client, the copy's version, the version the hub serves it and when the copy was edited and received; a copy whose client no `plugin hub server` block declares is reported orphaned, because that client cannot connect. Also a copy, or the list of copies, the store cannot answer. Read from the store and the serving blocks, so it reports with the hub running or stopped, and after a hub restart | the three hub commands over the client and the copy's version, the revert also over the version the hub serves it. For an orphaned copy: declare the client again in a server block, or remove the copy with the hub stopped: `ze data rm meta/config/client-<name>.conf/held`. `ze show data check` when the store cannot answer |
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged, diagnoseManagedUncompared, managedDivergedFix, managedDivergedManualFix, checkHubClientsDiverged, diagnoseHeldClient, diagnoseHeldOrphan -->
+| `managed-chain` | post-config | `doctor-managed-chain-unreadable` (warning) | a managed client (`meta/instance/managed` is `true`) whose persisted SHA-1 configuration hash chain key (`meta/managed/chain-state`) fails read or strict JSON decode; silent on standalone devices and when the key is absent or valid | `ze show data check`; the next successful full configuration replay overwrites and heals the key |
+| `managed-client-chain-drift` | runtime | `doctor-managed-chain-drift` (warning) | a running managed client whose SHA-1 configuration hash chain did not converge with its hub after diff resync and full replay; deduplicated with the transient report-bus warning of the same code | `ze show fleet status` |
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged, diagnoseManagedUncompared, managedDivergedFix, managedDivergedManualFix, checkHubClientsDiverged, diagnoseHeldClient, diagnoseHeldOrphan, checkManagedChain, checkManagedChainDrift, diagnoseManagedChainDrift -->
 <!-- source: internal/component/plugin/server/managed_held.go -- HeldClients, ReadHeldRecord, HeldRecordKey -->
 <!-- test: internal/component/managed/doctor_test.go TestDivergedFixNamesHubCommands -->
 <!-- test: internal/component/managed/doctor_test.go TestHubDivergedCheckDeclared -->

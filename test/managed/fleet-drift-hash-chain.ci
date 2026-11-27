@@ -1,0 +1,15 @@
+# QUESTION: Do a real ze hub and managed ze device anchor their SHA-1
+# configuration hash chain on initial sync, apply a live V1->V2 hub import via
+# diff mode with FoldDiff convergence, heal a reply chain-hash mismatch without
+# reconnecting, fall back to full replay when diff is unusable or base is
+# missing, and report chain-hash, chain-state, and last-resync in show fleet status?
+# WHY NOT A UNIT TEST: Disk ZeFS versioned base lookup, hub write-observer
+# config-changed pushes, TLS MuxConn diff/reanchor/full RPC exchanges, device
+# transactional reload commits, persisted chain keys on both sides, and SSH CLI
+# show fleet status run end to end through the real ze daemons.
+# VALIDATES: spec-fleet-10 AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-12.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-drift-hash-chain $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet drift hash chain anchored, applied diff update, healed reply mismatch, and fell back to full replay

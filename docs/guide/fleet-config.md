@@ -251,13 +251,28 @@ A change made on the client while it fetches yours is kept. The client
 applies your configuration only over the one it ran when it fetched. When its
 configuration changed in between, it applies nothing, fetches once more, and
 holds (see "When a Client Holds").
-<!-- source: internal/component/managed/client.go -- holdOrApply, activeCheck, refetchOverLocalCommit -->
+<!-- source: internal/component/managed/client.go -- holdOrApplyWithDrift, activeCheck, refetchOverLocalCommitWithDrift -->
 
 A change reaches the client it belongs to and no other. To change ten
 clients, import ten files. A client that is not connected gets the change the
 next time it connects.
-<!-- source: internal/component/plugin/server/managed_serve.go -- NotifyConfigChanged, pushConfigChanged -->
-<!-- source: internal/component/managed/client.go -- fetchAndProcess -->
+
+When the client's previous version exists in the hub's versioned history and a
+line diff is smaller than the full file, the hub sends a deterministic line
+diff (`mode: "diff"`) instead of re-sending the entire configuration. Both ends
+fold each applied change into a persistent 40-hex SHA-1 configuration hash
+chain and compare their chain heads on every managed reply, including the
+30-second heartbeat (`ping`). If a non-holding client disagrees with its hub,
+it requests a diff-based resync and falls back once to full configuration
+replay if the diff cannot be verified or validated; first boot, operator
+revert, missing base history, and oversized diffs always deliver the full
+configuration. A client that holds a local edit never auto-resyncs over its
+change.
+<!-- source: internal/component/plugin/server/managed_serve.go -- NotifyConfigChanged, pushConfigChanged, handleRequest -->
+<!-- source: internal/component/plugin/server/managed.go -- HandleConfigFetch, buildDiffOrFullResponse -->
+<!-- source: internal/component/managed/client.go -- fetchAndProcess, sendPing, handleDriftMismatchWithSampler, applyFullFetched -->
+<!-- source: pkg/fleet/chain.go -- FoldFull, FoldDiff -->
+<!-- source: pkg/fleet/diff.go -- ComputeDiff, ApplyDiff -->
 
 **To move a client to another hub, or to change its secret,** change the
 `client` block in its configuration. The client applies the configuration and
@@ -407,13 +422,19 @@ connection of a running client:
 | `client` | `not-started` | The client was started outside the fleet. A hub connection starts only at its next `ze start` |
 | `connection` | `connected`, `not-connected` | Whether the hub accepted the client and that connection is still open |
 | `holding` | `holding`, `not-holding` | Whether the client took nothing from its hub at its last fetch |
+| `chain-hash` | `<40-hex>`, `none` | The client's persisted or runtime SHA-1 configuration hash chain head (`meta/managed/chain-state`), or `none` before an anchor is recorded |
+| `chain-state` | `in-sync`, `mismatched`, `uninitialized`, `no-daemon` | Whether the client's hash chain agrees with its hub (`mismatched` when resync failed to converge) |
+| `last-resync` | `none`, `diff`, `full-replay` | How the client applied its most recent hub-driven configuration change in this daemon run |
 
-When the client is stopped, each of the three fields says `no-daemon`.
+When the client is stopped, `client`, `connection`, `holding`, and `chain-state`
+say `no-daemon`, `last-resync` says `none`, and `chain-hash` still reports the
+persisted chain head from the store (or `none`).
 
 Use the two commands to leave and to rejoin. Another write of
 `meta/instance/managed`, with `update data key` or `ze data write`, decides
 the next start and does not close a connection that is open.
-<!-- source: internal/component/managed/cmd_fleet.go -- daemonClientReport, reportOf, noDaemonReport -->
+<!-- source: internal/component/managed/cmd_fleet.go -- daemonClientReport, reportOf, noDaemonReport, readFleetStatus -->
+<!-- source: internal/component/managed/chain.go -- ChainStatus, ChainStateInSync, ChainStateMismatched, ChainStateUninitialized, ChainStateNoDaemon, LastResyncNone, LastResyncDiff, LastResyncFullReplay -->
 <!-- source: internal/component/managed/client.go -- RunManagedClient -->
 
 ## When a Client Refuses Your Change
@@ -704,7 +725,8 @@ retained for 1 day at 1-minute resolution and up to 7 days at 15-minute
 resolution with per-minute aligned peaks under default 1 MiB/device and 2 GiB/hub
 byte caps). The hub continuously derives open fleet alarms and bounded closed
 episode history from those facts (`device-offline`, `component-down`,
-`component-degraded`, `config-diverged`, `config-rejected`, `resource-high`,
+`component-degraded`, `config-diverged`, `config-rejected`,
+`config-resync-failed`, `resource-high`,
 `software-behind`, and `history-full`), tuned under `bus { hub { alarms { ... } } }`.
 All ten hub commands work on every command surface (CLI, SSH,
 MCP, REST, gRPC, and the web command line), scoped locally to the devices the
@@ -758,10 +780,16 @@ preserved across repeat reports, reads, disconnects, and hub restarts. For a
 declared device that has never connected, `offline-delay` runs from its
 declaration time across reloads and restarts; once a device connects, later
 disconnects start a fresh grace interval from disconnect time. While a device is
-offline, its stale `component-down`, `component-degraded`, and `resource-high`
+offline, its stale `component-down`, `component-degraded`,
+`config-resync-failed`, and `resource-high`
 alarms stay open and carry `hidden-behind` naming the open `device-offline`
 alarm identifier, whereas `config-diverged`, `config-rejected`,
-`software-behind`, and `history-full` remain visible. Use
+`software-behind`, and `history-full` remain visible. `config-resync-failed`
+(**Configuration resync failed**, Warning) opens when a non-holding device fails
+both diff-based resync and full configuration replay for a non-verify delivery,
+decode, hash, or commit cause (a YANG validation refusal opens
+`config-rejected`, and a local edit opens `config-diverged`), and clears
+automatically once the client and hub hash chains agree again. Use
 `show fleet alarm | hidden false` to view only visible alarms and
 `show fleet alarm | hidden true` to view only alarms hidden behind an open
 cause. When the device reconnects and `device-offline` clears, `component-down`
@@ -863,6 +891,8 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `doctor-managed-history-corrupt` on the hub | A persisted metric history latest record or shard failed validation at startup (healthy shards stay readable) | Run `ze show data check`; the next valid sample report replaces the corrupt key, or remove it with `ze data rm` |
 | `doctor-managed-alarm-write-failed` on the hub | Persisting a hub fleet alarm shard failed (live alarms stay derived in memory and dirty shards remain queued for retry while durability is degraded) | Run `ze show data check` and `ze show fleet alarm`, then repair the daemon state store before the next alarm flush |
 | `doctor-managed-alarm-corrupt` on the hub | A persisted fleet alarm shard failed byte-bound, version, or schema validation at startup (healthy shards stay readable and live alarms continue to be derived) | Inspect `ze show fleet alarm` and `ze show warnings`; the next alarm state transition replaces the damaged shard |
+| `doctor-managed-chain-drift` on the client or hub | A managed client and its hub disagreed on their SHA-1 configuration hash chain and both diff resync and full configuration replay failed to converge (the client keeps running its last committed configuration, and the hub opens `config-resync-failed` for non-verify failures) | Run `ze show fleet status` on the client and `ze show fleet alarm` / `ze show doctor` on the hub to see the chain hashes and failure cause, fix the reported issue, and let the client resync or reconnect |
+| `doctor-managed-chain-unreadable` on the client or hub | The persisted hash-chain key (`meta/managed/chain-state` on a client or `meta/managed/client/<name>/chain` on a hub) failed storage read, write, or strict JSON decode (never treated as absent) | Run `ze show data check` to inspect the state store; the next confirmed full configuration replay overwrites and heals the key |
 | `doctor-managed-client-rejected` on the hub, the reason starts with `holding:` | The same: that client holds | See [When a Client Holds](#when-a-client-holds) |
 | A client holds after `request fleet enable` | The client was changed while it was out of the fleet | See [When a Client Holds](#when-a-client-holds) |
 | `request fleet enable` is refused: the configuration names no hub | The client's configuration has no `client` block, so the client has no hub to rejoin | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
@@ -871,10 +901,10 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `show fleet status` shows `managed` true and `client` `stopped` | The client's configuration names no hub | See the `doctor-hub-client-missing` row |
 | `show fleet status` shows `managed` true and `client` `stopped`, and the configuration names a hub | The client left the fleet with `request fleet disable`, and `meta/instance/managed` was then written back to `true` with `ze data write` or `update data key`. A raw write starts no client | Run `ze request fleet enable` on the client |
 | `show fleet status` shows `managed` true and `client` `stopped`, and the client logged `config-hub-invalid` at start | The client could not read the `client` block of its configuration, so it started no hub client | Correct the `client` block in its configuration on the hub, and check it there with `ze config validate`. Then run `ze init --managed --force` on the client, and start it |
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound, checkManagedAlarmWrite, checkManagedAlarmCorrupt -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound, checkManagedAlarmWrite, checkManagedAlarmCorrupt, checkManagedChainDrift, checkManagedChainUnreadable -->
 <!-- source: cmd/ze/hub/managed_owner.go -- startAtBoot, state -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped, appendChainHealth -->
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared, checkManagedDiverged, checkManagedChain, checkManagedChainDrift -->
 <!-- source: internal/component/managed/register_doctor_codes.go -- CodeDoctorManagedReportFailed -->
 <!-- source: internal/component/managed/report.go -- startSessionReporter, ProjectFleetHealth -->
 <!-- source: internal/component/managed/client.go -- configFetchTimeout, handleConfigChangedRequest -->
@@ -947,12 +977,13 @@ MIIB...
 | `meta/managed/hub/ca` | The hub's root | `ze init --hub-ca`, or the first start with first use |
 | `meta/managed/hub/trust` | `first-use` when first use was chosen | `ze init --hub-trust-first-use` |
 | `meta/managed/base-version` | The hash of the last configuration the hub gave this client. See [When a Client Holds](#when-a-client-holds) | The client: at its first start, each time it applies a configuration from the hub, and when the hub confirms that it holds the configuration the client runs |
+| `meta/managed/chain-state` | Persisted SHA-1 configuration hash chain state (`version` + 40-hex `chain`) | The client: at its first start, after applying a diff or full replay, and when re-anchoring on a `current` reply |
 
 `request fleet disable` and `request fleet enable` change
 `meta/instance/managed` with no change to the client's configuration. See
 [Leave and Rejoin the Fleet](#leave-and-rejoin-the-fleet).
 <!-- source: internal/component/managed/cmd_fleet.go -- storeManagedFlag -->
-<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust, KeyManagedBaseVersion -->
+<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust, KeyManagedBaseVersion, KeyManagedChainState -->
 <!-- source: internal/component/managed/baseline.go -- StoreBaseline -->
 <!-- source: cmd/ze/ze_core_start.go -- isManaged -->
 

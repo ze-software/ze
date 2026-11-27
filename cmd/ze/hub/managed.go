@@ -28,6 +28,9 @@ import (
 // wipe the push (confirm.WriteOutside). A nil window getter, a daemon with no
 // window, applies the push directly.
 func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, configPath string, reload func() error, recorder audit.Recorder, window func() *confirm.Window) {
+	if client.Chain == nil && store != nil {
+		client.Chain = managed.NewChainAccess(store)
+	}
 	client.CommitOver = func(data []byte, check func(active []byte) error) error {
 		var open *confirm.Window
 		if window != nil {

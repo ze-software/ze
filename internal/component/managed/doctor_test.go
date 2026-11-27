@@ -398,3 +398,129 @@ func TestDivergedDoctorReportsWhatItCannotCompare(t *testing.T) {
 	assert.Equal(t, fixCheckStore, diags[0].Fix)
 	assert.Contains(t, diags[0].Message, "the key did not decode")
 }
+
+// TestDoctorReportsChainUnreadableAndDrift proves both client hash-chain
+// doctor checks: managed-chain (post-config, doctor-managed-chain-unreadable
+// with fix `ze show data check`) and managed-client-chain-drift (runtime,
+// doctor-managed-chain-drift with fix `ze show fleet status`).
+//
+// VALIDATES: spec-fleet-10 AC-11 and AC-12 (doctor diagnostics for unreadable
+// chain key and active client chain drift).
+// PREVENTS: corrupt meta/managed/chain-state or failed resync going silent in ze doctor.
+func TestDoctorReportsChainUnreadableAndDrift(t *testing.T) {
+	t.Run("managed-chain warns on corrupt chain-state when managed", func(t *testing.T) {
+		store := holdDevice(t, holdDeviceConfig, holdDeviceConfig)
+		require.NoError(t, store.WriteKey(zefs.KeyInstanceManaged.Pattern, []byte(managedFlagTrue)))
+		require.NoError(t, store.WriteKey(zefs.KeyManagedChainState.Pattern, []byte("{bad json")))
+
+		diags := managedChainDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store})
+		require.Len(t, diags, 1)
+		assert.Equal(t, pluginserver.CodeDoctorManagedChainUnreadable, diags[0].Code)
+		assert.Contains(t, managedChainDoctorCheck.Codes, diags[0].Code)
+		assert.Equal(t, diagnostic.DoctorPhasePostConfig, managedChainDoctorCheck.Phase)
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+		assert.Equal(t, fixCheckStore, diags[0].Fix)
+		assert.Contains(t, diags[0].Message, zefs.KeyManagedChainState.Pattern)
+	})
+
+	t.Run("managed-chain is quiet when valid, absent, or unmanaged", func(t *testing.T) {
+		store := holdDevice(t, holdDeviceConfig, holdDeviceConfig)
+		require.NoError(t, store.WriteKey(zefs.KeyInstanceManaged.Pattern, []byte(managedFlagTrue)))
+		assert.Nil(t, managedChainDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store}), "absent key is valid")
+
+		_, err := RecordActiveChainAnchor(store)
+		require.NoError(t, err)
+		assert.Nil(t, managedChainDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store}), "valid key is clean")
+
+		// Corrupt key on an unmanaged device must stay quiet (AC-12 survivor).
+		require.NoError(t, store.WriteKey(zefs.KeyInstanceManaged.Pattern, []byte("false\n")))
+		require.NoError(t, store.WriteKey(zefs.KeyManagedChainState.Pattern, []byte("{corrupt")))
+		assert.Nil(t, managedChainDoctorCheck.Check(diagnostic.DoctorCheckContext{Store: store}))
+	})
+
+	t.Run("managed-client-chain-drift warns on mismatched running client and clears when in-sync", func(t *testing.T) {
+		assert.Equal(t, "managed-client-chain-drift", managedChainDriftDoctorCheck.Name)
+		var state ClientState
+		installFleetTarget(t, &FleetTarget{
+			StartClient: func(func() error) (bool, error) { return false, nil },
+			StopClient:  stopsWith(),
+			ClientState: func() ClientState { return state },
+		})
+
+		state = ClientState{
+			Running:   true,
+			Connected: true,
+			Chain: ChainStatus{
+				ChainHash:  fleet.FoldFull([]byte(holdDeviceConfig)),
+				ChainState: ChainStateMismatched,
+				LastResync: LastResyncFullReplay,
+				DriftError: "commit config: confirm window open",
+			},
+		}
+		diags := managedChainDriftDoctorCheck.Check(diagnostic.DoctorCheckContext{})
+		require.Len(t, diags, 1)
+		assert.Equal(t, pluginserver.CodeDoctorManagedChainDrift, diags[0].Code)
+		assert.Contains(t, managedChainDriftDoctorCheck.Codes, diags[0].Code)
+		assert.Equal(t, diagnostic.DoctorPhaseRuntime, managedChainDriftDoctorCheck.Phase)
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+		assert.Equal(t, chainDriftFix, diags[0].Fix)
+		assert.Contains(t, diags[0].Message, "confirm window open")
+
+		state.Chain = ChainStatus{
+			ChainHash:  fleet.FoldFull([]byte(holdDeviceConfig)),
+			ChainState: ChainStateInSync,
+			LastResync: LastResyncDiff,
+		}
+		assert.Nil(t, managedChainDriftDoctorCheck.Check(diagnostic.DoctorCheckContext{}))
+
+		state.Running = false
+		state.Chain.ChainState = ChainStateMismatched
+		assert.Nil(t, managedChainDriftDoctorCheck.Check(diagnostic.DoctorCheckContext{}))
+	})
+
+	t.Run("managed-client-chain-drift reports runtime write failure without duplicating on-disk read error", func(t *testing.T) {
+		assert.Contains(t, managedChainDriftDoctorCheck.Codes, pluginserver.CodeDoctorManagedChainUnreadable)
+		var state ClientState
+		installFleetTarget(t, &FleetTarget{
+			StartClient: func(func() error) (bool, error) { return false, nil },
+			StopClient:  stopsWith(),
+			ClientState: func() ClientState { return state },
+		})
+
+		// Runtime write failure while in-sync surfaces doctor-managed-chain-unreadable.
+		state = ClientState{
+			Running:   true,
+			Connected: true,
+			Chain: ChainStatus{
+				ChainHash:       fleet.FoldFull([]byte(holdDeviceConfig)),
+				ChainState:      ChainStateInSync,
+				LastResync:      LastResyncFullReplay,
+				WriteError:      "write meta/managed/chain-state: disk full",
+				UnreadableError: "write meta/managed/chain-state: disk full",
+			},
+		}
+		diags := managedChainDriftDoctorCheck.Check(diagnostic.DoctorCheckContext{})
+		require.Len(t, diags, 1)
+		assert.Equal(t, pluginserver.CodeDoctorManagedChainUnreadable, diags[0].Code)
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+		assert.Equal(t, fixCheckStore, diags[0].Fix)
+		assert.Contains(t, diags[0].Message, zefs.KeyManagedChainState.Pattern)
+		assert.Contains(t, diags[0].Message, "disk full")
+
+		// Concurrent drift + write failure surfaces both diagnostics.
+		state.Chain.ChainState = ChainStateMismatched
+		state.Chain.DriftError = "commit config: confirm window open"
+		diags = managedChainDriftDoctorCheck.Check(diagnostic.DoctorCheckContext{})
+		require.Len(t, diags, 2)
+		assert.Equal(t, pluginserver.CodeDoctorManagedChainDrift, diags[0].Code)
+		assert.Equal(t, pluginserver.CodeDoctorManagedChainUnreadable, diags[1].Code)
+
+		// On-disk read/decode error alone (WriteError empty) is owned by post-config
+		// managed-chain and must not be duplicated by the runtime check.
+		state.Chain = ChainStatus{
+			ChainState:      ChainStateUninitialized,
+			UnreadableError: "decode meta/managed/chain-state: corrupt json",
+		}
+		assert.Nil(t, managedChainDriftDoctorCheck.Check(diagnostic.DoctorCheckContext{}))
+	})
+}

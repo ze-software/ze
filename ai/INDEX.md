@@ -622,6 +622,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | config history, object/<sha256>, content-addressed version, dangling entry, orphan object, dangling pointer | `storage-backends.md`, `internal/component/config/storage/history.go`, `internal/component/config/storage/history_check.go` |
 | ze init, bootstrap the store, import a blob, --from, --force, --seed, --managed | `storage-backends.md`, `guide/quickstart.md`, `internal/plugins/init/main.go` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
+| fleet drift, hash chain, SHA-1 chain, diff resync, FoldFull, FoldDiff, ComputeDiff, ApplyDiff, config-resync-failed, doctor-managed-chain-drift, doctor-managed-chain-unreadable | `docs/architecture/fleet-config.md` (Configuration hash chain and diff-based resync), `docs/architecture/fleet-alarms.md`, `pkg/fleet/chain.go`, `pkg/fleet/diff.go`, `internal/component/managed/chain.go`, `internal/component/plugin/server/managed_chain.go` |
 | fleet alarms, show fleet alarm, show fleet alarm history, ManagedAlarmStore, AlarmKindRegistry, bus hub alarms | `docs/architecture/fleet-alarms.md`, `internal/component/plugin/server/managed_alarms.go`, `internal/component/managed/cmd_alarms.go` |
 | fleet interface, /fleet/, fleetui, estate page, sample estate, ze_fleet_ui, ze_fleet_ui_sample, review build | `fleet-interface.md`, `internal/component/web/fleetui/` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |

@@ -386,7 +386,7 @@ func TestFirstBootFetchEndsAtFetchDeadline(t *testing.T) {
 	mc, seen := heldPipe(t, func(*rpc.Request) any { return heldAnswer{silent: true} })
 	returned := make(chan error, 1)
 	go func() { // Ends when the pipe closes, if the bound is missing.
-		_, err := fetchConfigWithin(context.Background(), mc, "", fetchBoundShort)
+		_, err := fetchConfigWithin(context.Background(), mc, "", "", "", fetchBoundShort)
 		returned <- err
 	}()
 

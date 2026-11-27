@@ -22,7 +22,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
@@ -97,6 +99,13 @@ type ClientConfig struct {
 	// client could compare nothing and would apply every configuration the hub
 	// returns over whatever the device runs.
 	Baseline *BaselineAccess
+	// Chain reads and writes the persisted SHA-1 configuration hash chain state
+	// under meta/managed/chain-state. Optional: nil keeps chain state in memory
+	// only for unit tests that do not wire persistence.
+	Chain *ChainAccess
+	// Metrics is the optional Prometheus metrics registry used for client chain
+	// mismatch and resync counters. Nil disables metrics cleanly.
+	Metrics metrics.Registry
 	// Endpoint reads the hub connection a config declares. The client calls it
 	// with each config it has applied, so a push that changes the hub address,
 	// the secret, the certificate authority, the source address or the client
@@ -110,13 +119,16 @@ type ClientConfig struct {
 	// because the configuration the device runs differs from its baseline or
 	// could not be compared with it. OnHubAnswer is told, after each fetch
 	// the hub answered, what that answer said of the hub's copy of a hold and
-	// of a revert (HubAnswer). The daemon's owner of this client reports all
-	// three in `show fleet status`. The client calls them from its own
-	// goroutine and MUST NOT be blocked by them. nil reports nothing.
+	// of a revert (HubAnswer). OnChainState is told whenever the runtime SHA-1
+	// hash chain status changes. The daemon's owner of this client reports
+	// these in `show fleet status` and runtime doctor checks. The client calls
+	// them from its own goroutine and MUST NOT be blocked by them. nil reports
+	// nothing.
 	OnConnection     func(connected bool)
 	OnSessionFailure func(failure HubSessionFailure)
 	OnHold           func(holding bool)
 	OnHubAnswer      func(answer HubAnswer)
+	OnChainState     func(status ChainStatus)
 	// SampleCollector collects device-local metric readings for periodic
 	// VerbSampleReport pushes when the hub advertises a positive sample
 	// interval. Nil leaves sampling idle.
@@ -131,6 +143,15 @@ type ClientConfig struct {
 	// means configFetchTimeout, which every production client uses; a test
 	// shortens it, as ManagedServer.pushTimeout, so no test waits 30 seconds.
 	fetchTimeout time.Duration
+	// pingTimeout bounds each client-initiated VerbPing round-trip (pingBound).
+	// Zero means pingTimeout (10s); a test shortens it.
+	pingTimeout time.Duration
+	// pingInterval overrides heartbeatInterval for the ping ticker in tests
+	// when positive; zero uses heartbeatInterval (30s).
+	pingInterval time.Duration
+	// chainState holds the concurrency-safe runtime hash-chain snapshot, latch,
+	// and metrics handles for this client run.
+	chainState *chainRuntime
 	// reportTimeout bounds each fleet report collection and RPC round-trip
 	// (reportCallTimeout). Zero means defaultReportCallTimeout; a test
 	// shortens it so no test waits 30 seconds.
@@ -525,11 +546,16 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 
 	logger().Info("connected to hub", "server", cfg.Server, "name", cfg.Name)
 
+	// Load persisted chain state and reset the per-session failed-sync latch
+	// before any fetch or worker starts on this connection (AC-11, R-5).
+	cfg.initChainRuntime()
+	driftCh := make(chan string, 1)
+
 	// Fetch config. A local commit that landed during both fetches
 	// (errActiveChangedTwice) is logged here, once, and ends the connection:
 	// the reconnect's fetch decides again over what the device then runs, so
 	// a device that still differs holds, uploads its copy and acks holding.
-	outcome, err := fetchAndProcessOutcome(ctx, mc, cfg)
+	outcome, err := fetchAndProcessOutcomeWithDrift(ctx, mc, cfg, driftCh)
 	if err != nil {
 		if errors.Is(err, errActiveChangedTwice) {
 			logLocalCommitTwice(cfg, err)
@@ -560,29 +586,50 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 	hb.Start()
 	defer hb.Stop()
 
-	// Ping sender: sends ping every heartbeatInterval.
+	// Joined ping sender: sends VerbPing every heartbeatInterval carrying our
+	// current chain head with pingTimeout and signals driftCh on mismatch.
+	// Canceled and joined BEFORE hb.Stop() and mc.Close() so no ping outlives
+	// runConnection or touches borrowed state after shutdown (R-5, R-6).
+	pingCtx, pingCancel := context.WithCancel(ctx)
+	pingDone := make(chan struct{})
 	go func() {
-		ticker := time.NewTicker(heartbeatInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if pingErr := sendPing(ctx, mc); pingErr != nil {
-					return
-				}
-				hb.recordPong() // Successful ping response = hub is alive.
-			case <-ctx.Done():
-				return
-			case <-hbDone:
-				return
-			case <-mc.Done():
-				return
-			}
-		}
+		defer close(pingDone)
+		runPingLoop(pingCtx, mc, cfg, hb, hbDone, driftCh)
+	}()
+	defer func() {
+		pingCancel()
+		<-pingDone
 	}()
 
-	// Notification loop: handle hub-initiated RPCs.
-	return notificationLoopWithSampler(ctx, mc, cfg, hbDone, sampler)
+	// Notification loop: handle hub-initiated RPCs and ping-triggered drift.
+	return notificationLoopWithDrift(ctx, mc, cfg, hbDone, sampler, driftCh)
+}
+
+// runPingLoop sends periodic VerbPing heartbeats carrying the client's current
+// SHA-1 chain head with a bounded timeout and signals driftCh on mismatch.
+func runPingLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, hb *Heartbeat, hbDone <-chan struct{}, driftCh chan<- string) {
+	ticker := time.NewTicker(cfg.pingTickInterval())
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			reply, pingErr := sendPing(ctx, mc, cfg.currentChainHash(), cfg.pingBound())
+			if pingErr != nil {
+				if errors.Is(pingErr, context.DeadlineExceeded) && ctx.Err() == nil {
+					continue
+				}
+				return
+			}
+			hb.recordPong() // Successful ping response = hub is alive.
+			cfg.checkReplyChain(reply, driftCh)
+		case <-ctx.Done():
+			return
+		case <-hbDone:
+			return
+		case <-mc.Done():
+			return
+		}
+	}
 }
 
 // fetchStatusCurrent is the status of a config-fetch answer that says the hub
@@ -619,22 +666,26 @@ func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) er
 // fetchAndProcessOutcome is fetchAndProcess returning the hub's advertised
 // sample interval alongside the fetch result.
 func fetchAndProcessOutcome(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) (fetchOutcome, error) {
-	return fetchAgainstBaseline(ctx, mc, cfg, cfg.Baseline, refetchOnce)
+	return fetchAndProcessOutcomeWithDrift(ctx, mc, cfg, nil)
 }
 
-// fetchAgainstBaseline is the fetch fetchAndProcess makes: it sends
+func fetchAndProcessOutcomeWithDrift(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, driftCh chan<- string) (fetchOutcome, error) {
+	return fetchAgainstBaselineWithMode(ctx, mc, cfg, cfg.Baseline, refetchOnce, "", "", driftCh)
+}
+
+// fetchAgainstBaselineWithMode is the fetch fetchAndProcess makes: it sends
 // the hash of the configuration the device runs, read now, and applies what
 // the hub returns only while that configuration is the last one the hub gave
 // (Diverged). The hub's "current" answer ends a hold: it proves hub and
 // device hold the same configuration, so that hash becomes the baseline, and
 // the device acknowledges it so the hub drops the refusal it recorded while
 // the device held. The one other end is a revert: an answer whose
-// discard-version is exactly the active hash is applied (applyReverted). A
+// discard-version is exactly the active hash is applied (applyRevertedWithDrift). A
 // discard-version that names any other hash is a decision taken on an older
 // configuration of this device, and the device holds. refetch says whether a
 // push or a revert that meets a local commit landed during this fetch may
-// fetch once more over that newer edit (refetchOverLocalCommit).
-func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, refetch revertRefetch) (fetchOutcome, error) {
+// fetch once more over that newer edit (refetchOverLocalCommitWithDrift).
+func fetchAgainstBaselineWithMode(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, refetch revertRefetch, resync, triggerChain string, driftCh chan<- string) (fetchOutcome, error) {
 	active, baseline, err := access.read()
 	// refuse-by-default: guards fetchAndProcessOutcome -- refuseUncompared logged and acked the store read error; keep the session open with hasHubReply false.
 	if err != nil {
@@ -642,7 +693,12 @@ func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfi
 		cfg.reportHold(true)
 		return fetchOutcome{}, nil
 	}
-	resp, err := fetchConfigWithin(ctx, mc, active.Hash(), cfg.fetchBound())
+	if resync == fleet.ResyncModeDiff && Diverged(active, baseline) {
+		// Hold precedence (fleet-6/fleet-7, AC-9): never auto-resync over a local edit.
+		cfg.reportHold(true)
+		return fetchOutcome{}, nil
+	}
+	resp, err := fetchConfigWithin(ctx, mc, active.Hash(), cfg.currentChainHash(), resync, cfg.fetchBound())
 	if err != nil {
 		return fetchOutcome{}, fmt.Errorf("fetch: %w", err)
 	}
@@ -652,51 +708,221 @@ func fetchAgainstBaseline(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfi
 	}
 	cfg.reportHubAnswer(hubAnswerOf(resp, active))
 	if resp.Status == fetchStatusCurrent {
-		settleBaseline(cfg, access, active, baseline)
+		return handleCurrentFetchResponse(ctx, mc, cfg, access, resp, active, baseline, refetch, resync, triggerChain, driftCh)
+	}
+	if resp.Mode == fleet.FetchModeDiff {
 		if Diverged(active, baseline) {
-			// The hub last heard a refusal from this device. Nothing was
-			// applied, so no ack would otherwise follow, and the hub would go
-			// on listing a device that holds after its operator resolved it.
-			sendAck(ctx, mc, fleet.ConfigAck{Version: active.Hash(), OK: true})
+			holdFetched(ctx, mc, cfg, access, resp, active, baseline)
+			cfg.reportHold(true)
+			return outcome, nil
 		}
-		cfg.reportHold(false)
-		return outcome, nil
+		return handleDiffFetchResponse(ctx, mc, cfg, access, resp, active, baseline, refetch, triggerChain, driftCh)
 	}
 	if resp.Config == "" {
+		if resync == fleet.ResyncModeFull {
+			failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, "hub returned empty config on full replay")
+			return outcome, nil
+		}
 		logger().Debug("the hub sent no config", "version", active.Hash())
 		return outcome, nil
 	}
 	// Diverged holds only when both hashes are recorded, so an answer with no
 	// discard-version never matches the active hash here.
 	if Diverged(active, baseline) && resp.DiscardVersion == active.Hash() {
-		return applyReverted(ctx, mc, cfg, access, resp, active, refetch)
+		return applyRevertedWithDrift(ctx, mc, cfg, access, resp, active, refetch, driftCh)
 	}
-	return holdOrApply(ctx, mc, cfg, access, resp, active, baseline, refetch)
+	return holdOrApplyWithDrift(ctx, mc, cfg, access, resp, active, baseline, refetch, triggerChain, driftCh)
 }
 
-// applyReverted applies the configuration the hub returned to a device that
-// holds, because the hub's operator decided that it drops the configuration it
-// runs: the answer's discard-version names exactly the active hash, so the
-// decision was taken on this configuration and on the hub configuration the
-// answer carries (pluginserver.RevertDecision). It commits as a push does
-// (applyFetched): the stage refuses, under the config's lock, when the
-// configuration active then is no longer the one the hash was read from
-// (activeCheck). A local commit that landed during the fetch is a newer local
-// edit, so the device then fetches again, sending the hash of that edit, and
-// decides the new answer as any fetch (refetchOverLocalCommit): the hub's
-// answer to the first fetch names the version it fetched, the copy it holds
-// and the version its decision discards for the old configuration, and a hold
-// decided on it would send a copy the hub refuses to show. Like every push,
-// the revert stages through the machine entry the freeze exempts and records
-// the new baseline, and a confirmed-commit window open on the device refuses
-// it. The hold is reported from the store read again after the apply: a
+// handleCurrentFetchResponse settles baseline and hash-chain state for a
+// Status=="current" fetch reply. On a re-anchor reply, a non-holding client
+// verifies FoldFull(activeBytes) == resp.ChainHash and persists the anchor
+// without sending config-ack (preserving TestFirstBaselineSendsNoAck); a
+// holding client whose hold just ended sends config-ack as before. If local
+// bytes do not match resp.ChainHash, a non-holding client falls back once to
+// resync=="full".
+func handleCurrentFetchResponse(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch, resync, triggerChain string, driftCh chan<- string) (fetchOutcome, error) {
+	outcome := fetchOutcome{
+		sampleIntervalSeconds: resp.SampleIntervalSeconds,
+		hasHubReply:           true,
+	}
+	diverged := Diverged(active, baseline)
+	if resp.ChainHash != "" {
+		clientChain := cfg.currentChainHash()
+		if !resp.Reanchor && resp.ChainHash == clientChain {
+			cfg.persistChainState(active.Hash(), resp.ChainHash, "")
+			settleBaseline(cfg, access, active, baseline)
+			if diverged {
+				sendAckWithDrift(ctx, mc, cfg, fleet.ConfigAck{Version: active.Hash(), OK: true, ChainHash: resp.ChainHash}, driftCh)
+			}
+			cfg.reportHold(false)
+			return outcome, nil
+		}
+		anchorValid := fleet.ValidChainHash(resp.ChainHash)
+		var localAnchor string
+		if anchorValid {
+			if activeBytes, readErr := access.activeBytes(); readErr == nil {
+				localAnchor = fleet.FoldFull(activeBytes)
+			}
+		}
+		if anchorValid && localAnchor == resp.ChainHash {
+			cfg.persistChainState(active.Hash(), resp.ChainHash, "")
+			settleBaseline(cfg, access, active, baseline)
+			if diverged {
+				sendAckWithDrift(ctx, mc, cfg, fleet.ConfigAck{Version: active.Hash(), OK: true, ChainHash: resp.ChainHash}, driftCh)
+			}
+			cfg.reportHold(false)
+			return outcome, nil
+		}
+		if !diverged && resync != fleet.ResyncModeFull {
+			reason := "local active configuration anchor did not match hub reanchor chain-hash"
+			if !anchorValid {
+				reason = "hub returned invalid chain-hash on current reply"
+			}
+			logger().Info("current reanchor verification failed, falling back to full configuration replay",
+				"name", cfg.Name, "version", active.Hash(), "error", reason)
+			return fetchFullReplayFallback(ctx, mc, cfg, access, active, baseline, refetch, triggerChain, driftCh, reason)
+		}
+		if diverged {
+			cfg.reportHold(true)
+			return outcome, nil
+		}
+		failFetchAndAck(ctx, mc, cfg, active.Hash(), resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, "reanchor chain-hash mismatch after full replay request")
+		return outcome, nil
+	}
+	settleBaseline(cfg, access, active, baseline)
+	if diverged {
+		// The hub last heard a refusal from this device. Nothing was
+		// applied, so no ack would otherwise follow, and the hub would go
+		// on listing a device that holds after its operator resolved it.
+		sendAckWithDrift(ctx, mc, cfg, fleet.ConfigAck{Version: active.Hash(), OK: true, ChainHash: cfg.currentChainHash()}, driftCh)
+	}
+	cfg.reportHold(false)
+	return outcome, nil
+}
+
+// handleDiffFetchResponse verifies, reconstructs, validates, and commits a
+// Mode=="diff" response. Any pre-commit failure stages nothing, leaves the
+// chain untouched, records a diff fallback, and triggers ONE bounded
+// resync=="full" fetch.
+func handleDiffFetchResponse(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch, triggerChain string, driftCh chan<- string) (fetchOutcome, error) {
+	outcome := fetchOutcome{
+		sampleIntervalSeconds: resp.SampleIntervalSeconds,
+		hasHubReply:           true,
+	}
+	activeBytes, readErr := access.activeBytes()
+	var reconstructed []byte
+	var diffErr error
+	if readErr != nil {
+		diffErr = fmt.Errorf("read active config: %w", readErr)
+	} else {
+		reconstructed, diffErr = reconstructAndVerifyDiff(activeBytes, cfg.currentChainHash(), resp, cfg.Handler)
+	}
+	if diffErr != nil {
+		logger().Info("diff resync verification failed, falling back to full configuration replay",
+			"name", cfg.Name, "version", resp.Version, "error", diffErr)
+		cfg.chain().recordResync(chainMetricMethodDiff, chainMetricResultFallback)
+		return fetchFullReplayFallback(ctx, mc, cfg, access, active, baseline, refetch, triggerChain, driftCh, diffErr.Error())
+	}
+
+	if cfg.CommitOver == nil {
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodDiff, fleet.RejectKindCommit, "commit not ready")
+		cfg.reportHold(false)
+		return outcome, nil
+	}
+	commitErr := cfg.CommitOver(reconstructed, activeCheck(active))
+	if errors.Is(commitErr, errActiveChanged) {
+		return refetchOverLocalCommitWithDrift(ctx, mc, cfg, access, active, refetch, driftCh)
+	}
+	// refuse-by-default: guards fetchAgainstBaselineWithMode -- commit refusal is acked, latched, logged, and reported on the warning bus while keeping the session open.
+	if commitErr != nil {
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodDiff, fleet.RejectKindCommit, "commit config: "+commitErr.Error())
+		cfg.reportHold(false)
+		return outcome, nil //nolint:nilerr // commit refusal is acked and latched without closing the session
+	}
+
+	cfg.persistChainState(resp.Version, resp.ChainHash, LastResyncDiff)
+	cfg.chain().recordResync(chainMetricMethodDiff, chainMetricResultApplied)
+	sendAckWithDrift(ctx, mc, cfg, fleet.ConfigAck{
+		Version:   resp.Version,
+		OK:        true,
+		ChainHash: resp.ChainHash,
+	}, driftCh)
+	cfg.reportHold(false)
+	logger().Info("config updated via diff", "version", resp.Version)
+	return outcome, cfg.adoptEndpoint(reconstructed)
+}
+
+// fetchFullReplayFallback executes the single bounded resync=="full" fallback
+// after a diff or reanchor failure. It re-checks Diverged(active, baseline) so
+// a local edit is never overwritten, and refuses any recursive diff reply.
+func fetchFullReplayFallback(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, _, _ ConfigVersion, refetch revertRefetch, triggerChain string, driftCh chan<- string, diffReason string) (fetchOutcome, error) {
+	active, baseline, err := access.read()
+	// refuse-by-default: guards handleDiffFetchResponse -- refuseUncompared logged and acked the store read error; keep the session open with hasHubReply false.
+	if err != nil {
+		refuseUncompared(ctx, mc, cfg, err)
+		cfg.reportHold(true)
+		return fetchOutcome{}, nil
+	}
+	if Diverged(active, baseline) {
+		cfg.reportHold(true)
+		return fetchOutcome{}, nil
+	}
+	resp, err := fetchConfigWithin(ctx, mc, active.Hash(), cfg.currentChainHash(), fleet.ResyncModeFull, cfg.fetchBound())
+	if err != nil {
+		return fetchOutcome{}, fmt.Errorf("full replay fetch: %w", err)
+	}
+	outcome := fetchOutcome{
+		sampleIntervalSeconds: resp.SampleIntervalSeconds,
+		hasHubReply:           true,
+	}
+	cfg.reportHubAnswer(hubAnswerOf(resp, active))
+	if resp.Status == fetchStatusCurrent {
+		return handleCurrentFetchResponse(ctx, mc, cfg, access, resp, active, baseline, refetch, fleet.ResyncModeFull, triggerChain, driftCh)
+	}
+	if resp.Mode == fleet.FetchModeDiff {
+		cause := combineDiffAndFullError(diffReason, "hub returned diff mode in response to full replay request")
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, cause)
+		cfg.reportHold(false)
+		return outcome, nil
+	}
+	if resp.Config == "" {
+		cause := combineDiffAndFullError(diffReason, "hub returned empty config on full replay")
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, cause)
+		cfg.reportHold(false)
+		return outcome, nil
+	}
+	applyErr := applyFullFetched(ctx, mc, cfg, resp, active, diffReason, triggerChain, driftCh)
+	if errors.Is(applyErr, errActiveChanged) {
+		return refetchOverLocalCommitWithDrift(ctx, mc, cfg, access, active, refetch, driftCh)
+	}
+	cfg.reportHold(false)
+	return outcome, applyErr
+}
+
+// applyRevertedWithDrift applies the configuration the hub returned to a device
+// that holds, because the hub's operator decided that it drops the
+// configuration it runs: the answer's discard-version names exactly the active
+// hash, so the decision was taken on this configuration and on the hub
+// configuration the answer carries (pluginserver.RevertDecision). It commits as
+// a push does (applyFullFetched): the stage refuses, under the config's lock,
+// when the configuration active then is no longer the one the hash was read
+// from (activeCheck). A local commit that landed during the fetch is a newer
+// local edit, so the device then fetches again, sending the hash of that edit,
+// and decides the new answer as any fetch (refetchOverLocalCommitWithDrift):
+// the hub's answer to the first fetch names the version it fetched, the copy it
+// holds and the version its decision discards for the old configuration, and a
+// hold decided on it would send a copy the hub refuses to show. Like every
+// push, the revert stages through the machine entry the freeze exempts and
+// records the new baseline, and a confirmed-commit window open on the device
+// refuses it. The hold is reported from the store read again after the apply: a
 // refused apply leaves the device holding.
-func applyReverted(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active ConfigVersion, refetch revertRefetch) (fetchOutcome, error) {
+func applyRevertedWithDrift(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active ConfigVersion, refetch revertRefetch, driftCh chan<- string) (fetchOutcome, error) {
 	logger().Info("this device held, and its hub's operator decided that it drops the configuration it runs and takes the hub's",
 		"name", cfg.Name, "discarded", active.Hash(), "offered", resp.Version)
-	applyErr := applyFetched(ctx, mc, cfg, resp, active)
+	applyErr := applyFullFetched(ctx, mc, cfg, resp, active, "", "", driftCh)
 	if errors.Is(applyErr, errActiveChanged) {
-		return refetchOverLocalCommit(ctx, mc, cfg, access, active, refetch)
+		return refetchOverLocalCommitWithDrift(ctx, mc, cfg, access, active, refetch, driftCh)
 	}
 	after, baseline, readErr := access.read()
 	cfg.reportHold(readErr != nil || Diverged(after, baseline))
@@ -726,13 +952,13 @@ const (
 var errActiveChangedTwice = errors.New("the configuration this device runs changed during both fetches of its hub's configuration, " +
 	"so it applied nothing and fetches again when it connects again")
 
-// refetchOverLocalCommit answers a push or a revert the stage refused because
-// a local commit landed during its fetch (activeCheck): the device keeps the
-// newer edit, and fetches once more with its hash so what it decides (a hold,
-// its copy and its ack, or an apply) answers a fetch of that version. decided
-// is the version the refused commit was decided over. On the fetch made again
-// (refetchNone) it fetches no more and answers errActiveChangedTwice.
-func refetchOverLocalCommit(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, decided ConfigVersion, refetch revertRefetch) (fetchOutcome, error) {
+// refetchOverLocalCommitWithDrift answers a push or a revert the stage refused
+// because a local commit landed during its fetch (activeCheck): the device
+// keeps the newer edit, and fetches once more with its hash so what it decides
+// (a hold, its copy and its ack, or an apply) answers a fetch of that version.
+// decided is the version the refused commit was decided over. On the fetch made
+// again (refetchNone) it fetches no more and answers errActiveChangedTwice.
+func refetchOverLocalCommitWithDrift(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, decided ConfigVersion, refetch revertRefetch, driftCh chan<- string) (fetchOutcome, error) {
 	if refetch == refetchNone {
 		// The hold is reported from the store read again, as applyReverted
 		// reports it: a later local commit may have put the device back on
@@ -744,7 +970,7 @@ func refetchOverLocalCommit(ctx context.Context, mc *rpc.MuxConn, cfg *ClientCon
 	logger().Info("this device's configuration changed while its hub's configuration was fetched, so it keeps the newer local edit, "+
 		"applies nothing from that fetch, and fetches again over that edit",
 		"name", cfg.Name, "decided", decided.Hash())
-	return fetchAgainstBaseline(ctx, mc, cfg, access, refetchNone)
+	return fetchAgainstBaselineWithMode(ctx, mc, cfg, access, refetchNone, "", "", driftCh)
 }
 
 // logLocalCommitTwice logs a fetch that a local commit ended on both of its
@@ -780,14 +1006,14 @@ func activeCheck(decided ConfigVersion) func(active []byte) error {
 	}
 }
 
-// holdOrApply decides a fetched configuration that carries no revert of the
-// active version: it holds while the device's configuration differs from its
-// baseline (holdFetched), and applies the configuration otherwise. A push
+// holdOrApplyWithDrift decides a fetched configuration that carries no revert
+// of the active version: it holds while the device's configuration differs from
+// its baseline (holdFetched), and applies the configuration otherwise. A push
 // the stage refused because a local commit landed during the fetch fetches
-// again over that edit (refetchOverLocalCommit, bounded by refetch). The hold
-// is reported after the outcome, so a push that turns into a hold never
-// reports "not holding" first.
-func holdOrApply(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch) (fetchOutcome, error) {
+// again over that edit (refetchOverLocalCommitWithDrift, bounded by refetch).
+// The hold is reported after the outcome, so a push that turns into a hold
+// never reports "not holding" first.
+func holdOrApplyWithDrift(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion, refetch revertRefetch, triggerChain string, driftCh chan<- string) (fetchOutcome, error) {
 	outcome := fetchOutcome{
 		sampleIntervalSeconds: resp.SampleIntervalSeconds,
 		hasHubReply:           true,
@@ -797,9 +1023,9 @@ func holdOrApply(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access
 		cfg.reportHold(true)
 		return outcome, nil
 	}
-	applyErr := applyFetched(ctx, mc, cfg, resp, active)
+	applyErr := applyFullFetched(ctx, mc, cfg, resp, active, "", triggerChain, driftCh)
 	if errors.Is(applyErr, errActiveChanged) {
-		return refetchOverLocalCommit(ctx, mc, cfg, access, active, refetch)
+		return refetchOverLocalCommitWithDrift(ctx, mc, cfg, access, active, refetch, driftCh)
 	}
 	cfg.reportHold(false)
 	return outcome, applyErr
@@ -841,9 +1067,10 @@ func settleBaseline(cfg *ClientConfig, access *BaselineAccess, active, baseline 
 func holdFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access *BaselineAccess, resp fleet.ConfigFetchResponse, active, baseline ConfigVersion) {
 	copied, kept := uploadHeld(ctx, mc, cfg, access, active, resp)
 	sendAck(ctx, mc, fleet.ConfigAck{
-		Version: resp.Version,
-		OK:      false,
-		Holding: true,
+		Version:   resp.Version,
+		OK:        false,
+		Holding:   true,
+		ChainHash: cfg.currentChainHash(),
 		Error: holdRefusalPrefix + " (active " + active.Hash() + ", baseline " + baseline.Hash() + "); " +
 			"the device applied nothing and stays connected, " + copied +
 			", and ze doctor on the device names the two ways to resolve it",
@@ -905,12 +1132,16 @@ func uploadHeld(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, access 
 	}
 	uploadCtx, cancel := context.WithTimeout(ctx, heldUploadTimeout)
 	defer cancel()
-	_, err = mc.CallRPC(uploadCtx, fleet.VerbConfigHeld, fleet.ConfigHeld{
-		Version:  held.version.Hash(),
-		Config:   base64.StdEncoding.EncodeToString(held.content),
-		EditedAt: held.editedAt,
+	rawReply, err := mc.CallRPC(uploadCtx, fleet.VerbConfigHeld, fleet.ConfigHeld{
+		Version:   held.version.Hash(),
+		Config:    base64.StdEncoding.EncodeToString(held.content),
+		EditedAt:  held.editedAt,
+		ChainHash: cfg.currentChainHash(),
 	})
 	if err == nil {
+		if _, decErr := fleet.DecodeManagedReply(rawReply); decErr != nil {
+			logger().Warn("could not decode hub config-held reply", "code", pluginserver.CodeDoctorManagedChainDrift, "name", cfg.Name, "fix", chainDriftFix, "error", decErr)
+		}
 		logger().Info("this device holds, and sent its hub a copy of the configuration it runs",
 			"name", cfg.Name, "version", held.version.Hash(), "size", len(held.content))
 		return "a copy was sent to the hub", held.version == active
@@ -951,7 +1182,8 @@ func heldTooLarge(size int) *opererr.Error {
 // the store again.
 func refuseUncompared(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, cause error) {
 	sendAck(ctx, mc, fleet.ConfigAck{
-		OK: false,
+		OK:        false,
+		ChainHash: cfg.currentChainHash(),
 		Error: "this device could not compare the configuration it runs with the last one this hub sent, " +
 			"so it fetched and applied nothing: " + cause.Error(),
 	})
@@ -963,54 +1195,133 @@ func refuseUncompared(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, c
 // sendAck sends ack to the hub. An ack that cannot be sent is logged: the
 // connection that lost it ends on its own, and the next one fetches again.
 func sendAck(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) {
-	if ackErr := SendConfigAck(ctx, mc, ack); ackErr != nil {
+	if _, ackErr := sendConfigAckReply(ctx, mc, ack); ackErr != nil {
 		logger().Warn("send ack failed", "code", codeHubUnreachable, "error", ackErr)
 	}
 }
 
-// applyFetched validates, commits and acknowledges a configuration the hub
-// returned, a push or a revert. It commits through CommitOver over
-// activeCheck(decided), decided being the version the client read before its
-// fetch; a nil CommitOver refuses the configuration as not ready. A commit
-// refused with errActiveChanged is answered as is and acks nothing: the
-// caller fetches again, and that fetch's ack tells the hub. Any other refusal
-// is acked as a refusal with its cause. It returns errEndpointChanged or
-// errHubClientRemoved as fetchAndProcess documents.
-func applyFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse, decided ConfigVersion) error {
-	data, ack := cfg.Handler.ValidateConfig(resp)
-	if ack.OK {
-		if cfg.CommitOver == nil {
-			ack.OK = false
-			ack.Error = "commit not ready"
-		} else if err := cfg.CommitOver(data, activeCheck(decided)); errors.Is(err, errActiveChanged) {
-			return err
-		} else if err != nil {
-			ack.OK = false
-			ack.Error = fmt.Sprintf("commit config: %v", err)
+// sendAckWithDrift sends ack to the hub and returns the hub's replied chain
+// hash (empty on legacy reply or send error). It checks reply drift ONLY on
+// successful non-holding acknowledgements so failure acks never spin driftCh
+// or inflate client chain mismatch counters.
+func sendAckWithDrift(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, ack fleet.ConfigAck, driftCh chan<- string) string {
+	reply, ackErr := sendConfigAckReply(ctx, mc, ack)
+	// refuse-by-default: guards failFetchAndAck -- ack send error is logged under codeHubUnreachable; empty replyChain means no hub reply chain was received.
+	if ackErr != nil {
+		logger().Warn("send ack failed", "code", codeHubUnreachable, "error", ackErr)
+		return ""
+	}
+	if ack.OK && !ack.Holding {
+		cfg.checkReplyChain(reply, driftCh)
+	}
+	return reply.ChainHash
+}
+
+// failFetchAndAck sends a non-OK config-ack without triggering driftCh or
+// bumping mismatch counters, then latches both the hub's response/trigger
+// chains and the hub's ack reply chain via recordChainDriftFailure.
+func failFetchAndAck(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, version, hubChain, triggerChain, method, rejectKind, cause string) {
+	replyChain := sendAckWithDrift(ctx, mc, cfg, fleet.ConfigAck{
+		Version:    version,
+		OK:         false,
+		Error:      cause,
+		RejectKind: rejectKind,
+		ChainHash:  cfg.currentChainHash(),
+	}, nil)
+	cfg.recordChainDriftFailure(version, hubChain, triggerChain, replyChain, method, cause)
+}
+
+// applyFullFetched validates, commits and acknowledges a full configuration the
+// hub returned, a push, revert, or full-replay fallback. It commits through
+// CommitOver over activeCheck(decided), decided being the version the client
+// read before its fetch; a nil CommitOver refuses the configuration as not
+// ready. A commit refused with errActiveChanged is answered as is and acks
+// nothing: the caller fetches again, and that fetch's ack tells the hub. Any
+// other refusal is acked as a refusal with its cause. It returns
+// errEndpointChanged or errHubClientRemoved as fetchAndProcess documents.
+func applyFullFetched(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, resp fleet.ConfigFetchResponse, decided ConfigVersion, priorDiffReason, triggerChain string, driftCh chan<- string) error {
+	data, err := base64.StdEncoding.DecodeString(resp.Config)
+	// refuse-by-default: guards holdOrApplyWithDrift -- decode refusal is acked, latched, logged, and reported while keeping the session open.
+	if err != nil {
+		cause := combineDiffAndFullError(priorDiffReason, "decode config: "+err.Error())
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, cause)
+		return nil //nolint:nilerr // decode refusal is acked and latched without closing the session
+	}
+	if resp.Version != "" {
+		if gotVer := fleet.VersionHash(data); gotVer != resp.Version {
+			cause := combineDiffAndFullError(priorDiffReason, "config version mismatch: got "+gotVer+", hub declared "+resp.Version)
+			failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, cause)
+			return nil
 		}
 	}
-	sendAck(ctx, mc, ack)
-	if !ack.OK {
-		logger().Warn("config rejected", "error", ack.Error)
+	anchor := fleet.FoldFull(data)
+	if resp.ChainHash != "" {
+		if !fleet.ValidChainHash(resp.ChainHash) {
+			cause := combineDiffAndFullError(priorDiffReason, "config chain-hash invalid: hub declared "+resp.ChainHash)
+			failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, cause)
+			return nil
+		}
+		if anchor != resp.ChainHash {
+			cause := combineDiffAndFullError(priorDiffReason, "config chain-hash mismatch: computed "+anchor+", hub declared "+resp.ChainHash)
+			failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindResync, cause)
+			return nil
+		}
+	}
+	// refuse-by-default: guards holdOrApplyWithDrift -- validation refusal is acked with RejectKindVerify using a fixed secret-free cause, latched, logged, and reported while keeping the session open.
+	if err := cfg.Handler.ValidateRawConfig(data); err != nil {
+		cause := combineDiffAndFullError(priorDiffReason, "config failed validation")
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindVerify, cause)
+		return nil //nolint:nilerr // validation refusal is acked and latched without closing the session
+	}
+	if cfg.CommitOver == nil {
+		cause := combineDiffAndFullError(priorDiffReason, "commit not ready")
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindCommit, cause)
 		return nil
 	}
+	commitErr := cfg.CommitOver(data, activeCheck(decided))
+	if errors.Is(commitErr, errActiveChanged) {
+		return commitErr
+	}
+	// refuse-by-default: guards holdOrApplyWithDrift -- commit refusal is acked with RejectKindCommit, latched, logged, and reported while keeping the session open.
+	if commitErr != nil {
+		cause := combineDiffAndFullError(priorDiffReason, "commit config: "+commitErr.Error())
+		failFetchAndAck(ctx, mc, cfg, resp.Version, resp.ChainHash, triggerChain, chainMetricMethodFull, fleet.RejectKindCommit, cause)
+		return nil //nolint:nilerr // commit refusal is acked and latched without closing the session
+	}
+
+	version := resp.Version
+	if version == "" {
+		version = fleet.VersionHash(data)
+	}
+	cfg.persistChainState(version, anchor, LastResyncFullReplay)
+	cfg.chain().recordResync(chainMetricMethodFull, chainMetricResultApplied)
+	sendAckWithDrift(ctx, mc, cfg, fleet.ConfigAck{
+		Version:   resp.Version,
+		OK:        true,
+		ChainHash: anchor,
+	}, driftCh)
 	logger().Info("config updated", "version", resp.Version)
 	return cfg.adoptEndpoint(data)
 }
 
 // notificationLoop reads hub-initiated RPCs until disconnect or shutdown.
 func notificationLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, hbDone <-chan struct{}) error {
-	return notificationLoopWithSampler(ctx, mc, cfg, hbDone, nil)
+	return notificationLoopWithDrift(ctx, mc, cfg, hbDone, nil, nil)
 }
 
-func notificationLoopWithSampler(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, hbDone <-chan struct{}, sampler *sessionSampler) error {
+func notificationLoopWithDrift(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, hbDone <-chan struct{}, sampler *sessionSampler, driftCh chan string) error {
 	for {
 		select {
 		case req, ok := <-mc.Requests():
 			if !ok {
 				return errConnectionClosed
 			}
-			if err := handleHubRequestWithSampler(ctx, mc, req, cfg, sampler); err != nil {
+			if err := handleHubRequestWithDrift(ctx, mc, req, cfg, sampler, driftCh); err != nil {
+				return err
+			}
+
+		case hubChain := <-driftCh:
+			if err := handleDriftMismatchWithSampler(ctx, mc, cfg, sampler, hubChain, driftCh); err != nil {
 				return err
 			}
 
@@ -1026,15 +1337,60 @@ func notificationLoopWithSampler(ctx context.Context, mc *rpc.MuxConn, cfg *Clie
 	}
 }
 
-// handleHubRequestWithSampler dispatches an inbound request from the hub. A
+// handleDriftMismatchWithSampler handles a chain-hash mismatch signaled by
+// sendPing or a reply check, serially on the notification goroutine. Hold
+// precedence (Diverged(active, baseline)) and the per-connection failed-sync
+// latch are checked before initiating a diff-based resync.
+func handleDriftMismatchWithSampler(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, sampler *sessionSampler, hubChain string, driftCh chan<- string) error {
+	if hubChain != "" && hubChain == cfg.currentChainHash() {
+		return nil
+	}
+	if cfg.chain().isLatchedChain(hubChain) {
+		return nil
+	}
+	active, baseline, err := cfg.Baseline.read()
+	// refuse-by-default: guards notificationLoopWithDrift -- refuseUncompared logged and acked the store read error; keep the session open.
+	if err != nil {
+		refuseUncompared(ctx, mc, cfg, err)
+		cfg.reportHold(true)
+		return nil
+	}
+	if Diverged(active, baseline) {
+		cfg.reportHold(true)
+		return nil
+	}
+	outcome, err := fetchAgainstBaselineWithMode(ctx, mc, cfg, cfg.Baseline, refetchOnce, fleet.ResyncModeDiff, hubChain, driftCh)
+	if errors.Is(err, errEndpointChanged) {
+		return err
+	}
+	if errors.Is(err, errHubClientRemoved) {
+		return err
+	}
+	if errors.Is(err, errActiveChangedTwice) {
+		logLocalCommitTwice(cfg, err)
+		return err
+	}
+	// refuse-by-default: guards notificationLoopWithDrift -- transient resync fetch error is logged and retried on the next heartbeat or reconnect; keep the session open.
+	if err != nil {
+		logger().Warn("managed client could not resync configuration after hash chain mismatch; retrying on next heartbeat or reconnect",
+			"code", codeHubUnreachable, "name", cfg.Name, "server", cfg.Server, "error", err, "fix", "ze doctor")
+		return nil
+	}
+	if outcome.hasHubReply && sampler != nil {
+		sampler.UpdateInterval(outcome.sampleIntervalSeconds)
+	}
+	return nil
+}
+
+// handleHubRequestWithDrift dispatches an inbound request from the hub. A
 // non-nil error means the connection MUST end (handleConfigChangedRequest).
-func handleHubRequestWithSampler(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig, sampler *sessionSampler) error {
+func handleHubRequestWithDrift(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig, sampler *sessionSampler, driftCh chan<- string) error {
 	switch req.Method {
 	case fleet.VerbConfigChanged:
-		return handleConfigChangedRequestWithSampler(ctx, mc, req, cfg, sampler)
+		return handleConfigChangedRequestWithDrift(ctx, mc, req, cfg, sampler, driftCh)
 
 	case fleet.VerbPing:
-		_ = mc.SendOK(ctx, req.ID)
+		_ = mc.SendResult(ctx, req.ID, fleet.ManagedReply{ChainHash: cfg.currentChainHash()})
 	}
 	// Unknown methods silently dropped for forward compatibility.
 	return nil
@@ -1050,20 +1406,22 @@ func handleHubRequestWithSampler(ctx context.Context, mc *rpc.MuxConn, req *rpc.
 // both of its fetches (errActiveChangedTwice) is logged at Info, under no hub
 // code, because the hub answered both, and is returned like the two above.
 func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) error {
-	return handleConfigChangedRequestWithSampler(ctx, mc, req, cfg, nil)
+	return handleConfigChangedRequestWithDrift(ctx, mc, req, cfg, nil, nil)
 }
 
-func handleConfigChangedRequestWithSampler(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig, sampler *sessionSampler) error {
+func handleConfigChangedRequestWithDrift(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig, sampler *sessionSampler, driftCh chan<- string) error {
 	var n fleet.ConfigChanged
+	// refuse-by-default: guards handleHubRequestWithDrift -- malformed notification is rejected over RPC and logged; keep the session open.
 	if err := json.Unmarshal(req.Params, &n); err != nil {
-		logger().Warn("bad config-changed payload", "error", err)
+		logger().Warn("bad config-changed payload", "code", pluginserver.CodeDoctorManagedChainDrift, "fix", chainDriftFix, "error", err)
 		_ = mc.SendError(ctx, req.ID, "bad payload")
 		return nil
 	}
-	_ = mc.SendOK(ctx, req.ID)
+	_ = mc.SendResult(ctx, req.ID, fleet.ManagedReply{ChainHash: cfg.currentChainHash()})
 
-	// Fetch the new config.
-	outcome, err := fetchAndProcessOutcome(ctx, mc, cfg)
+	// Fetch the new config, preserving the hub's advertised notification chain
+	// hash as triggerChain so a failure latches it against subsequent pings.
+	outcome, err := fetchAgainstBaselineWithMode(ctx, mc, cfg, cfg.Baseline, refetchOnce, "", n.ChainHash, driftCh)
 	if errors.Is(err, errEndpointChanged) {
 		return err
 	}
@@ -1076,6 +1434,7 @@ func handleConfigChangedRequestWithSampler(ctx context.Context, mc *rpc.MuxConn,
 		logLocalCommitTwice(cfg, err)
 		return err
 	}
+	// refuse-by-default: guards handleHubRequestWithDrift -- transient fetch error is logged and retried on the next change or connection; keep the session open.
 	if err != nil {
 		logger().Warn("this device could not fetch its configuration after its hub announced a change, "+
 			"so it keeps the configuration it runs and fetches again at the hub's next change or the next connection; "+
@@ -1096,7 +1455,7 @@ func handleConfigChangedRequestWithSampler(ctx context.Context, mc *rpc.MuxConn,
 // MUST NOT derive ctx from a bound it set for another step, as first boot's
 // connect bound (cmd/ze fetchInitialConfig).
 func FetchConfig(ctx context.Context, mc *rpc.MuxConn, version string) (fleet.ConfigFetchResponse, error) {
-	return fetchConfigWithin(ctx, mc, version, configFetchTimeout)
+	return fetchConfigWithin(ctx, mc, version, "", "", configFetchTimeout)
 }
 
 // fetchConfigWithin is the one config-fetch of this package, bounded by
@@ -1104,8 +1463,12 @@ func FetchConfig(ctx context.Context, mc *rpc.MuxConn, version string) (fleet.Co
 // configFetchTimeout, and fetchAgainstBaseline the client's fetchBound. An
 // answer that arrives after the bound finds no pending call and is dropped
 // (rpc MuxConn), so it is never applied.
-func fetchConfigWithin(ctx context.Context, mc *rpc.MuxConn, version string, bound time.Duration) (fleet.ConfigFetchResponse, error) {
-	req := fleet.ConfigFetchRequest{Version: version}
+func fetchConfigWithin(ctx context.Context, mc *rpc.MuxConn, version, chainHash, resync string, bound time.Duration) (fleet.ConfigFetchResponse, error) {
+	req := fleet.ConfigFetchRequest{
+		Version:   version,
+		ChainHash: chainHash,
+		Resync:    resync,
+	}
 
 	fetchCtx, cancel := context.WithTimeout(ctx, bound)
 	defer cancel()
@@ -1126,23 +1489,43 @@ func fetchConfigWithin(ctx context.Context, mc *rpc.MuxConn, version string, bou
 // round-trip is bounded by configAckTimeout, whatever deadline ctx carries,
 // and Error is bounded to fleet.AckErrorMax bytes.
 func SendConfigAck(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) error {
+	_, err := sendConfigAckReply(ctx, mc, ack)
+	return err
+}
+
+func sendConfigAckReply(ctx context.Context, mc *rpc.MuxConn, ack fleet.ConfigAck) (fleet.ManagedReply, error) {
 	ack.Error = fleet.BoundAckError(ack.Error)
 	ackCtx, cancel := context.WithTimeout(ctx, configAckTimeout)
 	defer cancel()
-	_, err := mc.CallRPC(ackCtx, fleet.VerbConfigAck, ack)
+	raw, err := mc.CallRPC(ackCtx, fleet.VerbConfigAck, ack)
 	if err != nil {
-		return fmt.Errorf("config-ack RPC: %w", err)
+		return fleet.ManagedReply{}, fmt.Errorf("config-ack RPC: %w", err)
 	}
-	return nil
+	reply, err := fleet.DecodeManagedReply(raw)
+	if err != nil {
+		return fleet.ManagedReply{}, fmt.Errorf("config-ack reply: %w", err)
+	}
+	return reply, nil
 }
 
-// sendPing sends a ping RPC to the hub for liveness.
-func sendPing(ctx context.Context, mc *rpc.MuxConn) error {
-	_, err := mc.CallRPC(ctx, fleet.VerbPing, struct{}{})
-	if err != nil {
-		return fmt.Errorf("ping RPC: %w", err)
+// sendPing sends a ping RPC to the hub carrying the client's current SHA-1
+// chain head with a bounded per-ping timeout and decodes the hub's reply
+// (tolerating an empty legacy ok reply).
+func sendPing(ctx context.Context, mc *rpc.MuxConn, chainHash string, bound time.Duration) (fleet.ManagedReply, error) {
+	if bound <= 0 {
+		bound = pingTimeout
 	}
-	return nil
+	callCtx, cancel := context.WithTimeout(ctx, bound)
+	defer cancel()
+	raw, err := mc.CallRPC(callCtx, fleet.VerbPing, fleet.PingRequest{ChainHash: chainHash})
+	if err != nil {
+		return fleet.ManagedReply{}, fmt.Errorf("ping RPC: %w", err)
+	}
+	reply, err := fleet.DecodeManagedReply(raw)
+	if err != nil {
+		return fleet.ManagedReply{}, fmt.Errorf("ping reply: %w", err)
+	}
+	return reply, nil
 }
 
 // setAuthDeadline sets a read deadline for the auth response.

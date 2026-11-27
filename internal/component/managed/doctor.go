@@ -536,8 +536,114 @@ func hubReachable(address, sourceAddress string) bool {
 	if err != nil {
 		return false
 	}
+	// refuse-by-default: guards diagnoseHubReachability -- TCP connect already proved the hub reachable; closing the throwaway probe socket cannot change reachability and nobody can act on a close error
 	if cerr := conn.Close(); cerr != nil {
 		logger().Debug("hub reachability probe: close failed", "address", address, "error", cerr)
 	}
 	return true
+}
+
+// managedChainDoctorCheck verifies that a managed client's persisted SHA-1
+// configuration hash chain state (meta/managed/chain-state) is strictly
+// decodable. Registered from register.go in post-config phase so `ze doctor`
+// reports unreadable chain state with the daemon running or stopped.
+var managedChainDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "managed-chain",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        735,
+	Component:    doctorComponent,
+	Dependencies: []string{doctorNeedsConfigTree},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{pluginserver.CodeDoctorManagedChainUnreadable},
+	Check:        checkManagedChain,
+}
+
+// managedChainDriftDoctorCheck reports active managed client hash-chain drift,
+// failed resync, or runtime chain-state write failures from the running
+// daemon's hub client state. Registered from register.go in the runtime phase
+// under "managed-client-chain-drift" (distinct from the hub-side
+// "managed-chain-drift" check in plugin/doctor).
+var managedChainDriftDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "managed-client-chain-drift",
+	Phase:        diagnostic.DoctorPhaseRuntime,
+	Order:        736,
+	Component:    doctorComponent,
+	Dependencies: []string{"fleet-client"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes: []string{
+		pluginserver.CodeDoctorManagedChainDrift,
+		pluginserver.CodeDoctorManagedChainUnreadable,
+	},
+	Check: checkManagedChainDrift,
+}
+
+// checkManagedChain checks that meta/managed/chain-state is strictly decodable
+// when managed mode is enabled. Standalone devices report nothing.
+func checkManagedChain(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	if ctx.Store == nil {
+		return nil
+	}
+	managed, err := ManagedFlag(ctx.Store)
+	// refuse-by-default: guards managedChainDoctorCheck -- the managed flag cannot be read; another check reports an unreadable store
+	if err != nil {
+		return nil
+	}
+	if !managed {
+		return nil
+	}
+	_, _, err = ReadChainState(ctx.Store)
+	if err == nil {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     pluginserver.CodeDoctorManagedChainUnreadable,
+		Severity: diagnostic.SeverityWarning,
+		Message:  "the stored managed configuration hash chain (" + zefs.KeyManagedChainState.Pattern + ") could not be read or decoded: " + err.Error(),
+		Help:     "Ze does not treat an unreadable chain key as absent; the next successful full configuration replay from the hub overwrites and heals it",
+		Fix:      fixCheckStore,
+	}}
+}
+
+// checkManagedChainDrift reads the running daemon's hub client state through
+// FleetTarget and reports active client hash-chain drift or failed resync.
+func checkManagedChainDrift(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	target := fleetTarget.Load()
+	if target == nil {
+		return nil
+	}
+	return diagnoseManagedChainDrift(target.ClientState())
+}
+
+// diagnoseManagedChainDrift returns runtime warning diagnostics when a running
+// managed client has an active chain mismatch/failed resync or a runtime
+// chain-state write failure. On-disk read/decode errors are reported by the
+// post-config managed-chain check and are not duplicated here.
+func diagnoseManagedChainDrift(state ClientState) []diagnostic.Diagnostic {
+	if !state.Running {
+		return nil
+	}
+	var diags []diagnostic.Diagnostic
+	if state.Chain.ChainState == ChainStateMismatched || state.Chain.DriftError != "" {
+		msg := "this managed client's configuration hash chain did not converge with its hub"
+		if state.Chain.DriftError != "" {
+			msg += ": " + state.Chain.DriftError
+		}
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     pluginserver.CodeDoctorManagedChainDrift,
+			Severity: diagnostic.SeverityWarning,
+			Message:  msg,
+			Help:     "the client keeps running its last committed configuration until the hub configuration or local fault is fixed and a later resync or reconnect succeeds",
+			Fix:      chainDriftFix,
+		})
+	}
+	if state.Chain.WriteError != "" {
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     pluginserver.CodeDoctorManagedChainUnreadable,
+			Severity: diagnostic.SeverityWarning,
+			Message:  "the managed configuration hash chain (" + zefs.KeyManagedChainState.Pattern + ") could not be written to the store: " + state.Chain.WriteError,
+			Help:     "the running client holds the latest chain head in memory, and the next successful chain update retries writing the store key",
+			Fix:      fixCheckStore,
+		})
+	}
+	return diags
 }

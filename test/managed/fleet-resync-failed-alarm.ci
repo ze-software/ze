@@ -1,0 +1,15 @@
+# QUESTION: Does a real ze hub open Warning alarm config-resync-failed (and not
+# config-rejected) when both diff resync and full replay fail with a non-verify
+# error, hide it behind device-offline while the device is disconnected with
+# | hidden true selection, and clear both alarms while retaining overlap history
+# once a reconnect resync converges?
+# WHY NOT A UNIT TEST: Alarm kind registration in the shipped ze hub binary,
+# hub-side managed session diff/full/ack handling, offline-delay expiry,
+# same-device cause hiding, disk ZeFS alarm history persistence, and SSH CLI
+# show fleet alarm pipe filtering run end to end through the real ze hub daemon.
+# VALIDATES: spec-fleet-10 AC-1, AC-2, R-11.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-resync-failed-alarm $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet resync-failed alarm opened on non-verify failure, hid behind device-offline, and cleared on convergence
