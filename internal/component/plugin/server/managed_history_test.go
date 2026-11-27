@@ -1381,3 +1381,26 @@ func TestManagedHistoryTightCapPreservesNewestLiveSlot(t *testing.T) {
 	require.NotNil(t, series[0].Value)
 	require.InDelta(t, liveCPU, *series[0].Value, 1e-9)
 }
+
+func TestPrepareManagedListenersWithHistoryNormalizesZeroConfig(t *testing.T) {
+	store := storage.CreateMemory()
+	srv, err := NewManagedServer(ManagedServerConfig{
+		Store:      store,
+		ReadConfig: func(string) ([]byte, error) { return nil, nil },
+	})
+	require.NoError(t, err)
+
+	// Reloading a config with no bus.hub block passes zero-value HubHistoryConfig{};
+	// prepareManagedListeners must normalize it to DefaultHubHistoryConfig() just
+	// like NewManagedServer does.
+	plan, err := srv.PrepareManagedListenersWithHistory(nil, "", plugin.HubHistoryConfig{})
+	require.NoError(t, err)
+	require.Equal(t, plugin.DefaultHubHistoryConfig(), plan.history)
+
+	// Explicitly invalid non-zero history config is still refused.
+	bad := plugin.DefaultHubHistoryConfig()
+	bad.RetentionDays = 0
+	_, err = srv.PrepareManagedListenersWithHistory(nil, "", bad)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "retention-days 0")
+}
