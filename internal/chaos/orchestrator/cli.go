@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/engine"
 	"github.com/ze-software/ze/internal/chaos/inprocess"
 	chaosmcp "github.com/ze-software/ze/internal/chaos/mcp"
+	"github.com/ze-software/ze/internal/chaos/mocknet"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
 	"github.com/ze-software/ze/internal/chaos/report"
@@ -97,6 +98,9 @@ func CLIRun(args []string) int {
 	faultAddr := fs.String("fault-addr", "", "CIDR address cycled on --fault-iface by iface-addr-remove (e.g. 10.242.0.2/24)")
 	faultIfaceCycles := fs.Int("fault-iface-cycles", engine.DefaultIfaceFlapCycles, "Link down/up cycles per iface-link-flap fault (1-20)")
 	faultIfaceInterval := fs.Duration("fault-iface-interval", engine.DefaultIfaceFlapInterval, "Pause between interface fault state transitions")
+	streamFragmentRate := fs.Float64("stream-fragment-rate", 0.0, "In-process wire TCP read/write fragmentation probability (0.0-1.0)")
+	streamBlackholeRate := fs.Float64("stream-blackhole-rate", 0.0, "In-process asymmetric stream blackhole probability (0.0-1.0)")
+	streamResetRate := fs.Float64("stream-reset-rate", 0.0, "In-process mid-frame stream reset probability (0.0-1.0)")
 
 	// Route dynamics flags
 	routeRate := fs.Float64("route-rate", 0.0, "Per-peer probability of route action per interval (0.0-1.0, 0=disabled)")
@@ -201,6 +205,9 @@ Chaos:
   --fault-addr <cidr>        CIDR address cycled on --fault-iface by iface-addr-remove
   --fault-iface-cycles <N>   Down/up cycles per iface-link-flap (default: 1, max: 20)
   --fault-iface-interval <d> Pause between interface fault transitions (default: 500ms)
+  --stream-fragment-rate <f> In-process TCP fragmentation probability (0.0-1.0, default: 0)
+  --stream-blackhole-rate <f> In-process asymmetric blackhole probability (0.0-1.0, default: 0)
+  --stream-reset-rate <f>    In-process mid-frame reset probability (0.0-1.0, default: 0)
 
 Route Dynamics:
   --route-rate <float>       Per-peer probability of route action per interval (default: 0, disabled)
@@ -426,6 +433,11 @@ Control:
 		return 1
 	}
 	if err := validateIfaceFaultFlags(*faultIface, *faultAddr, *faultIfaceCycles, *faultIfaceInterval, *peerLocalAddr); err != nil {
+		var tb textbuf.Buffer
+		tb.Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+		return 1
+	}
+	if err := validateStreamFaultRates(*streamFragmentRate, *streamBlackholeRate, *streamResetRate); err != nil {
 		var tb textbuf.Buffer
 		tb.Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
 		return 1
@@ -769,22 +781,28 @@ Control:
 		}
 
 		ipCfg := inprocess.RunConfig{
-			Profiles:             profiles,
-			Seed:                 *seed,
-			Duration:             *duration,
-			LocalAS:              65000,
-			RouterID:             netip.MustParseAddr("10.0.0.1"),
-			LocalAddr:            *localAddr,
-			ChaosRate:            *chaosRate,
-			ChaosInterval:        *chaosInterval,
-			RouteRate:            *routeRate,
-			RouteInterval:        *routeInterval,
-			Warmup:               *warmup,
-			BaseRoutes:           *routes,
-			EnabledActions:       parseChaosActions(*chaosActions),
-			ActionParams:         actionParams,
-			Control:              controlCh,
-			RouteControl:         routeControlCh,
+			Profiles:       profiles,
+			Seed:           *seed,
+			Duration:       *duration,
+			LocalAS:        65000,
+			RouterID:       netip.MustParseAddr("10.0.0.1"),
+			LocalAddr:      *localAddr,
+			ChaosRate:      *chaosRate,
+			ChaosInterval:  *chaosInterval,
+			RouteRate:      *routeRate,
+			RouteInterval:  *routeInterval,
+			Warmup:         *warmup,
+			BaseRoutes:     *routes,
+			EnabledActions: parseChaosActions(*chaosActions),
+			ActionParams:   actionParams,
+			Control:        controlCh,
+			RouteControl:   routeControlCh,
+			StreamFaults: &mocknet.StreamFaultConfig{
+				Seed:          *seed,
+				FragmentRate:  *streamFragmentRate,
+				BlackholeRate: *streamBlackholeRate,
+				ResetRate:     *streamResetRate,
+			},
 			OnChaosSchedulerDone: finishSched,
 		}
 		if wd != nil {
@@ -1101,6 +1119,36 @@ func validateIfaceFaultFlags(iface, addr string, cycles int, interval time.Durat
 				tb.Str("invalid --peer-local-addr ").Quoted(peerLocalAddr).String(),
 				"Peer source binding requires a valid IP address without a prefix length.",
 				"./le chaos run --local-addr 10.242.0.1 --peer-local-addr 10.242.0.2",
+			)
+		}
+	}
+	return nil
+}
+
+// validateStreamFaultRates verifies the in-process stream fault probabilities are in [0, 1].
+func validateStreamFaultRates(fragmentRate, blackholeRate, resetRate float64) error {
+	for _, spec := range []struct {
+		name string
+		val  float64
+	}{
+		{"--stream-fragment-rate", fragmentRate},
+		{"--stream-blackhole-rate", blackholeRate},
+		{"--stream-reset-rate", resetRate},
+	} {
+		if spec.val < 0 {
+			var tb textbuf.Buffer
+			return opererr.New(
+				tb.Str(spec.name).Str(" must be between 0.0 and 1.0").String(),
+				"Fault probabilities cannot be negative.",
+				"./le chaos run --in-process --duration 30s --stream-fragment-rate 0.25",
+			)
+		}
+		if spec.val > 1 {
+			var tb textbuf.Buffer
+			return opererr.New(
+				tb.Str(spec.name).Str(" must be between 0.0 and 1.0").String(),
+				"Fault probabilities cannot exceed 1.0.",
+				"./le chaos run --in-process --duration 30s --stream-fragment-rate 0.25",
 			)
 		}
 	}

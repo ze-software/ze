@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/chaos/engine"
+	"github.com/ze-software/ze/internal/chaos/mocknet"
 	"github.com/ze-software/ze/internal/chaos/peer"
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/chaos/shrink"
@@ -926,6 +927,75 @@ func TestInProcessControlTriggerAndRecovery(t *testing.T) {
 		}
 	}
 	assert.True(t, sawRouteFlap, "expected EventChaosExecuted for triggered route-flap on peer 0")
+}
+
+// TestInProcessStreamFragmentationAndStateChecker verifies that wire-level TCP
+// fragmentation (splitting BGP headers and UPDATE frames into <=19-byte chunks)
+// exercises the live in-process Ze reactor while StateChecker validates every
+// peer FSM transition and remote router ID with zero violations.
+//
+// VALIDATES: mocknet.FaultConn + StateChecker end-to-end against live Ze reactor.
+// PREVENTS: Wire fragmentation breaking BGP framing/coalescing or StateChecker
+// missing transitions / returning a zero hash.
+func TestInProcessStreamFragmentationAndStateChecker(t *testing.T) {
+	profiles := []scenario.PeerProfile{
+		{
+			Index:      0,
+			ASN:        65001,
+			RouterID:   netip.MustParseAddr("10.0.0.2"),
+			IsIBGP:     false,
+			RouteCount: 5,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+		{
+			Index:      1,
+			ASN:        65002,
+			RouterID:   netip.MustParseAddr("10.0.0.3"),
+			IsIBGP:     false,
+			RouteCount: 5,
+			HoldTime:   90,
+			Families:   []string{"ipv4/unicast"},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	result, err := Run(ctx, RunConfig{
+		Profiles:  profiles,
+		Seed:      101,
+		Duration:  8 * time.Second,
+		StepDelay: 50 * time.Millisecond,
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		StreamFaults: &mocknet.StreamFaultConfig{
+			Seed:             101,
+			FragmentRate:     0.8,
+			MaxFragmentBytes: 13,
+		},
+	})
+	require.NoError(t, err)
+	assert.Empty(t, result.InvariantViolations, "expected zero reactor invariant violations under fragmentation")
+	assert.Positive(t, result.StreamFaults.ReadFragments, "expected fragmented reads on wire")
+	assert.Positive(t, result.StreamFaults.WriteFragments, "expected fragmented writes on wire")
+	assert.GreaterOrEqual(t, result.FSMTransitionCount, 2, "expected StateChecker to validate peer FSM transitions")
+	assert.NotZero(t, result.FinalStateHash, "expected non-zero checkpoint state hash")
+
+	var peer0Recv, peer1Recv int
+	for _, ev := range result.Events {
+		if ev.Type == peer.EventRouteReceived {
+			switch ev.PeerIndex {
+			case 0:
+				peer0Recv++
+			case 1:
+				peer1Recv++
+			}
+		}
+	}
+	assert.Equal(t, 5, peer0Recv, "peer 0 should receive all 5 routes from peer 1 despite fragmentation")
+	assert.Equal(t, 5, peer1Recv, "peer 1 should receive all 5 routes from peer 0 despite fragmentation")
 }
 
 type funcConsumer struct {

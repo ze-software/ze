@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	chaossim "github.com/ze-software/ze/internal/chaos"
@@ -20,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/chaos/report"
 	"github.com/ze-software/ze/internal/chaos/route"
 	"github.com/ze-software/ze/internal/chaos/scenario"
+	"github.com/ze-software/ze/internal/chaos/validation"
 	"github.com/ze-software/ze/internal/chaos/web"
 	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
 	bgpreactor "github.com/ze-software/ze/internal/component/bgp/reactor"
@@ -129,6 +131,15 @@ type RunConfig struct {
 	// When non-nil, the route dynamics scheduler is enabled even when RouteRate is 0.
 	RouteControl <-chan web.ControlCommand
 
+	// StreamFaults configures optional wire-level TCP stream fault injection
+	// (fragmentation, asymmetric blackholes, mid-frame resets) on mocknet connections.
+	StreamFaults *mocknet.StreamFaultConfig
+
+	// SettleTimeout, when > 0, waits up to this real-time duration after the active
+	// simulation window (with chaos, route ticks, and stream faults paused) for all
+	// peers to be Established and route-consistency to converge before ObservationEnd.
+	SettleTimeout time.Duration
+
 	// OnChaosSchedulerDone is called once when the chaos scheduler goroutine exits.
 	OnChaosSchedulerDone func()
 }
@@ -172,6 +183,14 @@ type RunResult struct {
 	Events []peer.Event
 	// ObservationEnd is captured before shutdown can change the route state.
 	ObservationEnd time.Time
+	// StreamFaults records wire-level faults injected when RunConfig.StreamFaults is enabled.
+	StreamFaults mocknet.StreamFaultStats
+	// InvariantViolations lists online reactor/FSM invariant violations detected during the run.
+	InvariantViolations []string
+	// FinalStateHash is the deterministic FNV-64a checkpoint hash of sorted peer states at settle.
+	FinalStateHash uint64
+	// FSMTransitionCount is the number of distinct peer FSM transitions validated during the run.
+	FSMTransitionCount int
 }
 
 // defaultStepDelay is the real-time pause per virtual second when the caller
@@ -271,6 +290,38 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 	// Create connection pairs and wire them up.
 	cpm := mocknet.NewConnPairManager()
+	streamCounter := &mocknet.StreamFaultCounter{}
+	var streamPause atomic.Bool
+	var streamSeq atomic.Uint64
+	var streamFaults mocknet.StreamFaultConfig
+	if cfg.StreamFaults != nil {
+		streamFaults = *cfg.StreamFaults
+	}
+	if streamFaults.Enabled() {
+		if streamFaults.Seed == 0 {
+			streamFaults.Seed = cfg.Seed
+		}
+		if streamFaults.Clock == nil {
+			streamFaults.Clock = vc
+		}
+		streamFaults.Counter = streamCounter
+		if streamFaults.Pause == nil {
+			streamFaults.Pause = &streamPause
+		}
+	}
+	stateChecker := NewStateChecker()
+
+	var settleProps *validation.PropertyEngine
+	if cfg.SettleTimeout > 0 {
+		ibgp := make([]bool, len(cfg.Profiles))
+		peerFams := make([][]string, len(cfg.Profiles))
+		for i := range cfg.Profiles {
+			ibgp[i] = cfg.Profiles[i].IsIBGP
+			peerFams[i] = cfg.Profiles[i].Families
+		}
+		reachable := validation.ScenarioReachability(ibgp, peerFams)
+		settleProps, _ = validation.ScenarioProperties("route-consistency", len(cfg.Profiles), 0, reachable)
+	}
 
 	// Size the events channel proportionally to expected route volume.
 	// Each route generates a send event; reflected routes generate receive events.
@@ -292,8 +343,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	peerConns := make([]net.Conn, len(cfg.Profiles))
 	peerCount := len(cfg.Profiles)
 
-	// Set up chaos/route scheduling infrastructure when rates > 0 or control channels are wired.
-	chaosEnabled := cfg.ChaosRate > 0 || cfg.Control != nil
+	// Set up chaos/route scheduling infrastructure when rates > 0, control channels
+	// are wired, or stream resets can tear down connections (requiring reconnects).
+	chaosEnabled := cfg.ChaosRate > 0 || cfg.Control != nil || streamFaults.ResetRate > 0
 	routeEnabled := cfg.RouteRate > 0 || cfg.RouteControl != nil
 
 	var chaosChannels []chan engine.ChaosAction
@@ -326,6 +378,11 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		peerEnd, reactorEnd, pairErr := cpm.NewPair()
 		if pairErr != nil {
 			return nil, fmt.Errorf("create connection pair %d: %w", i, pairErr)
+		}
+		if streamFaults.Enabled() {
+			id := streamSeq.Add(1)
+			peerEnd = mocknet.NewFaultConn(peerEnd, streamFaults, id*2)
+			reactorEnd = mocknet.NewFaultConn(reactorEnd, streamFaults, id*2+1)
 		}
 		peerConns[i] = peerEnd
 
@@ -361,10 +418,12 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		if chaosEnabled {
 			simCfg.Chaos = chaosChannels[i]
 			simCfg.Dialer = &reconnectDialer{
-				cpm:       cpm,
-				ml:        ml,
-				localAddr: localTCPAddr,
-				peerIP:    peerIP,
+				cpm:          cpm,
+				ml:           ml,
+				localAddr:    localTCPAddr,
+				peerIP:       peerIP,
+				streamFaults: streamFaults,
+				streamSeq:    &streamSeq,
 			}
 			// Mark the peer down the moment the simulator decides its session is
 			// over, rather than when EventDisconnected reaches the drain
@@ -401,6 +460,11 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 					newPeer, newReactor, err := cpm.NewPair()
 					if err != nil {
 						return
+					}
+					if streamFaults.Enabled() {
+						id := streamSeq.Add(1)
+						newPeer = mocknet.NewFaultConn(newPeer, streamFaults, id*2)
+						newReactor = mocknet.NewFaultConn(newReactor, streamFaults, id*2+1)
 					}
 					peerIP := net.IPv4(127, 0, 0, byte(2+idx))
 					remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
@@ -451,6 +515,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 				}
 			}
 			eventsMu.Lock()
+			if settleProps != nil && !ev.PlannedShutdown {
+				settleProps.ProcessEvent(ev)
+			}
 			collectedEvents = append(collectedEvents, ev)
 			eventsMu.Unlock()
 		}
@@ -745,6 +812,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 		vc.Advance(step)
 		simulated += step
+		stateChecker.Sample(reactor)
 
 		// Feed virtual time to scheduler goroutines (non-blocking).
 		now := vc.Now()
@@ -849,7 +917,25 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		}
 		return true
 	}
+	// Stop new stream write faults (blackholes, resets) before settle so
+	// recovering peers and in-flight route updates can converge cleanly.
+	streamPause.Store(true)
+
 	waitSettled(ctx, chaosEnabled && cfg.StopKeepalivesAt == 0, settled, stepDelay)
+	if settleProps != nil && cfg.StopKeepalivesAt == 0 {
+		settleCtx, settleCancel := context.WithTimeout(ctx, cfg.SettleTimeout)
+		waitSettled(settleCtx, true, func() bool {
+			if !everyPeerEstablished(reactor, cfg.Profiles) {
+				return false
+			}
+			eventsMu.Lock()
+			converged := len(settleProps.AllViolations()) == 0
+			eventsMu.Unlock()
+			return converged
+		}, stepDelay)
+		settleCancel()
+	}
+	finalHash := stateChecker.Sample(reactor)
 
 	// Stop simulators and reactor.
 	observationEnd := time.Now()
@@ -871,7 +957,14 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	<-eventsDone
 
 	eventsMu.Lock()
-	result := RunResult{Events: collectedEvents, ObservationEnd: observationEnd}
+	result := RunResult{
+		Events:              collectedEvents,
+		ObservationEnd:      observationEnd,
+		StreamFaults:        streamCounter.Snapshot(),
+		InvariantViolations: stateChecker.Violations(),
+		FinalStateHash:      finalHash,
+		FSMTransitionCount:  stateChecker.TransitionCount(),
+	}
 	eventsMu.Unlock()
 
 	return &result, nil

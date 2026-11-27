@@ -58,5 +58,13 @@ func observeInProcess(result *inprocess.RunResult, ep *validation.EventProcessor
 		Seed: config.Seed, PeerCount: config.Peers, Duration: result.ObservationEnd.Sub(config.Start),
 	}
 	summary.Observe(ep, properties, result.ObservationEnd)
-	return summary.Write(os.Stderr)
+	code := summary.Write(os.Stderr)
+	if len(result.InvariantViolations) > 0 {
+		var tb textbuf.Buffer
+		for _, v := range result.InvariantViolations {
+			tb.Reset().Str("invariant violation: ").Str(v).Byte('\n').StdErr() //nolint:errcheck // CLI diagnostic
+		}
+		return 1
+	}
+	return code
 }

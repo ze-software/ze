@@ -272,6 +272,30 @@ func TestRunIfaceFaultFlags(t *testing.T) {
 	}
 }
 
+// TestRunStreamFaultFlags verifies valid and invalid in-process stream fault flags.
+//
+// VALIDATES: --stream-fragment-rate, --stream-blackhole-rate, and --stream-reset-rate
+// bounds validation at CLI entry.
+// PREVENTS: Negative or >1.0 stream fault probabilities reaching mocknet.FaultConn.
+func TestRunStreamFaultFlags(t *testing.T) {
+	valid := chaosRun(t, []string{
+		"--config-only", "--seed", "42", "--peers", "2", "--quiet",
+		"--stream-fragment-rate", "0.5",
+		"--stream-blackhole-rate", "0.05",
+		"--stream-reset-rate", "0.01",
+	})
+	assert.Equal(t, 0, valid)
+
+	for _, args := range [][]string{
+		{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--stream-fragment-rate", "-0.1"},
+		{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--stream-fragment-rate", "1.1"},
+		{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--stream-blackhole-rate", "-0.1"},
+		{"--config-only", "--seed", "1", "--peers", "2", "--quiet", "--stream-reset-rate", "1.5"},
+	} {
+		assert.Equal(t, 1, chaosRun(t, args))
+	}
+}
+
 func itoa(n int) string {
 	return strconv.Itoa(n)
 }

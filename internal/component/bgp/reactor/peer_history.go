@@ -73,6 +73,12 @@ func (h *fsmHistory) newest() (FSMTransition, bool) {
 	return h.records[idx], true
 }
 
+// FSMHistory returns a snapshot of this peer's FSM transition history,
+// newest first. Safe for concurrent use by diagnostics and simulation checkers.
+func (p *Peer) FSMHistory() []FSMTransition {
+	return p.fSMHistory()
+}
+
 // fSMHistory returns a snapshot of this peer's FSM transition history,
 // newest first.
 func (p *Peer) fSMHistory() []FSMTransition {

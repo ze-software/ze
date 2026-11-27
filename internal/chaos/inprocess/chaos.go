@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/engine"
@@ -278,13 +279,15 @@ func (c *closeNotifier) Closed() <-chan struct{} { return c.closed }
 
 // reconnectDialer creates mock TCP connection pairs on demand for chaos
 // reconnection in in-process mode. Each DialContext call creates a new
-// pair, wraps the reactor end with proper TCP addresses, and queues it
-// on the MockListener.
+// pair, wraps the reactor end with proper TCP addresses (and optional stream
+// faults), and queues it on the MockListener.
 type reconnectDialer struct {
-	cpm       *mocknet.ConnPairManager
-	ml        *mocknet.MockListener
-	localAddr *net.TCPAddr
-	peerIP    net.IP
+	cpm          *mocknet.ConnPairManager
+	ml           *mocknet.MockListener
+	localAddr    *net.TCPAddr
+	peerIP       net.IP
+	streamFaults mocknet.StreamFaultConfig
+	streamSeq    *atomic.Uint64
 }
 
 func (rd *reconnectDialer) DialContext(_ context.Context, _, _ string) (net.Conn, error) {
@@ -293,6 +296,11 @@ func (rd *reconnectDialer) DialContext(_ context.Context, _, _ string) (net.Conn
 		return nil, err
 	}
 	remoteTCPAddr := &net.TCPAddr{IP: rd.peerIP, Port: 0}
+	if rd.streamFaults.Enabled() {
+		id := rd.streamSeq.Add(1)
+		peerEnd = mocknet.NewFaultConn(peerEnd, rd.streamFaults, id*2)
+		reactorEnd = mocknet.NewFaultConn(reactorEnd, rd.streamFaults, id*2+1)
+	}
 	wrappedEnd := mocknet.NewConnWithAddr(reactorEnd, rd.localAddr, remoteTCPAddr)
 	rd.ml.QueueConn(wrappedEnd)
 	return peerEnd, nil
