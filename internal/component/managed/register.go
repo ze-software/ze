@@ -7,6 +7,7 @@
 // Related: cmd_devices.go -- the hub device registry commands
 // Related: cmd_reports.go -- the hub device inventory, health, and estate summary commands
 // Related: cmd_history.go -- the hub metric history query commands and pipe filters
+// Related: cmd_alarms.go -- the hub open alarm and alarm history query commands and pipe filters
 
 package managed
 
@@ -65,6 +66,7 @@ func init() {
 		Name: "label", Description: "Select devices with this key=value label", Argument: command.ArgText,
 	})
 	registerHistoryCommands()
+	registerAlarmCommands()
 
 	for _, check := range []diagnostic.DoctorCheck{hubDoctorCheck, hubClientDoctorCheck, managedDivergedDoctorCheck, hubDivergedDoctorCheck, hubSessionDoctorCheck} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {

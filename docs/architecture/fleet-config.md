@@ -1352,7 +1352,7 @@ The store now has the cached config. On subsequent boots, the config itself prov
 
 | Path | Type | Description |
 |------|------|-------------|
-| `bus/hub` | container | Hub transport, managed listeners, client connections, and metric history settings |
+| `bus/hub` | container | Hub transport, managed listeners, client connections, metric history, and alarm settings |
 | `bus/hub/server` | list, keyed by name | Hub server instances (TLS listeners) |
 | `bus/hub/server/<name>/ip` | string | Listen address |
 | `bus/hub/server/<name>/port` | uint16 | Listen port |
@@ -1372,6 +1372,16 @@ The store now has the cached config. On subsequent boots, the config itself prov
 | `bus/hub/history/retention-days` | uint8 (`1..7`, default `7`) | Maximum coarse history retention in days |
 | `bus/hub/history/device-budget-bytes` | uint64 (`4096..max`, default `1048576`) | Hard persisted byte cap per managed device |
 | `bus/hub/history/hub-budget-bytes` | uint64 (`4096..max`, default `2147483648`) | Hard total persisted byte cap across the hub |
+| `bus/hub/alarms` | container | Hub-derived fleet alarm thresholds, delays, and episode history retention ([fleet-alarms.md](fleet-alarms.md)) |
+| `bus/hub/alarms/offline-delay` | uint32 (`1..86400`, default `300`) | Grace delay in seconds after declaration or disconnect before opening `device-offline` |
+| `bus/hub/alarms/resource-cpu-percent` | uint8 (`1..100`, default `90`) | CPU usage percent threshold at or above which sustained readings open `resource-high` |
+| `bus/hub/alarms/resource-memory-percent` | uint8 (`1..100`, default `90`) | Memory usage percent threshold at or above which sustained readings open `resource-high` |
+| `bus/hub/alarms/resource-storage-percent` | uint8 (`1..100`, default `90`) | Storage usage percent threshold at or above which sustained readings open `resource-high` |
+| `bus/hub/alarms/resource-duration` | uint32 (`1..86400`, default `300`) | Sustained duration in seconds at or above threshold before opening `resource-high` |
+| `bus/hub/alarms/software-behind-versions` | uint16 (`1..1000`, default `1`) | Minimum ordered versions behind the newest estate release before opening `software-behind` |
+| `bus/hub/alarms/retention-days` | uint8 (`1..30`, default `7`) | Maximum closed alarm episode history retention in days |
+| `bus/hub/alarms/max-episodes-per-device` | uint16 (`1..512`, default `512`) | Maximum closed alarm episodes retained per managed device |
+| `bus/hub/alarms/max-episodes-hub` | uint32 (`1..65536`, default `65536`) | Maximum closed alarm episodes retained across the hub |
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- container bus -->
 
 ### Client Side

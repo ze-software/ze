@@ -1,0 +1,19 @@
+# QUESTION: Does a real ze hub derive distinct component-down occurrences, preserve
+# IDs and opening times across repeat reports, reads, and disconnect, open
+# device-offline after offline-delay, close resource-high immediately on reconnect
+# while requiring fresh sustained high samples to reopen a new occurrence, and
+# serve filtered and piped answers over SSH CLI?
+# WHY NOT A UNIT TEST: TLS managed-client admission, health-report and sample-report
+# RPC handling, alarm deadline evaluation, reconnect settling, and SSH CLI pipe
+# rendering run end to end through the real ze hub daemon and its ZeFS store.
+# VALIDATES: fleet-ui-5 AC-4, AC-8, AC-9, AC-10. The fixture connects edge-01, opens
+# two component-down occurrences (bgp and iface), sends an identical repeat report
+# and reads twice with no duplicate history, drives sustained high CPU to open
+# resource-high, disconnects past offline-delay while verifying open occurrences
+# keep their IDs, reconnects keeping bgp down and recovering iface to confirm
+# immediate resource-high close and fresh qualification, and verifies CLI pipes.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-alarm-lifecycle $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet alarm lifecycle preserved IDs across repeat and disconnect, cleared resource-high on reconnect, and required fresh qualification

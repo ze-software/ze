@@ -1,0 +1,20 @@
+# QUESTION: Does a real ze hub preserve an unconnected declared device's original
+# offline grace deadline across hub restart, record unread open/repeat/clear/reopen
+# alarm transitions at the producer boundary, persist open occurrence identity and
+# oldest-first truncated closed episode history across hub restart, paginate history
+# via cursor, and record an observed clear after restart?
+# WHY NOT A UNIT TEST: declaration grace persistence across restart, unread alarm
+# transition flushing to disk ZeFS, startup reconciliation, retention cap eviction,
+# cursor-bound history pagination, and post-restart clear recording run through the
+# real ze hub daemon, its disk ZeFS store, and SSH CLI.
+# VALIDATES: fleet-ui-5 AC-12, AC-13, AC-14. The fixture restarts the hub during
+# edge-02's offline grace period and verifies device-offline preserves its original
+# declared-at, drives four closed component episodes plus one open bgp alarm on
+# edge-01 without reading alarms in between under max-episodes-per-device=3, restarts
+# the hub, checks preserved open ID/since, oldest-first eviction, truncated flag,
+# retained-since, and cursor pagination, then clears bgp after restart.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-alarm-history $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet alarm history recorded unread transitions, survived hub restart with open IDs, enforced truncation cap, and paginated via cursor

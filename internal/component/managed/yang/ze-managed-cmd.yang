@@ -3,6 +3,7 @@ module ze-managed-cmd {
     prefix managedcmd;
     import ze-extensions { prefix ze; }
     description "Fleet commands of a managed device. Owned by the managed component, which reads the managed flag, the hub block and the baseline these commands report. See ai/rules/plugins.md.";
+    revision 2026-11-27 { description "Added show fleet alarm and show fleet alarm history device commands for hub-derived open fleet alarms and bounded per-device alarm history."; }
     revision 2026-11-26 { description "Added show fleet device inventory name, show fleet device health name, show fleet health, and show fleet sample latest, series, and storage commands for managed device inventory, component health, and hub metric history."; }
     revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back. Added the hub's fleet divergence commands: show fleet divergence list and name, update fleet divergence name adopt and request fleet divergence name revert, which show and resolve a managed client that holds."; }
 
@@ -262,6 +263,33 @@ module ze-managed-cmd {
                     ze:command "ze-managed:show-fleet-sample-storage";
                     description "Show hub-wide metric history storage usage, configured and effective retention, budget caps, capacity pressure, checkpoint health, and caller-scoped per-device byte usage.";
                     ze:help "Show hub metric history storage usage and retention.";
+                }
+            }
+
+            container alarm {
+                config false;
+                ze:command "ze-managed:show-fleet-alarm";
+                description "Show open hub-derived fleet alarms across authorized managed devices, including occurrence identity, severity, subject, opening time, authorized totals, and continuation paging.";
+                ze:help "Show open hub-derived fleet alarms.";
+
+                container history {
+                    config false;
+                    description "Inspect retained fleet alarm opening and clearing history on this hub.";
+                    ze:help "Inspect retained fleet alarm history.";
+
+                    container device {
+                        config false;
+                        ze:command "ze-managed:show-fleet-alarm-history";
+                        description "Show one managed device's retained alarm openings and clearings over the hub retention period, with earliest retained time, truncation status, and continuation paging.";
+                        ze:help "Show retained alarm history for one managed device.";
+
+                        leaf name {
+                            type string { length "1..64"; }
+                            mandatory true;
+                            description "The managed device name declared or recorded on this hub.";
+                            ze:help "Managed device name.";
+                        }
+                    }
                 }
             }
 
