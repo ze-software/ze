@@ -1,0 +1,41 @@
+# Question: when a daemon configures REST and gRPC in shared-token mode (no
+# system/authentication/user entries) beside a login-service section that
+# excludes rest and grpc, does the shared token stay admitted on both REST and
+# gRPC while a wrong token is refused?
+# Why a unit test cannot decide it: only a live daemon proves buildAPIAuthentication's
+# shared-token arm stays ungated under ReservedSharedAPIUsername when
+# system/authorization/login-service sets are published.
+#
+# VALIDATES: AC-16 -- REST and gRPC shared-token mode stays admitted beside login-service sets
+# PREVENTS: login-service sets inadvertently refusing shared-token API clients
+
+option=timeout:value=45s
+
+tmpfs=shared-token.conf:terminator=EOF_CONF
+system {
+	authorization {
+		login-service ssh-only {
+			service [ ssh ]
+		}
+	}
+}
+environment {
+	api-server {
+		token "shared-api-secret"
+		rest {
+			enabled true
+			server main { ip 127.0.0.1; port $PORT; }
+		}
+		grpc {
+			enabled true
+			server main { ip 127.0.0.1; port $PORT2; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start shared-token.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture plugin/login-service-shared-token $PORT $PORT2:timeout=35s
+expect=exit:code=0
+expect=stderr:contains=OK: shared-token mode stayed admitted on REST and gRPC beside login-service sets
+reject=stderr:contains=ZE-OBSERVER-FAIL

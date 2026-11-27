@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/loginservice"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -411,4 +412,58 @@ func TestDelegationSourceValidatorRefusesWhatTheFetchRuleRefuses(t *testing.T) {
 	assert.Contains(t, err.Error(), "delegation source")
 
 	assert.Error(t, v.ValidateFn("system/rir/delegation-source/url", 42))
+}
+
+// TestLoginServiceValidatorRejectsUnregisteredName verifies that
+// LoginServiceValidator accepts registered login services, refuses unregistered
+// names naming both the bad value and the offered services, handles an empty
+// registry cleanly, and exposes only registered names through CompleteFn.
+//
+// VALIDATES: AC-9 -- unregistered login-service name fails validation naming
+// the bad value and offered services; completion lists only registered names.
+// PREVENTS: Typos or compiled-out surface names passing config validation.
+func TestLoginServiceValidatorRejectsUnregisteredName(t *testing.T) {
+	snap := loginservice.Snapshot()
+	t.Cleanup(func() { loginservice.Restore(snap) })
+	loginservice.Restore(nil)
+
+	v := LoginServiceValidator()
+	require.NotNil(t, v.ValidateFn)
+	require.NotNil(t, v.CompleteFn)
+
+	// Empty registry refuses cleanly and offers no completions.
+	emptyErr := v.ValidateFn("system/authorization/login-service/service", "ssh")
+	require.Error(t, emptyErr)
+	assert.Contains(t, emptyErr.Error(), "ssh")
+	assert.Contains(t, emptyErr.Error(), "not offered by this build")
+	assert.Empty(t, v.CompleteFn())
+
+	require.NoError(t, loginservice.Register(loginservice.Entry{
+		Name:        "web",
+		Owner:       "internal/component/web",
+		Description: "Web UI login",
+	}))
+	require.NoError(t, loginservice.Register(loginservice.Entry{
+		Name:        "ssh",
+		Owner:       "internal/component/ssh",
+		Description: "SSH login",
+	}))
+
+	// Registered names pass.
+	assert.NoError(t, v.ValidateFn("system/authorization/login-service/service", "ssh"))
+	assert.NoError(t, v.ValidateFn("system/authorization/login-service/service", "web"))
+
+	// Unregistered name fails, naming the bad value, stating this build does
+	// not offer it, and listing the offered services.
+	err := v.ValidateFn("system/authorization/login-service/service", "mcp")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mcp")
+	assert.Contains(t, err.Error(), "not offered by this build")
+	assert.Contains(t, err.Error(), "ssh, web")
+
+	// Non-string rejected.
+	assert.Error(t, v.ValidateFn("system/authorization/login-service/service", 42))
+
+	// Completion offers only sorted registered names.
+	assert.Equal(t, []string{"ssh", "web"}, v.CompleteFn())
 }

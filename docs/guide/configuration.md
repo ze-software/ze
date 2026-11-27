@@ -3677,6 +3677,32 @@ the local audit log. See [audit.md](audit.md) for storage and query details.
 <!-- source: internal/component/api/engine.go -- read-only API caller enforcement -->
 <!-- source: internal/core/audit/audit.go -- audit Entry and actions -->
 
+### Login-service authorization
+
+Named `login-service` sets under `system authorization` restrict which doors (`ssh`, `web`, `rest`, `grpc`, `mcp`) an account can log in through. Local users (`system authentication user`), TACACS+ privilege mappings (`system authentication tacacs-profile`), and RADIUS admin config (`system authentication radius`) each take an optional `login-service` leafref pointing at a declared set.
+
+```
+system {
+    authorization {
+        login-service api-only {
+            service [ rest grpc ]
+        }
+    }
+    authentication {
+        user monitor {
+            password "$2a$10$..."
+            profile [ read-only ]
+            login-service api-only
+        }
+    }
+}
+```
+
+Omitting `login-service` admits all doors. A set with no `service` entries denies all checked doors. Each service name validates against the surfaces registered in this build. Refer to [Authorization](authorization.md#login-service-sets) and [Authentication](authentication.md#login-service-authorization) for full rules.
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.login-service -->
+<!-- source: internal/component/config/validators.go -- LoginServiceValidator -->
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginService -->
+
 ### TACACS+ AAA
 
 `system.authentication.tacacs` adds RFC 8907 TACACS+ as the first backend
@@ -3710,6 +3736,7 @@ system {
 | `tacacs.authorization` | boolean | false | Per-command TACACS+ authorization |
 | `tacacs.accounting` | boolean | false | START/STOP records on every CLI command |
 | `tacacs-profile <N>.profile` | leaf-list | required | Map priv-lvl 0-15 to local authz profile name(s) |
+| `tacacs-profile <N>.login-service` | leafref | none | Optional `system authorization login-service` set for this privilege level |
 
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
 <!-- source: internal/component/tacacs/config.go -- ExtractConfig -->
@@ -3953,7 +3980,7 @@ that long, bounding `/metrics` cardinality. `track-ip`, `stale-timeout`, and
 ingress/egress port totals (and per-IP totals when `track-ip` is on) plus map
 fill levels. Prometheus metrics use the `ze_traffic_usage_*` prefix.
 
-**Note:** accounting is IPv4 only and monitoring only (never drops or modifies
+**Note:** accounting covers IPv4 and IPv6 and is monitoring only (never drops or modifies
 traffic). TCX requires Linux >= 6.6 with `CAP_BPF` and `CAP_NET_ADMIN`; `show doctor` reports each configured interface the daemon could not attach
 (`doctor-traffic-usage-attach-refused`, `doctor-traffic-usage-tcx-absent`).
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->

@@ -31,7 +31,7 @@ func testAuthentication(token string, authenticate func(string) (string, bool), 
 		if authenticate != nil {
 			return api.Authentication{
 				Required: true,
-				Authenticate: func(header string) (api.CallerIdentity, bool) {
+				Authenticate: func(header, _ string) (api.CallerIdentity, bool) {
 					username, ok := authenticate(header)
 					return api.CallerIdentity{Username: username, Authorizer: authorizer}, ok
 				},
@@ -40,7 +40,7 @@ func testAuthentication(token string, authenticate func(string) (string, bool), 
 		if token != "" {
 			return api.Authentication{
 				Required: true,
-				Authenticate: func(header string) (api.CallerIdentity, bool) {
+				Authenticate: func(header, _ string) (api.CallerIdentity, bool) {
 					return api.CallerIdentity{
 						Username:   aaa.ReservedSharedAPIUsername,
 						Authorizer: authorizer,

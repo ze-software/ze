@@ -1,0 +1,18 @@
+# Question: when a SIGHUP reload removes ssh from an account's login-service
+# set, does an SSH session opened BEFORE the reload keep answering commands
+# while a NEW SSH login is refused and REST stays admitted?
+# Why a unit test cannot decide it: proving SIGHUP reload tightens new logins
+# without severing already-established SSH sessions requires a live daemon, a
+# persistent SSH TCP session, and a real SIGHUP config reload.
+#
+# VALIDATES: AC-5, AC-13 -- reload closes door for new logins while open SSH session survives
+# PREVENTS: reload failing to apply tightened login-service sets or wrongly killing open SSH sessions
+
+option=timeout:value=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-reload-tightens $PORT $PORT2:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: pre-reload SSH connection opened and answered
+expect=stderr:contains=OK: already-open SSH connection kept answering after reload
+expect=stderr:contains=OK: new SSH login refused after reload withdrew ssh
+expect=stderr:contains=OK: REST remained admitted after reload tightened SSH
+reject=stderr:contains=ZE-OBSERVER-FAIL

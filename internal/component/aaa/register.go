@@ -12,4 +12,8 @@ func init() {
 	if err := diagnostic.RegisterDoctorCheck(aaaLocalFallbackDoctorCheck); err != nil {
 		panic("BUG: aaa: doctor check registration failed: " + err.Error())
 	}
+	if err := diagnostic.RegisterDoctorCheck(aaaAllAccountsExcludedDoctorCheck); err != nil {
+		panic("BUG: aaa: doctor check registration failed: " + err.Error())
+	}
+	registerAAAMetrics()
 }

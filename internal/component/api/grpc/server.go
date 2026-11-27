@@ -546,7 +546,7 @@ func (s *GRPCServer) checkAuth(ctx context.Context) (api.CallerIdentity, error) 
 		return api.CallerIdentity{}, status.Error(codes.Unauthenticated, "authentication unavailable")
 	}
 
-	authenticated, ok := authentication.Authenticate(tokens[0])
+	authenticated, ok := authentication.Authenticate(tokens[0], loginServiceGRPC)
 	if !ok {
 		s.recordAuthFailure(ctx, attemptedBearerUser(tokens[0]))
 		return api.CallerIdentity{}, status.Error(codes.Unauthenticated, "invalid credentials")

@@ -11,7 +11,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -190,4 +193,66 @@ func TestResolveAPIListenersDisabledByDefault(t *testing.T) {
 	assert.False(t, ok)
 	assert.Empty(t, cfg.Token)
 	assert.Empty(t, apiGuardAddrs(cfg))
+}
+
+// VALIDATES: AC-16, AC-17 -- buildAPIAuthentication passes the transport
+// service name ("rest" or "grpc") into AuthRequest.Service so complementary
+// login sets gate REST and gRPC independently, while shared-token mode stays
+// admitted on both transports.
+// PREVENTS: REST and gRPC sharing one closure without passing the calling
+// service name, which would admit a REST-only user on gRPC or vice versa.
+func TestAPIAuthenticationNamesTransport(t *testing.T) {
+	resetAAABundleForTest(t)
+	ensureLoginServicesForTest(t, "rest", "grpc")
+
+	restHash, err := bcrypt.GenerateFromPassword([]byte("rest-secret"), bcrypt.MinCost)
+	require.NoError(t, err)
+	grpcHash, err := bcrypt.GenerateFromPassword([]byte("grpc-secret"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	users := []authz.UserConfig{
+		{Name: "restuser", Hash: string(restHash), LoginSet: "rest-only"},
+		{Name: "grpcuser", Hash: string(grpcHash), LoginSet: "grpc-only"},
+	}
+	sets := map[string][]string{
+		"rest-only": {"rest"},
+		"grpc-only": {"grpc"},
+	}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, "").withLoginSets(sets))
+
+	auth := liveAcceptedAPIAuthentication()
+	require.True(t, auth.Required)
+
+	caller, ok := auth.Authenticate("Bearer restuser:rest-secret", "rest")
+	assert.True(t, ok, "restuser must be admitted on rest")
+	assert.Equal(t, "restuser", caller.Username)
+
+	caller, ok = auth.Authenticate("Bearer restuser:rest-secret", "grpc")
+	assert.False(t, ok, "restuser must be refused on grpc")
+	assert.Empty(t, caller.Username)
+
+	caller, ok = auth.Authenticate("Bearer grpcuser:grpc-secret", "grpc")
+	assert.True(t, ok, "grpcuser must be admitted on grpc")
+	assert.Equal(t, "grpcuser", caller.Username)
+
+	caller, ok = auth.Authenticate("Bearer grpcuser:grpc-secret", "rest")
+	assert.False(t, ok, "grpcuser must be refused on rest")
+	assert.Empty(t, caller.Username)
+
+	// AC-16: shared-token mode carries no account and remains admitted even
+	// when the config declares restrictive login-service sets.
+	publishAcceptedLocalIdentity(
+		newAcceptedLocalIdentity(nil, nil, nil, "shared-token").
+			withLoginSets(map[string][]string{"empty": {}}),
+	)
+	sharedAuth := liveAcceptedAPIAuthentication()
+	require.True(t, sharedAuth.Required)
+
+	caller, ok = sharedAuth.Authenticate("Bearer shared-token", "rest")
+	assert.True(t, ok)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
+
+	caller, ok = sharedAuth.Authenticate("Bearer shared-token", "grpc")
+	assert.True(t, ok)
+	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
 }

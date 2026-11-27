@@ -16,21 +16,29 @@ import (
 
 // tacacsAuthenticator implements aaa.Authenticator using a TACACS+ client.
 type tacacsAuthenticator struct {
-	client     *TacacsClient
-	privLvlMap map[int][]string // priv-lvl -> ze profile names
-	logger     *slog.Logger
+	client          *TacacsClient
+	privLvlMap      map[int][]string // priv-lvl -> ze profile names
+	privLvlLoginSet map[int]string   // priv-lvl -> login-service set name
+	logger          *slog.Logger
 }
 
 // newTacacsAuthenticator creates a tacacsAuthenticator.
 // privLvlMap maps TACACS+ privilege levels (0-15) to ze authz profile names.
-func newTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, logger *slog.Logger) *tacacsAuthenticator {
+// privLvlLoginSet optionally maps privilege levels to login-service set names.
+func newTacacsAuthenticator(
+	client *TacacsClient,
+	privLvlMap map[int][]string,
+	privLvlLoginSet map[int]string,
+	logger *slog.Logger,
+) *tacacsAuthenticator {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &tacacsAuthenticator{
-		client:     client,
-		privLvlMap: privLvlMap,
-		logger:     logger,
+		client:          client,
+		privLvlMap:      privLvlMap,
+		privLvlLoginSet: privLvlLoginSet,
+		logger:          logger,
 	}
 }
 
@@ -51,8 +59,10 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 	request.Username = username
-	// The port field names the access channel the login arrived on ("ssh",
-	// "web"); a caller that names none is reported as ssh.
+	// RFC 8907 Section 5.1: "The client documentation SHOULD define the values
+	// and their meanings for this field." docs/guide/tacacs.md defines the
+	// registered login-service values ("ssh", "web"); a caller that names none
+	// is reported as ssh.
 	port := request.Service
 	if port == "" {
 		port = defaultService
@@ -153,11 +163,17 @@ func (a *tacacsAuthenticator) handlePass(request aaa.AuthRequest, port string) (
 		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 
+	loginSet := a.privLvlLoginSet[privLvl]
+	if aaa.IsReservedName(loginSet) {
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
+	}
+
 	a.logger.Info("TACACS+ auth success",
 		"username", request.Username, "priv-lvl", privLvl, "profiles", profiles)
 	return aaa.AuthResult{
 		Authenticated: true,
 		Profiles:      profiles,
+		LoginSet:      loginSet,
 		Source:        backendName,
 	}, nil
 }

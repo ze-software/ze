@@ -3,8 +3,8 @@
   "requirement_sha": "53789bea9b4985eb",
   "tests": {
     "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
-    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "fb302ebfa0d9b135",
-    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "4c7f3ec6186f786b",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "4c7f3ec6186f786b",
     "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "59ca691aca621600"
   },
   "units": {

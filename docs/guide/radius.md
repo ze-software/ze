@@ -62,6 +62,7 @@ system {
 | `radius.auth-method` | enum `pap`, `chap`, `eap-md5`, `eap-mschapv2` | `pap` | Credential the Access-Request carries. `chap` and `eap-md5` need the server to hold the password in cleartext; `eap-mschapv2` needs the NT hash (see below) |
 | `radius.profile-attribute` | enum `filter-id` | `filter-id` | Access-Accept reply attribute carrying profile name(s) |
 | `radius.default-profile` | leaf-list | none | Profiles applied when the Access-Accept carries no `profile-attribute` |
+| `radius.login-service` | leafref | none | Optional `system authorization login-service` set restricting which login doors RADIUS logins can use |
 
 <!-- source: internal/component/radius/yang/ze-radius-conf.yang -- system.authentication.radius -->
 <!-- source: internal/component/radius/config.go -- ExtractConfig -->
@@ -73,8 +74,8 @@ system {
    is priority 100, local bcrypt is priority 200).
 3. The backend builds an Access-Request with User-Name, the credential
    `auth-method` selects, Service-Type=Login, NAS-Identifier (hostname),
-   NAS-Port-Id naming the access channel (`ssh` for an SSH login, `web` for a
-   web login, RFC 3579 §3; a login whose caller names no channel sends none), and
+   NAS-Port-Id carrying the registered login-service name (`ssh` for an SSH or
+   `ze cli` login, `web` for a web login, RFC 3579 §3, or omitted when unnamed), and
    (when a source-address is set) NAS-IP-Address. A login that carries no username
    sends no User-Name attribute, because RFC 2865 §5 forbids sending text of
    length zero. It sends to the first configured server, retransmitting with
@@ -85,7 +86,10 @@ system {
    Service-Type other than Login-User. Admin login is the one service this path
    provides, so any other Service-Type is treated as an Access-Reject (RFC 2865
    §5.6 and §1.1). Profiles come from the configured reply attribute (see
-   below); the session is tagged `source=radius`.
+   below), and the session is tagged `source=radius`. If `radius.login-service`
+   is set, Ze checks the door locally after Access-Accept and changes no RADIUS
+   wire packet. An excluded door fails terminally with `ErrAuthRejected` and
+   never falls through to local accounts.
 5. **Access-Reject** -- explicit rejection. The chain stops here; local bcrypt
    is NOT tried. This prevents a wrong password against RADIUS from succeeding
    via a stale local hash.
@@ -352,6 +356,41 @@ otherwise no RADIUS user can log in.
 
 <!-- source: internal/component/radius/authenticator.go -- mapProfiles, radiusAuthenticator.result -->
 
+## Restricting login doors
+
+The `system authentication radius` block accepts an optional `login-service`
+leafref pointing at a `system authorization login-service` set. This restricts
+RADIUS-authenticated operators by door without local shadow accounts:
+
+```
+system {
+    authorization {
+        login-service ssh-only {
+            service [ ssh ]
+        }
+    }
+    authentication {
+        radius {
+            server 10.0.0.1 {
+                port 1812
+                key "$9$encrypted-key"
+            }
+            default-profile [ read-only ]
+            login-service ssh-only
+        }
+    }
+}
+```
+
+Omitting `login-service` admits all doors. Referencing a set with no `service`
+entries denies every checked door. Ze evaluates this check locally after
+Access-Accept and changes no RADIUS wire packet or `NAS-Port-Id`. A refusal
+returns terminal `ErrAuthRejected` with no fallback to local accounts.
+<!-- source: internal/component/radius/yang/ze-radius-conf.yang -- system.authentication.radius.login-service -->
+<!-- source: internal/component/radius/config.go -- ExtractedConfig.LoginSet -->
+<!-- source: internal/component/radius/authenticator.go -- radiusAuthenticator.result -->
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginService -->
+
 ## Chain order with TACACS+ and local
 
 When RADIUS, TACACS+, and local users are all configured, the chain is tried in
@@ -434,6 +473,7 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:
 | `radius-admin-eap-unsigned-freeradius` | On a server row with `require-message-authenticator false`, an EAP answer without a Message-Authenticator is discarded (RFC 3579 §3.1). FreeRADIUS always signs, so a relay in its container removes the attribute from its real answers: with the attribute left in place the same login completes, with it removed ze discards the Access-Challenge, logs the reason, steps `ze_radius_unsigned_eap_discards_total`, and the login fails |
 | `radius-admin-pap-unsigned-freeradius` | BlastRADIUS (CVE-2024-3596): on a default server row, an Access-Accept whose Message-Authenticator the relay removed is discarded. The same login through the relay passing the signed answer completes; the stripped one fails, ze logs the discard, and `ze_radius_unsigned_response_discards_total` steps |
 | `radius-admin-pap-unsigned-legacy-freeradius` | The same stripped Access-Accept on a server row with `require-message-authenticator false` completes the login |
+| `radius-admin-login-service-refused-freeradius` | With `system authentication radius login-service ssh-only`, FreeRADIUS answers Access-Accept with unchanged `NAS-Port-Id` (`ssh` and `web`), Ze admits SSH with the `Filter-Id` profile and refuses Web HTTP 401 terminally with no fallback to a local account, logs the refusal, and steps `ze_aaa_login_service_refused_total{service="web"}` |
 
 Run them with `./le test integration interop-radius`, or one at a time with
 `RADIUS_INTEROP_SCENARIO=<name>`. They need Docker and no kernel module.

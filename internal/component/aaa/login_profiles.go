@@ -23,7 +23,80 @@ package aaa
 import (
 	"slices"
 	"sync/atomic"
+
+	"github.com/ze-software/ze/internal/component/config/loginservice"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
+
+const (
+	// aaaMetricsHookName is the key registry.InjectPluginMetrics stores this
+	// component's metrics callback under.
+	aaaMetricsHookName = "aaa-login-service"
+
+	// unknownLoginServiceLabel is the Prometheus service label used when a
+	// refused authentication request omitted AuthRequest.Service.
+	unknownLoginServiceLabel = "unknown"
+)
+
+// loginServiceSetTable holds an immutable snapshot of accepted login-service
+// sets, mapping each configured set name to its allowed login service names.
+type loginServiceSetTable struct {
+	sets map[string][]string
+}
+
+// aaaMetrics holds Prometheus counters published by internal/component/aaa.
+type aaaMetrics struct {
+	loginServiceRefusedTotal metrics.CounterVec
+}
+
+// aaaLogger is the lazy subsystem logger for AAA login-service gate decisions.
+var aaaLogger = slogutil.LazyLogger("aaa")
+
+// acceptedLoginSets holds the currently published accepted login-service sets
+// generation. nil means no generation has been published or the generation was
+// retired, so every restricted login fails closed.
+var acceptedLoginSets atomic.Pointer[loginServiceSetTable]
+
+// aaaMetricsPtr holds the active Prometheus metric set for AAA. It is nil until
+// a metrics registry is installed by telemetry startup.
+var aaaMetricsPtr atomic.Pointer[aaaMetrics]
+
+// registerAAAMetrics registers the deferred metrics callback with the plugin
+// registry so ze_aaa_login_service_refused_total is published once a Prometheus
+// registry exists.
+func registerAAAMetrics() {
+	registry.InjectPluginMetrics(aaaMetricsHookName, bindAAAMetrics)
+}
+
+// bindAAAMetrics publishes the AAA login-service counters into reg.
+func bindAAAMetrics(reg metrics.Registry) {
+	if reg == nil {
+		return
+	}
+	aaaMetricsPtr.Store(&aaaMetrics{
+		loginServiceRefusedTotal: reg.CounterVec(
+			"ze_aaa_login_service_refused_total",
+			"Login attempts refused by system/authorization/login-service, by target login service.",
+			[]string{"service"},
+		),
+	})
+}
+
+// countLoginServiceRefused increments ze_aaa_login_service_refused_total for
+// service. No-op while no metrics registry is bound.
+func countLoginServiceRefused(service string) {
+	m := aaaMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	label := service
+	if label == "" {
+		label = unknownLoginServiceLabel
+	}
+	m.loginServiceRefusedTotal.With(label).Inc()
+}
 
 // acceptedLocalUserGenerations maps each accepted local user name to the
 // per-user generations (UserCredential.UserGeneration) its records carry. A
@@ -203,7 +276,103 @@ func (p resultAuthorizingAuthenticator) Authenticate(request AuthRequest) (AuthR
 	}
 	result, err := p.next.Authenticate(request)
 	if err == nil && result.Authenticated {
+		if gateErr := CheckLoginService(request.Username, &result, request.Service); gateErr != nil {
+			return AuthResult{}, gateErr
+		}
 		result.Authorizer = AuthorizerForResult(p.authorizer, result)
 	}
 	return result, err
+}
+
+// SetAcceptedLoginSets publishes an immutable defensive copy of the accepted
+// login-service sets generation against which CheckLoginService and
+// CheckLoginSet decide login admission. An empty non-nil map publishes an
+// accepted generation with zero defined sets (distinct from nil, which retires
+// the generation so every restricted login fails closed).
+//
+// Safe for concurrent use.
+func SetAcceptedLoginSets(sets map[string][]string) {
+	if sets == nil {
+		acceptedLoginSets.Store(nil)
+		return
+	}
+	copied := make(map[string][]string, len(sets))
+	for name, services := range sets {
+		if services == nil {
+			copied[name] = []string{}
+			continue
+		}
+		copied[name] = slices.Clone(services)
+	}
+	acceptedLoginSets.Store(&loginServiceSetTable{sets: copied})
+}
+
+// CheckLoginService decides whether an authenticated result for username may
+// use the named login service. Returns nil to admit or ErrAuthRejected to
+// refuse.
+//
+// Safe for concurrent use.
+func CheckLoginService(username string, result *AuthResult, service string) error {
+	if result == nil {
+		return refuseLoginService(username, "", service, "missing authentication result")
+	}
+	if !result.Authenticated {
+		return refuseLoginService(username, result.LoginSet, service, "unauthenticated result")
+	}
+	// OD-2 option (a): the surviving stored recovery user's local result is
+	// exempt before reading any login set. Remote results are never exempt even
+	// if they carry ReservedRecoveryProfile.
+	if result.Source == SourceLocal {
+		if slices.Contains(result.Profiles, ReservedRecoveryProfile) {
+			return nil
+		}
+	}
+	// OD-3 option (a): an account naming no login-service set is unrestricted.
+	if result.LoginSet == "" {
+		return nil
+	}
+	return CheckLoginSet(username, result.LoginSet, service)
+}
+
+// CheckLoginSet decides whether username holding loginSet may use the named
+// login service against the currently published accepted login-service sets.
+// Returns nil to admit or ErrAuthRejected to refuse.
+//
+// Safe for concurrent use.
+func CheckLoginSet(username, loginSet, service string) error {
+	// OD-3 option (a): an absent login-service set imposes no door restriction.
+	if loginSet == "" {
+		return nil
+	}
+	if service == "" {
+		return refuseLoginService(username, loginSet, service, "login service not specified")
+	}
+	if !loginservice.Registered(service) {
+		return refuseLoginService(username, loginSet, service, "login service not registered")
+	}
+	table := acceptedLoginSets.Load()
+	if table == nil {
+		return refuseLoginService(username, loginSet, service, "accepted login-service sets unavailable")
+	}
+	allowed, ok := table.sets[loginSet]
+	if !ok {
+		return refuseLoginService(username, loginSet, service, "login-service set not found")
+	}
+	if !slices.Contains(allowed, service) {
+		return refuseLoginService(username, loginSet, service, "service not in login-service set")
+	}
+	return nil
+}
+
+// refuseLoginService records one structured Info log entry and increments the
+// refusal Prometheus counter before returning terminal ErrAuthRejected.
+func refuseLoginService(username, loginSet, service, reason string) error {
+	aaaLogger().Info("login refused by login-service gate",
+		"account", username,
+		"login_service_set", loginSet,
+		"service", service,
+		"reason", reason,
+	)
+	countLoginServiceRefused(service)
+	return ErrAuthRejected
 }

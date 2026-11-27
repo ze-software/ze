@@ -52,6 +52,9 @@ func ExtractAuthUsers(system map[string]any) []authz.UserConfig {
 		}
 		uc.Profiles = leafListValues(entry["profile"])
 		uc.PublicKeys = extractPublicKeys(entry["public-keys"])
+		if ls, ok := entry["login-service"].(string); ok {
+			uc.LoginSet = ls
+		}
 		users = append(users, uc)
 	}
 	slices.SortFunc(users, func(a, b authz.UserConfig) int { return strings.Compare(a.Name, b.Name) })
@@ -115,48 +118,49 @@ func leafListValues(raw any) []string {
 }
 
 // ValidateAuthzConfig validates authorization config in the parsed tree.
-// Checks: profile entry regex syntax (hard error), and that no user or
-// tacacs-profile names a reserved profile. A name that no profile defines is
-// refused by the YANG leafref on each profile leaf-list
-// (Validator.ValidateReferences), which names the profiles that exist.
-// Exported so ze config validate can also call it.
+// Checks: profile entry regex syntax (hard error), and that no profile,
+// login-service set, user, tacacs-profile, or radius entry names a reserved
+// identifier. A name that no profile or login-service defines is refused by the
+// YANG leafref on each referring leaf (Validator.ValidateReferences), which
+// names the entries that exist. Exported so ze config validate can also call it.
 func ValidateAuthzConfig(tree *config.Tree) error {
 	sys := tree.GetContainer("system")
 	if sys == nil {
 		return nil
 	}
 
-	authzContainer := sys.GetContainer("authorization")
-	if authzContainer == nil {
-		return nil
+	if authzContainer := sys.GetContainer("authorization"); authzContainer != nil {
+		// Validate each profile's entries (regex syntax, empty match).
+		for name, profileTree := range authzContainer.GetList("profile") {
+			// Fail closed: reserved names live outside the config namespace (the
+			// break-glass recovery profile and the trusted internal identity). They are
+			// un-typeable by construction, so this only fires on a hand-crafted tree,
+			// but rejecting it here keeps an operator from ever defining a profile that
+			// collides with a reserved allow-all name (spec R-8).
+			if aaa.IsReservedName(name) {
+				return fmt.Errorf("authorization profile %q uses a reserved name", name)
+			}
+			p := authz.Profile{Name: name}
+			if runContainer := profileTree.GetContainer("run"); runContainer != nil {
+				p.Run = extractAuthzSection(runContainer)
+			}
+			if editContainer := profileTree.GetContainer("edit"); editContainer != nil {
+				p.Edit = extractAuthzSection(editContainer)
+			}
+			if err := p.Validate(); err != nil {
+				return fmt.Errorf("authorization profile: %w", err)
+			}
+		}
+
+		for name := range authzContainer.GetList("login-service") {
+			if aaa.IsReservedName(name) {
+				return fmt.Errorf("authorization login-service %q uses a reserved name", name)
+			}
+		}
 	}
 
-	profiles := authzContainer.GetList("profile")
-
-	// Validate each profile's entries (regex syntax, empty match).
-	for name, profileTree := range profiles {
-		// Fail closed: reserved names live outside the config namespace (the
-		// break-glass recovery profile and the trusted internal identity). They are
-		// un-typeable by construction, so this only fires on a hand-crafted tree,
-		// but rejecting it here keeps an operator from ever defining a profile that
-		// collides with a reserved allow-all name (spec R-8).
-		if aaa.IsReservedName(name) {
-			return fmt.Errorf("authorization profile %q uses a reserved name", name)
-		}
-		p := authz.Profile{Name: name}
-		if runContainer := profileTree.GetContainer("run"); runContainer != nil {
-			p.Run = extractAuthzSection(runContainer)
-		}
-		if editContainer := profileTree.GetContainer("edit"); editContainer != nil {
-			p.Edit = extractAuthzSection(editContainer)
-		}
-		if err := p.Validate(); err != nil {
-			return fmt.Errorf("authorization profile: %w", err)
-		}
-	}
-
-	// Check user→profile references for reserved names (AC-8). A name no
-	// profile defines is refused by the leafref on user profile.
+	// Check user, tacacs-profile, and radius references for reserved names. A
+	// name no profile or login-service defines is refused by its YANG leafref.
 	auth := sys.GetContainer("authentication")
 	if auth == nil {
 		return nil
@@ -171,22 +175,73 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 				return fmt.Errorf("user %q references reserved profile %q", username, pn)
 			}
 		}
+		if ls, ok := userTree.Get("login-service"); ok {
+			if aaa.IsReservedName(ls) {
+				return fmt.Errorf("user %q references reserved login-service %q", username, ls)
+			}
+		}
 	}
 
-	// Check tacacs-profile priv-lvl -> profile references for reserved names, on
-	// the same footing as the user references above. A name no profile defines is
-	// refused by the leafref on tacacs-profile profile, which matters because the
-	// runtime cannot report it: authorization receives profile names, not the
-	// mapping, so it can only ignore a name it cannot resolve.
+	// Check tacacs-profile priv-lvl -> profile and login-service references for
+	// reserved names, on the same footing as the user references above.
 	for level, entry := range auth.GetList("tacacs-profile") {
 		for _, pn := range entry.GetSlice("profile") {
 			if aaa.IsReservedName(pn) {
 				return fmt.Errorf("tacacs-profile %q references reserved profile %q", level, pn)
 			}
 		}
+		if ls, ok := entry.Get("login-service"); ok {
+			if aaa.IsReservedName(ls) {
+				return fmt.Errorf("tacacs-profile %q references reserved login-service %q", level, ls)
+			}
+		}
+	}
+
+	if radius := auth.GetContainer("radius"); radius != nil {
+		if ls, ok := radius.Get("login-service"); ok {
+			if aaa.IsReservedName(ls) {
+				return fmt.Errorf("radius references reserved login-service %q", ls)
+			}
+		}
 	}
 
 	return nil
+}
+
+// ExtractLoginServices returns the named login-service sets the `system`
+// subtree describes, in resolved map form (as config.Tree.ToMap() produces).
+// Returns an empty map when no system/authorization/login-service section
+// exists. For every defined login-service entry, the returned map holds a
+// non-nil slice ([]string{} when no service is listed) so an empty set is
+// always distinct from an absent set.
+func ExtractLoginServices(system map[string]any) map[string][]string {
+	sets := make(map[string][]string)
+	authzMap, ok := system["authorization"].(map[string]any)
+	if !ok {
+		// refuse-by-default: guards aaa.SetAcceptedLoginSets -- absent
+		// authorization section yields an empty set map so any restricted
+		// login-service reference fails closed.
+		return sets
+	}
+	entries, ok := authzMap["login-service"].(map[string]any)
+	if !ok {
+		// refuse-by-default: guards aaa.SetAcceptedLoginSets -- absent
+		// login-service section yields an empty set map so any restricted
+		// login-service reference fails closed.
+		return sets
+	}
+	for name, raw := range entries {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		services := leafListValues(entry["service"])
+		if services == nil {
+			services = []string{}
+		}
+		sets[name] = services
+	}
+	return sets
 }
 
 // ExtractAuthzStore extracts authorization profiles and user assignments from a

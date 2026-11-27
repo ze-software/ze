@@ -1,0 +1,19 @@
+# Question: when system/authentication/radius assigns a login-service set
+# excluding web, does Ze admit a RADIUS-authenticated admin on SSH, terminally
+# refuse the same admin on Web (without falling through to an unrestricted
+# local account of the same name and password), and preserve NAS-Port-Id values
+# "ssh" and "web" unchanged on the wire?
+# Why a unit test cannot decide it: only a live daemon talking to a real RADIUS
+# server on both SSH and Web listeners proves radius config extraction,
+# AuthResult.LoginSet, terminal ErrAuthRejected across liveAAABundleAuthenticator,
+# and unchanged NAS-Port-Id wire attributes together.
+#
+# VALIDATES: AC-12, AC-18 (OD-1 option d) -- RADIUS login-service gate and wire preservation
+# PREVENTS: RADIUS login-service refusal falling through to local/web fallback or altering NAS-Port-Id
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-radius $PORT $PORT2:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: RADIUS login-service refused web terminally, admitted ssh, and preserved NAS-Port-Id
+reject=stderr:contains=ZE-OBSERVER-FAIL

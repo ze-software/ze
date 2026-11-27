@@ -8,7 +8,8 @@ commands.
 
 Authorization is separate from authentication. Authentication (covered
 in `authentication.md`) decides *who the user is*. Authorization decides
-*what they can do*.
+*what they can do*. Named `login-service` sets under `system authorization`
+sit beside `profile` and decide *which login doors* an account can enter.
 
 ## Concepts
 
@@ -340,6 +341,59 @@ system {
 
 See `tacacs.md` for full TACACS+ configuration.
 
+### Login-service sets
+
+Define named login-service sets under `system authorization login-service` beside `profile`. Each set lists the registered login doors (`ssh`, `web`, `rest`, `grpc`, `mcp`) that an account can authenticate through.
+
+```
+system {
+    authorization {
+        login-service ops-ssh-web {
+            service [ ssh web ]
+        }
+        login-service api-only {
+            service [ rest grpc ]
+        }
+        login-service no-login {
+        }
+    }
+    authentication {
+        user alice {
+            password "$2a$10$..."
+            profile [ admin ]
+            login-service ops-ssh-web
+        }
+        user grafana {
+            password "$2a$10$..."
+            profile [ monitoring ]
+            login-service api-only
+        }
+        tacacs-profile 15 {
+            profile [ admin ]
+            login-service ops-ssh-web
+        }
+        radius {
+            server 10.0.0.1 {
+                port 1812
+                key "$9$encrypted-key"
+            }
+            default-profile [ read-only ]
+            login-service ops-ssh-web
+        }
+    }
+}
+```
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.login-service, system.authentication.user.login-service -->
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs-profile.login-service -->
+<!-- source: internal/component/radius/yang/ze-radius-conf.yang -- system.authentication.radius.login-service -->
+
+The `login-service` leaf on `user`, `tacacs-profile`, and `radius` is a YANG leafref to `system authorization login-service` with `require-instance true`. Commit and `ze config validate` reject any reference to an undefined set and list the defined sets. Each `service` value is validated against the login services registered in this build.
+<!-- source: internal/component/config/validators.go -- LoginServiceValidator -->
+<!-- source: internal/component/config/loginservice/registry.go -- Names, Registered -->
+
+Omitting `login-service` on an account or remote mapping admits that account on every door. Assigning a `login-service` set with an empty `service` list (`no-login` above) denies every checked door. Refer to [Authentication](authentication.md#login-service-authorization) for surface coverage, reload behavior, and the recovery account rule.
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginService, CheckLoginSet -->
+
 ## Built-in profiles
 
 Ze provides two built-in profiles that can be referenced without
@@ -602,6 +656,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 | Using `match "show"` to allow all show commands and denying specific ones with higher entry numbers | The first match wins; entry 10 `allow "show"` matches before entry 20 `deny "show bgp secret"` | Put the more specific `deny` entry at a lower number than the broader `allow` |
 | Expecting regex to be anchored by default | Go regex `MatchString` matches anywhere in the string; `"restart"` matches `"show restart status"` | Anchor explicitly: `"^restart( \|$)"` |
 | Referencing a profile name that does not exist | Commit and `ze config validate` refuse it, naming the profiles that exist: a user's `profile` and a `tacacs-profile`'s `profile` are leafrefs to `system authorization profile` | Define the profile in the same commit, or name one that exists |
+| Referencing an undefined `login-service` set or unregistered service name | Commit and `ze config validate` refuse undefined set references through the leafref. They also reject unregistered or compiled-out service names and list offered services | Define the set under `system authorization login-service` and use only services offered by this build |
 
 ## Reference
 
@@ -618,6 +673,9 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 | SSH editor authorizer binding | `cmd/ze/hub/session_factory.go` (`buildSessionModelFactory`) |
 | Built-in admin profile | `internal/component/authz/authz.go` (`builtinAdminProfile`) |
 | Built-in read-only profile | `internal/component/authz/authz.go` (`builtinReadOnlyProfile`) |
+| Login-service registry | `internal/component/config/loginservice/registry.go` (`Register`, `MustRegister`, `Names`, `Registered`, `Lookup`) |
+| Login-service validator | `internal/component/config/validators.go` (`LoginServiceValidator`) |
+| Login-service gate | `internal/component/aaa/login_profiles.go` (`CheckLoginService`, `CheckLoginSet`, `SetAcceptedLoginSets`) |
 
 <!-- source: internal/component/authz/authz.go -- Entry.matches, Section.evaluate, Store.AuthorizeExplicit -->
 <!-- source: internal/component/authz/register.go -- StoreAuthorizer -->

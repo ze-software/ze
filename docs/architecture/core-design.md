@@ -4056,24 +4056,26 @@ Cross-component coupling follows a strict hierarchy:
 
 | Component | Allowed imports (other components) |
 |-----------|-----------------------------------|
-| api | audit, config/yang |
+| aaa | config, config/loginservice, plugin/registry |
+| api | audit, config/loginservice, config/yang |
 | authz | aaa, config/yang (schema registration) |
 | bgp | config, plugin (no cli, ssh, web, iface) |
 | cli | audit, command, config, plugin/server |
 | cmd (protocol-agnostic) | audit, config/yang, plugin, plugin/server |
-| config | plugin, plugin/registry, command |
+| config | config/loginservice, plugin, plugin/registry, command |
+| config/loginservice | none (stdlib-only leaf: login-service name registry imported by `aaa`, `api/rest`, `api/grpc`, `config`, `mcp`, `ssh`, `web`) |
 | hub | everything (orchestrator) |
 | iface | config/yang, plugin, plugin/registry |
 | ike | command, config (and config/yang, config/secret, config/redistribute), firewall (the tunnel-source guard's nft table), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf and its padded path probe through the `internal/core/ikeprobe` leaf rather than being imported for either; writes the tunnel-source guard's fib rules and table routes through the `internal/core/iprule` leaf |
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
-| mcp | audit |
+| mcp | audit, config/loginservice |
 | mtu | command, config/yang (the two YANG modules register), iface (dispatch calls only), plugin, plugin/server (CLI RPC), sysctl (`Read`), ike/crypto and ike/ipsec (untagged leaves, for the transform ids); reads live tunnels through the `internal/core/ipsecinventory` leaf, probes through `internal/core/probe`, asks a live SA to confirm a figure through the `internal/core/ikeprobe` leaf, and never imports `ike/engine` |
 | plugin/server | aaa, audit |
 | ppp | none (leaf: PPP/LCP/NCP state machines; only `internal/core/textbuf` outside stdlib) |
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |
 | radius | aaa (backend registration), config, config/yang, plugin/registry (the metrics hook in `radius/metrics.go`) |
-| ssh | audit, cli, authz, config, plugin/server |
-| web | aaa, audit, cli, authz, config |
+| ssh | audit, cli, authz, config, config/loginservice, plugin/server |
+| web | aaa, audit, cli, authz, config, config/loginservice |
 | web/fleetui | web (the route registry, the request's username); the web package never imports it. `web/fleetui/sample` imports `web/fleetui` only, and no shipped build links it (`docs/architecture/fleet-interface.md`) |
 
 **The IPsec inventory is a core leaf, so a feature reads live tunnels without
@@ -4133,6 +4135,18 @@ credential set with its authorization store, and publishes one accepted
 generation. SSH, web, REST, and gRPC read the accepted live users, while command
 authorization reads the policy from the same generation. Reload retains the
 previous generation until the candidate succeeds.
+
+**Login-service sets and name registry.** `acceptedLocalIdentityState` also
+carries `loginSets` extracted from `system.authorization.login-service` and
+publishes them atomically with users and policy through
+`aaa.SetAcceptedLoginSets`. `internal/component/config/loginservice` is a
+stdlib-only leaf registry (`Register`, `MustRegister`, `Names`, `Registered`,
+`Lookup`). Each login surface (`ssh`, `web`, `api/rest`, `api/grpc`, `mcp`) registers its
+own name in `register_login_service.go` at `init()`. Compiling out a surface
+removes its name from config validation and editor completion with no upward
+imports.
+<!-- source: internal/component/config/loginservice/registry.go -- Register, MustRegister, Names, Registered, Lookup -->
+<!-- source: internal/component/aaa/login_profiles.go -- SetAcceptedLoginSets, CheckLoginService, CheckLoginSet -->
 
 **Pluggable AAA backends.** `internal/component/aaa` defines the
 `Authenticator`, `Authorizer`, and `Accountant` interfaces and a

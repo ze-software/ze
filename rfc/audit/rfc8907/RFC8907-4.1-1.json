@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "879b13e19509fb75",
     "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent": "879b13e19509fb75",
-    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "689cf5032c29eb6d",
-    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "689cf5032c29eb6d"
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "ca4162fec6d615c8",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "ca4162fec6d615c8"
   },
   "units": {
     "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "a3cf9fa4638ec0c1",

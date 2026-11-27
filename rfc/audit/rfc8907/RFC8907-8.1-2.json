@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone": "d6e03486f174ca78",
     "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "d6e03486f174ca78",
-    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone": "fb302ebfa0d9b135",
-    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds": "fb302ebfa0d9b135"
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone": "4c7f3ec6186f786b",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds": "4c7f3ec6186f786b"
   },
   "units": {
     "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone": "5575bac2053d64e5",

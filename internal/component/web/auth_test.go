@@ -2,9 +2,11 @@ package web
 
 import (
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,7 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/config/loginservice"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -569,4 +573,141 @@ func TestWebLoginsNameTheWebChannel(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "web", authenticator.request.Service)
 	})
+}
+
+// VALIDATES: AC-13 -- removing "web" from a login-service set on reload
+// immediately revokes existing web session cookies (HTTP 401) for both local
+// sessions (even when UserGeneration is unchanged) and remote sessions carrying
+// a LoginSet (without consulting the local user list), while a local recovery
+// session stays valid and a remote session spoofing ReservedRecoveryProfile is
+// refused.
+// PREVENTS: open web cookies surviving a login-service set edit, or remote web
+// sessions being checked against the local user list.
+func TestValidateTokenRefusesWithdrawnWebService(t *testing.T) {
+	t.Cleanup(func() { aaa.SetAcceptedLoginSets(nil) })
+
+	serveWithCookie := func(handler http.Handler, token string) int {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
+		req.AddCookie(&http.Cookie{Name: "ze-session", Value: token})
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	t.Run("local session revoked when web removed from login-service set", func(t *testing.T) {
+		const setName = "web-set"
+		users := []authz.UserConfig{
+			{Name: "alice", LoginSet: setName, UserGeneration: 1},
+		}
+		aaa.SetAcceptedLoginSets(map[string][]string{
+			setName: {loginServiceWeb, "ssh"},
+		})
+
+		store := NewSessionStore(func() ([]authz.UserConfig, error) { return users, nil })
+		session, err := store.createSession("alice", authz.AuthResult{
+			Authenticated:  true,
+			Source:         aaa.SourceLocal,
+			LoginSet:       setName,
+			UserGeneration: 1,
+		})
+		require.NoError(t, err)
+
+		handler := authMiddleware(store, &recordingAuthenticator{err: authz.ErrAuthRejected}, noopRenderer, okHandler())
+		assert.Equal(t, http.StatusOK, serveWithCookie(handler, session.Token),
+			"cookie must be accepted while the login-service set includes web")
+
+		// Reload edits the set definition without modifying the user entry or UserGeneration.
+		aaa.SetAcceptedLoginSets(map[string][]string{
+			setName: {"ssh"},
+		})
+
+		assert.Equal(t, http.StatusUnauthorized, serveWithCookie(handler, session.Token),
+			"AC-13: cookie must receive HTTP 401 once web is removed from the login-service set")
+		assert.Nil(t, store.validateToken(session.Token),
+			"revoked session must be deleted from the session store")
+	})
+
+	t.Run("remote session revoked without reading local user list", func(t *testing.T) {
+		const setName = "remote-web"
+		localReads := 0
+		store := NewSessionStore(func() ([]authz.UserConfig, error) {
+			localReads++
+			return nil, errors.New("remote session must not consult local user list")
+		})
+		aaa.SetAcceptedLoginSets(map[string][]string{
+			setName: {loginServiceWeb},
+		})
+
+		session, err := store.createSession("tacacs-op", authz.AuthResult{
+			Authenticated: true,
+			Source:        "tacacs",
+			LoginSet:      setName,
+		})
+		require.NoError(t, err)
+
+		handler := authMiddleware(store, &recordingAuthenticator{err: authz.ErrAuthRejected}, noopRenderer, okHandler())
+		assert.Equal(t, http.StatusOK, serveWithCookie(handler, session.Token),
+			"remote cookie must be accepted while its login-service set includes web")
+		assert.Equal(t, 0, localReads, "remote session validation must never read the local user list")
+
+		aaa.SetAcceptedLoginSets(map[string][]string{
+			setName: {"ssh"},
+		})
+
+		assert.Equal(t, http.StatusUnauthorized, serveWithCookie(handler, session.Token),
+			"AC-13: remote cookie must receive HTTP 401 once web is removed from its login-service set")
+		assert.Equal(t, 0, localReads, "remote session revocation must never read the local user list")
+		assert.Nil(t, store.validateToken(session.Token),
+			"revoked remote session must be deleted from the session store")
+	})
+
+	t.Run("local recovery session stays valid while remote spoof is refused", func(t *testing.T) {
+		const emptySet = "empty-set"
+		users := []authz.UserConfig{
+			{
+				Name:           "admin",
+				Profiles:       []string{aaa.ReservedRecoveryProfile},
+				LoginSet:       emptySet,
+				UserGeneration: 1,
+			},
+		}
+		aaa.SetAcceptedLoginSets(map[string][]string{
+			emptySet: {},
+		})
+
+		store := NewSessionStore(func() ([]authz.UserConfig, error) { return users, nil })
+		recoverySession, err := store.createSession("admin", authz.AuthResult{
+			Authenticated:  true,
+			Source:         aaa.SourceLocal,
+			Profiles:       []string{aaa.ReservedRecoveryProfile},
+			LoginSet:       emptySet,
+			UserGeneration: 1,
+		})
+		require.NoError(t, err)
+
+		remoteSpoof, err := store.createSession("remote-spoof", authz.AuthResult{
+			Authenticated: true,
+			Source:        "tacacs",
+			Profiles:      []string{aaa.ReservedRecoveryProfile},
+			LoginSet:      emptySet,
+		})
+		require.NoError(t, err)
+
+		handler := authMiddleware(store, &recordingAuthenticator{err: authz.ErrAuthRejected}, noopRenderer, okHandler())
+		assert.Equal(t, http.StatusOK, serveWithCookie(handler, recoverySession.Token),
+			"OD-2: local recovery session must remain valid even when login sets exclude web")
+		assert.Equal(t, http.StatusUnauthorized, serveWithCookie(handler, remoteSpoof.Token),
+			"remote session carrying ReservedRecoveryProfile must not bypass the login-service check")
+	})
+}
+
+// VALIDATES: AC-18 -- the registered web login-service name matches the exact
+// wire value ("web") sent in AuthRequest.Service to TACACS+ port and RADIUS
+// NAS-Port-Id.
+// PREVENTS: a registry rename drifting away from the TACACS+/RADIUS wire value.
+func TestRegisteredNamesMatchWireValues(t *testing.T) {
+	assert.Equal(t, "web", loginServiceWeb)
+	assert.Equal(t, authServiceWeb, loginServiceWeb)
+	assert.True(t, loginservice.Registered(loginServiceWeb), "web must be registered in loginservice at init")
+	assert.True(t, slices.Contains(loginservice.Names(), "web"), "loginservice.Names must include web")
 }

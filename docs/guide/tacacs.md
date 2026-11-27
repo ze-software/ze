@@ -48,6 +48,7 @@ system {
 | `tacacs.strict-fallback` | boolean | false | Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC |
 | `tacacs.accounting` | boolean | false | Enable START/STOP accounting records |
 | `tacacs-profile <N>.profile` | leaf-list | required | Maps priv-lvl `N` (0-15) to one or more local authz profiles |
+| `tacacs-profile <N>.login-service` | leafref | none | Optional `system authorization login-service` set restricting which doors this privilege level can use |
 
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
 
@@ -108,15 +109,20 @@ than sixteen characters; keys of thirty-two characters or longer are supported.
    bcrypt is priority 200).
 3. The client opens TCP to the first configured server and sends a PAP
    AUTHEN START. The MD5 pseudo-pad obfuscates the body using the shared secret.
-   Its `port` field names the access channel the login arrived on: `ssh` for an
-   SSH login, `web` for a web login (the login form and HTTP Basic auth). A
-   login whose caller names no channel reports `ssh`. The session
-   authorization of step 4 carries the same port.
+   Its `port` field carries the registered login-service name (RFC 8907
+   Section 5.1). It sends `ssh` for SSH or `ze cli` logins and `web` for web
+   logins (login form and HTTP Basic Auth). A login whose caller names no
+   channel reports `ssh`, and step 4 sends the same `port` value.
 4. **PASS** -- Ze requests shell-session authorization with `service=shell` and
    an empty `cmd`. The server returns a decimal `priv-lvl` argument, which maps
    through `tacacs-profile <priv-lvl>.profile`. Missing privilege uses level one.
    Unmapped levels and mandatory policy that Ze cannot enforce reject the login.
    Authentication reply data never supplies a privilege level.
+
+   If the matched `tacacs-profile` names a `login-service` set, Ze checks the
+   door locally after the reply and changes no TACACS+ wire packet. An excluded
+   door fails terminally with `ErrAuthRejected` and never falls through to local
+   accounts.
 5. **FAIL** -- explicit rejection. The chain stops here. Local bcrypt is
    NOT tried. This prevents a wrong password against TACACS+ from
    succeeding via a stale local hash.
@@ -256,6 +262,36 @@ may be ignored.
 
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
 
+### Restricting login doors per privilege level
+
+Each `tacacs-profile` entry accepts an optional `login-service` leafref pointing
+at a `system authorization login-service` set. This lets you restrict remote
+TACACS+ sessions by door without local shadow accounts:
+
+```
+system {
+    authorization {
+        login-service ssh-only {
+            service [ ssh ]
+        }
+    }
+    authentication {
+        tacacs-profile 15 {
+            profile [ admin ]
+            login-service ssh-only
+        }
+    }
+}
+```
+
+Omitting `login-service` admits all doors. Referencing a set with no `service`
+entries denies every checked door. The check runs locally after the TACACS+
+reply arrives and adds no fields to TACACS+ packets.
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs-profile.login-service -->
+<!-- source: internal/component/tacacs/config.go -- ExtractedConfig.PrivLvlLoginSet -->
+<!-- source: internal/component/tacacs/authenticator.go -- tacacsAuthenticator.handlePass -->
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginService -->
+
 ## Accounting
 
 When `accounting true` is set, each command entering dispatch or the API/SSH
@@ -316,6 +352,7 @@ The `.ci` tests in `test/plugin/` cover the main behaviours:
 | `tacacs-acct.ci` | `accounting true` -> mock receives ACCT START followed by STOP |
 | `tacacs-singleconnect.ci` | Single-connect mode TCP reuse |
 | `tacacs-show.ci` | `ze tacacs show` reachability probe, in its table and `| json` renderings |
+| `login-service-tacacs.ci` | `tacacs-profile <N> login-service` admits included doors and refuses excluded doors terminally with `ErrAuthRejected` |
 
 These tests run against `le mock tacacs`, which prints one stderr line per
 packet it answers. An AUTHOR line names the command it judged

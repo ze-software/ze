@@ -36,11 +36,14 @@ type UserCredential struct {
 	Hash       string
 	Profiles   []string
 	PublicKeys []SSHPublicKey
+	// LoginSet names the system/authorization/login-service entry restricting
+	// which login doors this user may use. Empty means no restriction.
+	LoginSet string
 	// UserGeneration identifies the accepted generation of THIS user's own
-	// record (hash, profiles, public keys): it changes only when this user's
-	// record changes, and a user added again after removal gets a new one. No
-	// two user records share a number. It is runtime-only and never loaded
-	// from config.
+	// record (hash, profiles, public keys, login set): it changes only when
+	// this user's record changes, and a user added again after removal gets a
+	// new one. No two user records share a number. It is runtime-only and never
+	// loaded from config.
 	UserGeneration uint64
 }
 
@@ -130,6 +133,10 @@ const SourceLocal = "local"
 type AuthResult struct {
 	Authenticated bool
 	Profiles      []string // ze authz profile names for this user
+	// LoginSet names the system/authorization/login-service entry restricting
+	// which login doors this authenticated result may use. Empty means no
+	// restriction.
+	LoginSet string
 
 	// Source names the backend that produced this result: SourceLocal,
 	// "tacacs", "radius", and so on. It is the ANSWER to "who authenticated

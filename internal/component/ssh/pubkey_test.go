@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/core/audit"
 )
@@ -294,4 +295,79 @@ func TestParseConfiguredKeyEmptyFields(t *testing.T) {
 
 	_, err = parseConfiguredKey("ssh-ed25519", "")
 	assert.Error(t, err)
+}
+
+// VALIDATES: AC-2 -- SSH public-key authentication honors the account's
+// login-service set: a valid key for an account whose set excludes ssh is
+// refused with the same failure and audit entry as an invalid key, while an
+// account whose set includes ssh (and a local recovery account) is admitted.
+// PREVENTS: login-service enforcement applying only to SSH password login and
+// leaving public-key login ungated.
+func TestSSHPublicKeyLoginHonoursLoginSet(t *testing.T) {
+	excludedSigner, excludedKey := generateEd25519Signer(t)
+	allowedSigner, allowedKey := generateEd25519Signer(t)
+	recoverySigner, recoveryKey := generateEd25519Signer(t)
+
+	const (
+		setAPIOnly = "api-only"
+		setSSHOk   = "ssh-ok"
+	)
+	aaa.SetAcceptedLoginSets(map[string][]string{
+		setAPIOnly: {"rest"},
+		setSSHOk:   {loginServiceSSH},
+	})
+	t.Cleanup(func() { aaa.SetAcceptedLoginSets(nil) })
+
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+
+	srv, err := NewServer(Config{
+		Listen:      "127.0.0.1:0",
+		HostKeyPath: t.TempDir() + "/test_host_key",
+		Users: []authz.UserConfig{
+			{
+				Name:       "excluded",
+				Profiles:   []string{"admin"},
+				LoginSet:   setAPIOnly,
+				PublicKeys: []authz.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: excludedKey}},
+			},
+			{
+				Name:       "allowed",
+				Profiles:   []string{"admin"},
+				LoginSet:   setSSHOk,
+				PublicKeys: []authz.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: allowedKey}},
+			},
+			{
+				Name:           "recovery",
+				Profiles:       []string{aaa.ReservedRecoveryProfile},
+				LoginSet:       setAPIOnly,
+				UserGeneration: 1,
+				PublicKeys:     []authz.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: recoveryKey}},
+			},
+		},
+		AuditRecorder: recorder,
+	})
+	require.NoError(t, err)
+	require.NoError(t, srv.Start(context.Background(), nil, nil))
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		require.NoError(t, srv.Stop(stopCtx))
+	})
+
+	addr := srv.Address()
+	require.Eventually(t, func() bool {
+		return dialWithKey(addr, "allowed", allowedSigner) == nil
+	}, 5*time.Second, 20*time.Millisecond, "allowed public-key account must authenticate once the server serves")
+
+	assert.Error(t, dialWithKey(addr, "excluded", excludedSigner),
+		"AC-2: valid public key must be refused when the account's login set excludes ssh")
+	assert.NoError(t, dialWithKey(addr, "recovery", recoverySigner),
+		"AC-8: local recovery account must stay admitted on SSH public-key login")
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	require.NotEmpty(t, entries, "AC-3: public-key login-service refusal must record an auth failure audit entry")
+	assert.Equal(t, "excluded", entries[0].Actor)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
 }

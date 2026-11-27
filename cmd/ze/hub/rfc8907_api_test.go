@@ -43,7 +43,7 @@ func TestBuildAPIAuthenticationBindsRecoveryProfiles(t *testing.T) {
 		Edit: authz.Section{Default: authz.Deny},
 	})
 	authentication := buildAPIAuthentication(users, "", authz.StoreAuthorizer{Store: store})
-	caller, ok := authentication.Authenticate("Bearer " + username + ":recovery-pass")
+	caller, ok := authentication.Authenticate("Bearer "+username+":recovery-pass", "rest")
 	require.True(t, ok)
 	assert.Equal(t, username, caller.Username)
 	assert.True(t, caller.Authorizer.Authorize(username, "", "show version", true))
@@ -52,7 +52,7 @@ func TestBuildAPIAuthenticationBindsRecoveryProfiles(t *testing.T) {
 func TestAPIRequestCarriesAuthenticatedAuthorizationGeneration(t *testing.T) {
 	oldAuthorizer := &apiStreamTestAuthorizer{allow: true}
 	authentication := buildAPIAuthentication(nil, "old-token", oldAuthorizer)
-	caller, ok := authentication.Authenticate("Bearer old-token")
+	caller, ok := authentication.Authenticate("Bearer old-token", "rest")
 	require.True(t, ok)
 
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
@@ -87,7 +87,7 @@ func TestAPIRequestTACACSDenialOverridesAcceptedLocalAllow(t *testing.T) {
 		"api-token",
 		acceptedLocalGenerationAuthorizer{store: nil},
 	)
-	caller, ok := authentication.Authenticate("Bearer api-token")
+	caller, ok := authentication.Authenticate("Bearer api-token", "rest")
 	require.True(t, ok)
 	caller.RemoteAddr = "198.51.100.23:4444"
 

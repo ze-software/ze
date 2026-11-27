@@ -48,6 +48,7 @@ caller.
 | `ui/embed.go` | `//go:embed` directive exposing UI bundles as `embed.FS` |
 | `task_state.go` | Typed `TaskState uint8` enum with `MarshalText`/`UnmarshalText` for wire serialization. Four producible states. `input_required` is deliberately absent |
 | `tasks.go` | Task registry (`taskRegistry`) keyed by authenticated principal, worker goroutine orchestration, TTL GC, and the per-worker execution deadline |
+| `register_login_service.go` | Registers the `"mcp"` login-service name in `internal/component/config/loginservice` at `init()` |
 | `yang/ze-mcp-conf.yang` | YANG configuration: server listeners, auth mode, bearer-list identities, OAuth, TLS |
 
 ## Transport Shape
@@ -430,6 +431,23 @@ closed rather than acting as `none`. Failed bearer authentication records an
 audit event with the remote address and denied outcome but no actor: an
 unverified credential, including a colon-separated prefix, is not an identity.
 
+For named principals (`bearer-list` identity names and `oauth` JWT `sub` values
+where `Identity.Name != ""`), step 7 runs `StreamableConfig.LoginServiceGate`
+under the registered `"mcp"` service name right after token validation. The hub
+wires `checkAcceptedLocalLoginService` through `mcpServiceDeps.LoginServiceGate`
+so `mcp` never imports `aaa` and always-on hub code never imports `mcp`. If the principal matches a `system.authentication.user` record whose
+`login-service` set excludes `"mcp"`, `Streamable.authenticate` refuses the POST
+with HTTP 401 `Bearer error="invalid_token"`. That refusal records one
+`audit.ActionAuthFail` and runs no method or tool. Because the callback reads the hub's live accepted generation,
+changes to `login-service` sets apply on reload with no restart. Anonymous modes
+(`none`, single shared `bearer`, and Provider mode) produce an empty
+`Identity.Name` and skip the login-service check.
+
+<!-- source: internal/component/mcp/streamable.go -- StreamableConfig.LoginServiceGate, Streamable.authenticate -->
+<!-- source: internal/component/mcp/register_login_service.go -- loginServiceMCP -->
+<!-- source: cmd/ze/hub/service_registry.go -- mcpServiceDeps -->
+<!-- source: cmd/ze/hub/service_mcp.go -- buildMCPService -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- checkAcceptedLocalLoginService -->
 <!-- source: internal/component/mcp/streamable_auth.go -- buildAuthForMode -->
 <!-- source: internal/component/mcp/audit.go -- recordMCPAuthFailure -->
 <!-- source: internal/component/mcp/jwks.go -- LookupJWK, fetchIfAllowed -->

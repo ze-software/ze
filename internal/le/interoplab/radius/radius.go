@@ -51,6 +51,11 @@ const (
 	// scenarioPAPUnsignedLegacy is the same stripped Access-Accept on a server
 	// row whose require-message-authenticator is false.
 	scenarioPAPUnsignedLegacy = "radius-admin-pap-unsigned-legacy-freeradius"
+	// scenarioLoginServiceRefused proves OD-1 option (d): a FreeRADIUS-accepted
+	// admin is refused on the door system/authentication/radius/login-service
+	// excludes (web) and admitted on a door it holds (ssh), with NAS-Port-Id
+	// unchanged on the wire.
+	scenarioLoginServiceRefused = "radius-admin-login-service-refused-freeradius"
 
 	// nasIdentifier is the container hostname, and ze sends it as
 	// NAS-Identifier (RFC 2865 Section 4.1) because radiusBackend.Build reads
@@ -129,7 +134,8 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioEAPUnsigned: checker(checkEAPUnsigned, timeout),
 		scenarioPAPUnsigned: checker(checkPAPUnsigned, timeout),
 
-		scenarioPAPUnsignedLegacy: checker(checkPAPUnsignedLegacy, timeout),
+		scenarioPAPUnsignedLegacy:   checker(checkPAPUnsignedLegacy, timeout),
+		scenarioLoginServiceRefused: checker(checkLoginServiceRefused, timeout),
 	}
 }
 
@@ -279,6 +285,14 @@ func serverPeerConfig(root string, source interoplab.ScenarioSource, container s
 }
 
 func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab.PeerConfig {
+	configTarget := zeConfigTarget
+	if source.Name == scenarioLoginServiceRefused {
+		// StoreDir(configPath) derives the persistent store folder from
+		// filepath.Dir(configPath), so placing ze.conf inside the pre-initialized
+		// /var/lib/ze-web-store gives the web HTTPS listener its store for its
+		// self-signed TLS certificate while leaving every other scenario untouched.
+		configTarget = "/var/lib/ze-web-store/ze.conf"
+	}
 	return interoplab.PeerConfig{
 		Name:      zePeer,
 		Container: container,
@@ -287,7 +301,7 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 		// Only the input file is mounted; its writable, container-owned parent
 		// isolates the database tree from the source checkout and other peers.
 		Mounts: []interoplab.Mount{
-			{Source: filepath.Join(source.Directory, "ze.conf"), Target: zeConfigTarget, ReadOnly: true},
+			{Source: filepath.Join(source.Directory, "ze.conf"), Target: configTarget, ReadOnly: true},
 		},
 		Environment: []interoplab.EnvironmentVariable{
 			// ze.log.hub.ssh enables the Info "SSH auth success" line checkers.go
@@ -298,12 +312,13 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 			// logger at WARN.
 			{Name: "ze.log.hub.ssh", Value: radiusLogLevelDebug},
 			{Name: "ze.log.hub.aaa", Value: radiusLogLevelDebug},
+			{Name: "ze.log.aaa", Value: radiusLogLevelDebug},
 			{Name: "ze.log.radius", Value: radiusLogLevelDebug},
 		},
 		// The hostname is what ze sends as NAS-Identifier, so fixing it here
 		// makes the server's record name ze rather than a container id.
 		Arguments: []string{"--hostname", nasIdentifier},
-		Command:   []string{"start", zeConfigTarget},
+		Command:   []string{"start", configTarget},
 		Ready: &interoplab.ReadyProbe{
 			Command:  []string{"sh", "-c", "ss -ltn | grep -q ':" + sshPort + " '"},
 			Timeout:  90 * time.Second,

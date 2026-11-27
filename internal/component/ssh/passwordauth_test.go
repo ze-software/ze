@@ -1,16 +1,23 @@
 package ssh
 
 import (
+	"context"
 	"log/slog"
 	"net"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/config/loginservice"
 	_ "github.com/ze-software/ze/internal/component/tacacs/yang"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // newHashUserServer returns a Server with a single user whose bcrypt hash is
@@ -95,4 +102,101 @@ func TestSSHExecLogMasksQuotedTacacsSharedSecret(t *testing.T) {
 	assert.NotContains(t, output, "middle")
 	assert.NotContains(t, output, "tail-value")
 	assert.Contains(t, output, "192.0.2.1 key <redacted>")
+}
+
+type recordingPasswordAuthenticator struct {
+	request authz.AuthRequest
+}
+
+func (r *recordingPasswordAuthenticator) Authenticate(request authz.AuthRequest) (authz.AuthResult, error) {
+	r.request = request
+	return authz.AuthResult{Authenticated: true, Source: aaa.SourceLocal}, nil
+}
+
+func dialWithPassword(addr, username, password string) error {
+	client, err := gossh.Dial("tcp", addr, &gossh.ClientConfig{
+		User:            username,
+		Auth:            []gossh.AuthMethod{gossh.Password(password)},
+		HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // the test server generates a fresh host key per run
+		Timeout:         5 * time.Second,
+	})
+	if err != nil {
+		return err
+	}
+	return client.Close()
+}
+
+// VALIDATES: AC-19 -- when no AAA bundle is supplied, the SSH server wraps its
+// fallback LocalAuthenticator with aaa.WithProfileAuthorizer so login-service
+// restrictions still gate SSH password logins while local recovery accounts stay
+// admitted.
+// PREVENTS: a daemon with no composed AAA bundle silently bypassing
+// login-service authorization on SSH password login.
+func TestSSHLocalAuthenticatorWithoutBundleIsGated(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secretpass"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	const (
+		setAPIOnly = "api-only"
+		setSSHOk   = "ssh-ok"
+	)
+	aaa.SetAcceptedLoginSets(map[string][]string{
+		setAPIOnly: {"rest"},
+		setSSHOk:   {loginServiceSSH},
+	})
+	t.Cleanup(func() { aaa.SetAcceptedLoginSets(nil) })
+
+	recorder, err := audit.NewMemory(100)
+	require.NoError(t, err)
+
+	srv, err := NewServer(Config{
+		Listen:      "127.0.0.1:0",
+		HostKeyPath: t.TempDir() + "/test_host_key",
+		Users: []authz.UserConfig{
+			{Name: "excluded", Hash: string(hash), Profiles: []string{"admin"}, LoginSet: setAPIOnly},
+			{Name: "allowed", Hash: string(hash), Profiles: []string{"admin"}, LoginSet: setSSHOk},
+			{Name: "recovery", Hash: string(hash), Profiles: []string{aaa.ReservedRecoveryProfile}, LoginSet: setAPIOnly, UserGeneration: 1},
+		},
+		AuditRecorder: recorder,
+	})
+	require.NoError(t, err)
+	require.NoError(t, srv.Start(context.Background(), nil, nil))
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		require.NoError(t, srv.Stop(stopCtx))
+	})
+
+	addr := srv.Address()
+	require.Eventually(t, func() bool {
+		return dialWithPassword(addr, "allowed", "secretpass") == nil
+	}, 5*time.Second, 20*time.Millisecond, "allowed account must authenticate on SSH without an AAA bundle")
+
+	assert.Error(t, dialWithPassword(addr, "excluded", "secretpass"),
+		"AC-19: account whose login set excludes ssh must be refused on the fallback local authenticator")
+	assert.NoError(t, dialWithPassword(addr, "recovery", "secretpass"),
+		"AC-19: local recovery account must stay admitted even when every config set excludes ssh")
+
+	entries := recorder.Query(audit.Filter{Action: audit.ActionAuthFail})
+	require.NotEmpty(t, entries, "AC-19: login-service refusal must record an auth failure audit entry")
+	assert.Equal(t, "excluded", entries[0].Actor)
+	assert.Equal(t, audit.SSH, entries[0].Surface)
+	assert.Equal(t, audit.OutcomeDenied, entries[0].Outcome)
+}
+
+// VALIDATES: AC-18 -- the registered SSH login-service name matches the exact
+// wire value ("ssh") sent in AuthRequest.Service to TACACS+ port and RADIUS
+// NAS-Port-Id.
+// PREVENTS: a registry rename drifting away from the TACACS+/RADIUS wire value.
+func TestRegisteredNamesMatchWireValues(t *testing.T) {
+	assert.Equal(t, "ssh", loginServiceSSH)
+	assert.Equal(t, componentSSH, loginServiceSSH)
+	assert.True(t, loginservice.Registered(loginServiceSSH), "ssh must be registered in loginservice at init")
+	assert.True(t, slices.Contains(loginservice.Names(), "ssh"), "loginservice.Names must include ssh")
+
+	rec := &recordingPasswordAuthenticator{}
+	srv := &Server{logger: slog.Default()}
+	ok, _ := srv.authenticatePasswordResult(rec, "alice", "pass", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 2222})
+	require.True(t, ok)
+	assert.Equal(t, "ssh", rec.request.Service, "SSH password auth must send the registered ssh service name")
 }

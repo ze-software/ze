@@ -101,6 +101,18 @@ Custom validators for YANG leaves that need runtime validation beyond enum/range
 **Validation:** `CheckAllValidatorsRegistered()` panics if any `ze:validate` name has no handler
 **YANG ref:** `ze:validate "name"` on leaf. Pipe-separated for multiple: `"a|b"`.
 
+### Login-Service Name Registry
+
+Every component that offers an operator login registers its service name at `init()`.
+Compiling out a build-tagged surface removes its name from config validation and editor completion with no central list.
+
+**Location:** `internal/component/config/loginservice/registry.go` (stdlib-only leaf)
+**Registration:** `loginservice.MustRegister(loginservice.Entry{Name, Owner, Description})` in `register_login_service.go` `init()`
+**Query:** `loginservice.Names()`, `loginservice.Registered(name)`, `loginservice.Lookup(name)`
+**Validation:** rejects empty name or owner (`ErrInvalidEntry`) and conflicting owner or description (`ErrConflict`). Identical re-registration succeeds idempotently.
+**Consumer:** `LoginServiceValidator` (`internal/component/config/validators.go`, `ze:validate "login-service"`) validates configured values and supplies editor completions. `aaa.CheckLoginSet` verifies that the target service is registered.
+**Registered:** `ssh` (`internal/component/ssh/register_login_service.go`), `web` (`internal/component/web/register_login_service.go`), `rest` (`internal/component/api/rest/register_login_service.go`), `grpc` (`internal/component/api/grpc/register_login_service.go`), `mcp` (`internal/component/mcp/register_login_service.go`)
+
 ### CLI Command Registry (in-process command providers)
 
 Root commands (`ze bgp`, `ze interface`, ...) and offline local handlers
@@ -359,6 +371,7 @@ Plugins define keys by convention (prefix with plugin name).
    - Schemas call yang.RegisterModule()
    - Env vars call env.MustRegister()
    - RPC handlers call pluginserver.RegisterRPCs()
+   - Login surfaces call loginservice.MustRegister()
    - Attr names call attribute.RegisterName()
    - Attr mod handlers call filterapi.RegisterAttrModHandler()
 4. main() continues:
@@ -442,5 +455,6 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |
 | No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
+| No conflicting login-service registrations | `loginservice.Register()` returns `ErrConflict`. `loginservice.MustRegister()` panics with `BUG:` |
 | All blank imports auto-generated | `./le repo update` + `internal/le/plugin/imports/pluginimports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

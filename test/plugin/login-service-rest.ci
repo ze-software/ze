@@ -1,0 +1,57 @@
+# Question: does REST refuse an account whose login-service set allows only
+# grpc (identically to a wrong password, with zero config side effect and
+# ze_aaa_login_service_refused_total{service="rest"} >= 1) while admitting
+# that same account on gRPC and admitting a rest-only account on REST?
+# Why a unit test cannot decide it: REST and gRPC share buildAPIAuthentication
+# on the live hub; only running both listeners on one daemon proves REST passes
+# "rest" and gRPC passes "grpc" into the shared authentication closure.
+#
+# VALIDATES: AC-2, AC-3, AC-17 -- REST refusal, gRPC admission, zero side effects, metric
+# PREVENTS: REST/gRPC sharing one closure without distinguishing their service names
+
+option=timeout:value=45s
+
+tmpfs=rest.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user restonly {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service rest-set
+		}
+		user grpconly {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service grpc-set
+		}
+	}
+	authorization {
+		login-service rest-set { service [ rest ] }
+		login-service grpc-set { service [ grpc ] }
+	}
+}
+environment {
+	api-server {
+		rest {
+			enabled true
+			server main { ip 127.0.0.1; port $PORT; }
+		}
+		grpc {
+			enabled true
+			server main { ip 127.0.0.1; port $PORT2; }
+		}
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+		netdata { enabled false; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start rest.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture plugin/login-service-rest $PORT $PORT2 $PORT3:timeout=35s
+expect=exit:code=0
+expect=stderr:contains=OK: REST refused grpc-only account identically to wrong password
+expect=stderr:contains=OK: REST gate refusal, gRPC admission, zero side effects, and metric verified
+reject=stderr:contains=ZE-OBSERVER-FAIL

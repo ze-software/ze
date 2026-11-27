@@ -56,7 +56,11 @@ func buildMCPService(deps *serviceDeps) (Service, error) {
 		return nil, nil //nolint:nilnil // not-configured is an intentional skip
 	}
 
-	mcpStreamCfg := zemcp.StreamableConfig{Token: m.Token, AuditRecorder: m.Recorder}
+	mcpStreamCfg := zemcp.StreamableConfig{
+		Token:            m.Token,
+		AuditRecorder:    m.Recorder,
+		LoginServiceGate: m.LoginServiceGate,
+	}
 	var tlsCert, tlsKey string
 	if m.ConfigOK {
 		mcpStreamCfg = mcpConfigToStreamable(m.Config, mcpStreamCfg)

@@ -1,0 +1,16 @@
+# Question: when a user references an EMPTY login-service set (zero service
+# entries), is that user refused on SSH, Web, REST, and gRPC while a sibling
+# user with NO login-service reference is admitted on every door?
+# Why a unit test cannot decide it: only running a live daemon proves
+# ExtractLoginServices -> publishAcceptedLocalIdentity -> CheckLoginSet preserves
+# empty sets as deny-all distinct from an absent reference across every door.
+#
+# VALIDATES: AC-11 -- empty login-service set refuses every gated door (distinct from AC-7)
+# PREVENTS: empty login-service set collapsing to absent/unrestricted
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-empty-set $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: empty login-service set refused every door while unrestricted control succeeded everywhere
+reject=stderr:contains=ZE-OBSERVER-FAIL

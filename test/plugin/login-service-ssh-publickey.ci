@@ -1,0 +1,18 @@
+# Question: does a running Ze daemon refuse a configured SSH public key when
+# the account's login-service set excludes ssh while admitting the same key
+# for an account whose set includes ssh (and admitting the excluded account on
+# REST)?
+# Why a unit test cannot decide it: SSH public-key authentication bypasses
+# ChainAuthenticator and calls CheckLoginService directly from the wish
+# PublicKeyAuth callback; only a real SSH handshake against a running daemon
+# proves that callback is wired to the accepted login-service generation.
+#
+# VALIDATES: AC-2 -- SSH public-key authentication honors login-service sets
+# PREVENTS: public-key logins bypassing the password-path login-service gate
+
+option=timeout:value=45s
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-ssh-publickey $PORT $PORT2:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: configured SSH public key refused when ssh is excluded
+expect=stderr:contains=OK: configured SSH public key admitted when ssh is included
+reject=stderr:contains=ZE-OBSERVER-FAIL

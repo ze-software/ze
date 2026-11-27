@@ -1,0 +1,18 @@
+# Question: when a remote TACACS+ backend is configured and unreachable, and a
+# local account whose login-service set excludes web presents its correct
+# password to the web login form, does the login stay terminally refused (HTTP
+# 401, no cookie, logged once) without the web fallback admitting the account,
+# while the same account succeeds on SSH and a web-allowed account succeeds on web?
+# Why a unit test cannot decide it: only a live daemon with both an unreachable
+# remote backend and the hub's web fallback proves liveAAABundleAuthenticator
+# treats CheckLoginService's ErrAuthRejected as terminal for non-recovery accounts.
+#
+# VALIDATES: AC-15, AC-6 -- terminal ErrAuthRejected across AAA chain and web fallback
+# PREVENTS: web fallback re-admitting a non-recovery local account refused by login-service
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-chain-terminal $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: unreachable remote backend fell through to local and web gate refusal stayed terminal
+reject=stderr:contains=ZE-OBSERVER-FAIL

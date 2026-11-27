@@ -1,0 +1,49 @@
+# Question: does `ze cli -c` refuse an account whose login-service set excludes
+# ssh (identically to a wrong password) while answering for an account whose set
+# includes ssh, with the excluded account still succeeding on REST?
+# Why a unit test cannot decide it: `ze cli` runs in its own client process over
+# loopback SSH; only driving the real `ze cli` binary against a running daemon
+# proves the ssh login-service gate governs CLI invocations end to end.
+#
+# VALIDATES: AC-2 -- `ze cli` is gated as service ssh
+# PREVENTS: loopback CLI logins bypassing the ssh login-service gate
+
+option=timeout:value=45s
+
+tmpfs=ze-cli.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user deniedcli {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service rest-only
+		}
+		user allowedcli {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service ssh-only
+		}
+	}
+	authorization {
+		login-service rest-only { service [ rest ] }
+		login-service ssh-only { service [ ssh ] }
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT; }
+	}
+	api-server {
+		rest {
+			enabled true
+			server main { ip 127.0.0.1; port $PORT2; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start ze-cli.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture plugin/login-service-ze-cli $PORT $PORT2:timeout=35s
+expect=exit:code=0
+expect=stderr:contains=OK: ze cli refused excluded account identically to wrong password
+expect=stderr:contains=OK: ze cli admitted included account
+reject=stderr:contains=ZE-OBSERVER-FAIL

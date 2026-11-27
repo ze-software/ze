@@ -30,6 +30,16 @@ On web login, only a successful local result carrying that profile can override
 a central rejection. Ordinary configuration users cannot use the web fallback
 to bypass it; an unavailable backend still permits local authentication.
 
+After a backend authenticates a credential, `resultAuthorizingAuthenticator`
+(`WithProfileAuthorizer`) runs `aaa.CheckLoginService` against the published
+accepted login-service sets. A refusal logs once, increments
+`ze_aaa_login_service_refused_total{service}`, and returns terminal
+`aaa.ErrAuthRejected`. That terminal error stops the chain and stops the web
+fallback from admitting a non-recovery account. Only a local result carrying
+`ReservedRecoveryProfile` bypasses the login-service check.
+<!-- source: internal/component/aaa/login_profiles.go -- resultAuthorizingAuthenticator.Authenticate, CheckLoginService, CheckLoginSet -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator.Authenticate -->
+
 ## A backend that will not BUILD is dropped, and the chain carries on
 
 The section above is about a backend that ANSWERS. This one is about a backend
@@ -71,8 +81,12 @@ corrected config needs a restart.
 `ze doctor` names the risk before any of this happens. `doctor-aaa-no-local-fallback`
 warns when a remote backend is configured and no `system.authentication.user`
 is, because the chain's fallback is an ACCOUNT and that config declares none.
+`doctor-aaa-all-accounts-excluded` warns when every configured account is
+excluded from every login service registered in this build. The warning covers
+local users and remote AAA mappings and names a `set` command to restore access.
 
-<!-- source: internal/component/aaa/doctor.go -- checkAAALocalFallback -->
+<!-- source: internal/component/aaa/doctor.go -- checkAAALocalFallback, checkAAAAllAccountsExcluded -->
+<!-- source: internal/component/aaa/register_doctor_codes.go -- doctorDiagnosticCodes -->
 <!-- source: internal/component/aaa/types.go -- backendRegistry.Build, which drops and composes -->
 <!-- source: cmd/ze/hub/infra_setup.go -- the ssh build condition -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthorizer -->
@@ -85,6 +99,15 @@ A successful PAP reply is followed by a session authorization request carrying
 `tacacs-profile` entries. Authentication reply data never supplies privileges.
 A level with no mapped profiles is denied, including level zero. An absent
 `priv-lvl` uses level one; a mandatory malformed or oversized value denies login.
+
+Each `tacacs-profile` entry can also set an optional `login-service` leafref
+(`ExtractedConfig.PrivLvlLoginSet`). `tacacsAuthenticator.handlePass` copies
+that set name onto `AuthResult.LoginSet` so `aaa.CheckLoginService` enforces
+door restrictions locally after the TACACS+ reply with no wire packet changes.
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs-profile.login-service -->
+<!-- source: internal/component/tacacs/config.go -- ExtractedConfig.PrivLvlLoginSet -->
+<!-- source: internal/component/tacacs/authenticator.go -- tacacsAuthenticator.handlePass -->
+<!-- source: internal/component/aaa/types.go -- AuthResult.LoginSet -->
 
 ## Own the wire code
 

@@ -226,6 +226,19 @@ module ze-tacacs-conf {
                                  named profiles exists in the local policy store.";
                     ze:help "Ze authorization profiles for this privilege level. At least one is required.";
                 }
+
+                leaf login-service {
+                    type leafref {
+                        path "/authz:system/authz:authorization/authz:login-service/authz:name";
+                        require-instance true;
+                    }
+                    description "Optional named login-service set restricting which login doors a TACACS+
+                                 session at this privilege level may use. A commit rejects a name that no
+                                 login-service under system authorization defines, naming the sets that
+                                 exist, and rejects a reserved name. When absent, the session is admitted
+                                 on every login service.";
+                    ze:help "Named login-service set restricting which doors this privilege level may use";
+                }
             }
         }
     }

@@ -272,6 +272,16 @@ Removal governs NEW connections. A session that is already open outlives it unti
 the connection closes, because an operator may be editing their own account. A
 session a TACACS+ or RADIUS backend granted is not revoked by the local user
 list, which never authenticated it.
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
+
+Withdrawing a login door obeys the same rule. Edit a `system authorization login-service`
+set or change an account's `login-service` leaf and reload. Open SSH sessions,
+open gRPC streams, and open web SSE streams survive until the connection closes.
+A web `ze-session` cookie is refused at once with HTTP 401 on the next request.
+This applies to both local sessions and remote sessions that carry a
+`login-service` set.
+The next MCP POST from a named principal whose set excludes `mcp` is refused at
+once with HTTP 401.
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers, publishAcceptedLocalIdentity, checkAcceptedLocalLoginService -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
+<!-- source: internal/component/mcp/streamable.go -- Streamable.authenticate -->

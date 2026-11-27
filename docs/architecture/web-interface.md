@@ -12,6 +12,7 @@ All source files in `internal/component/web/` reference this document via `// De
 |------|---------------|
 | `server.go` | HTTPS server, TLS config, self-signed cert generation, cert persistence |
 | `auth.go` | Session store, auth middleware, login handler, Basic Auth, `GetUsernameFromRequest` |
+| `register_login_service.go` | Registers the `"web"` login-service name in `internal/component/config/loginservice` at `init()` |
 | `handler.go` | URL parsing, content negotiation, route registration |
 | `fragment.go` | HTMX fragment handler, `FragmentData`, `FieldMeta`, sidebar builder |
 | `error_fragment.go` | What a refused request is answered with: `WriteOOBError`, which writes the error fragment for the request's target and then the out-of-band error item. The fragment itself, and the middleware that renders one from the plain-text body `http.Error` writes, are shared: `errorfragment.Render` and `errorfragment.Middleware` (`internal/core/errorfragment`). The middleware converts a 4xx or 5xx answer only when the request carries `HX-Request` and the body is text/plain, so a JSON client, a plain browser navigation and a handler's own markup each reach the client untouched. `ServerHandler` (`auth.go`) is the one place it wraps the mux |
@@ -413,10 +414,22 @@ user is not logged out by it.
 granted (RADIUS, TACACS+) is not checked against the local list, because that
 list never granted it.
 
+Each `webSession` also stores `LoginSet` (copied from `AuthResult.LoginSet`) and
+`IsRecovery` (true only for `SourceLocal` results carrying
+`ReservedRecoveryProfile`). `UserCredential.LoginSet` joins
+`stampLocalIdentityGeneration`, so changing a local user's `login-service` leaf
+advances `UserGeneration` and invalidates the cookie at once. On every request,
+`(*SessionStore).validateToken` re-checks `aaa.CheckLoginSet` for `"web"` unless
+`IsRecovery` is true. This covers both local sessions and remote sessions that carry a `LoginSet`.
+Remote sessions are never checked against the local user list. Editing a
+`login-service` set definition and reloading revokes affected cookies on the
+next request.
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
+<!-- source: internal/component/web/register_login_service.go -- loginServiceWeb -->
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginSet -->
 <!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, liveConfigUsers -->
 
-An SSE stream that is already open survives the removal until the client disconnects: it authenticates at connect and then blocks for the life of the connection, so no later request exists to refuse. Every mutation route is a fresh request and is refused.
+An SSE stream that is already open survives a user removal or a withdrawn `"web"` door until the client disconnects: it authenticates at connect and then blocks for the life of the connection, so no later request exists to refuse. Every mutation route is a fresh request and is refused.
 
 ## Per-User Editor
 

@@ -1,10 +1,15 @@
 package aaa
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // VALIDATES: remote profiles are bound to the authentication result.
@@ -183,6 +188,69 @@ func TestLocalRecoveryAuthenticationRacingPublicationExpires(t *testing.T) {
 	result := <-done
 	assert.NotNil(t, result.Authorizer)
 	assert.False(t, result.Authorizer.Authorize("racing-recovery", "", "show version", true))
+}
+
+// TestWrapperGateIsTerminalInChain verifies that a login-service gate refusal
+// inside WithProfileAuthorizer returns terminal ErrAuthRejected without
+// consulting any later backend in the AAA chain and increments the
+// ze_aaa_login_service_refused_total Prometheus counter for that service.
+//
+// VALIDATES: AC-15 -- after a gate refusal no later backend is called, and the
+// refusal counter increments.
+// PREVENTS: A refused remote or local login falling through to a later backend
+// or silently failing without observability.
+func TestWrapperGateIsTerminalInChain(t *testing.T) {
+	registerTestLoginServices(t, "ssh", "rest")
+	t.Cleanup(func() { SetAcceptedLoginSets(nil) })
+	SetAcceptedLoginSets(map[string][]string{
+		"rest-only": {"rest"},
+	})
+
+	prevMetrics := aaaMetricsPtr.Load()
+	t.Cleanup(func() { aaaMetricsPtr.Store(prevMetrics) })
+	reg := metrics.NewPrometheusRegistry()
+	bindAAAMetrics(reg)
+
+	first := &fakeBackend{
+		result: AuthResult{
+			Authenticated: true,
+			Source:        "tacacs",
+			Profiles:      []string{"operator"},
+			LoginSet:      "rest-only",
+		},
+	}
+	second := &fakeBackend{
+		result: AuthResult{
+			Authenticated: true,
+			Source:        SourceLocal,
+			Profiles:      []string{"admin"},
+		},
+	}
+	probe := &profileBindingProbe{}
+	auth := WithProfileAuthorizer(&ChainAuthenticator{Backends: []Authenticator{first, second}}, probe)
+
+	// Excluded door ("ssh"): first backend authenticates, gate refuses terminally,
+	// second backend is never called, and counter increments for service="ssh".
+	res, err := auth.Authenticate(AuthRequest{Username: "alice", Password: "pw", Service: "ssh"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrAuthRejected)
+	assert.False(t, res.Authenticated)
+	assert.Nil(t, res.Authorizer)
+	assert.True(t, first.called, "first backend must be consulted")
+	assert.False(t, second.called, "later backend must not be called after gate refusal")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
+	reg.Handler().ServeHTTP(rec, req)
+	assert.Contains(t, rec.Body.String(), `ze_aaa_login_service_refused_total{service="ssh"} 1`)
+
+	// Included door ("rest"): same account is admitted with bound authorizer.
+	first.called = false
+	res, err = auth.Authenticate(AuthRequest{Username: "alice", Password: "pw", Service: "rest"})
+	require.NoError(t, err)
+	assert.True(t, res.Authenticated)
+	assert.NotNil(t, res.Authorizer)
+	assert.False(t, second.called)
 }
 
 type profileBindingProbe struct {

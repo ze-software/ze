@@ -1,0 +1,18 @@
+# Question: when a live SIGHUP reload removes web from a login-service set
+# without modifying the user entry itself, does the next HTTP request carrying
+# a pre-reload ze-session cookie receive HTTP 401 while an unaffected account's
+# cookie and the withdrawn account's SSH access keep working?
+# Why a unit test cannot decide it: proving reload propagation from SIGHUP
+# through runReloadContext -> publishAcceptedLocalIdentity -> aaa.SetAcceptedLoginSets
+# -> web SessionStore.validateToken requires a live running daemon and real reload.
+#
+# VALIDATES: AC-13 -- pre-reload web cookie revoked on next request after set edit
+# PREVENTS: open web sessions surviving a login-service set edit until 24h TTL
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-web-cookie-reload $PORT $PORT2:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: pre-reload web session cookies work for both accounts
+expect=stderr:contains=OK: reload revoked withdrawn web cookie immediately while keeping other sessions and SSH alive
+reject=stderr:contains=ZE-OBSERVER-FAIL

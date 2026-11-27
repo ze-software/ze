@@ -13,10 +13,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
@@ -130,6 +132,16 @@ type webSession struct {
 	// open browser cookie, while a reload that changes only other users, or
 	// nothing local at all, leaves the session intact.
 	UserGeneration uint64
+	// LoginSet records the system/authorization/login-service entry name carried
+	// on AuthResult.LoginSet at login. validateToken re-checks it against the
+	// accepted login-service sets on every request so editing a set definition
+	// revokes both local and remote sessions immediately without consulting the
+	// local user list for remote sessions.
+	LoginSet string
+	// IsRecovery reports that the LOCAL backend granted this session with the
+	// reserved recovery profile (SourceLocal + ReservedRecoveryProfile). Only
+	// local recovery sessions bypass the login-service check.
+	IsRecovery bool
 }
 
 // localSessionStatus classifies the live-user check for a locally anchored
@@ -193,7 +205,8 @@ func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStor
 }
 
 // localUserSessionStatus reports whether the live local user list still
-// declares username at the per-user generation that granted the session.
+// declares username at the per-user generation that granted the session, and
+// returns the live user's current LoginSet name when valid.
 //
 // An unreadable list is an ERROR, never a "no". The two are indistinguishable
 // to a caller that gets a bare false, and only one of them may keep a session
@@ -207,13 +220,13 @@ func NewSessionStore(localUsers func() ([]authz.UserConfig, error)) *SessionStor
 // governs, so the cost is accepted and NOT cached: a cache is the snapshot the
 // per-request re-check exists to delete. Measure first if that ever changes,
 // and any cache needs the reload to invalidate it.
-func (s *SessionStore) localUserSessionStatus(username string, generation uint64) (localSessionStatus, error) {
+func (s *SessionStore) localUserSessionStatus(username string, generation uint64) (localSessionStatus, string, error) {
 	if s.localUsers == nil {
-		return localSessionUnspecified, errNoLocalUserSource
+		return localSessionUnspecified, "", errNoLocalUserSource
 	}
 	users, err := s.localUsers()
 	if err != nil {
-		return localSessionUnspecified, fmt.Errorf("reading the live local user list: %w", err)
+		return localSessionUnspecified, "", fmt.Errorf("reading the live local user list: %w", err)
 	}
 	foundUser := false
 	for _, u := range users {
@@ -222,13 +235,13 @@ func (s *SessionStore) localUserSessionStatus(username string, generation uint64
 		}
 		foundUser = true
 		if u.UserGeneration == generation {
-			return localSessionValid, nil
+			return localSessionValid, u.LoginSet, nil
 		}
 	}
 	if foundUser {
-		return localSessionGenerationChanged, nil
+		return localSessionGenerationChanged, "", nil
 	}
-	return localSessionUserRemoved, nil
+	return localSessionUserRemoved, "", nil
 }
 
 // createSession generates a new session for the given username from the result
@@ -259,6 +272,7 @@ func (s *SessionStore) createSession(username string, result authz.AuthResult) (
 		logger.Debug("invalidated previous session", "username", username)
 	}
 
+	isRecovery := result.Source == aaa.SourceLocal && slices.Contains(result.Profiles, aaa.ReservedRecoveryProfile)
 	session := &webSession{
 		Username:       username,
 		Token:          token,
@@ -267,6 +281,8 @@ func (s *SessionStore) createSession(username string, result authz.AuthResult) (
 		Authorizer:     result.Authorizer,
 		LocalAnchored:  result.GrantedByLocalBackend(),
 		UserGeneration: result.UserGeneration,
+		LoginSet:       result.LoginSet,
+		IsRecovery:     isRecovery,
 	}
 	s.sessions[token] = session
 	s.users[username] = token
@@ -305,10 +321,20 @@ func (s *SessionStore) validateToken(token string) *webSession {
 	}
 
 	if !session.LocalAnchored {
+		if session.LoginSet == "" {
+			return session
+		}
+		// refuse-by-default: guards AuthMiddlewareWithAudit -- nil session revokes the cookie and answers HTTP 401.
+		if err := aaa.CheckLoginSet(session.Username, session.LoginSet, loginServiceWeb); err != nil {
+			logger.Info("session refused: login service no longer permits web",
+				"username", session.Username, "login_set", session.LoginSet)
+			s.invalidateSession(session)
+			return nil
+		}
 		return session
 	}
 
-	status, err := s.localUserSessionStatus(session.Username, session.UserGeneration)
+	status, liveLoginSet, err := s.localUserSessionStatus(session.Username, session.UserGeneration)
 	if err != nil {
 		// Deny rather than serve: a session granted by the local user list
 		// cannot be renewed against a list that cannot be read.
@@ -319,6 +345,19 @@ func (s *SessionStore) validateToken(token string) *webSession {
 	}
 	switch status {
 	case localSessionValid:
+		if session.IsRecovery {
+			return session
+		}
+		if liveLoginSet == "" {
+			return session
+		}
+		// refuse-by-default: guards AuthMiddlewareWithAudit -- nil session revokes the cookie and answers HTTP 401.
+		if checkErr := aaa.CheckLoginSet(session.Username, liveLoginSet, loginServiceWeb); checkErr != nil {
+			logger.Info("session refused: login service no longer permits web",
+				"username", session.Username, "login_set", liveLoginSet)
+			s.invalidateSession(session)
+			return nil
+		}
 		return session
 	case localSessionUserRemoved:
 		logger.Info("session refused: the running configuration no longer declares this user",
@@ -398,7 +437,7 @@ func AuthMiddlewareWithAudit(store *SessionStore, authenticator authz.Authentica
 				Username:   username,
 				Password:   password,
 				RemoteAddr: r.RemoteAddr,
-				Service:    authServiceWeb,
+				Service:    loginServiceWeb,
 			}); err == nil && result.Authenticated {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
@@ -450,7 +489,7 @@ func LoginHandlerWithAudit(store *SessionStore, authenticator authz.Authenticato
 			Username:   username,
 			Password:   password,
 			RemoteAddr: r.RemoteAddr,
-			Service:    authServiceWeb,
+			Service:    loginServiceWeb,
 		})
 		if err != nil || !result.Authenticated {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)

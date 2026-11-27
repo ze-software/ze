@@ -934,12 +934,13 @@ func runReloadContext(ctx context.Context, source reloadSource, s *pluginserver.
 			candidateAPITokenValue = candidateAPIToken(
 				candidateAPI.Token, apiBlockPresent, accepted.apiToken, env.Get("ze.api-server.token"))
 		}
+		candidateLoginSets := infra.ExtractLoginServices(systemMapForLoginSets(cp, newTree))
 		candidateIdentity = newAcceptedLocalIdentity(
 			candidateUsers,
 			candidateStore,
 			accepted.resolveCandidateUsers,
 			candidateAPITokenValue,
-		)
+		).withLoginSets(candidateLoginSets)
 	}
 
 	// Rebuild the AAA chain from the reloaded tree. The local backend already
@@ -1171,6 +1172,19 @@ func aaaAuthenticationChanged(prior map[string]map[string]any, next map[string]a
 func aaaAuthenticationSubtree(root map[string]any) any {
 	system, _ := root["system"].(map[string]any)
 	return system["authentication"]
+}
+
+// systemMapForLoginSets returns the active `system` subtree map used to extract
+// login-service sets, reading from the ConfigProvider when available and
+// falling back to the active view of the lowered config tree otherwise.
+func systemMapForLoginSets(cp *zeconfig.Provider, loadedTree map[string]any) map[string]any {
+	if cp != nil {
+		sysMap, _ := cp.Root("system")
+		return sysMap
+	}
+	active := zeconfig.ActiveConfigMap(loadedTree)
+	sysMap, _ := active["system"].(map[string]any)
+	return sysMap
 }
 
 func stageSIGHUPCandidate(store storage.Storage, configPath string) error {

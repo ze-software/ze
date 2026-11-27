@@ -277,7 +277,7 @@ func TestTacacsClientCloseErrorsPreserveResultAndChain(t *testing.T) {
 	deadPooled2 := &closeErrConn{Conn: deadLocal2, closeErr: closeFailure}
 	chainClient.storeConn(unreachable, deadPooled2)
 
-	auth := newTacacsAuthenticator(chainClient, map[int][]string{15: {"admin"}}, warnLogger)
+	auth := newTacacsAuthenticator(chainClient, map[int][]string{15: {"admin"}}, nil, warnLogger)
 	res, authErr := auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "secret", Service: "ssh"})
 	require.Error(t, authErr)
 	assert.NotErrorIs(t, authErr, aaa.ErrAuthRejected, "close/eviction errors must not stop the AAA chain")

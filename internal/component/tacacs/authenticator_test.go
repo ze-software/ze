@@ -1,7 +1,9 @@
 package tacacs
 
 import (
+	"context"
 	"encoding/binary"
+	"net"
 	"strconv"
 	"testing"
 	"time"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // profileReplies separates PAP authentication from the shell privilege policy.
@@ -62,7 +65,7 @@ func TestTacacsAuthenticatorPass(t *testing.T) {
 		1:  {"read-only"},
 	}
 
-	auth := newTacacsAuthenticator(client, privMap, nil)
+	auth := newTacacsAuthenticator(client, privMap, nil, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "secret"})
 
 	require.NoError(t, err)
@@ -88,7 +91,7 @@ func TestTacacsAuthenticatorPrivLvl1(t *testing.T) {
 		1:  {"read-only"},
 	}
 
-	auth := newTacacsAuthenticator(client, privMap, nil)
+	auth := newTacacsAuthenticator(client, privMap, nil, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 	require.NoError(t, err)
@@ -108,7 +111,7 @@ func TestTacacsAuthenticatorFail(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 
-	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "wrong"})
 
 	assert.ErrorIs(t, err, authz.ErrAuthRejected)
@@ -134,7 +137,7 @@ func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 		// 5 intentionally missing
 	}
 
-	auth := newTacacsAuthenticator(client, privMap, nil)
+	auth := newTacacsAuthenticator(client, privMap, nil, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 	assert.ErrorIs(t, err, authz.ErrAuthRejected)
@@ -186,7 +189,7 @@ func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
 				Timeout: 2 * time.Second,
 			})
 
-			auth := newTacacsAuthenticator(client, privMap, nil)
+			auth := newTacacsAuthenticator(client, privMap, nil, nil)
 			result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 			if tt.wantProfiles != nil {
@@ -228,7 +231,7 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
 		Timeout: 2 * time.Second,
 	})
-	res, err := newTacacsAuthenticator(client, privMap, nil).
+	res, err := newTacacsAuthenticator(client, privMap, nil, nil).
 		Authenticate(authz.AuthRequest{Username: "u", Password: "p"})
 	assert.ErrorIs(t, err, authz.ErrAuthRejected, "reserved-only priv-lvl must be rejected")
 	assert.False(t, res.Authenticated)
@@ -241,7 +244,7 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 		Servers: []TacacsServer{{Address: srv2.addr(), Key: key}},
 		Timeout: 2 * time.Second,
 	})
-	res2, err2 := newTacacsAuthenticator(client2, privMap, nil).
+	res2, err2 := newTacacsAuthenticator(client2, privMap, nil, nil).
 		Authenticate(authz.AuthRequest{Username: "u2", Password: "p"})
 	require.NoError(t, err2)
 	assert.True(t, res2.Authenticated)
@@ -270,7 +273,7 @@ func TestTacacsAuthenticatorErrorStatus(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 
-	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil, nil)
 	_, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "pass"})
 
 	// ERROR should be a non-ErrAuthRejected error (chain tries next backend).
@@ -286,7 +289,7 @@ func TestTacacsAuthenticatorConnectionFailure(t *testing.T) {
 		Timeout: 200 * time.Millisecond,
 	})
 
-	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil, nil)
 	_, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "pass"})
 
 	// Connection failure should be a non-ErrAuthRejected error.
@@ -314,7 +317,7 @@ func TestTacacsAuthenticatorUsesRemoteAddr(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 
-	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil, nil)
 	result, err := auth.Authenticate(authz.AuthRequest{
 		Username:   "admin",
 		Password:   "secret",
@@ -366,7 +369,7 @@ func TestTacacsAuthenticatorReportsTheAccessChannel(t *testing.T) {
 				Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
 				Timeout: 2 * time.Second,
 			})
-			auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+			auth := newTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil, nil)
 			result, err := auth.Authenticate(authz.AuthRequest{
 				Username: "admin",
 				Password: "secret",
@@ -379,4 +382,89 @@ func TestTacacsAuthenticatorReportsTheAccessChannel(t *testing.T) {
 			assert.Equal(t, tc.port, authorPort, "session authorization port")
 		})
 	}
+}
+
+// TestTacacsProfileCarriesLoginSet verifies that system/authentication/tacacs-profile
+// carries its optional login-service leaf through ExtractConfig and tacacsBackend.Build
+// onto AuthResult.LoginSet, and leaves AuthResult.LoginSet empty when absent.
+//
+// VALIDATES: AC-12 (OD-1 option d) -- tacacs-profile[*].login-service reaches
+// AuthResult.LoginSet.
+// PREVENTS: Extracted login-service mappings being dropped before handlePass.
+func TestTacacsProfileCarriesLoginSet(t *testing.T) {
+	key := []byte("test-key")
+
+	buildTree := func(addr string) *config.Tree {
+		host, port, err := net.SplitHostPort(addr)
+		require.NoError(t, err)
+
+		tree := config.NewTree()
+		auth := tree.GetOrCreateContainer("system").GetOrCreateContainer("authentication")
+
+		srvTree := config.NewTree()
+		srvTree.Set("key", string(key))
+		srvTree.Set("port", port)
+		auth.GetOrCreateContainer("tacacs").AddListEntry("server", host, srvTree)
+
+		p15 := config.NewTree()
+		p15.SetSlice("profile", []string{"admin"})
+		p15.Set("login-service", "ssh-only")
+		auth.AddListEntry("tacacs-profile", "15", p15)
+
+		p1 := config.NewTree()
+		p1.SetSlice("profile", []string{"read-only"})
+		auth.AddListEntry("tacacs-profile", "1", p1)
+
+		return tree
+	}
+
+	t.Run("configured login-service reaches AuthResult.LoginSet", func(t *testing.T) {
+		srv := newProfileServer(t, key, profileReplies(15))
+		tree := buildTree(srv.addr())
+
+		cfg := ExtractConfig(tree)
+		assert.Equal(t, "ssh-only", cfg.PrivLvlLoginSet[15])
+		assert.Empty(t, cfg.PrivLvlLoginSet[1])
+
+		contrib, err := tacacsBackend{}.Build(aaa.BuildParams{
+			Ctx:        context.Background(),
+			ConfigTree: tree,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, contrib.Authenticator)
+		t.Cleanup(func() { _ = contrib.Close() })
+
+		res, err := contrib.Authenticator.Authenticate(aaa.AuthRequest{
+			Username: "alice",
+			Password: "secret",
+			Service:  "ssh",
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Authenticated)
+		assert.Equal(t, []string{"admin"}, res.Profiles)
+		assert.Equal(t, "ssh-only", res.LoginSet)
+	})
+
+	t.Run("absent login-service leaves AuthResult.LoginSet empty", func(t *testing.T) {
+		srv := newProfileServer(t, key, profileReplies(1))
+		tree := buildTree(srv.addr())
+
+		contrib, err := tacacsBackend{}.Build(aaa.BuildParams{
+			Ctx:        context.Background(),
+			ConfigTree: tree,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, contrib.Authenticator)
+		t.Cleanup(func() { _ = contrib.Close() })
+
+		res, err := contrib.Authenticator.Authenticate(aaa.AuthRequest{
+			Username: "bob",
+			Password: "secret",
+			Service:  "web",
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Authenticated)
+		assert.Equal(t, []string{"read-only"}, res.Profiles)
+		assert.Empty(t, res.LoginSet)
+	})
 }

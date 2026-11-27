@@ -51,13 +51,14 @@ func (s TacacsServer) LogValue() slog.Value {
 
 // ExtractedConfig holds TACACS+ configuration extracted from the config tree.
 type ExtractedConfig struct {
-	Servers        []TacacsServer
-	Timeout        time.Duration
-	SourceAddress  string
-	Authorization  bool
-	StrictFallback bool
-	Accounting     bool
-	PrivLvlMap     map[int][]string // priv-lvl -> ze profile names
+	Servers         []TacacsServer
+	Timeout         time.Duration
+	SourceAddress   string
+	Authorization   bool
+	StrictFallback  bool
+	Accounting      bool
+	PrivLvlMap      map[int][]string // priv-lvl -> ze profile names
+	PrivLvlLoginSet map[int]string   // priv-lvl -> login-service set name
 }
 
 // HasServers returns true if at least one TACACS+ server is configured.
@@ -130,12 +131,18 @@ func ExtractConfig(tree *config.Tree) ExtractedConfig {
 		}
 	}
 
-	// Privilege level to profile mapping.
+	// Privilege level to profile and login-service mapping.
 	if profiles := auth.GetList("tacacs-profile"); len(profiles) > 0 {
 		cfg.PrivLvlMap = make(map[int][]string, len(profiles))
 		for levelStr, entry := range profiles {
 			if lvl, err := strconv.Atoi(levelStr); err == nil {
 				cfg.PrivLvlMap[lvl] = entry.GetSlice("profile")
+				if ls, ok := entry.Get("login-service"); ok && ls != "" {
+					if cfg.PrivLvlLoginSet == nil {
+						cfg.PrivLvlLoginSet = make(map[int]string)
+					}
+					cfg.PrivLvlLoginSet[lvl] = ls
+				}
 			}
 		}
 	}

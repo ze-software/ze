@@ -1,0 +1,20 @@
+# Question: does a running daemon's MCP Streamable HTTP endpoint refuse a named
+# bearer-list principal with HTTP 401 Bearer error="invalid_token" and zero tool
+# execution when mcp is excluded from its login-service set, admit the next POST
+# immediately after a SIGHUP reload adds mcp without restart, and leave
+# anonymous shared bearer mode unaffected?
+# Why a unit test cannot decide it: unit tests pass a stub LoginServiceGate;
+# only a live daemon proves cmd/ze/hub wires checkAcceptedLocalLoginService
+# through service_registry -> service_mcp -> Streamable.authenticate and updates
+# live across SIGHUP reload.
+#
+# VALIDATES: AC-20 (OD-4 option b) -- MCP named-principal gate, live reload, anonymous bearer survivor
+# PREVENTS: hub omitting LoginServiceGate wiring on ze_mcp or breaking anonymous bearer mode
+
+option=timeout:value=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-mcp $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: MCP refused excluded named bearer-list principal identically to invalid token
+expect=stderr:contains=OK: reload admitted alice on MCP without restart
+expect=stderr:contains=OK: anonymous MCP bearer mode unaffected by login-service sets
+reject=stderr:contains=ZE-OBSERVER-FAIL

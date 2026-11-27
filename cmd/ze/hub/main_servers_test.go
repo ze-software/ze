@@ -285,14 +285,14 @@ func TestAPIAcceptedAuthenticationFollowsIdentityPublication(t *testing.T) {
 	boot := []authz.UserConfig{{Name: "alice", Hash: string(hash)}}
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(boot, nil, nil, ""))
 
-	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer alice:testpass")
+	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer alice:testpass", "rest")
 	require.True(t, ok)
 	assert.Equal(t, "alice", caller.Username)
 
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, nil, nil, "next-token"))
-	_, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer alice:testpass")
+	_, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer alice:testpass", "rest")
 	assert.False(t, ok, "a user absent from the next accepted generation must lose API access")
-	caller, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer next-token")
+	caller, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer next-token", "rest")
 	require.True(t, ok)
 	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
 }
@@ -305,7 +305,7 @@ func TestBuildAPIAuthenticationUsesImmutableUserList(t *testing.T) {
 		"",
 		nil,
 	)
-	caller, ok := authentication.Authenticate("Bearer alice:testpass")
+	caller, ok := authentication.Authenticate("Bearer alice:testpass", "rest")
 	require.True(t, ok)
 	assert.Equal(t, "alice", caller.Username)
 }

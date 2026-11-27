@@ -51,7 +51,7 @@ func newStatusAuthenticator(t *testing.T, replyFn func(PacketHeader, []byte) []b
 		Timeout: 5 * time.Second,
 	})
 	t.Cleanup(client.Close)
-	return newTacacsAuthenticator(client, privLvlMap, nil)
+	return newTacacsAuthenticator(client, privLvlMap, nil, nil)
 }
 
 var aliceRequest = aaa.AuthRequest{Username: "alice", Password: "hunter2", RemoteAddr: "192.0.2.1"}

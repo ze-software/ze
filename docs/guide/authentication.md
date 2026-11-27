@@ -333,6 +333,63 @@ only test. A connection already open outlives the removal until it closes.
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
 
+## Login-service authorization
+
+A `login-service` set under `system authorization` limits which doors an account can authenticate through. Ze checks this set at authentication, before command authorization runs. When a set excludes the door, authentication fails with the same response as a wrong credential.
+
+| Surface | Service name | Applies to |
+|---------|--------------|------------|
+| SSH password and public key | `ssh` | Local users, TACACS+, and RADIUS |
+| `ze cli` | `ssh` | Loopback SSH login (`ze cli` is an SSH login, so excluding `ssh` closes `ze cli`) |
+| Web login form, HTTP Basic Auth, and session cookie | `web` | Local users, TACACS+, and RADIUS |
+| REST per-user credentials | `rest` | Local users (shared-token and loopback no-auth modes carry no account) |
+| gRPC per-user credentials | `grpc` | Local users (shared-token and loopback no-auth modes carry no account) |
+| MCP named principals (`bearer-list`, `oauth`) | `mcp` | Principals matching a `system authentication user` record (`none` and single `bearer` stay anonymous) |
+
+Each surface registers its own name at startup. A build that compiles out a surface drops that name from config validation and editor completion.
+<!-- source: internal/component/config/loginservice/registry.go -- MustRegister, Names, Registered -->
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginService, CheckLoginSet -->
+
+Omitting `login-service` on a user, `tacacs-profile`, or `radius` block admits that account on every door. Referencing a `login-service` set with no `service` entries denies every checked door.
+
+```
+system {
+    authorization {
+        login-service api-only {
+            service [ rest grpc ]
+        }
+        login-service disabled {
+        }
+    }
+    authentication {
+        user monitor {
+            password "$2a$10$..."
+            profile [ read-only ]
+            login-service api-only
+        }
+    }
+}
+```
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authorization.login-service, system.authentication.user.login-service -->
+<!-- source: internal/component/config/infra/authz.go -- ExtractAuthUsers, ExtractLoginServices -->
+
+Remote accounts follow the same check without local shadow users. Set `login-service` on `system authentication tacacs-profile <level>` for TACACS+ or on `system authentication radius` for RADIUS. A refusal is terminal (`ErrAuthRejected`) and never falls through to the next backend or the web fallback.
+<!-- source: internal/component/tacacs/authenticator.go -- tacacsAuthenticator.handlePass -->
+<!-- source: internal/component/radius/authenticator.go -- radiusAuthenticator.result -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator.Authenticate -->
+
+The stored recovery account stays exempt from `login-service` checks while no config user takes its name. If a config user uses the recovery username, Ze treats it as an ordinary account and enforces its `login-service` set. The appliance serial console reads no config and stays open for recovery.
+<!-- source: internal/component/aaa/login_profiles.go -- CheckLoginService -->
+<!-- source: cmd/ze/hub/main_servers.go -- mergeAuthUsers, usersFromStore -->
+
+Editing a `login-service` set or changing an account's `login-service` reference takes effect on reload with no restart. Open SSH sessions, open gRPC streams, and open web SSE streams survive until the connection closes. A web `ze-session` cookie is refused on the next request, and the next MCP POST is refused at once.
+<!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
+<!-- source: internal/component/mcp/streamable.go -- Streamable.authenticate -->
+
+`ze doctor` reports `doctor-aaa-all-accounts-excluded` when every configured account is excluded from every registered door. Each refused attempt logs the account, service, and reason and increments `ze_aaa_login_service_refused_total{service}`.
+<!-- source: internal/component/aaa/doctor.go -- checkAAAAllAccountsExcluded -->
+<!-- source: internal/component/aaa/login_profiles.go -- refuseLoginService, bindAAAMetrics -->
+
 ## Logging in as a YANG user
 
 Any `ze` CLI tool accepts a `--user`/`-u` flag to override the zefs
@@ -707,5 +764,7 @@ and continues.
 | Validator | `internal/component/cli/validator.go` |
 | SSH server password handler | `internal/component/ssh/ssh.go` |
 | Local authenticator | `internal/component/authz/auth.go` |
+| Login-service registry | `internal/component/config/loginservice/registry.go` |
+| Login-service gate and refusal counter | `internal/component/aaa/login_profiles.go` |
 | Client credential resolver | `internal/component/cli/sshclient/client.go` |
 | `ze passwd` | `internal/plugins/passwd/main.go` |

@@ -1,0 +1,19 @@
+# Question: on a daemon where every configured user's login-service set is empty
+# (excluding every door) and command authorization denies everything by default,
+# does the stored ZeFS recovery user still authenticate and execute commands on
+# SSH, ze cli, Web (Basic + form), REST, and gRPC while the config account is
+# refused everywhere?
+# Why a unit test cannot decide it: only seeding a real ZeFS store with `ze init`
+# and booting a live daemon proves usersFromStore -> mergeAuthUsers ->
+# ReservedRecoveryProfile exempts the recovery identity across all four live listeners.
+#
+# VALIDATES: AC-8 (OD-2 option a) -- unshadowed stored recovery user survives full lockout
+# PREVENTS: login-service restrictions locking out the break-glass stored recovery user
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-recovery-user $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: ordinary config account refused on SSH, Web, REST, and gRPC
+expect=stderr:contains=OK: stored recovery user authenticated on SSH, ze cli, Web, REST, and gRPC
+reject=stderr:contains=ZE-OBSERVER-FAIL

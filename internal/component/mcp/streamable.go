@@ -87,6 +87,9 @@ type StreamableConfig struct {
 	Tasks TaskRegistryConfig
 	// AuditRecorder records failed authentication attempts when set.
 	AuditRecorder audit.Recorder
+	// LoginServiceGate, when set, checks whether an authenticated non-anonymous
+	// principal may use the named login service ("mcp") before dispatch.
+	LoginServiceGate func(username, service string) error
 }
 
 // BearerListEntry is one row of the AuthMode=BearerList identity table.
@@ -124,12 +127,13 @@ type OAuthConfig struct {
 // the caller MUST call Close before process exit, so the task-GC goroutine
 // stops.
 type Streamable struct {
-	cfg       StreamableConfig
-	tasks     *taskRegistry
-	maxBody   int64
-	originSet map[string]struct{}
-	auth      authenticator
-	authMode  AuthMode
+	cfg              StreamableConfig
+	tasks            *taskRegistry
+	maxBody          int64
+	originSet        map[string]struct{}
+	auth             authenticator
+	authMode         AuthMode
+	loginServiceGate func(username, service string) error
 	// oauthIssuer is the AS-reported issuer, populated after a successful
 	// buildAuthForMode run. Used by the RFC 9728 metadata handler so the
 	// advertised authorization_servers[0] matches the value the token
@@ -180,15 +184,16 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 		})
 	}
 	return &Streamable{
-		cfg:             cfg,
-		tasks:           newTaskRegistry(cfg.Tasks),
-		maxBody:         maxB,
-		originSet:       originSet,
-		auth:            authRes.auth,
-		authMode:        mode,
-		oauthIssuer:     authRes.issuer,
-		metadataPath:    resourceMetadataPath(cfg.OAuth),
-		cachedResources: resources,
+		cfg:              cfg,
+		tasks:            newTaskRegistry(cfg.Tasks),
+		maxBody:          maxB,
+		originSet:        originSet,
+		auth:             authRes.auth,
+		authMode:         mode,
+		loginServiceGate: cfg.LoginServiceGate,
+		oauthIssuer:      authRes.issuer,
+		metadataPath:     resourceMetadataPath(cfg.OAuth),
+		cachedResources:  resources,
 	}, nil
 }
 
@@ -404,7 +409,43 @@ func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 			ErrorDescription: "authentication unavailable",
 		}
 	}
-	return s.auth.Authenticate(r)
+	identity, aerr := s.auth.Authenticate(r)
+	if aerr != nil {
+		return Identity{}, aerr
+	}
+	if identity.Name == "" {
+		return identity, nil
+	}
+	if s.loginServiceGate == nil {
+		return identity, nil
+	}
+	if err := s.loginServiceGate(identity.Name, loginServiceMCP); err != nil {
+		return Identity{}, s.loginServiceAuthError()
+	}
+	return identity, nil
+}
+
+// loginServiceAuthError builds the HTTP 401 Bearer invalid_token challenge for
+// a login-service gate refusal, matching the mode's invalid-token challenge so
+// a refused named principal is indistinguishable from a wrong credential.
+func (s *Streamable) loginServiceAuthError() *authError {
+	if s.authMode == AuthOAuth {
+		return &authError{
+			Status:           http.StatusUnauthorized,
+			Scheme:           authSchemeBearer,
+			Realm:            mcpRealm,
+			ErrorCode:        errorCodeInvalidToken,
+			ErrorDescription: "token rejected",
+			ResourceMetadata: resourceMetadataURL(s.cfg.OAuth),
+		}
+	}
+	return &authError{
+		Status:           http.StatusUnauthorized,
+		Scheme:           authSchemeBearer,
+		Realm:            mcpRealm,
+		ErrorCode:        errorCodeInvalidToken,
+		ErrorDescription: "bearer token does not match any identity",
+	}
 }
 
 // handlePOST processes a client-initiated JSON-RPC message.

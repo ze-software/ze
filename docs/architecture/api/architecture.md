@@ -785,10 +785,22 @@ candidate generation. The builder wraps that generation's fixed users with
 authorization view in `AuthResult.Authorizer`, beside the authenticated
 username. REST and gRPC obtain the accepted `api.Authentication` snapshot once
 for each request.
-<!-- source: cmd/ze/hub/aaa_lifecycle.go -- newAcceptedLocalIdentity, liveAcceptedAPIAuthentication -->
+
+`acceptedLocalIdentityState` also carries `loginSets` extracted from
+`system.authorization.login-service` and publishes them atomically through
+`aaa.SetAcceptedLoginSets` in `publishAcceptedLocalIdentity`.
+`api.Authentication.Authenticate(authHeader, service string)` takes the calling
+transport's registered service name (`"rest"` from `RESTServer.withAuth` or
+`"grpc"` from `GRPCServer.checkAuth`) and passes it into `AuthRequest.Service`.
+`WithProfileAuthorizer` then runs `aaa.CheckLoginService` against the accepted
+login sets before it returns an identity. Shared-token and loopback no-auth modes
+carry no user account and bypass the login-service check.
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- newAcceptedLocalIdentity, publishAcceptedLocalIdentity, liveAcceptedAPIAuthentication -->
 <!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
 <!-- source: internal/component/api/types.go -- Authentication, AuthenticationProvider -->
-<!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult -->
+<!-- source: internal/component/api/rest/register_login_service.go -- loginServiceREST -->
+<!-- source: internal/component/api/grpc/register_login_service.go -- loginServiceGRPC -->
+<!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult, CheckLoginService, SetAcceptedLoginSets -->
 
 REST and gRPC use the same authentication precedence and authorization
 identities:

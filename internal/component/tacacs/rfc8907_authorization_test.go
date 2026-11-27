@@ -163,7 +163,7 @@ func sessionPolicyAuthenticator(t *testing.T, status uint8, args []string, data 
 	t.Cleanup(client.Close)
 	return newTacacsAuthenticator(client, map[int][]string{
 		0: {"guest"}, 1: {"ops"}, 15: {"admin"}, 16: {"invalid-admin"},
-	}, nil)
+	}, nil, nil)
 }
 
 // RFC requirement: RFC8907-8.1-1 positive — a two-digit decimal privilege within the supported range is handled by session authorization and maps to the configured profile.
@@ -255,7 +255,7 @@ func TestTacacsInvalidRequestCannotFallBack(t *testing.T) {
 		Timeout: 2 * time.Second,
 	})
 	t.Cleanup(client.Close)
-	auth := newTacacsAuthenticator(client, map[int][]string{1: {"admin"}}, nil)
+	auth := newTacacsAuthenticator(client, map[int][]string{1: {"admin"}}, nil, nil)
 	result, err := auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "bad\npassword"})
 	if !errors.Is(err, aaa.ErrAuthRejected) || result.Authenticated {
 		t.Fatalf("invalid PAP request did not reject: result=%+v err=%v", result, err)

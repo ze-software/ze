@@ -354,7 +354,7 @@ func TestRunReloadEnvEnabledGRPCKeepsDormantAPISettings(t *testing.T) {
 
 	require.NoError(t, runReload(srv, cp, load, lm))
 	assert.Empty(t, grpc.calls, "an unchanged env-started listener must not be rebound")
-	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer api-s3cret")
+	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer api-s3cret", "grpc")
 	require.True(t, ok, "the dormant block token must remain the live credential")
 	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
 }

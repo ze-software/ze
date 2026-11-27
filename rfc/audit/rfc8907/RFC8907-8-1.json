@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument": "d6e03486f174ca78",
     "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "d6e03486f174ca78",
-    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument": "fb302ebfa0d9b135",
-    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments": "fb302ebfa0d9b135"
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument": "4c7f3ec6186f786b",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments": "4c7f3ec6186f786b"
   },
   "units": {
     "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument": "97416f9111420695",

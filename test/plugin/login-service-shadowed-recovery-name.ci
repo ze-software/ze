@@ -1,0 +1,17 @@
+# Question: when a config user takes the same username as the stored ZeFS
+# recovery user and references a login-service set allowing only rest, is that
+# shadowing config user gated as an ordinary account (refused on SSH and Web,
+# admitted on REST) while the shadowed stored password stops working everywhere?
+# Why a unit test cannot decide it: only seeding a real ZeFS store and running
+# mergeAuthUsers in a live daemon proves the recovery exemption follows the
+# credential source (ReservedRecoveryProfile), never the username string.
+#
+# VALIDATES: AC-14 (OD-2 option a) -- config user shadowing recovery username is gated normally
+# PREVENTS: granting login-service exemption by username instead of ReservedRecoveryProfile
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-shadowed-recovery-name $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: shadowing config user gated as ordinary account on SSH/Web and admitted on REST
+reject=stderr:contains=ZE-OBSERVER-FAIL

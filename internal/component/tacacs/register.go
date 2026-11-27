@@ -86,7 +86,7 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 	}
 
 	contrib := aaa.Contribution{
-		Authenticator: newTacacsAuthenticator(client, privMap, params.Logger),
+		Authenticator: newTacacsAuthenticator(client, privMap, cfg.PrivLvlLoginSet, params.Logger),
 	}
 
 	if cfg.Authorization {

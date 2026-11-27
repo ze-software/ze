@@ -32,29 +32,30 @@ func (s *Server) authenticatePublicKeyResult(username string, presented ssh.Publ
 		s.recordAuthFailure(username, remote)
 		return aaa.AuthResult{}
 	}
-	profiles, matched := matchPublicKey(users, username, presented)
+	user, matched := matchPublicKeyUser(users, username, presented)
 	if !matched {
 		s.logger.Warn("SSH auth failure", "username", username, "remote", remote, "source", "public-key")
 		s.recordAuthFailure(username, remote)
 		return aaa.AuthResult{}
 	}
-	var userGeneration uint64
-	for _, user := range users {
-		if user.Name == username {
-			userGeneration = user.UserGeneration
-			break
-		}
+	result := aaa.AuthResult{
+		Authenticated:  true,
+		Source:         aaa.SourceLocal,
+		Profiles:       user.Profiles,
+		LoginSet:       user.LoginSet,
+		UserGeneration: user.UserGeneration,
+	}
+	// refuse-by-default: guards Server.Start -- zero AuthResult (Authenticated=false) refuses the SSH public-key login.
+	if err := aaa.CheckLoginService(username, &result, loginServiceSSH); err != nil {
+		s.logger.Info("SSH auth failure", "username", username, "remote", remote, "source", "public-key")
+		s.recordAuthFailure(username, remote)
+		return aaa.AuthResult{}
 	}
 	s.logger.Info("SSH auth success",
 		"username", username, "remote", remote,
 		"source", "public-key",
-		"profiles", truncateProfiles(profiles))
-	return aaa.AuthResult{
-		Authenticated:  true,
-		Source:         aaa.SourceLocal,
-		Profiles:       profiles,
-		UserGeneration: userGeneration,
-	}
+		"profiles", truncateProfiles(user.Profiles))
+	return result
 }
 
 // matchPublicKey reports whether the presented SSH public key matches any of
@@ -69,6 +70,17 @@ func (s *Server) authenticatePublicKeyResult(username string, presented ssh.Publ
 // along. What a user may then RUN is the authorizer's decision
 // (authz.Store.Authorize), not this function's.
 func matchPublicKey(users []authz.UserConfig, username string, presented ssh.PublicKey) ([]string, bool) {
+	u, matched := matchPublicKeyUser(users, username, presented)
+	if !matched {
+		return nil, false
+	}
+	return u.Profiles, true
+}
+
+// matchPublicKeyUser returns the matched user credential record so public-key
+// authentication carries the exact Profiles, LoginSet, and UserGeneration of
+// the entry whose key matched.
+func matchPublicKeyUser(users []authz.UserConfig, username string, presented ssh.PublicKey) (authz.UserConfig, bool) {
 	for _, u := range users {
 		if u.Name != username {
 			continue
@@ -83,11 +95,11 @@ func matchPublicKey(users []authz.UserConfig, username string, presented ssh.Pub
 				continue
 			}
 			if ssh.KeysEqual(presented, configured) {
-				return u.Profiles, true
+				return u, true
 			}
 		}
 	}
-	return nil, false
+	return authz.UserConfig{}, false
 }
 
 // parseConfiguredKey reconstructs an ssh.PublicKey from the stored type and

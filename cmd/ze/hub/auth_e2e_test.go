@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/plugin"
 	zeweb "github.com/ze-software/ze/internal/component/web"
@@ -119,7 +120,7 @@ func TestAPILoginAdmitsPowerAndConfigUsers(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			caller, ok := validate(c.header)
+			caller, ok := validate(c.header, "rest")
 			if ok != c.wantOK || caller.Username != c.wantUser {
 				t.Errorf("validate(%q) = (%q, %v), want (%q, %v)", c.header, caller.Username, ok, c.wantUser, c.wantOK)
 			}
@@ -156,5 +157,84 @@ func TestLiveAAABundleAuthorizerHonorsConfiguredProfiles(t *testing.T) {
 	}
 	if authorizer.Authorize("operator", "", plugin.ConfigAuthCommit, false) {
 		t.Fatal("read-only operator unexpectedly allowed config commit")
+	}
+}
+
+// VALIDATES: AC-8 -- through the hub's own user assembly and accepted identity
+// publication, the stored recovery user carrying ReservedRecoveryProfile is
+// admitted on every surface (AAA chain, web fallback, REST, gRPC, MCP) even
+// when every config user's login set excludes every door.
+// PREVENTS: a lockout configuration that excludes every configured account from
+// also locking out the break-glass stored recovery account.
+func TestPowerUserIgnoresLoginSets(t *testing.T) {
+	resetAAABundleForTest(t)
+	ensureLoginServicesForTest(t, "ssh", "web", "rest", "grpc", "mcp")
+
+	power := []authz.UserConfig{bcryptUser(t, "recovery", "recovery-secret", aaa.ReservedRecoveryProfile)}
+	operator := bcryptUser(t, "operator", "operator-secret", "admin")
+	operator.LoginSet = "none"
+	merged := mergeAuthUsers(power, []authz.UserConfig{operator})
+
+	publishAcceptedLocalIdentity(
+		newAcceptedLocalIdentity(merged, nil, nil, "").
+			withLoginSets(map[string][]string{"none": {}}),
+	)
+	bundle, err := buildAAABundle(nil, merged, liveAcceptedLocalUsers, nil)
+	if err != nil {
+		t.Fatalf("buildAAABundle: %v", err)
+	}
+	swapAAABundle(bundle, nil)
+
+	chainAuth := liveAAABundleAuthenticator{}
+	webFallbackAuth := liveAAABundleAuthenticator{
+		fallback: &authz.LocalAuthenticator{UsersFunc: liveAcceptedLocalUsers},
+	}
+	apiAuth := liveAcceptedAPIAuthentication()
+
+	// Config user with empty login set "none" is refused everywhere.
+	for _, svc := range []string{"ssh", "web"} {
+		if res, aerr := chainAuth.Authenticate(aaa.AuthRequest{
+			Username: "operator",
+			Password: "operator-secret",
+			Service:  svc,
+		}); aerr == nil || res.Authenticated {
+			t.Fatalf("operator unexpectedly admitted on %s via AAA chain", svc)
+		}
+	}
+	for _, svc := range []string{"rest", "grpc"} {
+		if _, ok := apiAuth.Authenticate("Bearer operator:operator-secret", svc); ok {
+			t.Fatalf("operator unexpectedly admitted on %s via API auth", svc)
+		}
+	}
+	if err := checkAcceptedLocalLoginService("operator", "mcp"); err == nil {
+		t.Fatal("operator unexpectedly admitted on mcp")
+	}
+
+	// Stored recovery user carrying ReservedRecoveryProfile is admitted everywhere.
+	for _, svc := range []string{"ssh", "web"} {
+		res, aerr := chainAuth.Authenticate(aaa.AuthRequest{
+			Username: "recovery",
+			Password: "recovery-secret",
+			Service:  svc,
+		})
+		if aerr != nil || !res.Authenticated {
+			t.Fatalf("recovery user refused on %s via AAA chain: err=%v auth=%v", svc, aerr, res.Authenticated)
+		}
+	}
+	if res, aerr := webFallbackAuth.Authenticate(aaa.AuthRequest{
+		Username: "recovery",
+		Password: "recovery-secret",
+		Service:  "web",
+	}); aerr != nil || !res.Authenticated {
+		t.Fatalf("recovery user refused on web via fallback authenticator: err=%v auth=%v", aerr, res.Authenticated)
+	}
+	for _, svc := range []string{"rest", "grpc"} {
+		caller, ok := apiAuth.Authenticate("Bearer recovery:recovery-secret", svc)
+		if !ok || caller.Username != "recovery" {
+			t.Fatalf("recovery user refused on %s via API auth: user=%q ok=%v", svc, caller.Username, ok)
+		}
+	}
+	if err := checkAcceptedLocalLoginService("recovery", "mcp"); err != nil {
+		t.Fatalf("recovery user refused on mcp: %v", err)
 	}
 }

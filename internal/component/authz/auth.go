@@ -91,6 +91,7 @@ func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, 
 				return AuthResult{
 					Authenticated:  true,
 					Profiles:       u.Profiles,
+					LoginSet:       u.LoginSet,
 					Source:         aaa.SourceLocal,
 					UserGeneration: u.UserGeneration,
 				}, nil

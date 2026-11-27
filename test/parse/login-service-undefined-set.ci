@@ -1,0 +1,122 @@
+# Question: does `ze config validate` refuse an undefined login-service leafref
+# on system/authentication/user, system/authentication/tacacs-profile, and
+# system/authentication/radius while listing the sets that exist, and accept
+# configs where all three reference defined sets?
+# Why a unit test cannot decide it: only `ze config validate` exercises the
+# live cross-module YANG leafref bindings across ze-authz-conf, ze-tacacs-conf,
+# and ze-radius-conf through Validator.ValidateReferences.
+#
+# VALIDATES: AC-10 -- leafref refusal on user, tacacs-profile, and radius listing existing sets
+# PREVENTS: dangling login-service references silently passing config validation
+
+stdin=user-missing:terminator=EOF_USER_MISSING
+system {
+	authentication {
+		user operator {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service no-such-set
+		}
+	}
+	authorization {
+		login-service api-only {
+			service [ rest grpc ]
+		}
+		login-service ssh-only {
+			service [ ssh ]
+		}
+	}
+}
+EOF_USER_MISSING
+
+stdin=tacacs-missing:terminator=EOF_TACACS_MISSING
+system {
+	authentication {
+		tacacs-profile 15 {
+			profile [ ops ]
+			login-service no-such-set
+		}
+	}
+	authorization {
+		profile ops {
+			run { default-action allow }
+			edit { default-action deny }
+		}
+		login-service api-only {
+			service [ rest grpc ]
+		}
+		login-service ssh-only {
+			service [ ssh ]
+		}
+	}
+}
+EOF_TACACS_MISSING
+
+stdin=radius-missing:terminator=EOF_RADIUS_MISSING
+system {
+	authentication {
+		radius {
+			server 127.0.0.1 { port 1812; key "ze-mock-key"; }
+			login-service no-such-set
+		}
+	}
+	authorization {
+		login-service api-only {
+			service [ rest grpc ]
+		}
+		login-service ssh-only {
+			service [ ssh ]
+		}
+	}
+}
+EOF_RADIUS_MISSING
+
+stdin=all-present:terminator=EOF_ALL_PRESENT
+system {
+	authentication {
+		user operator {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ ops ]
+			login-service api-only
+		}
+		tacacs-profile 15 {
+			profile [ ops ]
+			login-service ssh-only
+		}
+		radius {
+			server 127.0.0.1 { port 1812; key "ze-mock-key"; }
+			login-service ssh-only
+		}
+	}
+	authorization {
+		profile ops {
+			run { default-action allow }
+			edit { default-action deny }
+		}
+		login-service api-only {
+			service [ rest grpc ]
+		}
+		login-service ssh-only {
+			service [ ssh ]
+		}
+	}
+}
+EOF_ALL_PRESENT
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=user-missing
+expect=exit:code=1
+expect=stdout:contains=system/authentication/user[operator]/login-service
+expect=stdout:contains=no name "no-such-set" exists
+expect=stdout:contains=name one of "api-only ssh-only"
+cmd=foreground:seq=2:exec=ze config validate -:stdin=tacacs-missing
+expect=exit:code=1
+expect=stdout:contains=system/authentication/tacacs-profile[15]/login-service
+expect=stdout:contains=no name "no-such-set" exists
+expect=stdout:contains=name one of "api-only ssh-only"
+cmd=foreground:seq=3:exec=ze config validate -:stdin=radius-missing
+expect=exit:code=1
+expect=stdout:contains=system/authentication/radius/login-service
+expect=stdout:contains=no name "no-such-set" exists
+expect=stdout:contains=name one of "api-only ssh-only"
+cmd=foreground:seq=4:exec=ze config validate -:stdin=all-present
+expect=exit:code=0
+expect=stdout:contains=configuration valid

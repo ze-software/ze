@@ -86,7 +86,7 @@ type CallerIdentity = plugin.CallerIdentity
 // Authenticate function is fail-closed staging.
 type Authentication struct {
 	Required     bool
-	Authenticate func(authHeader string) (CallerIdentity, bool)
+	Authenticate func(authHeader, service string) (CallerIdentity, bool)
 }
 
 // AuthenticationProvider returns the currently published authentication

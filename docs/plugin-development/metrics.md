@@ -294,6 +294,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_pppoe_client_ipv6cp_opened` | GaugeVec | name | l2tp-pppoe-client |
 | `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
 | `ze_radius_unsigned_response_discards_total` | CounterVec | server | radius (client): one per Access answer discarded for carrying no Message-Authenticator |
+| `ze_aaa_login_service_refused_total` | CounterVec | service | aaa (login-service gate): login attempts refused by `system/authorization/login-service`, labeled by target login service (or `unknown` when omitted) <!-- source: internal/component/aaa/login_profiles.go -- registerAAAMetrics, bindAAAMetrics, countLoginServiceRefused --> |
 | `ze_dns_resolver_queries_total` | CounterVec | transport, rcode | dnsresolver: one per query answered |
 | `ze_dns_resolver_refused_total` | CounterVec | reason | dnsresolver: one per REFUSED answer, `acl` or `rd-clear` |
 | `ze_dns_resolver_rate_limited_total` | Counter | | dnsresolver: one per query dropped by `limit per-client-rate` |

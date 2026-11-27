@@ -449,11 +449,16 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 
 	authenticator := s.config.Authenticator
 	if authenticator == nil {
-		// No explicit authenticator: wrap local users as a LocalAuthenticator.
+		// No explicit authenticator: wrap local users as a LocalAuthenticator
+		// behind WithProfileAuthorizer so a daemon with no composed AAA bundle
+		// still enforces reserved-name and login-service admission checks.
 		// It carries both fields and applies the same precedence, so this
 		// fallback follows the running config wherever UsersFunc is wired and
 		// answers from the snapshot where it is not.
-		authenticator = &authz.LocalAuthenticator{Users: s.config.Users, UsersFunc: s.config.UsersFunc}
+		authenticator = aaa.WithProfileAuthorizer(
+			&authz.LocalAuthenticator{Users: s.config.Users, UsersFunc: s.config.UsersFunc},
+			s.config.Authorizer,
+		)
 	}
 
 	// Always register a password auth handler.

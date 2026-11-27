@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/config/loginservice"
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -740,6 +741,31 @@ func RedistributeSourceValidator() yang.CustomValidator {
 			return nil
 		},
 		CompleteFn: redistribute.SourceNames,
+	}
+}
+
+// LoginServiceValidator returns a validator for login-service names under
+// system/authorization/login-service/service. Each login surface registers its
+// own service name at init(), so compiling out a surface removes its name from
+// validation and editor completion.
+func LoginServiceValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if _, found := loginservice.Lookup(str); found {
+				return nil
+			}
+			offered := loginservice.Names()
+			if len(offered) == 0 {
+				return fmt.Errorf("login service %q is not offered by this build (no login services are registered)", str)
+			}
+			return fmt.Errorf("login service %q is not offered by this build (offered: %s)",
+				str, textbuf.Join(offered, ", "))
+		},
+		CompleteFn: loginservice.Names,
 	}
 }
 

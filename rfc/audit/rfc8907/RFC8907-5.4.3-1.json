@@ -2,8 +2,8 @@
   "note": "(a) forbidden: processing RESTART as anything but FAIL. (b) TestRFC8907RestartIsProcessedAsFail requires ErrorIs aaa.ErrAuthRejected, Authenticated false and Source == backendName; TestRFC8907ErrorIsNotProcessedAsFail is the discriminating pair: ERROR must not be ErrAuthRejected.",
   "requirement_sha": "9596b57ac4f4b608",
   "tests": {
-    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail": "689cf5032c29eb6d",
-    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907RestartIsProcessedAsFail": "689cf5032c29eb6d"
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail": "ca4162fec6d615c8",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907RestartIsProcessedAsFail": "ca4162fec6d615c8"
   },
   "units": {
     "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail": "65b855182e7fc964",

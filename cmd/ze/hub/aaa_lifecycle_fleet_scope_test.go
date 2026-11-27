@@ -293,7 +293,7 @@ func TestHubAAAWrappersRetiredAndGenerationChangeFailClosed(t *testing.T) {
 		publishAcceptedLocalIdentity(newAcceptedLocalIdentity(nil, fleetScopeStoreForTest(), nil, "tok-1"))
 
 		apiAuth := liveAcceptedAPIAuthentication()
-		caller, ok := apiAuth.Authenticate("Bearer tok-1")
+		caller, ok := apiAuth.Authenticate("Bearer tok-1", "rest")
 		require.True(t, ok)
 
 		ctx := &pluginserver.CommandContext{Username: caller.Username, Authorizer: caller.Authorizer}
@@ -390,7 +390,7 @@ func TestHubAAAWrappersNoRBACAndUnsupportedProvider(t *testing.T) {
 		ctx := &pluginserver.CommandContext{Username: "operator", Authorizer: liveAAABundleAuthorizer{}}
 		assert.True(t, pluginserver.AuthorizeFleetDevice(ctx, fleetScopeDeviceEdge))
 
-		apiCaller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer tok-policy-free")
+		apiCaller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer tok-policy-free", "rest")
 		require.True(t, ok)
 		apiCtx := &pluginserver.CommandContext{Username: apiCaller.Username, Authorizer: apiCaller.Authorizer}
 		assert.True(t, pluginserver.AuthorizeFleetDevice(apiCtx, fleetScopeDeviceEdge))

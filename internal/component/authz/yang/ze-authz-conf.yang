@@ -76,6 +76,17 @@ module ze-authz-conf {
                         exists, a user with no name here authenticates and is then denied every command.";
                     ze:help "Authorization profile name(s) assigned to this user";
                 }
+
+                leaf login-service {
+                    type leafref {
+                        path "../../../authorization/login-service/name";
+                        require-instance true;
+                    }
+                    description "Named login-service set restricting which login doors this user may use. A commit rejects a name
+                        that no login-service under system authorization defines, naming the sets that exist, and rejects a reserved
+                        name. When absent, this user may authenticate on every login service.";
+                    ze:help "Named login-service set restricting which doors this user may use";
+                }
             }
         }
 
@@ -233,6 +244,31 @@ module ze-authz-conf {
                             ze:help "If true, match is a regular expression";
                         }
                     }
+                }
+            }
+
+            list login-service {
+                key "name";
+                description "Named set of registered login services an account may authenticate on. An account referencing a
+                    login-service set is admitted only on the doors listed in its service leaf-list. A set with no service
+                    entries denies every gated door, while omitting the login-service reference on an account admits every door.";
+                ze:help "Named set of login services an account may authenticate on";
+
+                leaf name {
+                    type string;
+                    description "Login-service set identifier, and the key of this list. User accounts, TACACS+ privilege-level
+                        mappings, and RADIUS authentication configuration each reference a set by this key. A commit rejects a
+                        reserved name.";
+                    ze:help "Login-service set identifier";
+                }
+
+                leaf-list service {
+                    type string;
+                    ze:validate "login-service";
+                    description "Registered login service names admitted by this set (for example ssh, web, rest, grpc, mcp).
+                        Each name is validated against the login services registered in this build; compiling out a surface removes
+                        its name from validation and completion. Leaving this list empty denies every gated door.";
+                    ze:help "Registered login service name(s) admitted by this set";
                 }
             }
         }

@@ -1,0 +1,17 @@
+# Question: on a daemon whose config defines no system/authorization/login-service
+# section at all, is a local user with no login-service reference admitted on
+# SSH, Web, REST, and gRPC with the correct password while a wrong password is
+# refused on every door?
+# Why a unit test cannot decide it: only booting a live daemon on an untouched
+# legacy config proves every gated listener accepts an absent login-service
+# generation without locking out existing deployments on upgrade.
+#
+# VALIDATES: AC-7 (OD-3 option a) -- absent login-service section admits user on every door
+# PREVENTS: upgrade regressions refusing logins when login-service is omitted
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-absent-section $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: config without login-service section admitted user on SSH, Web, REST, and gRPC
+reject=stderr:contains=ZE-OBSERVER-FAIL

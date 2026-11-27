@@ -257,7 +257,7 @@ func authorRequests(t *testing.T) (command, session []string) {
 		Timeout: 2 * time.Second,
 	})
 	t.Cleanup(loginClient.Close)
-	result, err := newTacacsAuthenticator(loginClient, map[int][]string{15: {"admin"}}, nil).Authenticate(aliceRequest)
+	result, err := newTacacsAuthenticator(loginClient, map[int][]string{15: {"admin"}}, nil, nil).Authenticate(aliceRequest)
 	require.NoError(t, err)
 	require.True(t, result.Authenticated)
 	return <-commands, <-sessions
@@ -433,7 +433,7 @@ func requestServices(t *testing.T) map[string]uint8 {
 		Timeout: 2 * time.Second,
 	})
 	t.Cleanup(loginClient.Close)
-	_, err := newTacacsAuthenticator(loginClient, map[int][]string{15: {"admin"}}, nil).Authenticate(aliceRequest)
+	_, err := newTacacsAuthenticator(loginClient, map[int][]string{15: {"admin"}}, nil, nil).Authenticate(aliceRequest)
 	require.NoError(t, err)
 	found := map[string]uint8{"authentication START": <-services, "session authorization": <-services}
 

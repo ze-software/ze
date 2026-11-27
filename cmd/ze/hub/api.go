@@ -80,7 +80,7 @@ func buildAPIAuthentication(users []authz.UserConfig, token string, authorizer a
 		local := aaa.WithProfileAuthorizer(&authz.LocalAuthenticator{Users: users}, authorizer)
 		return api.Authentication{
 			Required: true,
-			Authenticate: func(header string) (api.CallerIdentity, bool) {
+			Authenticate: func(header, service string) (api.CallerIdentity, bool) {
 				raw, ok := strings.CutPrefix(header, "Bearer ")
 				if !ok {
 					return api.CallerIdentity{}, false
@@ -92,6 +92,7 @@ func buildAPIAuthentication(users []authz.UserConfig, token string, authorizer a
 				result, err := local.Authenticate(authz.AuthRequest{
 					Username: username,
 					Password: password,
+					Service:  service,
 				})
 				if err != nil || !result.Authenticated {
 					return api.CallerIdentity{}, false
@@ -103,7 +104,7 @@ func buildAPIAuthentication(users []authz.UserConfig, token string, authorizer a
 		expected := sha256.Sum256([]byte("Bearer " + token))
 		return api.Authentication{
 			Required: true,
-			Authenticate: func(header string) (api.CallerIdentity, bool) {
+			Authenticate: func(header, _ string) (api.CallerIdentity, bool) {
 				got := sha256.Sum256([]byte(header))
 				if subtle.ConstantTimeCompare(got[:], expected[:]) != 1 {
 					return api.CallerIdentity{}, false

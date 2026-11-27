@@ -39,6 +39,7 @@ type radiusAuthenticator struct {
 	sourceIP        net.IP
 	profileAttr     uint8
 	defaultProfiles []string
+	loginSet        string
 	method          AuthMethod
 	budget          time.Duration
 	logger          *slog.Logger
@@ -64,6 +65,7 @@ func newRadiusAuthenticator(client *Client, cfg ExtractedConfig, nasID string, l
 		sourceIP:        cfg.SourceAddress,
 		profileAttr:     profileAttr,
 		defaultProfiles: cfg.DefaultProfiles,
+		loginSet:        cfg.LoginSet,
 		method:          cfg.AuthMethod,
 		budget:          authBudget(cfg),
 		logger:          logger,
@@ -247,11 +249,16 @@ func (a *radiusAuthenticator) result(resp *Packet, username string) (aaa.AuthRes
 			return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 		}
 
+		if aaa.IsReservedName(a.loginSet) {
+			return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
+		}
+
 		a.logger.Info("RADIUS admin auth accepted",
 			"username", username, "profiles", profiles)
 		return aaa.AuthResult{
 			Authenticated: true,
 			Profiles:      profiles,
+			LoginSet:      a.loginSet,
 			Source:        aaaName,
 		}, nil
 	case CodeAccessReject:

@@ -29,6 +29,7 @@ import (
 type acceptedLocalIdentityState struct {
 	users                 []aaa.UserCredential
 	authorizer            *authz.Store
+	loginSets             map[string][]string
 	authzGeneration       uint64
 	resolveCandidateUsers func() ([]aaa.UserCredential, error)
 	apiToken              string
@@ -213,6 +214,11 @@ func publishAcceptedLocalIdentity(state *acceptedLocalIdentityState) {
 
 	stampLocalIdentityGeneration(state)
 	aaa.SetAcceptedLocalUsers(state.users)
+	loginSets := state.loginSets
+	if loginSets == nil {
+		loginSets = map[string][]string{}
+	}
+	aaa.SetAcceptedLoginSets(loginSets)
 	acceptedLocalIdentity.Store(state)
 }
 
@@ -231,7 +237,8 @@ func publishAcceptedLocalIdentity(state *acceptedLocalIdentityState) {
 // A user's generation advances only when that user's own record changes, so
 // changing one user's password, adding or removing a user or adding another
 // user's SSH key revokes nobody else, while a change to the grant user's own
-// password hash, profiles or keys, or that user's removal, revokes the grant.
+// password hash, profiles, keys or login set, or that user's removal, revokes
+// the grant.
 //
 // A record equal to the accepted one keeps its number. Advancing on every
 // reload made an operator's own config commit revoke the session that issued
@@ -303,7 +310,8 @@ func sameLocalCredential(accepted, candidate aaa.UserCredential) bool {
 	return accepted.Name == candidate.Name &&
 		accepted.Hash == candidate.Hash &&
 		slices.Equal(accepted.Profiles, candidate.Profiles) &&
-		slices.Equal(accepted.PublicKeys, candidate.PublicKeys)
+		slices.Equal(accepted.PublicKeys, candidate.PublicKeys) &&
+		accepted.LoginSet == candidate.LoginSet
 }
 
 // newAcceptedLocalIdentity builds one candidate identity. The result carries no
@@ -315,9 +323,67 @@ func newAcceptedLocalIdentity(users []aaa.UserCredential, store *authz.Store, re
 	return &acceptedLocalIdentityState{
 		users:                 append([]aaa.UserCredential(nil), users...),
 		authorizer:            store,
+		loginSets:             map[string][]string{},
 		resolveCandidateUsers: resolveCandidateUsers,
 		apiToken:              apiToken,
 	}
+}
+
+// withLoginSets attaches a cloned copy of the extracted login-service sets to
+// this candidate identity before publication. A nil map normalizes to an empty
+// non-nil map because an accepted configuration with no login-service section
+// has zero defined sets, distinct from the retired nil state closeAAABundle
+// publishes.
+func (s *acceptedLocalIdentityState) withLoginSets(sets map[string][]string) *acceptedLocalIdentityState {
+	cloned := make(map[string][]string, len(sets))
+	for name, services := range sets {
+		if services == nil {
+			cloned[name] = []string{}
+			continue
+		}
+		cloned[name] = slices.Clone(services)
+	}
+	s.loginSets = cloned
+	return s
+}
+
+// checkAcceptedLocalLoginService checks whether username may authenticate on
+// service against the currently accepted local identity generation.
+//
+// Anonymous principals (empty username, such as MCP none or single-token modes)
+// are ungated. Reserved usernames and an absent accepted generation fail closed
+// with aaa.ErrAuthRejected. A named principal with no matching local user
+// record has no login-service restriction configured and is admitted. When a
+// local user record exists, aaa.CheckLoginService enforces its LoginSet while
+// preserving the local ReservedRecoveryProfile exemption.
+func checkAcceptedLocalLoginService(username, service string) error {
+	if username == "" {
+		// refuse-by-default: guards mcpServiceDeps -- anonymous MCP modes
+		// carry no named account to match against a login-service set.
+		return nil
+	}
+	if aaa.IsReservedName(username) {
+		return aaa.ErrAuthRejected
+	}
+	state := acceptedLocalIdentity.Load()
+	if state == nil {
+		return aaa.CheckLoginService(username, nil, service)
+	}
+	for _, u := range state.users {
+		if u.Name == username {
+			res := aaa.AuthResult{
+				Authenticated: true,
+				Source:        aaa.SourceLocal,
+				Profiles:      u.Profiles,
+				LoginSet:      u.LoginSet,
+			}
+			return aaa.CheckLoginService(username, &res, service)
+		}
+	}
+	// refuse-by-default: guards mcpServiceDeps -- a named principal with no
+	// local user record has no login-service set configured and is admitted per
+	// OD-3 option (a).
+	return nil
 }
 
 // liveAcceptedAPIAuthentication returns one immutable accepted API generation.
@@ -375,6 +441,7 @@ func closeAAABundle(logger *slog.Logger) {
 	aaaAccountingLifetime.Unlock()
 	acceptedLocalIdentity.Store(nil)
 	aaa.SetAcceptedLocalUsers(nil)
+	aaa.SetAcceptedLoginSets(nil)
 	aaaBundleBootClaimed.Store(false)
 	aaaAcceptanceRetired = true
 	aaaAcceptance.Unlock()
@@ -834,20 +901,35 @@ func (a liveAAABundleAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.A
 		}
 		if a.fallback != nil {
 			if fres, ferr := a.fallback.Authenticate(request); ferr == nil && fres.Authenticated {
-				if !errors.Is(err, aaa.ErrAuthRejected) {
-					return fres, nil
-				}
-				if fres.Source == aaa.SourceLocal {
-					if slices.Contains(fres.Profiles, aaa.ReservedRecoveryProfile) {
-						return fres, nil
+				if errors.Is(err, aaa.ErrAuthRejected) {
+					if fres.Source == aaa.SourceLocal {
+						if slices.Contains(fres.Profiles, aaa.ReservedRecoveryProfile) {
+							if gateErr := aaa.CheckLoginService(request.Username, &fres, request.Service); gateErr != nil {
+								return aaa.AuthResult{}, gateErr
+							}
+							return fres, nil
+						}
 					}
+					return result, err
 				}
+				if gateErr := aaa.CheckLoginService(request.Username, &fres, request.Service); gateErr != nil {
+					return aaa.AuthResult{}, gateErr
+				}
+				return fres, nil
 			}
 		}
 		return result, err
 	}
 	if a.fallback != nil {
-		return a.fallback.Authenticate(request)
+		fres, ferr := a.fallback.Authenticate(request)
+		if ferr == nil {
+			if fres.Authenticated {
+				if gateErr := aaa.CheckLoginService(request.Username, &fres, request.Service); gateErr != nil {
+					return aaa.AuthResult{}, gateErr
+				}
+			}
+		}
+		return fres, ferr
 	}
 	return aaa.AuthResult{}, aaa.ErrAuthRejected
 }

@@ -206,16 +206,16 @@ func TestRunReloadWithoutAPIBlockKeepsUserAuthentication(t *testing.T) {
 		"old-token",
 	))
 
-	_, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer old-token")
+	_, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer old-token", "rest")
 	require.True(t, ok)
 	load := func() (map[string]any, *zeconfig.Tree, reloadSelection, error) {
 		return tree, treeFromMap(tree), nil, nil
 	}
 	require.NoError(t, runReload(srv, cp, load, nil))
 
-	_, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer old-token")
+	_, ok = liveAcceptedAPIAuthentication().Authenticate("Bearer old-token", "rest")
 	assert.False(t, ok, "an omitted API block must not preserve its prior token")
-	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer operator:operator-pass")
+	caller, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer operator:operator-pass", "rest")
 	require.True(t, ok, "local user authentication must survive an omitted API block")
 	assert.Equal(t, "operator", caller.Username)
 }
@@ -244,12 +244,12 @@ func TestRunReloadPublishesExactCandidateAPIToken(t *testing.T) {
 
 	require.NoError(t, runReload(srv, cp, load, nil))
 	authentication := liveAcceptedAPIAuthentication()
-	caller, ok := authentication.Authenticate("Bearer candidate-token")
+	caller, ok := authentication.Authenticate("Bearer candidate-token", "rest")
 	require.True(t, ok, "the exact candidate token must authenticate after acceptance")
 	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
-	_, ok = authentication.Authenticate("Bearer accepted-token")
+	_, ok = authentication.Authenticate("Bearer accepted-token", "rest")
 	assert.False(t, ok, "the replaced token must stop authenticating")
-	_, ok = authentication.Authenticate("Bearer candidate-token-suffix")
+	_, ok = authentication.Authenticate("Bearer candidate-token-suffix", "rest")
 	assert.False(t, ok, "publication must not accept a token other than the exact candidate")
 }
 
@@ -279,9 +279,9 @@ func TestRunReloadUserSourceErrorPreservesAcceptedAPICredentials(t *testing.T) {
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Contains(t, err.Error(), "resolve candidate local identity")
 	authentication := liveAcceptedAPIAuthentication()
-	_, ok := authentication.Authenticate("Bearer accepted-token")
+	_, ok := authentication.Authenticate("Bearer accepted-token", "rest")
 	require.True(t, ok, "a rejected user-source read must preserve the accepted token")
-	_, ok = authentication.Authenticate("Bearer candidate-token")
+	_, ok = authentication.Authenticate("Bearer candidate-token", "rest")
 	assert.False(t, ok, "the rejected candidate token must never authenticate")
 }
 
@@ -322,7 +322,7 @@ func TestRunReloadInvalidAPIListenClearsCandidate(t *testing.T) {
 	_, _, candidateExists, readErr := storage.ReadCandidateConfig(store, configPath)
 	require.NoError(t, readErr)
 	assert.False(t, candidateExists, "a rejected invalid API setting must clear the staged candidate")
-	_, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer accepted-token")
+	_, ok := liveAcceptedAPIAuthentication().Authenticate("Bearer accepted-token", "rest")
 	require.True(t, ok, "the rejected API settings must preserve accepted credentials")
 }
 
@@ -380,10 +380,10 @@ func TestRunReloadConfiguredUsersTakePrecedenceOverSharedToken(t *testing.T) {
 
 	require.NoError(t, runReload(srv, cp, load, nil))
 	authentication := liveAcceptedAPIAuthentication()
-	caller, ok := authentication.Authenticate("Bearer operator:operator-pass")
+	caller, ok := authentication.Authenticate("Bearer operator:operator-pass", "rest")
 	require.True(t, ok, "the configured user must authenticate after acceptance")
 	assert.Equal(t, "operator", caller.Username)
-	_, ok = authentication.Authenticate("Bearer shared-token")
+	_, ok = authentication.Authenticate("Bearer shared-token", "rest")
 	assert.False(t, ok, "configured users must disable the shared-token credential")
 }
 
@@ -421,7 +421,7 @@ func TestRunReloadWithoutAPIBlockPreservesAcceptedAPIToken(t *testing.T) {
 	require.NoError(t, runReload(srv, cp, load, lm))
 	assert.Empty(t, rest.calls, "an absent API block must leave the non-loopback listener in place")
 	authentication := liveAcceptedAPIAuthentication()
-	caller, ok := authentication.Authenticate("Bearer accepted-token")
+	caller, ok := authentication.Authenticate("Bearer accepted-token", "rest")
 	require.True(t, ok, "an absent API block must preserve credentials for the running listener")
 	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
 }
@@ -519,10 +519,10 @@ func TestRunReloadCertificateFailurePreservesAcceptedAPIToken(t *testing.T) {
 
 	require.Error(t, runReload(srv, cp, load, lm))
 	authentication := liveAcceptedAPIAuthentication()
-	caller, ok := authentication.Authenticate("Bearer accepted-token")
+	caller, ok := authentication.Authenticate("Bearer accepted-token", "rest")
 	require.True(t, ok, "late certificate rejection must restore the original API token")
 	assert.Equal(t, aaa.ReservedSharedAPIUsername, caller.Username)
-	_, ok = authentication.Authenticate("Bearer candidate-token")
+	_, ok = authentication.Authenticate("Bearer candidate-token", "rest")
 	assert.False(t, ok, "the rejected candidate token must never authenticate")
 }
 

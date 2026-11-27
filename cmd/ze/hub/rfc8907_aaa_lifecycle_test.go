@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/loginservice"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -61,6 +62,7 @@ func resetAAABundleForTest(t *testing.T) {
 	preBootClaimed := aaaBundleBootClaimed.Swap(false)
 	preIdentity := acceptedLocalIdentity.Swap(nil)
 	aaa.SetAcceptedLocalUsers(nil)
+	aaa.SetAcceptedLoginSets(nil)
 	// closeAAABundle latches the acceptance slot retired, because a daemon
 	// closes its AAA bundle once, at exit. A test binary boots many daemons in
 	// one process, so the latch is cleared here and again on the way out.
@@ -82,10 +84,32 @@ func resetAAABundleForTest(t *testing.T) {
 		resetAAAAcceptanceForTest()
 		if preIdentity != nil {
 			aaa.SetAcceptedLocalUsers(preIdentity.users)
+			aaa.SetAcceptedLoginSets(preIdentity.loginSets)
 		} else {
 			aaa.SetAcceptedLocalUsers(nil)
+			aaa.SetAcceptedLoginSets(nil)
 		}
 	})
+}
+
+// ensureLoginServicesForTest ensures each named login service is registered in
+// loginservice for the duration of t and restores the prior snapshot on
+// cleanup. Untagged hub test runs do not link gated surfaces such as ze_rest or
+// ze_grpc, so tests that exercise login-service decisions register the needed
+// names through this helper when absent.
+func ensureLoginServicesForTest(t *testing.T, names ...string) {
+	t.Helper()
+	snap := loginservice.Snapshot()
+	t.Cleanup(func() { loginservice.Restore(snap) })
+	for _, name := range names {
+		if !loginservice.Registered(name) {
+			require.NoError(t, loginservice.Register(loginservice.Entry{
+				Name:        name,
+				Owner:       "cmd/ze/hub/test",
+				Description: "test login service " + name,
+			}))
+		}
+	}
 }
 
 // resetAAAAcceptanceForTest clears the reload acceptance state so the next test
@@ -674,13 +698,13 @@ func TestAcceptedLocalIdentityAdvancesGenerationForChangedCredentials(t *testing
 // to aaa.UserCredential: the field count below fails the moment the struct
 // grows, so whoever adds the field decides whether a change to it must revoke.
 func TestSameLocalCredentialReadsEveryField(t *testing.T) {
-	// The five fields this test covers: Name, Hash, Profiles and PublicKeys
-	// below, and UserGeneration, the stamp, which is deliberately excluded. A
-	// sixth field fails here rather than reaching production unread. Counted
-	// by reflection because an unkeyed literal, which would fail at compile
-	// time instead, is what `go vet` composites refuses for a struct from
-	// another package.
-	require.Equal(t, 5, reflect.TypeFor[aaa.UserCredential]().NumField(),
+	// The six fields this test covers: Name, Hash, Profiles, PublicKeys and
+	// LoginSet below, and UserGeneration, the stamp, which is deliberately
+	// excluded. A seventh field fails here rather than reaching production
+	// unread. Counted by reflection because an unkeyed literal, which would
+	// fail at compile time instead, is what `go vet` composites refuses for a
+	// struct from another package.
+	require.Equal(t, 6, reflect.TypeFor[aaa.UserCredential]().NumField(),
 		"aaa.UserCredential grew a field: decide whether a change to it must revoke a live session, then extend sameLocalCredential and this test")
 
 	accepted := aaa.UserCredential{
@@ -688,6 +712,7 @@ func TestSameLocalCredentialReadsEveryField(t *testing.T) {
 		Hash:           "$2a$10$accepted",
 		Profiles:       []string{"ops"},
 		PublicKeys:     []aaa.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: "AAAA"}},
+		LoginSet:       "ssh-only",
 		UserGeneration: 7,
 	}
 
@@ -708,8 +733,10 @@ func TestSameLocalCredentialReadsEveryField(t *testing.T) {
 		{"PublicKeys", func(u *aaa.UserCredential) {
 			u.PublicKeys = []aaa.SSHPublicKey{{Name: "laptop", Type: "ssh-ed25519", Key: "BBBB"}}
 		}},
+		{"LoginSet", func(u *aaa.UserCredential) { u.LoginSet = "web-only" }},
 		{"Profiles removed", func(u *aaa.UserCredential) { u.Profiles = nil }},
 		{"PublicKeys revoked", func(u *aaa.UserCredential) { u.PublicKeys = nil }},
+		{"LoginSet removed", func(u *aaa.UserCredential) { u.LoginSet = "" }},
 	}
 	for _, tc := range changes {
 		t.Run(tc.field, func(t *testing.T) {
@@ -719,6 +746,32 @@ func TestSameLocalCredentialReadsEveryField(t *testing.T) {
 				"a change to %s must revoke every session pinned to the accepted generation", tc.field)
 		})
 	}
+
+	// Prove end-to-end that changing LoginSet advances UserGeneration while
+	// republishing an identical LoginSet preserves it.
+	resetAAABundleForTest(t)
+	first := []aaa.UserCredential{{
+		Name:     "alice",
+		Hash:     "$2a$10$alice",
+		Profiles: []string{"ops"},
+		LoginSet: "ssh-only",
+	}}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(first, nil, nil, ""))
+	gen1 := acceptedUserGeneration(t, "alice")
+
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(first, nil, nil, ""))
+	assert.Equal(t, gen1, acceptedUserGeneration(t, "alice"),
+		"unchanged LoginSet must preserve UserGeneration")
+
+	changed := []aaa.UserCredential{{
+		Name:     "alice",
+		Hash:     "$2a$10$alice",
+		Profiles: []string{"ops"},
+		LoginSet: "web-only",
+	}}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(changed, nil, nil, ""))
+	assert.NotEqual(t, gen1, acceptedUserGeneration(t, "alice"),
+		"changing LoginSet must advance UserGeneration to revoke existing sessions")
 }
 
 // VALIDATES: publishAcceptedLocalIdentity pairs users by name when it stamps
@@ -798,4 +851,54 @@ func TestLivePasswordAuthorizationFollowsBundleReload(t *testing.T) {
 	assert.False(t, typed.AuthorizeCommandArgs("alice", "", "show", args, "*", true))
 	assert.Equal(t, args, replacement.args)
 	assert.False(t, first.typedCalled)
+}
+
+// VALIDATES: AC-6, AC-8, AC-20 -- checkAcceptedLocalLoginService gates named
+// principals (such as MCP bearer-list/oauth identities) against the accepted
+// local identity generation, fails closed when uninitialized or retired, leaves
+// anonymous and unmatched principals ungated per OD-3 option (a), and keeps the
+// local recovery profile exempt.
+// PREVENTS: MCP named principals bypassing a configured login-service set or
+// succeeding after shutdown retires the accepted identity generation.
+func TestCheckAcceptedLocalLoginService(t *testing.T) {
+	resetAAABundleForTest(t)
+	ensureLoginServicesForTest(t, "mcp", "ssh")
+
+	// Anonymous callers (empty username) are ungated even before publication.
+	assert.NoError(t, checkAcceptedLocalLoginService("", "mcp"))
+
+	// Uninitialized accepted identity fails closed for named principals.
+	assert.ErrorIs(t, checkAcceptedLocalLoginService("alice", "mcp"), aaa.ErrAuthRejected)
+
+	users := []aaa.UserCredential{
+		{Name: "sshonly", LoginSet: "ssh-set"},
+		{Name: "mcponly", LoginSet: "mcp-set"},
+		{Name: "unrestricted"},
+		{Name: "recovery", Profiles: []string{aaa.ReservedRecoveryProfile}, LoginSet: "ssh-set"},
+	}
+	sets := map[string][]string{
+		"ssh-set": {"ssh"},
+		"mcp-set": {"mcp"},
+	}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, "").withLoginSets(sets))
+
+	assert.ErrorIs(t, checkAcceptedLocalLoginService("sshonly", "mcp"), aaa.ErrAuthRejected,
+		"local user whose login set excludes mcp must be refused")
+	assert.NoError(t, checkAcceptedLocalLoginService("mcponly", "mcp"),
+		"local user whose login set includes mcp must be admitted")
+	assert.NoError(t, checkAcceptedLocalLoginService("unrestricted", "mcp"),
+		"local user with no login-service set configured must be admitted")
+	assert.NoError(t, checkAcceptedLocalLoginService("external-oauth-sub", "mcp"),
+		"named principal with no matching local user record has no set configured")
+	assert.NoError(t, checkAcceptedLocalLoginService("recovery", "mcp"),
+		"local recovery profile stays exempt from login-service sets")
+	assert.ErrorIs(t, checkAcceptedLocalLoginService(aaa.ReservedInternalRPCIdentity, "mcp"), aaa.ErrAuthRejected,
+		"reserved usernames must fail closed")
+
+	// Closing the AAA bundle retires both the accepted identity and login sets.
+	closeAAABundle(nil)
+	assert.ErrorIs(t, checkAcceptedLocalLoginService("mcponly", "mcp"), aaa.ErrAuthRejected,
+		"retired accepted identity must fail closed")
+	assert.ErrorIs(t, aaa.CheckLoginSet("mcponly", "mcp-set", "mcp"), aaa.ErrAuthRejected,
+		"retired login sets must fail closed")
 }

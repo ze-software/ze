@@ -33,6 +33,7 @@ type ExtractedConfig struct {
 	SourceAddress   net.IP
 	ProfileAttr     uint8    // Access-Accept reply attribute carrying profile names
 	DefaultProfiles []string // profiles applied when the reply carries no ProfileAttr
+	LoginSet        string   // login-service set restricting admin login doors; empty means unrestricted
 	AuthMethod      AuthMethod
 }
 
@@ -135,6 +136,9 @@ func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 		cfg.AuthMethod = method
 	}
 	cfg.DefaultProfiles = radiusTree.GetSlice("default-profile")
+	if v, ok := radiusTree.Get("login-service"); ok && v != "" {
+		cfg.LoginSet = v
+	}
 
 	return cfg, nil
 }

@@ -144,7 +144,7 @@ func newTacPlusNGAuthenticator(t *testing.T, address netip.AddrPort, key string,
 	client := newTacPlusNGClient(address, key, logger)
 	t.Cleanup(client.Close)
 	privLvlMap := map[int][]string{tacPlusNGPrivLvl: {tacPlusNGProfile}}
-	return newTacacsAuthenticator(client, privLvlMap, nil)
+	return newTacacsAuthenticator(client, privLvlMap, nil, nil)
 }
 
 // TestTacPlusNGInterop drives Ze's TACACS+ client against tac_plus-ng, a

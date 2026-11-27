@@ -4,8 +4,10 @@
 
 FROM alpine:3.24.3
 
-RUN apk add --no-cache tini iproute2
+RUN apk add --no-cache tini iproute2 curl
 
 COPY test/interop-radius/ze-linux /usr/local/bin/ze
+
+RUN mkdir -p /var/lib/ze-web-store && printf 'interop-recovery\nInteropRecovery1!\n127.0.0.1\n2222\n' | ze_config_dir=/var/lib/ze-web-store /usr/local/bin/ze init
 
 ENTRYPOINT ["tini", "--", "ze"]

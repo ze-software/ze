@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -1459,4 +1460,70 @@ func TestRunDoctorChecksIncludesPluginRegistryChecks(t *testing.T) {
 	}
 	assert.True(t, found, "expected doctor-bridge-test diagnostic from plugin registry bridge")
 	registry.Restore(snap)
+}
+
+// TestDoctorAnswerReportsAllAccountsExcluded drives the real doctor.Answer
+// entry point over a config file whose only user references an empty
+// login-service set, proving doctor-aaa-all-accounts-excluded surfaces end to
+// end with its fix command and clears once an account can reach a door.
+//
+// VALIDATES: docs/architecture/doctor-and-health-checks.md ("The two tests a
+// new check carries") -- doctor.Answer exposes doctor-aaa-all-accounts-excluded.
+// PREVENTS: The AAA post-config check being registered in unit tests only and
+// never reached through ze doctor / show doctor.
+func TestDoctorAnswerReportsAllAccountsExcluded(t *testing.T) {
+	const lockedCfg = `system {
+	authorization {
+		login-service locked {
+		}
+	}
+	authentication {
+		user alice {
+			password "$2a$04$notarealhash";
+			login-service locked;
+		}
+	}
+}
+`
+	lockedPath := writeTestConfig(t, lockedCfg)
+	ans := command.AnswerLocal(func(v command.ValidatedArgs) command.LocalAnswer {
+		return Answer(v, nil)
+	}, commandtest.Args("--json", "config", lockedPath))
+	readiness, ok := ans.Payload.(readinessAnswer)
+	require.True(t, ok, "expected readinessAnswer from doctor.Answer, got %T (diagnostic: %s)", ans.Payload, ans.Diagnostic)
+
+	var found *diagnostic.Diagnostic
+	for i := range readiness.Diagnostics {
+		if readiness.Diagnostics[i].Code == "doctor-aaa-all-accounts-excluded" {
+			found = &readiness.Diagnostics[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "expected doctor-aaa-all-accounts-excluded in %+v", readiness.Diagnostics)
+	assert.Equal(t, diagnostic.SeverityWarning, found.Severity)
+	assert.Contains(t, found.Fix, "set system authorization login-service locked service")
+
+	const openCfg = `system {
+	authorization {
+		login-service locked {
+		}
+	}
+	authentication {
+		user alice {
+			password "$2a$04$notarealhash";
+			login-service locked;
+		}
+		user bob {
+			password "$2a$04$notarealhash";
+		}
+	}
+}
+`
+	openPath := writeTestConfig(t, openCfg)
+	openAns := command.AnswerLocal(func(v command.ValidatedArgs) command.LocalAnswer {
+		return Answer(v, nil)
+	}, commandtest.Args("--json", "config", openPath))
+	openReadiness, ok := openAns.Payload.(readinessAnswer)
+	require.True(t, ok, "expected readinessAnswer from doctor.Answer, got %T (diagnostic: %s)", openAns.Payload, openAns.Diagnostic)
+	assertNoDiagCode(t, openReadiness.Diagnostics, "doctor-aaa-all-accounts-excluded")
 }

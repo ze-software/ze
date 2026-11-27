@@ -10,15 +10,28 @@
 package aaa
 
 import (
+	"slices"
+
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/loginservice"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// doctorCodeNoLocalFallback names the one diagnostic this check emits: a remote
-// AAA backend decides who logs in, and no local account can answer when it
-// stops working.
-const doctorCodeNoLocalFallback = "doctor-aaa-no-local-fallback"
+const (
+	// doctorCodeNoLocalFallback names the diagnostic emitted when a remote AAA
+	// backend decides who logs in and no local account can answer when it stops
+	// working.
+	doctorCodeNoLocalFallback = "doctor-aaa-no-local-fallback"
+
+	// CodeDoctorAAAAllAccountsExcluded names the diagnostic emitted when every
+	// configured account's login-service set excludes every registered login
+	// service.
+	CodeDoctorAAAAllAccountsExcluded = "doctor-aaa-all-accounts-excluded"
+
+	configKeyLoginService = "login-service"
+	configKeyServer       = "server"
+)
 
 // aaaLocalFallbackDoctorCheck runs after the config is read, because it reads
 // it. Order 730 puts it just after the RADIUS reachability check at 720, so an
@@ -35,6 +48,20 @@ var aaaLocalFallbackDoctorCheck = diagnostic.DoctorCheck{
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{doctorCodeNoLocalFallback},
 	Check:        checkAAALocalFallback,
+}
+
+// aaaAllAccountsExcludedDoctorCheck runs after the config is read to warn when
+// every configured local user and remote AAA mapping is excluded from every
+// registered login service.
+var aaaAllAccountsExcludedDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "aaa-all-accounts-excluded",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        735,
+	Component:    "aaa",
+	Dependencies: []string{"config-loaded"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{CodeDoctorAAAAllAccountsExcluded},
+	Check:        checkAAAAllAccountsExcluded,
 }
 
 // checkAAALocalFallback warns when a remote AAA backend is configured and no
@@ -108,10 +135,141 @@ func configuredRemoteBackends(auth *config.Tree) []string {
 		if sub == nil {
 			continue
 		}
-		if len(sub.GetList("server")) == 0 {
+		if len(sub.GetList(configKeyServer)) == 0 {
 			continue
 		}
 		names = append(names, backend.label)
 	}
 	return names
+}
+
+// checkAAAAllAccountsExcluded warns when at least one local user or remote AAA
+// mapping is configured and every configured account's login-service set
+// excludes every login service registered in this build.
+func checkAAAAllAccountsExcluded(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	// refuse-by-default: guards aaaAllAccountsExcludedDoctorCheck -- no parsed *config.Tree means no accounts to inspect.
+	if !ok {
+		return nil
+	}
+	if tree == nil {
+		return nil
+	}
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return nil
+	}
+	auth := sys.GetContainer("authentication")
+	if auth == nil {
+		return nil
+	}
+
+	loginSets := extractLoginSetsFromTree(sys)
+	configuredCount := 0
+	firstExcludedSet := ""
+	recordExcludedSet := func(setName string) {
+		if setName == "" {
+			return
+		}
+		if firstExcludedSet == "" || setName < firstExcludedSet {
+			firstExcludedSet = setName
+		}
+	}
+
+	for _, userTree := range auth.GetList("user") {
+		configuredCount++
+		setName, _ := userTree.Get(configKeyLoginService)
+		if loginSetAllowsAnyDoor(setName, loginSets) {
+			return nil
+		}
+		recordExcludedSet(setName)
+	}
+
+	if radiusTree := auth.GetContainer("radius"); radiusTree != nil {
+		if len(radiusTree.GetList(configKeyServer)) > 0 {
+			configuredCount++
+			setName, _ := radiusTree.Get(configKeyLoginService)
+			if loginSetAllowsAnyDoor(setName, loginSets) {
+				return nil
+			}
+			recordExcludedSet(setName)
+		}
+	}
+
+	if tacacsTree := auth.GetContainer("tacacs"); tacacsTree != nil {
+		if len(tacacsTree.GetList(configKeyServer)) > 0 {
+			for _, profileTree := range auth.GetList("tacacs-profile") {
+				if len(profileTree.GetSlice("profile")) == 0 {
+					continue
+				}
+				configuredCount++
+				setName, _ := profileTree.Get(configKeyLoginService)
+				if loginSetAllowsAnyDoor(setName, loginSets) {
+					return nil
+				}
+				recordExcludedSet(setName)
+			}
+		}
+	}
+
+	if configuredCount == 0 {
+		return nil
+	}
+
+	return []diagnostic.Diagnostic{{
+		Code:     CodeDoctorAAAAllAccountsExcluded,
+		Severity: diagnostic.SeverityWarning,
+		Message:  "every configured account is excluded from every registered login service by system.authorization.login-service, so no configured operator can log in (only an unshadowed stored recovery account or the serial console remains)",
+		Fix:      allAccountsExcludedFix(firstExcludedSet),
+	}}
+}
+
+// extractLoginSetsFromTree reads system/authorization/login-service entries
+// directly from the parsed config tree without importing config/infra.
+func extractLoginSetsFromTree(sys *config.Tree) map[string][]string {
+	authzTree := sys.GetContainer("authorization")
+	if authzTree == nil {
+		return nil
+	}
+	entries := authzTree.GetList(configKeyLoginService)
+	if len(entries) == 0 {
+		return nil
+	}
+	sets := make(map[string][]string, len(entries))
+	for name, entryTree := range entries {
+		sets[name] = entryTree.GetSlice("service")
+	}
+	return sets
+}
+
+// loginSetAllowsAnyDoor reports whether setName admits at least one login
+// service registered in this build. An absent setName ("") admits every door
+// (OD-3 option a). An empty set ([]string{}) or a set containing no registered
+// service admits no door.
+func loginSetAllowsAnyDoor(setName string, loginSets map[string][]string) bool {
+	if setName == "" {
+		return true
+	}
+	allowed, ok := loginSets[setName]
+	if !ok {
+		return false
+	}
+	return slices.ContainsFunc(allowed, loginservice.Registered)
+}
+
+// allAccountsExcludedFix builds the concrete editor command that restores
+// login access for an excluded login-service set.
+func allAccountsExcludedFix(setName string) string {
+	door := "ssh"
+	if !loginservice.Registered(door) {
+		if registered := loginservice.Names(); len(registered) > 0 {
+			door = registered[0]
+		}
+	}
+	if setName == "" {
+		setName = "<set>"
+	}
+	var tb textbuf.Buffer
+	tb.Str("set system authorization login-service ").Str(setName).Str(" service ").Str(door)
+	return tb.String()
 }

@@ -1,0 +1,44 @@
+# Question: does `ze config validate` refuse an unregistered login-service name
+# under system/authorization/login-service/service, naming the bad value,
+# stating this build does not offer it, and listing the offered services, while
+# accepting registered service names?
+# Why a unit test cannot decide it: unit tests exercise LoginServiceValidator in
+# isolation; only `ze config validate` proves the YANG ze:validate binding,
+# RegisterValidators wiring, validatedSections walk, and every surface's init()
+# registration compose in the real binary.
+#
+# VALIDATES: AC-9 -- unregistered login-service name refused naming offered services
+# PREVENTS: LoginServiceValidator registered without reaching system/authorization/login-service/service
+
+stdin=invalid:terminator=EOF_INVALID
+system {
+	authorization {
+		login-service bad-set {
+			service [ ssh bogus-door ]
+		}
+	}
+}
+EOF_INVALID
+
+stdin=valid:terminator=EOF_VALID
+system {
+	authorization {
+		login-service all-doors {
+			service [ ssh web rest grpc mcp ]
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=invalid
+expect=exit:code=1
+expect=stdout:contains=login service "bogus-door" is not offered by this build
+expect=stdout:contains=offered:
+expect=stdout:contains=grpc
+expect=stdout:contains=mcp
+expect=stdout:contains=rest
+expect=stdout:contains=ssh
+expect=stdout:contains=web
+cmd=foreground:seq=2:exec=ze config validate -:stdin=valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -144,13 +144,14 @@ type serviceDeps struct {
 // the MCP-surface dispatcher, the neutral command metadata source, and the
 // audit recorder); the gated factory converts them into zemcp types.
 type mcpServiceDeps struct {
-	Addrs    []string
-	Token    string
-	Config   zeconfig.MCPListenConfig
-	ConfigOK bool
-	Dispatch plugin.CommandDispatcher
-	Commands func() ([]commandMeta, error)
-	Recorder audit.Recorder
+	Addrs            []string
+	Token            string
+	Config           zeconfig.MCPListenConfig
+	ConfigOK         bool
+	Dispatch         plugin.CommandDispatcher
+	Commands         func() ([]commandMeta, error)
+	Recorder         audit.Recorder
+	LoginServiceGate func(username, service string) error
 }
 
 // serviceFactory builds (and starts) one service from deps. It returns a nil

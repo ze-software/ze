@@ -2,9 +2,9 @@
   "note": "(a) forbidden: under PASS_ADD, dropping the requested arguments or not applying the returned ones. (b) TestRFC8907PassAddRetainsCommand fails if the requested command is lost; TestRFC8907PassAddCannotIgnoreCommandExtension fails if an added mandatory cmd-arg is ignored or falls back to local policy; TestRFC8907SessionPrivilegeApplied fails unless the returned priv-lvl selects its mapped profile.",
   "requirement_sha": "d99024864fc32616",
   "tests": {
-    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassAddCannotIgnoreCommandExtension": "222a323ba4df4455",
-    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassAddRetainsCommand": "222a323ba4df4455",
-    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907SessionPrivilegeApplied": "222a323ba4df4455"
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassAddCannotIgnoreCommandExtension": "9c315253593a491f",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassAddRetainsCommand": "9c315253593a491f",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907SessionPrivilegeApplied": "9c315253593a491f"
   },
   "units": {
     "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassAddCannotIgnoreCommandExtension": "f36a3d3a60c19127",

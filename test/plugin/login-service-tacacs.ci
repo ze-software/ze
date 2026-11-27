@@ -1,0 +1,18 @@
+# Question: when system/authentication/tacacs-profile assigns a login-service
+# set to a TACACS+ privilege level, does Ze terminally refuse the excluded door
+# (even when an unrestricted local account of the same name and password exists)
+# and admit the included door for two complementary privilege levels on one daemon?
+# Why a unit test cannot decide it: only a live daemon with a real TACACS+
+# server and both SSH and Web listeners proves tacacs-profile extraction,
+# AuthResult.LoginSet, ChainAuthenticator terminal ErrAuthRejected, and web
+# fallback non-admission work together end to end.
+#
+# VALIDATES: AC-12 (OD-1 option d) -- TACACS+ tacacs-profile login-service gate
+# PREVENTS: TACACS+ login-service refusal falling through to local accounts or web fallback
+
+option=timeout:value=60s
+option=storage:value=disk
+cmd=foreground:seq=1:exec=le test fixture plugin/login-service-tacacs $PORT $PORT2 $PORT3:timeout=50s
+expect=exit:code=0
+expect=stderr:contains=OK: TACACS+ tacacs-profile login-service refused excluded doors terminally and admitted included doors
+reject=stderr:contains=ZE-OBSERVER-FAIL

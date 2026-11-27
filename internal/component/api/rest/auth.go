@@ -50,7 +50,7 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 				writeError(w, http.StatusUnauthorized, "unauthorized")
 				return
 			}
-			authenticated, ok := authentication.Authenticate(auth)
+			authenticated, ok := authentication.Authenticate(auth, loginServiceREST)
 			if !ok {
 				s.recordAuthFailure(r, attemptedBearerUser(auth))
 				writeError(w, http.StatusUnauthorized, "unauthorized")

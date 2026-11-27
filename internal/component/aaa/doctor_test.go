@@ -130,3 +130,132 @@ func TestDoctorCheckIsRegistered(t *testing.T) {
 	assert.True(t, strings.Contains(meta.Description, "no login"),
 		"the description must say what the operator loses")
 }
+
+// TestAAADoctorCheckAllAccountsExcluded verifies that
+// doctor-aaa-all-accounts-excluded warns with an actionable fix when every
+// configured local user and remote AAA mapping is excluded from every
+// registered login service, and stays silent when no accounts exist or at least
+// one account can reach a registered door.
+//
+// VALIDATES: Post-config AAA doctor check warns on total login-service lockout
+// and registers both its check and its diagnostic code metadata.
+// PREVENTS: Operators committing a config where every configured account is
+// locked out of every surface without a doctor warning and repair command.
+func TestAAADoctorCheckAllAccountsExcluded(t *testing.T) {
+	registerTestLoginServices(t, "ssh", "web")
+
+	buildTree := func(sets map[string][]string, users map[string]string) *config.Tree {
+		tree := config.NewTree()
+		sys := tree.GetOrCreateContainer("system")
+		authz := sys.GetOrCreateContainer("authorization")
+		for name, services := range sets {
+			entry := config.NewTree()
+			if len(services) > 0 {
+				entry.SetSlice("service", services)
+			}
+			authz.AddListEntry("login-service", name, entry)
+		}
+		auth := sys.GetOrCreateContainer("authentication")
+		for name, setName := range users {
+			entry := config.NewTree()
+			entry.Set("password", "$2a$04$notarealhash")
+			if setName != "" {
+				entry.Set("login-service", setName)
+			}
+			auth.AddListEntry("user", name, entry)
+		}
+		return tree
+	}
+
+	t.Run("warns when every local user references an empty login-service set", func(t *testing.T) {
+		tree := buildTree(
+			map[string][]string{"locked": {}},
+			map[string]string{"alice": "locked"},
+		)
+		diags := checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree})
+		require.Len(t, diags, 1)
+		assert.Equal(t, CodeDoctorAAAAllAccountsExcluded, diags[0].Code)
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+		assert.NotEmpty(t, diags[0].Fix)
+		assert.Contains(t, diags[0].Fix, "set system authorization login-service locked service")
+	})
+
+	t.Run("warns when every user references a set with only unregistered services", func(t *testing.T) {
+		tree := buildTree(
+			map[string][]string{"ghost": {"unregistered-door"}},
+			map[string]string{"alice": "ghost"},
+		)
+		diags := checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree})
+		require.Len(t, diags, 1)
+		assert.Equal(t, CodeDoctorAAAAllAccountsExcluded, diags[0].Code)
+		assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	})
+
+	t.Run("silent when at least one user has an allowed registered door", func(t *testing.T) {
+		tree := buildTree(
+			map[string][]string{"locked": {}, "ops": {"ssh"}},
+			map[string]string{"alice": "locked", "bob": "ops"},
+		)
+		assert.Empty(t, checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree}))
+	})
+
+	t.Run("silent when at least one user omits login-service", func(t *testing.T) {
+		tree := buildTree(
+			map[string][]string{"locked": {}},
+			map[string]string{"alice": "locked", "bob": ""},
+		)
+		assert.Empty(t, checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree}))
+	})
+
+	t.Run("silent when no accounts are configured", func(t *testing.T) {
+		tree := buildTree(map[string][]string{"locked": {}}, nil)
+		assert.Empty(t, checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree}))
+	})
+
+	t.Run("silent when remote RADIUS admits a door even if local user is locked", func(t *testing.T) {
+		tree := buildTree(
+			map[string][]string{"locked": {}, "ops": {"web"}},
+			map[string]string{"alice": "locked"},
+		)
+		radius := tree.GetOrCreateContainer("system").GetOrCreateContainer("authentication").GetOrCreateContainer("radius")
+		srv := config.NewTree()
+		srv.Set("key", "secret")
+		radius.AddListEntry("server", "192.0.2.10", srv)
+		radius.Set("login-service", "ops")
+
+		assert.Empty(t, checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree}))
+	})
+
+	t.Run("warns when both local user and remote RADIUS are locked", func(t *testing.T) {
+		tree := buildTree(
+			map[string][]string{"locked": {}},
+			map[string]string{"alice": "locked"},
+		)
+		radius := tree.GetOrCreateContainer("system").GetOrCreateContainer("authentication").GetOrCreateContainer("radius")
+		srv := config.NewTree()
+		srv.Set("key", "secret")
+		radius.AddListEntry("server", "192.0.2.10", srv)
+		radius.Set("login-service", "locked")
+
+		diags := checkAAAAllAccountsExcluded(diagnostic.DoctorCheckContext{Tree: tree})
+		require.Len(t, diags, 1)
+		assert.Equal(t, CodeDoctorAAAAllAccountsExcluded, diags[0].Code)
+	})
+
+	t.Run("check and code metadata are registered", func(t *testing.T) {
+		var found *diagnostic.DoctorCheck
+		for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhasePostConfig) {
+			if check.Name == "aaa-all-accounts-excluded" {
+				found = &check
+				break
+			}
+		}
+		require.NotNil(t, found, "aaa-all-accounts-excluded must be registered from register.go")
+		assert.Contains(t, found.Codes, CodeDoctorAAAAllAccountsExcluded)
+
+		meta := diagnostic.Lookup(CodeDoctorAAAAllAccountsExcluded)
+		require.NotNil(t, meta, "doctor-aaa-all-accounts-excluded metadata must be registered")
+		assert.NotEmpty(t, meta.Title)
+		assert.NotEmpty(t, meta.Description)
+	})
+}

@@ -1,0 +1,8 @@
+# FreeRADIUS mods-config/files/authorize for radius-admin-login-service-refused-freeradius.
+#
+# Same hashed PAP entry and Filter-Id profile as radius-admin-pap-freeradius:
+# FreeRADIUS returns Access-Accept for radiusop on both SSH (NAS-Port-Id="ssh")
+# and Web (NAS-Port-Id="web"), and Ze enforces system/authentication/radius/login-service
+# locally after the Access-Accept arrives (OD-1 option d).
+radiusop	Password-With-Header := "{sha256}+QDCWcnn5kTK8xqKEm6cExY9fNHh0vUj/hfVyYRtx3s="
+		Filter-Id = "interop-operator"

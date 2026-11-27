@@ -349,3 +349,103 @@ func TestAAABundleLocalBackendFollowsRunningConfig(t *testing.T) {
 	_, aerr = auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "alicepw"})
 	require.Error(t, aerr, "the chain must refuse a user the running config no longer declares")
 }
+
+// VALIDATES: AC-15 -- the web fallback's authenticated result passes
+// aaa.CheckLoginService when the live bundle is unreachable or absent, while a
+// terminal ErrAuthRejected from the bundle opens the fallback only for a local
+// ReservedRecoveryProfile result.
+// PREVENTS: an unreachable remote backend admitting an excluded local account
+// through the web fallback, or a gate refusal from the bundle falling through
+// to a non-recovery local account.
+func TestLiveBundleFallbackPassesDecision(t *testing.T) {
+	resetAAABundleForTest(t)
+	ensureLoginServicesForTest(t, "web", "ssh")
+
+	sshOnly := bcryptUser(t, "sshonly", "sshpw", "admin")
+	sshOnly.LoginSet = "ssh-only"
+	webOnly := bcryptUser(t, "webonly", "webpw", "admin")
+	webOnly.LoginSet = "web-only"
+	recovery := bcryptUser(t, "recovery", "recpw", aaa.ReservedRecoveryProfile)
+	recovery.LoginSet = "ssh-only"
+
+	users := []authz.UserConfig{sshOnly, webOnly, recovery}
+	sets := map[string][]string{
+		"ssh-only": {"ssh"},
+		"web-only": {"web"},
+	}
+	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(users, nil, nil, "").withLoginSets(sets))
+
+	auth := liveAAABundleAuthenticator{
+		fallback: &authz.LocalAuthenticator{UsersFunc: liveAcceptedLocalUsers},
+	}
+
+	t.Run("unreachable bundle gates fallback result", func(t *testing.T) {
+		swapAAABundle(&aaa.Bundle{Authenticator: stubAuthn{}}, nil)
+
+		res, err := auth.Authenticate(aaa.AuthRequest{
+			Username: "sshonly",
+			Password: "sshpw",
+			Service:  "web",
+		})
+		require.ErrorIs(t, err, aaa.ErrAuthRejected,
+			"fallback must refuse a local user whose login set excludes web")
+		assert.False(t, res.Authenticated)
+
+		res, err = auth.Authenticate(aaa.AuthRequest{
+			Username: "webonly",
+			Password: "webpw",
+			Service:  "web",
+		})
+		require.NoError(t, err,
+			"fallback must admit a local user whose login set includes web")
+		assert.True(t, res.Authenticated)
+	})
+
+	t.Run("terminal bundle rejection blocks ordinary fallback and admits recovery", func(t *testing.T) {
+		// fixedAuthn returns ErrAuthRejected for any non-matching user, matching
+		// both a central rejection and a terminal login-service gate refusal.
+		swapAAABundle(&aaa.Bundle{
+			Authenticator: fixedAuthn{user: "other", pass: "otherpw", source: "tacacs"},
+		}, nil)
+
+		res, err := auth.Authenticate(aaa.AuthRequest{
+			Username: "webonly",
+			Password: "webpw",
+			Service:  "web",
+		})
+		require.ErrorIs(t, err, aaa.ErrAuthRejected,
+			"a terminal rejection from the bundle must not admit a non-recovery fallback user")
+		assert.False(t, res.Authenticated)
+
+		res, err = auth.Authenticate(aaa.AuthRequest{
+			Username: "recovery",
+			Password: "recpw",
+			Service:  "web",
+		})
+		require.NoError(t, err,
+			"a terminal rejection from the bundle must still admit the local recovery profile")
+		assert.True(t, res.Authenticated)
+		assert.Equal(t, aaa.SourceLocal, res.Source)
+	})
+
+	t.Run("no bundle installed still gates fallback result", func(t *testing.T) {
+		swapAAABundle(nil, nil)
+
+		res, err := auth.Authenticate(aaa.AuthRequest{
+			Username: "sshonly",
+			Password: "sshpw",
+			Service:  "web",
+		})
+		require.ErrorIs(t, err, aaa.ErrAuthRejected,
+			"pre-bundle fallback must refuse a local user whose login set excludes web")
+		assert.False(t, res.Authenticated)
+
+		res, err = auth.Authenticate(aaa.AuthRequest{
+			Username: "webonly",
+			Password: "webpw",
+			Service:  "web",
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Authenticated)
+	})
+}

@@ -478,6 +478,15 @@ hidden path is and which chain hid it: `show rib candidates prefix <prefix>`
 | `ze_rib_policy_rejected_total` | counter | `source`, `chain` (`source` or `central`) | Rejections. Every route a protocol offers that a chain rejects counts once; a reload counts a stored path again only when its verdict changes |
 <!-- source: internal/core/rib/locrib/policy_metrics.go -- SetPolicyMetricsRegistry, accountStored, accountRemoved -->
 
+### AAA Login-Service Metrics
+
+Ze counts every login attempt refused by `system authorization login-service` so operators can spot misconfigured sets or blocked automation directly.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_aaa_login_service_refused_total` | counter | `service` | Login attempts refused by `system/authorization/login-service`, labeled by target login service (`ssh`, `web`, `rest`, `grpc`, `mcp`, or `unknown` when unnamed) |
+<!-- source: internal/component/aaa/login_profiles.go -- registerAAAMetrics, bindAAAMetrics, countLoginServiceRefused, refuseLoginService -->
+
 ### BGP Metrics
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 

@@ -1030,12 +1030,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		logStartupFailure("authorization config", bootAuthzErr)
 		return 1
 	}
+	bootLoginSets := infra.ExtractLoginServices(systemMapForLoginSets(configProvider, configTree))
 	publishAcceptedLocalIdentity(newAcceptedLocalIdentity(
 		bootUsers,
 		bootAuthz,
 		resolveCandidateUsers,
 		apiCfg.Token,
-	))
+	).withLoginSets(bootLoginSets))
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory as a typed
@@ -1818,13 +1819,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// ze_mcp off no factory consumes these fields and the mcp package is not
 		// linked.
 		MCP: &mcpServiceDeps{
-			Addrs:    mcpAddrs,
-			Token:    mcpToken,
-			Config:   mcpCfg,
-			ConfigOK: mcpCfgOK,
-			Dispatch: mcpDispatch,
-			Commands: commandMetaSource(apiServer),
-			Recorder: auditLog,
+			Addrs:            mcpAddrs,
+			Token:            mcpToken,
+			Config:           mcpCfg,
+			ConfigOK:         mcpCfgOK,
+			Dispatch:         mcpDispatch,
+			Commands:         commandMetaSource(apiServer),
+			Recorder:         auditLog,
+			LoginServiceGate: checkAcceptedLocalLoginService,
 		},
 	})
 	for _, svc := range builtServices {

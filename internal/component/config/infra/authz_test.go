@@ -4,13 +4,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/infra"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
@@ -815,4 +815,137 @@ func referenceRefusals(t *testing.T, tree *config.Tree) string {
 		msgs = append(msgs, f.Err.Path+": "+f.Err.Message)
 	}
 	return strings.Join(msgs, "\n")
+}
+
+// TestExtractAuthUsersAndLoginServices verifies that ExtractAuthUsers carries
+// LoginSet, ExtractLoginServices preserves empty sets distinct from absent
+// sets, and ValidateAuthzConfig rejects reserved names on login-service
+// definitions and on user, tacacs-profile, and radius references.
+//
+// VALIDATES: ExtractAuthUsers populates UserCredential.LoginSet;
+// ExtractLoginServices keeps empty sets as present non-nil empty slices;
+// ValidateAuthzConfig refuses reserved names everywhere login-service appears.
+// PREVENTS: Empty login-service sets collapsing into absent sets, LoginSet
+// being dropped during extraction, or reserved names slipping past validation.
+func TestExtractAuthUsersAndLoginServices(t *testing.T) {
+	const input = `
+system {
+    authentication {
+        user api-only {
+            password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
+            login-service api-doors
+        }
+        user unrestricted {
+            password "$2a$10$zyxwvutsrqponmlkjihgfZYXWVUTSRQPONMLKJIHGFEDCBA98765"
+        }
+    }
+    authorization {
+        login-service api-doors {
+            service [ rest grpc ]
+        }
+        login-service ssh-only {
+            service ssh
+        }
+        login-service locked-out {
+        }
+    }
+}
+`
+	tree, err := config.ParseTreeWithYANG(input, nil)
+	require.NoError(t, err)
+	require.NoError(t, infra.ValidateAuthzConfig(tree))
+
+	sysMap := tree.GetContainer("system").ToMap()
+
+	users := infra.ExtractAuthUsers(sysMap)
+	require.Len(t, users, 2)
+	assert.Equal(t, "api-only", users[0].Name)
+	assert.Equal(t, "api-doors", users[0].LoginSet)
+	assert.Equal(t, "unrestricted", users[1].Name)
+	assert.Empty(t, users[1].LoginSet)
+
+	sets := infra.ExtractLoginServices(sysMap)
+	require.NotNil(t, sets)
+	assert.Equal(t, []string{"rest", "grpc"}, sets["api-doors"])
+	assert.Equal(t, []string{"ssh"}, sets["ssh-only"])
+
+	locked, exists := sets["locked-out"]
+	require.True(t, exists, "empty login-service entry must remain present as a key")
+	require.NotNil(t, locked, "empty login-service entry must hold a non-nil empty slice")
+	assert.Empty(t, locked)
+
+	_, missing := sets["does-not-exist"]
+	assert.False(t, missing)
+
+	// Absent login-service section returns an empty map (distinct from nil).
+	assert.Empty(t, infra.ExtractLoginServices(nil))
+	assert.NotNil(t, infra.ExtractLoginServices(nil))
+	assert.Empty(t, infra.ExtractLoginServices(map[string]any{}))
+	assert.Empty(t, infra.ExtractLoginServices(map[string]any{"authorization": map[string]any{}}))
+
+	// ValidateAuthzConfig rejects reserved names on login-service definitions
+	// and on user, tacacs-profile, and radius references.
+	reserved := aaa.ReservedRecoveryProfile
+	reservedCases := []struct {
+		name  string
+		build func() *config.Tree
+		want  string
+	}{
+		{
+			name: "reserved login-service definition",
+			build: func() *config.Tree {
+				tr := config.NewTree()
+				tr.GetOrCreateContainer("system").
+					GetOrCreateContainer("authorization").
+					AddListEntry("login-service", reserved, config.NewTree())
+				return tr
+			},
+			want: "authorization login-service",
+		},
+		{
+			name: "reserved user login-service reference",
+			build: func() *config.Tree {
+				tr := config.NewTree()
+				user := config.NewTree()
+				user.Set("login-service", reserved)
+				tr.GetOrCreateContainer("system").
+					GetOrCreateContainer("authentication").
+					AddListEntry("user", "alice", user)
+				return tr
+			},
+			want: `user "alice" references reserved login-service`,
+		},
+		{
+			name: "reserved tacacs-profile login-service reference",
+			build: func() *config.Tree {
+				tr := config.NewTree()
+				tp := config.NewTree()
+				tp.Set("login-service", reserved)
+				tr.GetOrCreateContainer("system").
+					GetOrCreateContainer("authentication").
+					AddListEntry("tacacs-profile", "15", tp)
+				return tr
+			},
+			want: `tacacs-profile "15" references reserved login-service`,
+		},
+		{
+			name: "reserved radius login-service reference",
+			build: func() *config.Tree {
+				tr := config.NewTree()
+				rad := tr.GetOrCreateContainer("system").
+					GetOrCreateContainer("authentication").
+					GetOrCreateContainer("radius")
+				rad.Set("login-service", reserved)
+				return tr
+			},
+			want: "radius references reserved login-service",
+		},
+	}
+	for _, tc := range reservedCases {
+		t.Run(tc.name, func(t *testing.T) {
+			verr := infra.ValidateAuthzConfig(tc.build())
+			require.Error(t, verr)
+			assert.Contains(t, verr.Error(), tc.want)
+		})
+	}
 }

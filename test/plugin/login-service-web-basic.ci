@@ -1,0 +1,48 @@
+# Question: does web HTTP Basic Auth refuse an account whose login-service set
+# excludes web (identically to a wrong password) while serving an account whose
+# set includes web, and keeping the excluded account admitted on SSH?
+# Why a unit test cannot decide it: Basic Auth enters through
+# AuthMiddlewareWithAudit on the real HTTPS web server wired to the hub's
+# liveAAABundleAuthenticator and fallback.
+#
+# VALIDATES: AC-2 -- web Basic Auth enforces the web login-service gate
+# PREVENTS: Basic Auth bypassing the login-service check applied to the login form
+
+option=timeout:value=45s
+option=storage:value=disk
+
+tmpfs=web-basic.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user noweb {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service ssh-only
+		}
+		user webop {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service web-only
+		}
+	}
+	authorization {
+		login-service ssh-only { service [ ssh ] }
+		login-service web-only { service [ web ] }
+	}
+}
+environment {
+	web {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT; }
+	}
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start web-basic.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture plugin/login-service-web-basic $PORT $PORT2:timeout=35s
+expect=exit:code=0
+expect=stderr:contains=OK: web Basic Auth refused excluded account identically to wrong password
+expect=stderr:contains=OK: web Basic Auth served included account
+reject=stderr:contains=ZE-OBSERVER-FAIL

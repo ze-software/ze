@@ -1,0 +1,62 @@
+# Question: does the web login form answer identically to a wrong password
+# (HTTP 401, login page body, no ze-session cookie, one web auth-fail audit
+# record, and ze_aaa_login_service_refused_total{service="web"} >= 1) when web
+# is excluded, while admitting an allowed account with a working ze-session
+# cookie and admitting the excluded account on SSH?
+# Why a unit test cannot decide it: only a live daemon exercises HTTPS listener
+# startup, LoginHandlerWithAudit, liveAAABundleAuthenticator + web fallback,
+# session cookie issuance, audit logging, and Prometheus metrics together.
+#
+# VALIDATES: AC-2, AC-3 -- web form login gate, indistinguishability, audit, metric
+# PREVENTS: web login form admitting excluded accounts via live bundle or web fallback
+
+option=timeout:value=45s
+option=storage:value=disk
+option=env:var=ze.log.aaa:value=info
+
+tmpfs=web-form.conf:terminator=EOF_CONF
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+		user noweb {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service ssh-only
+		}
+		user webop {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			login-service web-only
+		}
+	}
+	authorization {
+		login-service ssh-only { service [ ssh ] }
+		login-service web-only { service [ web ] }
+	}
+}
+environment {
+	web {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT; }
+	}
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT2; }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main { ip 127.0.0.1; port $PORT3; }
+		netdata { enabled false; }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start web-form.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture plugin/login-service-web-form $PORT $PORT2 $PORT3:timeout=35s
+expect=exit:code=0
+expect=stderr:contains=OK: web login form refused excluded account identically to wrong password
+expect=stderr:contains=OK: web login form issued session cookie for included account
+expect=stderr:contains=OK: web audit record and refusal metric verified
+reject=stderr:contains=ZE-OBSERVER-FAIL
