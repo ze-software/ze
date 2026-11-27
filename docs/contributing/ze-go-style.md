@@ -17,6 +17,7 @@ The question each goal asks: [go-style/goals.md](go-style/goals.md).
 | Need | Write | Never |
 |------|-------|-------|
 | Build text / format ints | `var tb textbuf.Buffer; tb.Str(k).Byte(':').Int(n).String()` | `fmt.Sprintf`, `strconv.FormatInt`, `+` on hot path |
+| Parse positional counted wire line | `var b textbuf.Buffer; b.Adopt(line)` + `ReadWord4`/`ReadUintSpace`/`ReadCountedBytes` | Two-pass `strconv.ParseUint`, `strings.Split`, or custom `cut*` loops |
 | Operator handler error | `opererr.New(what, why, fix)` / `plugin.OperatorErrorResponse(...)` | `errors.New`, `fmt.Errorf` returned to CLI/RPC |
 | Log in engine / plugin | `slogutil.Logger("sub")` / `slogutil.PluginLogger("name", lvl)` | `log.Printf`, `fmt.Printf`, `Debug` for dropped error |
 | Ze env variable | `var _ = env.MustRegister(...)` + `env.Get("ze.foo")` | `os.Getenv("ZE_*")` |

@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // TestParseLine verifies parsing of the #<id> <verb> [<payload>] wire format.
@@ -1561,7 +1563,7 @@ func TestAnswerRecordLineSizeExact(t *testing.T) {
 func TestAnswerWordsComeFromTheirTokens(t *testing.T) {
 	t.Parallel()
 
-	words := map[string]answerWord{
+	words := map[string]textbuf.Word4{
 		AnswerKindHead:          answerWordHead,
 		AnswerKindRecord:        answerWordRecord,
 		AnswerKindFault:         answerWordFault,
@@ -1572,15 +1574,15 @@ func TestAnswerWordsComeFromTheirTokens(t *testing.T) {
 		AnswerTypeTable:         answerWordTypeTable,
 	}
 
-	seen := make(map[answerWord]string, len(words))
+	seen := make(map[textbuf.Word4]string, len(words))
 	for token, word := range words {
-		// Rebuilt byte by byte rather than through answerWordOf, so the writer
-		// of the constants is not also the judge of them.
+		// Rebuilt byte by byte rather than through textbuf.MakeWord4, so the
+		// writer of the constants is not also the judge of them.
 		spelled := token + " "
-		want := answerWord(spelled[0]) |
-			answerWord(spelled[1])<<8 |
-			answerWord(spelled[2])<<16 |
-			answerWord(spelled[3])<<24
+		want := textbuf.Word4(spelled[0]) |
+			textbuf.Word4(spelled[1])<<8 |
+			textbuf.Word4(spelled[2])<<16 |
+			textbuf.Word4(spelled[3])<<24
 		assert.Equal(t, want, word, "the word of %q is not the word %q spells", token, spelled)
 
 		if other, clash := seen[word]; clash {

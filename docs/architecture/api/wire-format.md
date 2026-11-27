@@ -195,9 +195,14 @@ message over records is `aborted`, and a missing terminator is `truncated`. The
 frame is the same whatever the payload is, so a handler that built one value
 answers with the same three lines and the `doc` type.
 
+`internal/core/textbuf` (`textbuf.Buffer.Adopt` and `parse.go`) is the shared
+zero-allocation writer and fused single-pass reader for this positional counted
+grammar (see [textbuf-string-building.md](../textbuf-string-building.md)).
 [ipc_protocol.md](ipc_protocol.md), "Answer Protocol", carries the same grammar
 with the buffering threshold, the over-wide record, and the failure cases beside
 it.
+<!-- source: internal/core/textbuf/textbuf.go -- Buffer, Adopt -->
+<!-- source: internal/core/textbuf/parse.go -- Word4, ReadWord4, ReadUint, ReadCountedBytes, CountedBytes, CountedStr -->
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail, Verdict, AnswerKindHead, AnswerKindTerminator -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 

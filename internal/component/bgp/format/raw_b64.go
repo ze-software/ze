@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -107,13 +108,6 @@ func appendRawB64Update(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 	return append(buf, '\n')
 }
 
-// appendRawB64CountedBytes writes `<len(val)>:<val>` directly into buf.
-func appendRawB64CountedBytes(buf, val []byte) []byte {
-	buf = strconv.AppendUint(buf, uint64(len(val)), 10)
-	buf = append(buf, ':')
-	return append(buf, val...)
-}
-
 // appendRawB64PeerAddr writes `<n>:<peer>` or `0:` when peer or Address is absent.
 func appendRawB64PeerAddr(buf []byte, peer *plugin.PeerInfo) []byte {
 	if peer == nil {
@@ -123,7 +117,7 @@ func appendRawB64PeerAddr(buf []byte, peer *plugin.PeerInfo) []byte {
 		return append(buf, '0', ':')
 	}
 	var addrBuf [64]byte
-	return appendRawB64CountedBytes(buf, peer.Address.AppendTo(addrBuf[:0]))
+	return textbuf.CountedBytes(buf, peer.Address.AppendTo(addrBuf[:0]))
 }
 
 // appendRawB64LocalAddr writes `<n>:<local>` or `0:` when peer or LocalAddress is absent.
@@ -135,7 +129,7 @@ func appendRawB64LocalAddr(buf []byte, peer *plugin.PeerInfo) []byte {
 		return append(buf, '0', ':')
 	}
 	var addrBuf [64]byte
-	return appendRawB64CountedBytes(buf, peer.LocalAddress.AppendTo(addrBuf[:0]))
+	return textbuf.CountedBytes(buf, peer.LocalAddress.AppendTo(addrBuf[:0]))
 }
 
 // appendRawB64RouterID writes `<n>:<router-id>` (this speaker's BGP identifier,
@@ -148,7 +142,7 @@ func appendRawB64RouterID(buf []byte, peer *plugin.PeerInfo) []byte {
 		return append(buf, '0', ':')
 	}
 	var ridBuf [16]byte
-	return appendRawB64CountedBytes(buf, appendRouterID(ridBuf[:0], peer.RouterID))
+	return textbuf.CountedBytes(buf, appendRouterID(ridBuf[:0], peer.RouterID))
 }
 
 // appendRawB64ExtraAddPath writes `<n>:<csv-families>` for any non-unicast
@@ -198,7 +192,7 @@ func appendRawB64ExtraAddPath(buf []byte, encCtx *bgpctx.EncodingContext) []byte
 		}
 		text = fam.AppendTo(text)
 	}
-	return appendRawB64CountedBytes(buf, text)
+	return textbuf.CountedBytes(buf, text)
 }
 
 // compareFamilyNames orders two families deterministically by their canonical

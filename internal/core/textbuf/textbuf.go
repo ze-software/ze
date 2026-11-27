@@ -122,11 +122,13 @@ func StringHexUpper(data []byte) string {
 // replaced. `var b Buffer; b.Reset()` is the whole fix, and it allocates
 // nothing.
 type Buffer struct {
-	arr    [128]byte
-	b      []byte
-	done   bool
-	pooled bool
-	color  bool
+	arr      [128]byte
+	b        []byte
+	pos      int
+	done     bool
+	readOnly bool
+	pooled   bool
+	color    bool
 }
 
 // SetColor enables or disables ANSI color output for this buffer.
@@ -153,6 +155,52 @@ func New() *Buffer {
 	return b
 }
 
+// FromBytes returns a heap-allocated Buffer taking ownership of data without
+// copying it. Use when the *Buffer handle itself needs to outlive the caller's
+// frame (views parsed from Adopt(data) already point into data rather than
+// Buffer.arr and survive a stack Buffer returning while data stays alive and
+// unmodified). The caller transfers ownership of data and MUST NOT mutate its
+// backing array while Buffer holds it.
+func FromBytes(data []byte) *Buffer {
+	b := new(Buffer)
+	b.b = data
+	return b
+}
+
+// FromString returns a heap-allocated read-only Buffer wrapping s without
+// copying it. Writes panic via mustBeWritable and mutable byte accessors panic
+// via mustBeMutable until Reset or Adopt.
+func FromString(s string) *Buffer {
+	b := new(Buffer)
+	b.AdoptString(s)
+	return b
+}
+
+// Adopt takes ownership of data for zero-allocation parsing or mutation on a
+// stack-resident Buffer. The caller transfers ownership of data and MUST NOT
+// mutate its backing array while Buffer holds it.
+func (b *Buffer) Adopt(data []byte) *Buffer {
+	b.b = data
+	b.pos = 0
+	b.done = false
+	b.readOnly = false
+	return b
+}
+
+// AdoptString wraps an immutable string zero-copy for read-only parsing on a
+// stack-resident Buffer. Writes panic via mustBeWritable and mutable byte
+// accessors panic via mustBeMutable until Reset or Adopt.
+func (b *Buffer) AdoptString(s string) *Buffer {
+	b.b = nil
+	if s != "" {
+		b.b = unsafe.Slice(unsafe.StringData(s), len(s)) //nolint:gosec // readOnly prevents mutation and mutable byte exposure
+	}
+	b.pos = 0
+	b.done = true
+	b.readOnly = true
+	return b
+}
+
 var bufPool = sync.Pool{
 	New: func() any { return new(Buffer) },
 }
@@ -162,7 +210,12 @@ var bufPool = sync.Pool{
 // is only safe when the string is consumed before Release.
 func Get() *Buffer {
 	b, _ := bufPool.Get().(*Buffer) //nolint:forcetypeassert // pool only holds *Buffer
+	if b.readOnly {
+		b.b = nil
+	}
 	b.done = false
+	b.readOnly = false
+	b.pos = 0
 	b.pooled = true
 	b.color = false // reset rendering mode so a prior SetColor(true) does not leak across pool reuse
 	if cap(b.b) > len(b.arr) {
@@ -178,6 +231,10 @@ func Get() *Buffer {
 func (b *Buffer) Release() {
 	if !b.pooled {
 		return
+	}
+	if b.readOnly {
+		b.b = nil
+		b.readOnly = false
 	}
 	b.pooled = false
 	b.done = true
@@ -209,8 +266,19 @@ func (b *Buffer) mustBeWritable() {
 	}
 }
 
+func (b *Buffer) mustBeMutable() {
+	if b.readOnly {
+		panic("BUG: textbuf mutable bytes from read-only string buffer")
+	}
+}
+
 func (b *Buffer) Reset(size ...int) *Buffer {
+	if b.readOnly {
+		b.b = nil
+	}
 	b.done = false
+	b.readOnly = false
+	b.pos = 0
 	if len(size) > 0 && size[0] > len(b.arr) {
 		if size[0] > cap(b.b) {
 			b.b = make([]byte, 0, size[0])
@@ -420,13 +488,17 @@ func (b *Buffer) Len() int { return len(b.b) }
 
 // Bytes returns the buffer contents as a byte slice. The slice shares the
 // buffer's memory and is valid until the next Reset, Release, or write that
-// triggers a grow. Does not freeze the buffer.
+// triggers a grow. Does not freeze the buffer. Panics on a read-only string
+// buffer created with AdoptString or FromString.
 //
 // Use for io.Writer output (w.Write(b.Bytes())) or to enable Go's
 // compiler optimization for string([]byte) in map lookups and switch
 // statements (the compiler elides the allocation when the conversion
 // does not escape).
-func (b *Buffer) Bytes() []byte { return b.b }
+func (b *Buffer) Bytes() []byte {
+	b.mustBeMutable()
+	return b.b
+}
 
 // String returns the buffer contents and EMPTIES the buffer. Unlike Slice,
 // String does not freeze it: the next write starts a new string, from empty.
@@ -458,6 +530,11 @@ func (b *Buffer) Bytes() []byte { return b.b }
 // bites, because every other method carries over unchanged.
 func (b *Buffer) String() string {
 	if len(b.b) == 0 {
+		if b.readOnly {
+			b.b = nil
+		}
+		b.pos = 0
+		b.readOnly = false
 		return ""
 	}
 	// Inline data is copied because the array is written over in place. Heap
@@ -470,6 +547,8 @@ func (b *Buffer) String() string {
 		s = unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy, the string owns the slice
 	}
 	b.b = b.inlineSlice()
+	b.pos = 0
+	b.readOnly = false
 	return s
 }
 

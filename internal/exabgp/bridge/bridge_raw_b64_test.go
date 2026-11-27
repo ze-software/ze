@@ -356,6 +356,47 @@ func TestSessionsNoteRaw_ReconnectAndNoNegotiated(t *testing.T) {
 	})
 }
 
+// TestReadRawB64Update_ZeroAlloc verifies that parsing a positional counted
+// `base64` UPDATE line with a caller-owned 4096-byte stack scratch buffer
+// performs zero heap allocations per call.
+//
+// VALIDATES: textbuf.Buffer-backed ReadRawB64Update allocates 0.0 times per
+// call when the decoded UPDATE body fits in the caller's scratch buffer.
+// PREVENTS: regressions where textbuf.Buffer or base64 decoding escapes to the
+// heap on the ExaBGP bridge UPDATE hot path.
+func TestReadRawB64Update_ZeroAlloc(t *testing.T) {
+	body := []byte{
+		0x00, 0x00, 0x00, 0x14,
+		0x40, 0x01, 0x01, 0x00,
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9,
+		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01,
+		0x18, 0xc0, 0x00, 0x02,
+	}
+	line := buildTestRawB64Line(
+		rawB64FlagHasASN4|rawB64FlagASN4|rawB64FlagHasRemoteAS,
+		65000,
+		65001,
+		42,
+		"192.0.2.10",
+		"192.0.2.20",
+		"192.0.2.30",
+		"",
+		body,
+	) + "\n"
+
+	var scratch [4096]byte
+	var sink uint64
+	allocs := testing.AllocsPerRun(100, func() {
+		got, err := ReadRawB64Update(line, scratch[:0])
+		if err != nil {
+			t.FailNow()
+		}
+		sink = got.ConnID + uint64(len(got.Body)+len(got.Peer)+len(got.Local)+len(got.RouterID))
+	})
+	assert.Equal(t, 0.0, allocs, "ReadRawB64Update with stack scratch must allocate 0 times per call")
+	assert.Positive(t, sink)
+}
+
 // FuzzReadRawB64Update verifies ReadRawB64Update never panics on arbitrary
 // attacker-supplied or corrupted wire lines, and enforces the RFC 8654 body
 // size bound and flag mask on every accepted line.

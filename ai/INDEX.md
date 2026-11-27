@@ -570,7 +570,8 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | crash capture, kernel panic, pstore, ramoops, reserve_mem, kdump, crash-dump, show crashes, configured versus armed, harvest a crash record, execve past the stderr flush, crashlog.Exec | `docs/architecture/diagnostics/crash-capture.md`, `docs/guide/appliance.md`, `docs/guide/configuration.md` |
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/performance.md` |
 | encode, Pack, WriteTo, alloc | `ai/rules/performance.md`, `buffer-architecture.md` |
-| string building, textbuf, Sprintf, concatenation | `textbuf-string-building.md`, `ai/rules/performance.md` |
+| string building, textbuf, Sprintf, concatenation | `docs/architecture/textbuf-string-building.md`, `ai/rules/performance.md` |
+| counted wire parser, positional parser, Adopt, AdoptString, FromBytes, FromString, Word4, ReadUintSpace, ReadCountedBytes, ReadCountedString, PeekCountedHeader, CountedBytes, CountedStr | `docs/architecture/textbuf-string-building.md`, `internal/core/textbuf/parse.go`, `internal/core/textbuf/textbuf.go` |
 | pool, BufHandle, BufMux, peerPool, copy-on-modify | `buffer-architecture.md`, `pool-architecture.md`, `forward-congestion-pool.md` |
 | tier, placement, core vs component vs plugin, compile-out | `module-tiers.md`, `ai/rules/architecture.md` |
 | UPDATE, message, build, route | `core-design.md`, `update-building.md`, `encoding-context.md` |
@@ -580,7 +581,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | multiprotocol, AFI, SAFI, new family, new SAFI | `ai/patterns/bgp-family.md`, `wire/nlri.md`, `wire/capabilities.md` |
 | capability, OPEN, negotiate | `wire/capabilities.md` |
 | pool, memory, dedup, zero-copy, lifecycle | `ai/rules/performance.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
-| textbuf, string building, AppendTo, alloc-free | `ai/rules/performance.md`, `ai/rules/performance.md`, `internal/core/textbuf/` |
+| textbuf, string building, AppendTo, alloc-free | `docs/architecture/textbuf-string-building.md`, `ai/rules/performance.md`, `internal/core/textbuf/` |
 | error message, actionable error, corrective action, remediation, fail closed | `ai/rules/cli.md`, `ai/rules/protocol.md`, `ai/rules/evidence.md` |
 | guard, fail open, fail closed, silent no-op, zero value, valid-looking zero, bare map read, permissive default, inert constraint, dead guard | `ai/rules/evidence.md`, `ai/digests/aaa-auth.md` (the authorizer chokepoint and its fail-open bootstrap window) |
 | sync.Pool, buffer pool, ring buffer, peerPool | `ai/rules/performance.md`, `forward-congestion-pool.md` |

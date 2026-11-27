@@ -28,6 +28,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -48,8 +49,7 @@ const (
 
 // Positional grammar constants and RFC 8654 wire bounds for `base64` UPDATE lines.
 const (
-	rawB64KindPrefix   = "upd "
-	rawUint64DigitsMax = 20
+	rawB64KindPrefix = "upd "
 	// rawUpdateBodyMax is RFC 8654 Section 3's extended BGP message maximum
 	// (65,535 octets) minus the 19-octet BGP message header.
 	rawUpdateBodyMax = 65535 - 19
@@ -60,19 +60,15 @@ const (
 	rawContextCacheMax = 1024
 )
 
+// rawB64KindWord packs the 3-byte `upd` kind token and trailing space for
+// single-instruction Word4 dispatch in ReadRawB64Update.
+var rawB64KindWord = textbuf.MakeWord4(rawB64KindPrefix[:3])
+
 var (
 	errRawB64CarriageReturn = errors.New("exabgp-bridge: base64 line contains carriage return")
 	errRawB64InvalidPrefix  = errors.New("exabgp-bridge: base64 line does not start with 'upd '")
-	errRawB64EmptyNumber    = errors.New("exabgp-bridge: base64 numeric field has no digits")
-	errRawB64MissingSpace   = errors.New("exabgp-bridge: base64 field missing terminating space")
-	errRawB64InvalidDigit   = errors.New("exabgp-bridge: base64 numeric field contains non-digit")
-	errRawB64NumberOverflow = errors.New("exabgp-bridge: base64 numeric field overflows uint64")
 	errRawB64UnknownFlags   = errors.New("exabgp-bridge: base64 flags has unknown high bits (> 63)")
 	errRawB64ASNOverflow    = errors.New("exabgp-bridge: base64 AS number exceeds uint32")
-	errRawB64MissingColon   = errors.New("exabgp-bridge: base64 counted field missing ':'")
-	errRawB64EmptyCount     = errors.New("exabgp-bridge: base64 counted field length has no digits")
-	errRawB64OutOfBounds    = errors.New("exabgp-bridge: base64 counted field length exceeds remaining line")
-	errRawB64TrailingBytes  = errors.New("exabgp-bridge: base64 line has unexpected trailing bytes")
 	errRawB64BodyTooLarge   = errors.New("exabgp-bridge: base64 UPDATE body exceeds RFC 8654 maximum (65516 bytes)")
 	errRawB64InvalidBase64  = errors.New("exabgp-bridge: base64 UPDATE body is not valid base64")
 )
@@ -169,79 +165,77 @@ func SupportsRawWire() bool {
 // Returns an error without panicking on any malformed input or body past RFC
 // 8654's 65,516-byte limit.
 func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
-	if line != "" && line[len(line)-1] == '\n' {
-		line = line[:len(line)-1]
+	var b textbuf.Buffer
+	b.AdoptString(line)
+	b.TrimTrailingLF()
+	if b.Remaining() > 0 {
+		if line[b.Remaining()-1] == '\r' {
+			return RawUpdate{}, errRawB64CarriageReturn
+		}
 	}
-	if line != "" && line[len(line)-1] == '\r' {
-		return RawUpdate{}, errRawB64CarriageReturn
-	}
-	if len(line) < len(rawB64KindPrefix) {
-		return RawUpdate{}, errRawB64InvalidPrefix
-	}
-	if line[:len(rawB64KindPrefix)] != rawB64KindPrefix {
-		return RawUpdate{}, errRawB64InvalidPrefix
-	}
-	rest := line[len(rawB64KindPrefix):]
 
-	flagsVal, rest, err := cutRawUint64(rest)
+	word, ok := b.ReadWord4()
+	if !ok {
+		return RawUpdate{}, errRawB64InvalidPrefix
+	}
+	if word != rawB64KindWord {
+		return RawUpdate{}, errRawB64InvalidPrefix
+	}
+
+	flagsVal, err := b.ReadUintSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 flags: %w", err)
 	}
 	if flagsVal > uint64(rawB64FlagsMax) {
 		return RawUpdate{}, errRawB64UnknownFlags
 	}
 
-	localASVal, rest, err := cutRawUint64(rest)
+	localASVal, err := b.ReadUintSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 local-as: %w", err)
 	}
 	if localASVal > math.MaxUint32 {
 		return RawUpdate{}, errRawB64ASNOverflow
 	}
 
-	remoteASVal, rest, err := cutRawUint64(rest)
+	remoteASVal, err := b.ReadUintSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 remote-as: %w", err)
 	}
 	if remoteASVal > math.MaxUint32 {
 		return RawUpdate{}, errRawB64ASNOverflow
 	}
 
-	connID, rest, err := cutRawUint64(rest)
+	connID, err := b.ReadUintSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 conn-id: %w", err)
 	}
 
-	peer, rest, err := cutRawCountedText(rest, true)
+	peer, err := b.ReadCountedStringSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 peer: %w", err)
 	}
-	local, rest, err := cutRawCountedText(rest, true)
+	local, err := b.ReadCountedStringSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 local: %w", err)
 	}
-	routerID, rest, err := cutRawCountedText(rest, true)
+	routerID, err := b.ReadCountedStringSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 router-id: %w", err)
 	}
-	extraAddPath, rest, err := cutRawCountedText(rest, true)
+	extraAddPath, err := b.ReadCountedStringSpace()
 	if err != nil {
-		return RawUpdate{}, err
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 extra-addpath: %w", err)
 	}
-	b64Body, rest, err := cutRawCountedText(rest, false)
+	b64Body, err := b.ReadCountedStringEnd()
 	if err != nil {
-		return RawUpdate{}, err
-	}
-	if rest != "" {
-		return RawUpdate{}, errRawB64TrailingBytes
+		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 body: %w", err)
 	}
 
 	body, err := decodeRawB64Body(b64Body, scratch)
 	if err != nil {
 		return RawUpdate{}, err
 	}
-
-	flags := uint8(flagsVal)
 
 	return RawUpdate{
 		Peer:         peer,
@@ -251,83 +245,9 @@ func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
 		ConnID:       connID,
 		LocalAS:      uint32(localASVal),
 		RemoteAS:     uint32(remoteASVal),
-		Flags:        flags,
+		Flags:        uint8(flagsVal),
 		Body:         body,
 	}, nil
-}
-
-// cutRawUint64 parses one decimal unsigned integer closed by a single space in
-// a single pass without allocating.
-func cutRawUint64(s string) (val uint64, rest string, err error) {
-	for i := range len(s) {
-		c := s[i]
-		if c == ' ' {
-			if i == 0 {
-				return 0, "", errRawB64EmptyNumber
-			}
-			return val, s[i+1:], nil
-		}
-		if c < '0' {
-			return 0, "", errRawB64InvalidDigit
-		}
-		if c > '9' {
-			return 0, "", errRawB64InvalidDigit
-		}
-		if i >= rawUint64DigitsMax {
-			return 0, "", errRawB64NumberOverflow
-		}
-		digit := uint64(c - '0')
-		if val > (math.MaxUint64-digit)/10 {
-			return 0, "", errRawB64NumberOverflow
-		}
-		val = val*10 + digit
-	}
-	return 0, "", errRawB64MissingSpace
-}
-
-// cutRawCountedText parses one `<byte-len>:<bytes>` field without allocating,
-// verifying bounds against remaining input before slicing.
-func cutRawCountedText(s string, expectSpace bool) (val, rest string, err error) {
-	var size uint64
-	for i := range len(s) {
-		c := s[i]
-		if c == ':' {
-			if i == 0 {
-				return "", "", errRawB64EmptyCount
-			}
-			afterColon := s[i+1:]
-			if size > uint64(len(afterColon)) {
-				return "", "", errRawB64OutOfBounds
-			}
-			val = afterColon[:size]
-			rem := afterColon[size:]
-			if !expectSpace {
-				return val, rem, nil
-			}
-			if rem == "" {
-				return "", "", errRawB64MissingSpace
-			}
-			if rem[0] != ' ' {
-				return "", "", errRawB64MissingSpace
-			}
-			return val, rem[1:], nil
-		}
-		if c < '0' {
-			return "", "", errRawB64InvalidDigit
-		}
-		if c > '9' {
-			return "", "", errRawB64InvalidDigit
-		}
-		if i >= rawUint64DigitsMax {
-			return "", "", errRawB64NumberOverflow
-		}
-		digit := uint64(c - '0')
-		if size > (math.MaxUint64-digit)/10 {
-			return "", "", errRawB64NumberOverflow
-		}
-		size = size*10 + digit
-	}
-	return "", "", errRawB64MissingColon
 }
 
 // decodeRawB64Body decodes a base64-encoded BGP UPDATE body into scratch when

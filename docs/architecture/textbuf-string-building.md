@@ -91,15 +91,24 @@ or dangles. `ai/rules/performance.md` bans it.
 | Return a string (single use) | `var b Buffer` | `String()` | 1 |
 | Return a string (zero-copy) | `New()` | `Slice()` | 1 |
 | Return a string, reuse buffer | `Get()` + `defer Release()` | `String()` | 1 |
+| Parse owned `[]byte` | `var b Buffer; b.Adopt(raw)` | `ReadWord4` / `ReadUint*` / `ReadCounted*` | 0 |
+| Parse `string` (read-only) | `var b Buffer; b.AdoptString(s)` | `ReadWord4` / `ReadUint*` / `ReadCountedString*` | 0 |
+| Parse `[]byte` or `string` (`*Buffer` handle escapes) | `FromBytes(raw)` / `FromString(s)` | `ReadCounted*` / `Rest*` | 1 |
 
 ## Buffer methods
 
-An appending method returns `*Buffer` so calls chain. An extractor (`String`,
-`Slice`, `Bytes`, `Len`), the printers (`StdOut`, `StdErr`), the `io` methods,
-and `Release` return their own result instead, so a chain ends on one of them.
+An appending or ownership-setting method returns `*Buffer` so calls chain. An
+extractor (`String`, `Slice`, `Bytes`, `Len`), the printers (`StdOut`, `StdErr`),
+the `io` methods, `Release`, and the `Read*`/`Peek*`/cursor methods return their
+own result instead, so a chain ends on one of them. `FromBytes` and `FromString`
+are heap constructors returning `*Buffer`, parallel to `New`.
 
 | Method | Use |
 |--------|-----|
+| `Adopt(data []byte)` | Take ownership of `data` on a stack or existing buffer with zero allocation, resetting cursor and writable state. Caller MUST NOT mutate `data` while `Buffer` holds it. Chainable |
+| `AdoptString(s string)` | Wrap immutable `s` zero-copy for read-only parsing (`done = true`, `readOnly = true`). Writes and mutable byte accessors panic until `Reset()` or `Adopt()`. Chainable |
+| `FromBytes(data []byte)` | Package constructor: heap-allocated `*Buffer` taking ownership of `data` without copying, when the `*Buffer` handle itself must outlive the caller |
+| `FromString(s string)` | Package constructor: heap-allocated read-only `*Buffer` wrapping `s` without copying |
 | `Str(s)` | Append string literal or variable |
 | `Byte(c)` | Append separator or single char |
 | `Uint(v uint64)` | Append decimal uint64 |
@@ -121,13 +130,15 @@ and `Release` return their own result instead, so a chain ends on one of them.
 | `PadRight(s, width)` | Append `s` then spaces to fill `width` (rune-aware) |
 | `PadLeft(s, width)` | Prepend spaces then `s` to fill `width` (rune-aware) |
 | `Repeat(s, n)` | Append `s` N times (indentation, padding) |
+| `CountedBytes(val []byte)` | Append `val` framed as `<len(val)>:<val>` (or `0:` when empty) |
+| `CountedStr(s string)` | Append `s` framed as `<len(s)>:<s>` (or `0:` when empty) |
 | `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
 | `String()` | Return the built string and EMPTY the buffer, at every size. Does NOT freeze: a write after it starts a new string, from empty |
 | `Slice()` | Return string **zero-copy at any size**. Freezes buffer: writes panic until `Reset()` |
-| `Bytes()` | Return raw `[]byte` (shares buffer memory). For `w.Write()` or `string()` in map/switch (compiler elides alloc) |
+| `Bytes()` | Return raw `[]byte` (shares buffer memory). For `w.Write()` or `string()` in map/switch (compiler elides alloc). Panics on a read-only string buffer (`AdoptString` / `FromString`) |
 | `StdOut()` | Write the contents to standard output. No copy and no extraction: the write consumes the buffer, so neither `String()` nor `Slice()` is needed. Does NOT freeze. Adds no newline. Returns `error` |
 | `StdErr()` | Write the contents to standard error, on the same terms as `StdOut()` |
-| `Reset()` | Clear the buffer for reuse. Resets to inline array. Chainable |
+| `Reset(size ...int)` | Clear the buffer, cursor, and read-only state for reuse. Resets to inline array (or capacity `size[0]`). Chainable |
 | `Release()` | Return a pooled buffer for reuse. A no-op on a stack buffer or after a prior `Release`. Safe after `String` |
 | `SetColor(enabled)` | Enable or disable ANSI color output on this buffer |
 | `Colored(c Color)` | Append the ANSI sequence for `c` when color is enabled, a no-op otherwise. End the span with `ColorReset` |
@@ -136,6 +147,17 @@ and `Release` return their own result instead, so a chain ends on one of them.
 | `WriteByte(c)` | Append byte (implements `io.ByteWriter`). Returns `error` |
 | `WriteRune(r)` | Append rune. Returns `(int, error)` |
 | `Len()` | Current content length |
+| `Pos()`, `Remaining()`, `EOF()` | Inspect read cursor byte offset, unread byte count, and end-of-buffer state |
+| `Skip(n)` | Advance read cursor by `n` bytes if `0 <= n <= Remaining()`; returns `false` without moving otherwise |
+| `TrimTrailingLF()` | Strip one trailing `\n` from the unread tail without mutating backing storage (safe on read-only buffers). Returns `bool` |
+| `RestBytes()` | Freeze buffer and return the unread tail as a 3-index `[]byte` (capacity capped at len). Panics on a read-only string buffer |
+| `RestString()` | Freeze buffer and return the unread tail as a zero-copy `string` view |
+| `PeekWord4()`, `ReadWord4()` | Freeze buffer and peek or consume a 4-byte `Word4` (3 ASCII bytes plus trailing space) at the cursor. Returns `(Word4, bool)` |
+| `ReadUint()`, `ReadUintSpace()` | Freeze buffer and parse a base-10 `uint64` in one pass. `ReadUint` stops at space or EOF without consuming the space; `ReadUintSpace` requires and consumes the trailing space. Cursor unchanged on error |
+| `ReadSpace()` | Freeze buffer and consume one ASCII space byte at the cursor; returns `ErrMissingSpace` otherwise |
+| `PeekCountedHeader()` | Freeze buffer and parse a `<n>:` length prefix without advancing the cursor or requiring payload bytes to be present. Returns `(size, headerWidth, err)` |
+| `ReadCountedBytes()`, `ReadCountedBytesSpace()`, `ReadCountedBytesEnd()` | Freeze buffer and parse `<n>:<bytes>` into a 3-index `[]byte` (`b.b[start:end:end]`). `*Space` consumes a trailing space; `*End` requires `EOF()`. Panics on read-only buffers. Cursor unchanged on error |
+| `ReadCountedString()`, `ReadCountedStringSpace()`, `ReadCountedStringEnd()` | Freeze buffer and parse `<n>:<bytes>` into a zero-copy `string` view. `*Space` consumes a trailing space; `*End` requires `EOF()`. Safe on read-only buffers. Cursor unchanged on error |
 
 ## String() against Slice()
 
@@ -200,6 +222,93 @@ for _, p := range prefixes {
 }
 ```
 
+## Adopting a buffer and parsing counted wire lines
+
+`Buffer` also parses incoming wire lines without copying them into a fresh
+buffer or allocating intermediate slices.
+
+- **Ownership transfer (`Adopt` / `FromBytes`):** `var b textbuf.Buffer; b.Adopt(rawBytes)`
+  takes ownership of an existing `[]byte` on a stack-resident `Buffer` with zero
+  allocations, resetting the read cursor and writable state. The caller MUST NOT
+  mutate `rawBytes` while `Buffer` holds it. `FromBytes(rawBytes)` is the heap
+  equivalent (one `Buffer` allocation, zero payload copy) when the `*Buffer`
+  handle itself must outlive the caller's frame.
+- **Read-only string wrapping (`AdoptString` / `FromString`):**
+  `b.AdoptString(line)` wraps an immutable `string` zero-copy on the stack for
+  read-only parsing; `FromString(line)` allocates the `*Buffer` handle on the
+  heap.
+- **Freeze-on-read and `readOnly` guard:** Any `Read*`, `Peek*`, or `Rest*`
+  call sets `b.done = true`, freezing the buffer so writes panic via
+  `mustBeWritable` until `Reset()` or `Adopt()` clears it. `AdoptString` and
+  `FromString` also set `b.readOnly = true`, so mutable byte accessors
+  (`Bytes()`, `RestBytes()`, `ReadCountedBytes*`) panic via `mustBeMutable` and
+  immutable Go string memory can never be mutated. String and value readers
+  (`ReadWord4`, `PeekWord4`, `ReadUint*`, `ReadSpace`, `PeekCountedHeader`,
+  `ReadCountedString*`, `RestString`, `TrimTrailingLF`) stay safe on read-only
+  buffers.
+- **Lifetime rule:** Go has no borrow checker. Views parsed from `Adopt(raw)`
+  or `AdoptString(s)` point directly into `raw` or `s` (not into `Buffer.arr`),
+  so returning them from a function holding a stack `Buffer` is safe as long as
+  `raw` or `s` stays alive and unmodified. Views parsed from text built inside a
+  stack `Buffer`'s inline array stay valid only until `Reset()`, `Adopt()`,
+  `Release()`, or function return, matching `Slice()` and `Bytes()`.
+
+`parse.go` implements the three positional wire primitives shared by ExaBGP
+`base64` UPDATE lines and the RPC Answer Protocol:
+
+1. **4-byte `Word4` (`MakeWord4`, `ReadWord4`, `PeekWord4`):** packs a 3-byte
+   ASCII verb and its mandatory trailing space into a little-endian `uint32`
+   (`Word4Width` bytes) for single-instruction `switch` dispatch (`upd `,
+   `top `, `row `, `bad `, `end `, `wrn `, `nay `). `MakeWord4` panics if
+   `len(token) != 3`.
+2. **Fused single-pass decimal `uint64` (`ReadUint`, `ReadUintSpace`,
+   `ReadSpace`):** plain decimal digits closed by a space or end of buffer,
+   never length-prefixed. Accumulates the value in one pass, refuses `:`
+   (`ErrNumberHasColon`), widths past `Uint64DigitsMax` (`ErrNumberTooWide`),
+   and `uint64` overflow (`ErrNumberOverflow`), and leaves the cursor unchanged
+   on error.
+3. **Length-prefixed `<n>:<bytes>` counted fields (`ReadCountedBytes*`,
+   `ReadCountedString*`, `PeekCountedHeader`, plus writers `CountedBytes`,
+   `CountedStr`):** `<n>` is a byte count closed by `:` (`0:` for empty).
+   `ReadCountedBytes*` caps capacity with a 3-index slice (`b.b[start:end:end]`)
+   so `append` on one field cannot overwrite following fields.
+   `PeekCountedHeader` parses `<n>:` without advancing the cursor or requiring
+   the payload bytes to be present, allowing frame scanners to compute line
+   widths before reading the full payload.
+
+```go
+// BEFORE: two-pass cut + strconv.ParseUint and ad-hoc slicing
+verb, rest, ok := strings.Cut(string(line), " ")
+countStr, rest, ok := strings.Cut(rest, " ")
+count, err := strconv.ParseUint(countStr, 10, 64)
+
+// AFTER: zero-alloc ownership transfer + fused positional parsing
+var wordEnd = textbuf.MakeWord4("end")
+
+var b textbuf.Buffer
+b.Adopt(line)
+b.TrimTrailingLF()
+
+word, ok := b.ReadWord4()
+if !ok {
+    return errUnexpectedVerb
+}
+if word != wordEnd {
+    return errUnexpectedVerb
+}
+count, err := b.ReadUintSpace()
+if err != nil {
+    return err
+}
+faults, err := b.ReadUintSpace()
+if err != nil {
+    return err
+}
+msg, err := b.ReadCountedBytesEnd() // 3-index slice; valid until Reset/return
+```
+<!-- source: internal/core/textbuf/textbuf.go -- Buffer, Adopt, AdoptString, FromBytes, FromString -->
+<!-- source: internal/core/textbuf/parse.go -- Word4, MakeWord4, ReadWord4, ReadUint, ReadUintSpace, PeekCountedHeader, ReadCountedBytes, ReadCountedString, CountedBytes, CountedStr -->
+
 ## Standalone functions
 
 For a single value, these return a string directly.
@@ -234,6 +343,8 @@ For wire encoding and hot paths, these append into a caller-owned `[]byte`.
 | `textbuf.Hex(dst, data)` | Hex-encoded bytes |
 | `textbuf.HexUpper(dst, data)` | Uppercase hex-encoded bytes |
 | `textbuf.MAC(dst, mac)` | MAC address bytes |
+| `textbuf.CountedBytes(dst, val)` | `<len(val)>:<val>` counted bytes |
+| `textbuf.CountedStr(dst, s)` | `<len(s)>:<s>` counted string bytes |
 
 ## Which form for which pattern
 
@@ -468,3 +579,9 @@ func (b *keyBuilder) Sep()                 { b.WriteByte('|') }
 func (b *keyBuilder) Uint(v uint64)        { var buf [20]byte; b.Write(textbuf.Uint(buf[:0], v)) }
 func (b *keyBuilder) Addr(addr netip.Addr) { var buf [39]byte; b.Write(textbuf.Addr(buf[:0], addr)) }
 ```
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| `textbuf.Buffer` takes ownership of `[]byte` (`Adopt` / `FromBytes`) or wraps immutable `string` (`AdoptString` / `FromString`) with zero allocation and provides Ze's canonical fused positional counted wire parser (`Word4`, `ReadUint*`, `ReadCounted*`) directly on `Buffer`, freezing writes on first read and returning 3-index sub-slices backed by the adopted buffer | Open-coding duplicate counted-number (`strconv.ParseUint` two-pass) or counted-text parsers beside `textbuf.Buffer`, or copying wire lines into a fresh buffer before parsing | docs/architecture/textbuf-string-building.md | 2026-11-27 |

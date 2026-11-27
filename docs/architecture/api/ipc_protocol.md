@@ -453,7 +453,8 @@ type alike. It is what makes the four bytes of a word always present, so a
 reader loads them as one integer and one compare proves three things: the token
 is one this build knows, it is closed by a space, and no longer word merely
 opening with those three letters is read as it.
-<!-- source: pkg/plugin/rpc/message.go -- answerWordOf, answerKindOfWord, answerTypeOfWord -->
+<!-- source: pkg/plugin/rpc/message.go -- answerKindOfWord, answerTypeOfWord -->
+<!-- source: internal/core/textbuf/parse.go -- Word4, MakeWord4 -->
 
 Every kind is three bytes, so a reader reaches it by arithmetic and searches no
 line for a separator. The offset differs per channel and is fixed within one:
@@ -479,7 +480,15 @@ by arithmetic and searches no line for a separator.
 | word | three bytes, no count | the kind, and the head's item type |
 | counted number | decimal digits, closed by a space or by the end of the line | the terminator's two counts |
 | counted text | `<n>:<bytes>`, where `<n>` is the BYTE count of the bytes after the colon | the envelope name, the column names, every message, the error code, and the record payload |
-<!-- source: pkg/plugin/rpc/message.go -- appendCountedNumber, appendCountedText, cutCountedNumber, cutCountedText -->
+
+The canonical zero-allocation primitives for these three field shapes live in
+`internal/core/textbuf/parse.go` (`Word4` for space-closed three-byte words,
+fused single-pass `ReadUint` / `ReadUintSpace` for counted numbers, and
+`CountedBytes` / `CountedStr` / `PeekCountedHeader` / `ReadCountedBytes*` /
+`ReadCountedString*` for counted text; see
+[textbuf-string-building.md](../textbuf-string-building.md)).
+<!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerItem, AppendAnswerTerminator, ParseAnswerTail -->
+<!-- source: internal/core/textbuf/parse.go -- Word4, ReadUint, ReadCountedBytes, PeekCountedHeader, CountedBytes, CountedStr -->
 
 The count on a counted text is a BYTE count and never a count of characters. A
 value MAY hold multi-byte utf-8, and a reader slices the bytes that arrived rather

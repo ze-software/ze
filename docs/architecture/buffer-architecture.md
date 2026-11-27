@@ -529,13 +529,15 @@ none of them is a defect until this table names the new trigger.
 | `MixedBufMux` | `internal/component/bgp/reactor/bufmux.go` | Byte-budgeted, mixed 4K and 64K blocks | Forward overflow when a peer pool is exhausted |
 | `modBufPool` | `internal/component/bgp/reactor/forward_build.go` | `sync.Pool` of 4096-byte buffers | Progressive-build scratch when no peer-pool slot is free |
 | Per-attribute-type pools | `internal/component/bgp/plugins/rib/pool/attributes.go` | `attrpool.Pool` dedup slabs, one per attribute type | RIB attribute deduplication |
-| `textbuf` pool | `internal/core/textbuf/textbuf.go` | `sync.Pool` reached through `Get()` and `Release()` | String building |
+| `textbuf` pool | `internal/core/textbuf/textbuf.go`, `parse.go` | `sync.Pool` reached through `Get()` and `Release()`; stack `Buffer` also takes ownership via `Adopt()` | String building, zero-allocation ownership transfer (`Adopt`), and positional counted wire parsing (`parse.go`) |
 
 The `bufMuxStd` and `bufMuxExt` names are the two read multiplexers
 `Session.getReadBuffer` and `getReadBuf` select between; there is no
 `readBufPool4K`, `readBufPool64K`, or `buildBufPool` in the tree.
 <!-- source: internal/component/bgp/reactor/session_aigp.go -- writeUpdateWithoutAIGP -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody -->
+<!-- source: internal/core/textbuf/textbuf.go -- Buffer, Adopt, Get, Release -->
+<!-- source: internal/core/textbuf/parse.go -- Word4, ReadUint, ReadCountedBytes -->
 
 ### Pool shape follows goroutine shape
 
@@ -592,7 +594,7 @@ Is this on a per-UPDATE / per-route / per-NLRI path?
 │           └── NO: Create a sync.Pool for this use case
 └── NO (startup, config, CLI, one-shot):
     ├── One-shot allocation → make() is fine
-    ├── String building → textbuf.Buffer (stack, 128B inline)
+    ├── String building / counted wire parsing → textbuf.Buffer (stack, 128B inline; Adopt + parse.go)
     └── fmt.Sprintf → acceptable on cold paths
 ```
 

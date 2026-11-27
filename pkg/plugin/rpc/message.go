@@ -6,14 +6,14 @@
 package rpc
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"slices"
-	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // jsonNull is the JSON literal a peer sends for an absent value.
@@ -90,7 +90,7 @@ func ExtractErrorMessage(payload json.RawMessage) string {
 // one. idPrefixMax is the whole id field at that width: `#`, twenty digits, and
 // the space that ends the field.
 const (
-	uint64DigitsMax = 20
+	uint64DigitsMax = textbuf.Uint64DigitsMax
 	idPrefixMax     = 22
 )
 
@@ -108,8 +108,8 @@ const (
 // text, an empty one included, which is written `0:`. So a number never carries
 // one and a text always does. A reader that meets the wrong byte refuses the
 // line rather than reading one field as the other, which would take the bytes
-// after it as a value and mis-slice every field that follows (cutCountedNumber,
-// cutCountedText).
+// after it as a value and mis-slice every field that follows
+// (textbuf.Buffer.ReadUint, textbuf.Buffer.ReadCountedBytes, wrapCountedError).
 //
 // NEITHER field states an outer length of its own. A digit run is closed by a
 // byte no digit can be, so a count in front of it buys a reader nothing: the
@@ -127,7 +127,7 @@ const (
 // separates this field from the next one closes it, and so does the end of the
 // line, so the digits are the whole field.
 func appendCountedNumber(buf []byte, value uint64) []byte {
-	return strconv.AppendUint(buf, value, 10)
+	return textbuf.Uint(buf, value)
 }
 
 // appendCountedText appends the `<n>:<bytes>` field carrying text, where `<n>`
@@ -135,17 +135,13 @@ func appendCountedNumber(buf []byte, value uint64) []byte {
 // the field is present and empty rather than omitted and the field count of a
 // line never varies (AC-17).
 func appendCountedText(buf []byte, text string) []byte {
-	buf = appendCountedNumber(buf, uint64(len(text)))
-	buf = append(buf, ':')
-	return append(buf, text...)
+	return textbuf.CountedStr(buf, text)
 }
 
 // appendCountedBytes is appendCountedText for a value already held as bytes,
 // so a JSON payload reaches the line without being copied into a string first.
 func appendCountedBytes(buf, value []byte) []byte {
-	buf = appendCountedNumber(buf, uint64(len(value)))
-	buf = append(buf, ':')
-	return append(buf, value...)
+	return textbuf.CountedBytes(buf, value)
 }
 
 // The two refusals the colon earns. A number and a text differ by that one byte,
@@ -157,162 +153,31 @@ var (
 	errCountedTextUnclosed = errors.New("counted text byte count is not closed by ':', which every text carries, an empty one included")
 )
 
-// countedDigitsText reports how many decimal digits open line, and
-// countedDigitsBytes is its twin for a line held as bytes. The wire reaches the
-// frame reader as bytes and the multiplexer as a string, and neither pays a
-// conversion to reach one counter.
-//
-// Both stop one byte past the widest run a uint64 can hold, so a payload of
-// digits is never walked to its end. What is past that bound is refused by
-// checkCountedDigits, whatever follows it.
-func countedDigitsText(line string) int {
-	end := min(len(line), uint64DigitsMax+1)
-	for at := range end {
-		if line[at] < '0' || line[at] > '9' {
-			return at
-		}
+// wrapCountedError translates textbuf parse sentinels into Answer Protocol
+// errors, keeping the distinct colon refusals that separate counted numbers
+// from counted texts.
+func wrapCountedError(err error, rest []byte) error {
+	if errors.Is(err, textbuf.ErrNumberHasColon) {
+		return fmt.Errorf("%w: %q", errCountedNumberColon, truncateBytes(rest, 80))
 	}
-	return end
+	if errors.Is(err, textbuf.ErrMissingColon) {
+		return fmt.Errorf("%w: %q", errCountedTextUnclosed, truncateBytes(rest, 80))
+	}
+	return fmt.Errorf("%w: %q", err, truncateBytes(rest, 80))
 }
 
-func countedDigitsBytes(field []byte) int {
-	end := min(len(field), uint64DigitsMax+1)
-	for at := range end {
-		if field[at] < '0' || field[at] > '9' {
-			return at
+// readFieldSpace consumes the single space separating two positional fields on
+// an answer line. A field whose width is stated needs no terminator of its own,
+// so the space is what says another field follows rather than what says this
+// one ended.
+func readFieldSpace(b *textbuf.Buffer) error {
+	if err := b.ReadSpace(); err != nil {
+		if b.EOF() {
+			return errors.New("answer line ends where another field belongs")
 		}
-	}
-	return end
-}
-
-// checkCountedDigits judges the digit run a counted field opens with. It is the
-// one place both fields and both readers refuse a run no uint64 can hold. A
-// malformed count therefore reads the same whichever of them met it.
-//
-// The caller quotes the field it read the run from, because only the caller
-// knows how to bound that quotation.
-func checkCountedDigits(digits int) error {
-	if digits == 0 {
-		return errors.New("counted field states no digits")
-	}
-	if digits > uint64DigitsMax {
-		return fmt.Errorf("counted field states more than the %d digits a uint64 occupies", uint64DigitsMax)
+		return fmt.Errorf("answer line field is not followed by a space: %q", truncateBytes(b.RestBytes(), 40))
 	}
 	return nil
-}
-
-// cutCountedNumber takes a counted number off the front of line and returns its
-// value and everything after the field.
-//
-// A space or the end of the line closes the digits. What closes them is checked
-// here, and what FOLLOWS them is the caller's business. cutFieldSeparator says
-// another field follows; this says the field itself is a number.
-func cutCountedNumber(line string) (value uint64, rest string, err error) {
-	digits := countedDigitsText(line)
-	if err := checkCountedDigits(digits); err != nil {
-		return 0, "", fmt.Errorf("%w: %q", err, truncate(line, 80))
-	}
-	if digits < len(line) && line[digits] == ':' {
-		return 0, "", fmt.Errorf("%w: %q", errCountedNumberColon, truncate(line, 80))
-	}
-	// The digits were counted above, so ParseUint refuses only a value past the
-	// range of a uint64.
-	value, err = strconv.ParseUint(line[:digits], 10, 64)
-	if err != nil {
-		return 0, "", fmt.Errorf("counted number %q: %w", line[:digits], err)
-	}
-	return value, line[digits:], nil
-}
-
-// cutCountedText takes a counted text off the front of line and returns its
-// bytes and everything after the field.
-//
-// The colon MUST be there, whatever the count states. It is what separates a
-// text from a number, and a text carries it even when it carries no bytes.
-//
-// The stated byte count is checked against what arrived BEFORE the slice, so a
-// line claiming more bytes than it carries is refused rather than panicking the
-// reader.
-func cutCountedText(line string) (text, rest string, err error) {
-	digits := countedDigitsText(line)
-	if err := checkCountedDigits(digits); err != nil {
-		return "", "", fmt.Errorf("%w: %q", err, truncate(line, 80))
-	}
-	if digits >= len(line) || line[digits] != ':' {
-		return "", "", fmt.Errorf("%w: %q", errCountedTextUnclosed, truncate(line, 80))
-	}
-	size, err := strconv.ParseUint(line[:digits], 10, 64)
-	if err != nil {
-		return "", "", fmt.Errorf("counted text byte count %q: %w", line[:digits], err)
-	}
-	rest = line[digits+1:]
-	if uint64(len(rest)) < size {
-		return "", "", fmt.Errorf("counted text of %d bytes runs past the end of the line: %q", size, truncate(line, 80))
-	}
-	return rest[:size], rest[size:], nil
-}
-
-// cutCountedBytes takes a counted text off the front of field and returns its
-// bytes and everything after it, both referencing field rather than copying it.
-//
-// It is cutCountedText for a value held as bytes, and it exists for the reason
-// appendCountedBytes does: a record's payload reaches and leaves the wire
-// without being copied into a string, on the line that repeats. The refusals
-// are checkCountedDigits's and errCountedTextUnclosed's, so the two readers
-// cannot disagree about what a malformed count is.
-//
-// The stated byte count is checked against what arrived BEFORE the slice, so a
-// line claiming more bytes than it carries is refused rather than panicking the
-// reader.
-func cutCountedBytes(field []byte) (value, rest []byte, err error) {
-	size, header, err := countedTextAt(field)
-	if err != nil {
-		return nil, nil, err
-	}
-	// The stated count is checked against what arrived BEFORE the slice.
-	if size > uint64(len(field)-header) {
-		return nil, nil, fmt.Errorf("counted text of %d bytes runs past the end of the line: %q", size, truncateBytes(field, 80))
-	}
-	end := header + int(size)
-	return field[header:end], field[end:], nil
-}
-
-// countedTextAt reads the `<n>:` a counted text opens with and returns the byte
-// count it states and how wide that header is. The bytes of the value follow the
-// header and are never touched here.
-//
-// It is cutCountedText for a line held as bytes, minus the slice. A reader that
-// needs to know where a line ENDS asks for widths and never for the values
-// behind them, and that reader is the frame reader.
-func countedTextAt(field []byte) (size uint64, header int, err error) {
-	digits := countedDigitsBytes(field)
-	if err := checkCountedDigits(digits); err != nil {
-		return 0, 0, fmt.Errorf("%w: %q", err, truncateBytes(field, 80))
-	}
-	if digits >= len(field) || field[digits] != ':' {
-		return 0, 0, fmt.Errorf("%w: %q", errCountedTextUnclosed, truncateBytes(field, 80))
-	}
-	// The digits were counted above, so ParseUint refuses only a value past the
-	// range of a uint64.
-	size, err = strconv.ParseUint(string(field[:digits]), 10, 64)
-	if err != nil {
-		return 0, 0, fmt.Errorf("counted text byte count %q: %w", field[:digits], err)
-	}
-	return size, digits + 1, nil
-}
-
-// cutFieldSeparator takes the one space that separates two fields off the front
-// of rest. A field whose width is stated needs no terminator of its own, so the
-// space is what says another field follows rather than what says this one
-// ended.
-func cutFieldSeparator(rest string) (string, error) {
-	if rest == "" {
-		return "", errors.New("answer line ends where another field belongs")
-	}
-	if rest[0] != ' ' {
-		return "", fmt.Errorf("answer line field is not followed by a space: %q", truncate(rest, 40))
-	}
-	return rest[1:], nil
 }
 
 // appendID appends the `#<id> ` field naming which conversation a line belongs
@@ -320,7 +185,7 @@ func cutFieldSeparator(rest string) (string, error) {
 // carries ONE id encoding rather than one for each direction.
 func appendID(buf []byte, id uint64) []byte {
 	buf = append(buf, '#')
-	buf = strconv.AppendUint(buf, id, 10)
+	buf = textbuf.Uint(buf, id)
 	return append(buf, ' ')
 }
 
@@ -490,52 +355,26 @@ const answerKindWidth = 3
 // longer word merely opening with those three letters is read as it. Without
 // the rule a word could sit last on a line, and every load would need a bounds
 // case of its own.
-const answerWordWidth = answerKindWidth + 1
+const answerWordWidth = textbuf.Word4Width
 
-// answerWord is a three-letter word and the space that closes it, held as the
-// one uint32 a reader loads to check both at once.
-type answerWord uint32
-
-// answerWordOf derives the word for a three-letter token. Every constant below
-// comes from its own token string, so a token and the integer a reader compares
-// it against cannot drift apart (TestAnswerWordsComeFromTheirTokens).
-func answerWordOf(token string) answerWord {
-	var spelled [answerWordWidth]byte
-	copy(spelled[:], token)
-	spelled[answerKindWidth] = ' '
-	return answerWord(binary.LittleEndian.Uint32(spelled[:]))
-}
-
-// answerWordBytes and answerWordText load the same four bytes as one word. The
-// wire reaches the frame reader as bytes and the multiplexer as a string, and
-// neither pays a conversion to reach one loader.
-func answerWordBytes(line []byte, at int) answerWord {
-	return answerWord(binary.LittleEndian.Uint32(line[at : at+answerWordWidth]))
-}
-
-func answerWordText(line string, at int) answerWord {
-	return answerWord(line[at]) |
-		answerWord(line[at+1])<<8 |
-		answerWord(line[at+2])<<16 |
-		answerWord(line[at+3])<<24
-}
-
-// The word of every kind, and of every item type, derived from the token.
+// The word of every kind, and of every item type, derived from its token so a
+// token and the integer a reader compares it against cannot drift apart
+// (TestAnswerWordsComeFromTheirTokens).
 var (
-	answerWordHead          = answerWordOf(AnswerKindHead)
-	answerWordRecord        = answerWordOf(AnswerKindRecord)
-	answerWordFault         = answerWordOf(AnswerKindFault)
-	answerWordTerminator    = answerWordOf(AnswerKindTerminator)
-	answerWordWarning       = answerWordOf(AnswerKindWarning)
-	answerWordNotUnderstood = answerWordOf(AnswerKindNotUnderstood)
-	answerWordTypeDocument  = answerWordOf(AnswerTypeDocument)
-	answerWordTypeMap       = answerWordOf(AnswerTypeMap)
-	answerWordTypeTable     = answerWordOf(AnswerTypeTable)
+	answerWordHead          = textbuf.MakeWord4(AnswerKindHead)
+	answerWordRecord        = textbuf.MakeWord4(AnswerKindRecord)
+	answerWordFault         = textbuf.MakeWord4(AnswerKindFault)
+	answerWordTerminator    = textbuf.MakeWord4(AnswerKindTerminator)
+	answerWordWarning       = textbuf.MakeWord4(AnswerKindWarning)
+	answerWordNotUnderstood = textbuf.MakeWord4(AnswerKindNotUnderstood)
+	answerWordTypeDocument  = textbuf.MakeWord4(AnswerTypeDocument)
+	answerWordTypeMap       = textbuf.MakeWord4(AnswerTypeMap)
+	answerWordTypeTable     = textbuf.MakeWord4(AnswerTypeTable)
 )
 
 // answerKindOfWord names the kind a word states, and reports whether it states
 // one. Six integer compares, no vocabulary lookup and no string compare.
-func answerKindOfWord(word answerWord) (string, bool) {
+func answerKindOfWord(word textbuf.Word4) (string, bool) {
 	switch word {
 	case answerWordHead:
 		return AnswerKindHead, true
@@ -556,7 +395,7 @@ func answerKindOfWord(word answerWord) (string, bool) {
 // answerTypeOfWord names the item type a word states, and reports whether it
 // states one. It is the same primitive answerKindOfWord uses, because the two
 // tokens are the same shape and one reader serves both.
-func answerTypeOfWord(word answerWord) (string, bool) {
+func answerTypeOfWord(word textbuf.Word4) (string, bool) {
 	switch word {
 	case answerWordTypeDocument:
 		return AnswerTypeDocument, true
@@ -606,10 +445,13 @@ var answerKindWords = strings.Join(answerKinds, ", ")
 // exec channel carries answers alone, so a refusal there ends the line rather
 // than routing it (R-5).
 func answerKindAt(body string) (string, bool) {
-	if len(body) < answerWordWidth {
+	var b textbuf.Buffer
+	b.AdoptString(body)
+	word, ok := b.PeekWord4()
+	if !ok {
 		return "", false
 	}
-	return answerKindOfWord(answerWordText(body, 0))
+	return answerKindOfWord(word)
 }
 
 // Answer item types. The head's item type states what each record of this
@@ -1015,11 +857,14 @@ func ParseAnswerTail(kind string, payload []byte) (AnswerTail, error) {
 // newline inside a value and a `\r\n` terminator each do. Both are refused here
 // rather than half-read (AC-20).
 func parseAnswerRecord(kind string, payload []byte) (AnswerTail, error) {
-	value, rest, err := cutCountedBytes(payload)
+	var b textbuf.Buffer
+	b.Adopt(payload)
+	value, err := b.ReadCountedBytes()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer %s payload: %w", kind, err)
+		return AnswerTail{}, fmt.Errorf("answer %s payload: %w", kind, wrapCountedError(err, b.RestBytes()))
 	}
-	if len(rest) > 0 {
+	if !b.EOF() {
+		rest := b.RestBytes()
 		return AnswerTail{}, fmt.Errorf("answer %s line carries %d bytes past its payload: %q", kind, len(rest), truncateBytes(rest, 40))
 	}
 	if kind == AnswerKindFault {
@@ -1032,39 +877,40 @@ func parseAnswerRecord(kind string, payload []byte) (AnswerTail, error) {
 // name, and the column names. Each sits at an offset the field before it states,
 // so the line is searched for nothing.
 func parseAnswerHead(payload []byte) (AnswerTail, error) {
-	if len(payload) < answerWordWidth {
+	var b textbuf.Buffer
+	b.Adopt(payload)
+	word, ok := b.ReadWord4()
+	if !ok {
 		return AnswerTail{}, errors.New("answer head states no item type, so a consumer cannot read the records that follow it")
 	}
 	// One load and one compare prove the item type is one this build knows AND
 	// that the space the grammar requires after a three-letter word is there.
-	itemType, known := answerTypeOfWord(answerWordBytes(payload, 0))
+	itemType, known := answerTypeOfWord(word)
 	if !known {
 		return AnswerTail{}, fmt.Errorf("answer head states item type %q, want one of %s", truncateBytes(payload, answerTypeWidth), answerTypeWords)
 	}
 	tail := AnswerTail{Kind: AnswerKindHead, Type: itemType}
 
-	text := string(payload)
-	rest := text[answerWordWidth:]
-	key, rest, err := cutCountedText(rest)
+	keyBytes, err := b.ReadCountedBytes()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer head envelope name: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer head envelope name: %w", wrapCountedError(err, b.RestBytes()))
 	}
-	tail.Key = key
+	tail.Key = string(keyBytes)
 
-	rest, err = cutFieldSeparator(rest)
-	if err != nil {
+	if err := readFieldSpace(&b); err != nil {
 		return AnswerTail{}, fmt.Errorf("answer head envelope name: %w", err)
 	}
-	columns, rest, err := cutCountedText(rest)
+	colBytes, err := b.ReadCountedBytes()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer head column names: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer head column names: %w", wrapCountedError(err, b.RestBytes()))
 	}
-	if rest != "" {
-		return AnswerTail{}, fmt.Errorf("answer head carries %d bytes past its last field: %q", len(rest), truncate(rest, 40))
+	if !b.EOF() {
+		rest := b.RestBytes()
+		return AnswerTail{}, fmt.Errorf("answer head carries %d bytes past its last field: %q", len(rest), truncateBytes(rest, 40))
 	}
-	if columns != "" {
-		if err := json.Unmarshal([]byte(columns), &tail.Fields); err != nil {
-			return AnswerTail{}, fmt.Errorf("answer head column names %q: %w", truncate(columns, 40), err)
+	if len(colBytes) > 0 {
+		if err := json.Unmarshal(colBytes, &tail.Fields); err != nil {
+			return AnswerTail{}, fmt.Errorf("answer head column names %q: %w", truncateBytes(colBytes, 40), err)
 		}
 	}
 	if err := checkAnswerType(&tail); err != nil {
@@ -1077,36 +923,37 @@ func parseAnswerHead(payload []byte) (AnswerTail, error) {
 // walk produced, the rows it rejected, and why it produced fewer than it set out
 // to.
 func parseAnswerTerminator(payload []byte) (AnswerTail, error) {
+	var b textbuf.Buffer
+	b.Adopt(payload)
 	tail := AnswerTail{Kind: AnswerKindTerminator}
 
-	count, rest, err := cutCountedNumber(string(payload))
+	count, err := b.ReadUint()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer terminator count: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer terminator count: %w", wrapCountedError(err, b.RestBytes()))
 	}
 	tail.Count = count
 
-	rest, err = cutFieldSeparator(rest)
-	if err != nil {
+	if err := readFieldSpace(&b); err != nil {
 		return AnswerTail{}, fmt.Errorf("answer terminator count: %w", err)
 	}
-	faults, rest, err := cutCountedNumber(rest)
+	faults, err := b.ReadUint()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer terminator fault count: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer terminator fault count: %w", wrapCountedError(err, b.RestBytes()))
 	}
 	tail.Faults = faults
 
-	rest, err = cutFieldSeparator(rest)
-	if err != nil {
+	if err := readFieldSpace(&b); err != nil {
 		return AnswerTail{}, fmt.Errorf("answer terminator fault count: %w", err)
 	}
-	message, rest, err := cutCountedText(rest)
+	msgBytes, err := b.ReadCountedBytes()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer terminator message: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer terminator message: %w", wrapCountedError(err, b.RestBytes()))
 	}
-	if rest != "" {
-		return AnswerTail{}, fmt.Errorf("answer terminator carries %d bytes past its last field: %q", len(rest), truncate(rest, 40))
+	if !b.EOF() {
+		rest := b.RestBytes()
+		return AnswerTail{}, fmt.Errorf("answer terminator carries %d bytes past its last field: %q", len(rest), truncateBytes(rest, 40))
 	}
-	tail.Message = message
+	tail.Message = string(msgBytes)
 	return tail, nil
 }
 
@@ -1134,26 +981,28 @@ func parseAnswerWarning(payload []byte) (AnswerTail, error) {
 // parseAnswerNotUnderstood reads the not-understood answer's two fields: the
 // error code and the reason.
 func parseAnswerNotUnderstood(payload []byte) (AnswerTail, error) {
+	var b textbuf.Buffer
+	b.Adopt(payload)
 	tail := AnswerTail{Kind: AnswerKindNotUnderstood}
 
-	code, rest, err := cutCountedText(string(payload))
+	codeBytes, err := b.ReadCountedBytes()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer not-understood code: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer not-understood code: %w", wrapCountedError(err, b.RestBytes()))
 	}
-	tail.Code = code
+	tail.Code = string(codeBytes)
 
-	rest, err = cutFieldSeparator(rest)
-	if err != nil {
+	if err := readFieldSpace(&b); err != nil {
 		return AnswerTail{}, fmt.Errorf("answer not-understood code: %w", err)
 	}
-	message, rest, err := cutCountedText(rest)
+	msgBytes, err := b.ReadCountedBytes()
 	if err != nil {
-		return AnswerTail{}, fmt.Errorf("answer not-understood message: %w", err)
+		return AnswerTail{}, fmt.Errorf("answer not-understood message: %w", wrapCountedError(err, b.RestBytes()))
 	}
-	if rest != "" {
-		return AnswerTail{}, fmt.Errorf("answer not-understood answer carries %d bytes past its last field: %q", len(rest), truncate(rest, 40))
+	if !b.EOF() {
+		rest := b.RestBytes()
+		return AnswerTail{}, fmt.Errorf("answer not-understood answer carries %d bytes past its last field: %q", len(rest), truncateBytes(rest, 40))
 	}
-	tail.Message = message
+	tail.Message = string(msgBytes)
 	return tail, nil
 }
 
@@ -1168,15 +1017,17 @@ func parseAnswerNotUnderstood(payload []byte) (AnswerTail, error) {
 // Text that is not an answer at all is then named rather than read as an empty
 // one.
 func ParseAnswerLine(line []byte) (string, AnswerTail, error) {
-	text := string(line)
-	kind, known := answerKindAt(text)
+	var b textbuf.Buffer
+	b.Adopt(line)
+	word, ok := b.ReadWord4()
+	if !ok {
+		return "", AnswerTail{}, fmt.Errorf("answer line states no kind this build knows, want one of %s: %q", answerKindWords, truncateBytes(line, 40))
+	}
+	kind, known := answerKindOfWord(word)
 	if !known {
-		return "", AnswerTail{}, fmt.Errorf("answer line states no kind this build knows, want one of %s: %q", answerKindWords, truncate(text, 40))
+		return "", AnswerTail{}, fmt.Errorf("answer line states no kind this build knows, want one of %s: %q", answerKindWords, truncateBytes(line, 40))
 	}
-	if len(text) == answerKindWidth {
-		return "", AnswerTail{}, fmt.Errorf("answer %s line carries no tail", kind)
-	}
-	tail, err := ParseAnswerTail(kind, line[answerKindWidth+1:])
+	tail, err := ParseAnswerTail(kind, b.RestBytes())
 	if err != nil {
 		return "", AnswerTail{}, err
 	}
@@ -1392,38 +1243,44 @@ func idFieldEnd(data []byte) int {
 // kind is known the answer becomes answerLinePartial, because everything after
 // it MAY hold one.
 func answerLineWidth(data []byte) (uint64, answerLineState) {
-	at := 0
-	if len(data) > 0 && data[0] == '#' {
-		end := idFieldEnd(data)
-		if end < 0 {
-			return 0, answerLineOther
+	var b textbuf.Buffer
+	b.Adopt(data)
+
+	if len(data) > 0 {
+		if data[0] == '#' {
+			end := idFieldEnd(data)
+			if end < 0 {
+				return 0, answerLineOther
+			}
+			if !b.Skip(end) {
+				return 0, answerLineOther
+			}
 		}
-		at = end
 	}
 
-	if len(data)-at < answerWordWidth {
+	word, ok := b.ReadWord4()
+	if !ok {
 		return 0, answerLineOther
 	}
-	kind, known := answerKindOfWord(answerWordBytes(data, at))
+	kind, known := answerKindOfWord(word)
 	if !known {
 		return 0, answerLineOther
 	}
-	at += answerWordWidth
 
-	for index, shape := range answerLineShapes[kind] {
+	shapes := answerLineShapes[kind]
+	for index, shape := range shapes {
 		if index > 0 {
 			// One space separates two fields. A three-letter word carries its
 			// own, so the shapes count three bytes for one and the space is
 			// counted here for every field alike.
-			if at >= len(data) {
+			if b.EOF() {
 				return 0, answerLinePartial
 			}
-			if data[at] != ' ' {
+			if b.ReadSpace() != nil {
 				return 0, answerLineOther
 			}
-			at++
 		}
-		width, state := answerFieldWidth(shape, data[at:])
+		width, state := answerFieldWidth(shape, b.RestBytes())
 		if state != answerLineStated {
 			return 0, state
 		}
@@ -1436,9 +1293,14 @@ func answerLineWidth(data []byte) (uint64, answerLineState) {
 			// wrap.
 			return width, answerLineStated
 		}
-		at += int(width)
+		if index == len(shapes)-1 {
+			return uint64(b.Pos()) + width, answerLineStated
+		}
+		if !b.Skip(int(width)) {
+			return 0, answerLinePartial
+		}
 	}
-	return uint64(at), answerLineStated
+	return uint64(b.Pos()), answerLineStated
 }
 
 // answerFieldWidth reports how many bytes one field of shape occupies at the
@@ -1459,8 +1321,15 @@ func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineS
 		}
 		return answerTypeWidth, answerLineStated
 	case answerFieldNumber:
-		digits := countedDigitsBytes(field)
-		if digits >= len(field) {
+		if len(field) == 0 {
+			return 0, answerLinePartial
+		}
+		var b textbuf.Buffer
+		b.Adopt(field)
+		if _, err := b.ReadUint(); err != nil {
+			return 0, answerLineOther
+		}
+		if b.EOF() {
 			// The run reached the end of what arrived, so the next read MAY
 			// extend it and nothing has said yet where this number ends. The
 			// byte that closes it is a space on every kind written today, and
@@ -1468,12 +1337,11 @@ func answerFieldWidth(shape answerFieldShape, field []byte) (uint64, answerLineS
 			// arrive before the width is known.
 			return 0, answerLinePartial
 		}
-		if checkCountedDigits(digits) != nil {
-			return 0, answerLineOther
-		}
-		return uint64(digits), answerLineStated
+		return uint64(b.Pos()), answerLineStated
 	case answerFieldText:
-		size, header, err := countedTextAt(field)
+		var b textbuf.Buffer
+		b.Adopt(field)
+		size, header, err := b.PeekCountedHeader()
 		if err != nil {
 			return 0, countedTextState(field)
 		}
