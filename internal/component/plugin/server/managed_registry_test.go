@@ -137,30 +137,38 @@ func TestRegistryFetchRecordsVersionAndResult(t *testing.T) {
 	require.Equal(t, resp.Version, got.DeviceVersion)
 	require.Equal(t, resp.Version, got.HubVersion)
 
+	s.mu.Lock()
+	serverConn := s.devices[testClientName].conn
+	s.mu.Unlock()
+	require.NotNil(t, serverConn)
+
 	failure := strings.Repeat("x", managedDetailMax+1)
-	s.recordFetch(testClientName, "other", fleet.ConfigFetchResponse{}, errors.New(failure))
+	require.NoError(t, s.recordFetch(testClientName, serverConn, "other", fleet.ConfigFetchResponse{}, errors.New(failure)))
 	got, err = s.registryDevice(testClientName)
 	require.NoError(t, err)
 	require.Equal(t, ManagedFetchError, got.LastFetchResult)
 	require.Equal(t, "other", got.DeviceVersion)
 	require.Equal(t, failure[:managedDetailMax], got.LastFetchError)
 	require.Equal(t, resp.Version, got.HubVersion, "a fetch error does not remove the hub's configuration")
-	s.recordFetch(testClientName, "other", resp, nil)
+	require.NoError(t, s.recordFetch(testClientName, serverConn, "other", resp, nil))
 	require.Empty(t, s.snapshotDevices()[0].LastFetchError)
 }
 
 func TestRegistryLateEventsLeaveForgottenDeviceAbsent(t *testing.T) {
 	s := registryTestServer(t)
+	conn := &rpc.MuxConn{}
 	delete(s.devices, testClientName)
-	s.recordFetch(testClientName, "previous", fleet.ConfigFetchResponse{}, nil)
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "previous"}, ManagedAckApplied)
+	require.Error(t, s.recordFetch(testClientName, conn, "previous", fleet.ConfigFetchResponse{}, nil))
+	require.Error(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "previous"}, ManagedAckApplied))
 	require.NotContains(t, s.devices, testClientName)
 }
 
 func TestRegistryAckRefusedBoundsError(t *testing.T) {
 	s := registryTestServer(t)
+	conn := &rpc.MuxConn{}
+	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.1"), conn))
 	message := strings.Repeat("z", managedDetailMax+2)
-	s.handleConfigAck(testClientName, fleet.ConfigAck{Version: "new", Error: message}, "")
+	require.NoError(t, s.handleConfigAck(testClientName, conn, fleet.ConfigAck{Version: "new", Error: message}, ""))
 	got := s.snapshotDevices()[0]
 	require.False(t, got.LastAck.IsZero())
 	require.Equal(t, ManagedAckRefused, got.AckResult)
@@ -170,8 +178,10 @@ func TestRegistryAckRefusedBoundsError(t *testing.T) {
 
 func TestRegistryAckAppliedRecorded(t *testing.T) {
 	s := registryTestServer(t)
-	s.handleConfigAck(testClientName, fleet.ConfigAck{Error: "prior refusal"}, "")
-	s.handleConfigAck(testClientName, fleet.ConfigAck{OK: true, Version: "applied", Error: "ignored on success"}, "")
+	conn := &rpc.MuxConn{}
+	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.1"), conn))
+	require.NoError(t, s.handleConfigAck(testClientName, conn, fleet.ConfigAck{Error: "prior refusal"}, ""))
+	require.NoError(t, s.handleConfigAck(testClientName, conn, fleet.ConfigAck{OK: true, Version: "applied", Error: "ignored on success"}, ""))
 	got := s.snapshotDevices()[0]
 	require.Equal(t, ManagedAckApplied, got.AckResult)
 	require.Equal(t, "applied", got.AckVersion)
@@ -182,7 +192,7 @@ func TestRegistryAckHoldingRecorded(t *testing.T) {
 	s, mc := heldTestServer(t, heldTestStore(t))
 	sendHeld(t, s, mc, heldClientText)
 	hubVersion := fleet.VersionHash([]byte(heldHubText))
-	s.handleConfigAck(testClientName, fleet.ConfigAck{Version: hubVersion, Holding: true, Error: "holding local edits"}, fleet.VersionHash([]byte(heldClientText)))
+	require.NoError(t, s.handleConfigAck(testClientName, mc, fleet.ConfigAck{Version: hubVersion, Holding: true, Error: "holding local edits"}, fleet.VersionHash([]byte(heldClientText))))
 	got := s.snapshotDevices()[0]
 	require.Equal(t, ManagedAckHolding, got.AckResult)
 	require.Equal(t, hubVersion, got.AckVersion)

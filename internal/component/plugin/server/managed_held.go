@@ -149,12 +149,32 @@ func HeldRecordKey(name string) string {
 	return zefs.KeyConfigHeld.Key(ClientConfigKey(name))
 }
 
+// clientNameFromHeldKey extracts the managed client name from a held-record
+// store key matching zefs.KeyConfigHeld for a client configuration.
+func clientNameFromHeldKey(key string) (string, bool) {
+	prefix, suffix, found := strings.Cut(zefs.KeyConfigHeld.Pattern, "{name}")
+	if !found {
+		panic("BUG: pluginserver.clientNameFromHeldKey: zefs.KeyConfigHeld has no {name} segment")
+	}
+	if !strings.HasPrefix(key, prefix) {
+		return "", false
+	}
+	configName, isRecord := strings.CutSuffix(strings.TrimPrefix(key, prefix), suffix)
+	if !isRecord {
+		return "", false
+	}
+	if strings.Contains(configName, "/") {
+		return "", false
+	}
+	return ClientNameFromConfigKey(configName)
+}
+
 // HeldClients answers the names of the clients the hub keeps a record for, in
 // the order the store lists their keys, whether or not a serving block still
 // declares them. The key form is KeyConfigHeld's, so a key under meta/config/
 // of another form is not a record and is skipped.
 func HeldClients(store storage.Storage) ([]string, error) {
-	prefix, suffix, found := strings.Cut(zefs.KeyConfigHeld.Pattern, "{name}")
+	prefix, _, found := strings.Cut(zefs.KeyConfigHeld.Pattern, "{name}")
 	if !found {
 		panic("BUG: pluginserver.HeldClients: zefs.KeyConfigHeld has no {name} segment")
 	}
@@ -164,16 +184,9 @@ func HeldClients(store storage.Storage) ([]string, error) {
 	}
 	var names []string
 	for _, key := range keys {
-		configName, isRecord := strings.CutSuffix(strings.TrimPrefix(key, prefix), suffix)
-		if !isRecord {
-			continue // Another key of a configuration, such as its active pointer.
-		}
-		if strings.Contains(configName, "/") {
-			continue // A key nested deeper than a configuration name.
-		}
-		name, isClient := ClientNameFromConfigKey(configName)
+		name, isClient := clientNameFromHeldKey(key)
 		if !isClient {
-			continue // A record of a configuration that is not a client's.
+			continue
 		}
 		names = append(names, name)
 	}
@@ -353,9 +366,16 @@ func (h *heldRecords) write(name string, record HeldRecord) (err error) {
 
 // clear removes the record of client name that a fetch answered current or
 // an ok:true ack proved stale. No record is not an error.
-func (h *heldRecords) clear(name string) (err error) {
+func (h *heldRecords) clear(name string) error {
+	_, err := h.clearAndReport(name)
+	return err
+}
+
+// clearAndReport removes the held record for name when present and unchanged
+// under lock, reporting whether a record was actually removed.
+func (h *heldRecords) clearAndReport(name string) (cleared bool, err error) {
 	if h == nil {
-		return nil
+		return false, nil
 	}
 	// Every in-sync client's fetch reaches here, so the lock is taken only
 	// when a record exists. One written after this read, by another writer
@@ -365,34 +385,34 @@ func (h *heldRecords) clear(name string) (err error) {
 	key := HeldRecordKey(name)
 	seen, readErr := h.store.ReadKey(key)
 	if errors.Is(readErr, fs.ErrNotExist) {
-		return nil
+		return false, nil
 	}
 	if readErr != nil {
-		return fmt.Errorf("read the held configuration %s: %w", key, readErr)
+		return false, fmt.Errorf("read the held configuration %s: %w", key, readErr)
 	}
 	guard, err := h.store.AcquireLock(ClientConfigKey(name))
 	if err != nil {
-		return fmt.Errorf("lock %s: %w", ClientConfigKey(name), err)
+		return false, fmt.Errorf("lock %s: %w", ClientConfigKey(name), err)
 	}
 	defer func() { err = errors.Join(err, guard.Release()) }()
 	current, readErr := guard.ReadKey(key)
 	if errors.Is(readErr, fs.ErrNotExist) {
-		return nil
+		return false, nil
 	}
 	if readErr != nil {
-		return fmt.Errorf("read the held configuration %s: %w", key, readErr)
+		return false, fmt.Errorf("read the held configuration %s: %w", key, readErr)
 	}
 	if !bytes.Equal(current, seen) {
-		return nil // Written after the read: kept.
+		return false, nil // Written after the read: kept.
 	}
 	removeErr := guard.RemoveKey(key)
 	if errors.Is(removeErr, fs.ErrNotExist) {
-		return nil
+		return false, nil
 	}
 	if removeErr != nil {
-		return fmt.Errorf("remove the held configuration %s: %w", key, removeErr)
+		return false, fmt.Errorf("remove the held configuration %s: %w", key, removeErr)
 	}
-	return nil
+	return true, nil
 }
 
 // handleConfigHeld is the config-held arm of handleRequest: it stores the copy
@@ -403,6 +423,11 @@ func (h *heldRecords) clear(name string) (err error) {
 // record, answers an error with no code, so the client sends no copy again on
 // this connection.
 func (s *ManagedServer) handleConfigHeld(name string, mc *rpc.MuxConn, req *rpc.Request) {
+	if err := s.checkActiveSession(name, mc, "config-held"); err != nil {
+		s.mHeld.With("refused").Inc()
+		_ = mc.SendError(s.ctx, req.ID, err.Error())
+		return
+	}
 	if s.svc.records == nil {
 		s.mHeld.With("refused").Inc()
 		_ = mc.SendError(s.ctx, req.ID, "this hub keeps no copy of a held configuration")
@@ -416,6 +441,12 @@ func (s *ManagedServer) handleConfigHeld(name string, mc *rpc.MuxConn, req *rpc.
 		_ = mc.SendCodedError(s.ctx, req.ID, fleet.HeldRefusedCode, refusal.Error())
 		return
 	}
+	// Re-check session fencing after parsing and before writing to storage (never hold s.mu across I/O).
+	if err := s.checkActiveSession(name, mc, "config-held"); err != nil {
+		s.mHeld.With("refused").Inc()
+		_ = mc.SendError(s.ctx, req.ID, err.Error())
+		return
+	}
 	if err := s.svc.records.write(name, record); err != nil {
 		s.mHeld.With("refused").Inc()
 		managedLogger().Warn("the hub could not store the copy of a managed client's held configuration",
@@ -424,6 +455,9 @@ func (s *ManagedServer) handleConfigHeld(name string, mc *rpc.MuxConn, req *rpc.
 		return
 	}
 	s.mHeld.With("stored").Inc()
+	if err := s.checkActiveSession(name, mc, "config-held"); err == nil {
+		s.refreshDeviceConfigAlarm(name)
+	}
 	managedLogger().Info("managed client holds, and the hub stored a copy of its configuration",
 		"name", name, "version", record.version, "size", len(record.config), "unchecked-plugins", record.unchecked)
 	_ = mc.SendOK(s.ctx, req.ID)

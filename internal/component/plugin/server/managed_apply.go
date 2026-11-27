@@ -38,8 +38,8 @@ func cloneManagedListeners(listens []ManagedListener) []ManagedListener {
 }
 
 // ManagedListenerPlan carries the certificate resolved against the candidate
-// PKI store, optional validated history settings, and the declarations to
-// install after configuration promotion.
+// PKI store, optional validated history and alarm settings, and the
+// declarations to install after configuration promotion.
 type ManagedListenerPlan struct {
 	listens     []ManagedListener
 	source      *managedCertSource
@@ -47,23 +47,45 @@ type ManagedListenerPlan struct {
 	certificate string
 	history     plugin.HubHistoryConfig
 	hasHistory  bool
+	alarms      plugin.HubAlarmsConfig
+	hasAlarms   bool
 }
 
 // PrepareManagedListeners validates the next configuration without changing any
 // active listener, including when only the material behind a name changed.
 func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certificate string) (*ManagedListenerPlan, error) {
-	return s.prepareManagedListeners(listens, certificate, plugin.HubHistoryConfig{}, false)
+	return s.prepareManagedListeners(listens, certificate, plugin.HubHistoryConfig{}, false, plugin.HubAlarmsConfig{}, false)
 }
 
 // PrepareManagedListenersWithHistory validates the next listener declarations,
 // certificate, and hub metric history settings without changing any active
 // listener or running history store.
 func (s *ManagedServer) PrepareManagedListenersWithHistory(listens []ManagedListener, certificate string, history plugin.HubHistoryConfig) (*ManagedListenerPlan, error) {
-	return s.prepareManagedListeners(listens, certificate, history, true)
+	return s.prepareManagedListeners(listens, certificate, history, true, plugin.HubAlarmsConfig{}, false)
 }
 
-func (s *ManagedServer) prepareManagedListeners(listens []ManagedListener, certificate string, history plugin.HubHistoryConfig, hasHistory bool) (*ManagedListenerPlan, error) {
+// PrepareManagedListenersWithHistoryAndAlarms validates the next listener
+// declarations, certificate, hub metric history settings, and hub alarm
+// settings without changing any active listener, history store, or alarm store.
+func (s *ManagedServer) PrepareManagedListenersWithHistoryAndAlarms(
+	listens []ManagedListener,
+	certificate string,
+	history plugin.HubHistoryConfig,
+	alarms plugin.HubAlarmsConfig,
+) (*ManagedListenerPlan, error) {
+	return s.prepareManagedListeners(listens, certificate, history, true, alarms, true)
+}
+
+func (s *ManagedServer) prepareManagedListeners(
+	listens []ManagedListener,
+	certificate string,
+	history plugin.HubHistoryConfig,
+	hasHistory bool,
+	alarms plugin.HubAlarmsConfig,
+	hasAlarms bool,
+) (*ManagedListenerPlan, error) {
 	if hasHistory {
+		history = normalizeHistoryConfig(history)
 		distinct := make(map[string]struct{})
 		for _, listen := range listens {
 			for name := range listen.Clients {
@@ -71,6 +93,12 @@ func (s *ManagedServer) prepareManagedListeners(listens []ManagedListener, certi
 			}
 		}
 		if err := plugin.ValidateHubHistoryConfig(history, len(distinct)); err != nil {
+			return nil, err
+		}
+	}
+	if hasAlarms {
+		alarms = normalizeAlarmsConfig(alarms)
+		if err := plugin.ValidateHubAlarmsConfig(alarms); err != nil {
 			return nil, err
 		}
 	}
@@ -93,6 +121,8 @@ func (s *ManagedServer) prepareManagedListeners(listens []ManagedListener, certi
 		certificate: certificate,
 		history:     history,
 		hasHistory:  hasHistory,
+		alarms:      alarms,
+		hasAlarms:   hasAlarms,
 	}, nil
 }
 
@@ -248,6 +278,19 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 			s.history.UpdateConfig(plan.history, len(labels))
 		} else {
 			s.history.SetDeclaredCount(len(labels))
+		}
+	}
+	if s.alarms != nil {
+		declaredSet := make(map[string]bool, len(labels))
+		for name := range labels {
+			declaredSet[name] = true
+		}
+		if plan.hasAlarms {
+			s.alarms.UpdateConfig(plan.alarms)
+		}
+		s.alarms.SyncDeclarations(declaredSet)
+		if s.history != nil {
+			s.alarms.OnHistoryHealth(s.history.HealthSnapshot(s.currentTime()))
 		}
 	}
 

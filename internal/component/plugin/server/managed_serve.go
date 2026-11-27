@@ -141,6 +141,11 @@ type ManagedServerConfig struct {
 	// and per-device/hub byte budgets. The zero value uses
 	// plugin.DefaultHubHistoryConfig().
 	History plugin.HubHistoryConfig
+
+	// Alarms configures hub-side fleet alarm grace delays, resource thresholds,
+	// software-behind threshold, and episode history retention. The zero value
+	// uses plugin.DefaultHubAlarmsConfig().
+	Alarms plugin.HubAlarmsConfig
 }
 
 // managedLeafCommonName names the managed listener in the subject of the leaf
@@ -165,6 +170,7 @@ type ManagedServer struct {
 	// pointer is also the destination for config-changed. Guarded by mu.
 	recordIO             *managedRecordIO
 	history              *ManagedHistoryStore
+	alarms               *ManagedAlarmStore
 	detachConfigObserver func()
 	devices              map[string]*managedDevice
 	now                  func() time.Time
@@ -279,6 +285,10 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if err := plugin.ValidateHubHistoryConfig(historyCfg, len(devices)); err != nil {
 		return nil, err
 	}
+	alarmsCfg := normalizeAlarmsConfig(cfg.Alarms)
+	if err := plugin.ValidateHubAlarmsConfig(alarmsCfg); err != nil {
+		return nil, err
+	}
 	svc := newManagedConfigService(cfg.ReadConfig)
 	svc.records = newHeldRecords(cfg.Store)
 	srv := &ManagedServer{
@@ -312,13 +322,21 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
 			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
 	}
+	srv.alarms = NewManagedAlarmStore(ManagedAlarmStoreConfig{
+		Config: alarmsCfg,
+		Store:  cfg.Store,
+		Clock:  cfg.Clock,
+		Now:    srv.currentTime,
+	})
 	srv.history = NewManagedHistoryStore(ManagedHistoryStoreConfig{
 		Config:          historyCfg,
 		Store:           cfg.Store,
 		Now:             srv.currentTime,
 		DeclaredClients: len(devices),
+		OnHealthChanged: srv.alarms.OnHistoryHealth,
 	})
 	svc.sampleInterval = srv.history.IntervalSeconds
+	svc.onHeldCleared = srv.refreshDeviceConfigAlarm
 	srv.mDeclared.Set(float64(len(devices)))
 	return srv, nil
 }
@@ -486,13 +504,23 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 			return err
 		}
 	}
-	if s.recordIO != nil {
-		s.detachConfigObserver = s.recordIO.store.SetWriteObserver(func(key string) {
-			if name, ok := ClientNameFromConfigKey(key); ok {
-				s.MarkManagedConfigChanged(name)
-				s.NotifyConfigChanged(name)
+	if s.alarms != nil {
+		if err := s.alarms.LoadFromStore(); err != nil {
+			if s.recordIO != nil && s.recordIO.subscription != nil {
+				s.recordIO.subscription.Unsubscribe()
 			}
-		})
+			return err
+		}
+		if err := s.reconcileStartupAlarms(); err != nil {
+			if s.recordIO != nil && s.recordIO.subscription != nil {
+				s.recordIO.subscription.Unsubscribe()
+			}
+			return err
+		}
+		s.alarms.Tick(s.currentTime())
+	}
+	if s.recordIO != nil {
+		s.detachConfigObserver = s.recordIO.store.SetWriteObserver(s.observeClientConfigWrite)
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.ApplyManagedListeners(&ManagedListenerPlan{listens: s.listens, source: s.source, bindErr: s.initialCertErr, certificate: s.certConfig.Certificate})
@@ -502,6 +530,9 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 	}
 	if s.history != nil {
 		s.wg.Go(func() { s.history.runCheckpointLoop(s.ctx) }) // long-lived: checkpoints metric history and drains deletes
+	}
+	if s.alarms != nil {
+		s.wg.Go(func() { s.alarms.RunLoop(s.ctx) }) // long-lived: evaluates offline deadlines and flushes alarm shards
 	}
 	for range managedNotifyWorkers {
 		s.wg.Go(s.notifyWorker) // long-lived pool: drains config-changed pushes
@@ -748,9 +779,18 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 				return
 			}
 		}
+		if err := s.checkActiveSession(name, mc, "config-fetch"); err != nil {
+			s.mFetch.With("error").Inc()
+			_ = mc.SendError(s.ctx, req.ID, err.Error())
+			return
+		}
 		session.fetched = fr.Version
 		resp, err := s.svc.HandleConfigFetch(name, fr)
-		s.recordFetch(name, fr.Version, resp, err)
+		if fenceErr := s.recordFetch(name, mc, fr.Version, resp, err); fenceErr != nil {
+			s.mFetch.With("error").Inc()
+			_ = mc.SendError(s.ctx, req.ID, fenceErr.Error())
+			return
+		}
 		if err != nil {
 			s.mFetch.With("error").Inc()
 			var tb textbuf.Buffer
@@ -777,7 +817,10 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 			_ = mc.SendError(s.ctx, req.ID, "bad config-ack payload")
 			return
 		}
-		s.handleConfigAck(name, ack, session.fetched)
+		if err := s.handleConfigAck(name, mc, ack, session.fetched); err != nil {
+			_ = mc.SendError(s.ctx, req.ID, err.Error())
+			return
+		}
 		_ = mc.SendOK(s.ctx, req.ID)
 
 	case fleet.VerbConfigHeld:
@@ -807,28 +850,47 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 // large, refused, or never sent) is recorded as a refusal, so the hold stays
 // visible. fetched is the version the client named in its last config-fetch
 // on this connection, the one it runs.
-func (s *ManagedServer) handleConfigAck(name string, ack fleet.ConfigAck, fetched string) {
+func (s *ManagedServer) handleConfigAck(name string, mc *rpc.MuxConn, ack fleet.ConfigAck, fetched string) error {
+	if err := s.checkActiveSession(name, mc, "config-ack"); err != nil {
+		return err
+	}
 	if ack.OK {
-		s.recordAck(name, ack, ManagedAckApplied)
+		if err := s.recordAck(name, mc, ack, ManagedAckApplied); err != nil {
+			return err
+		}
 		s.doctor.clearRejected(name)
+		// Re-check session fencing before clearing held storage outside s.mu.
+		if err := s.checkActiveSession(name, mc, "config-ack"); err != nil {
+			return err
+		}
 		if err := s.svc.records.clear(name); err != nil {
 			managedLogger().Warn("the hub could not remove the held copy of a managed client that applied its config",
 				"code", diagnostic.CodeDoctorStoreIntegrity, "name", name, "error", err)
 		}
+		if err := s.checkActiveSession(name, mc, "config-ack"); err == nil {
+			s.refreshDeviceConfigAlarm(name)
+		}
 		managedLogger().Info("managed client applied config", "name", name, "version", ack.Version)
-		return
+		return nil
 	}
 	if s.holdShownFromCopy(name, ack, fetched) {
-		s.recordAck(name, ack, ManagedAckHolding)
+		if err := s.recordAck(name, mc, ack, ManagedAckHolding); err != nil {
+			return err
+		}
 		s.doctor.clearRejected(name)
+		s.refreshDeviceConfigAlarm(name)
 		managedLogger().Info("managed client holds a configuration of its own, and the hub keeps a copy of it",
 			"name", name, "version", ack.Version)
-		return
+		return nil
 	}
-	s.recordAck(name, ack, ManagedAckRefused)
+	if err := s.recordAck(name, mc, ack, ManagedAckRefused); err != nil {
+		return err
+	}
 	s.recordDeclaredRejection(name, ManagedRejectConfigRejected, ack.Error)
+	s.refreshDeviceConfigAlarm(name)
 	managedLogger().Warn("managed client rejected config", "code", CodeDoctorManagedClientRejected,
 		"name", name, "error", ack.Error)
+	return nil
 }
 
 // holdShownFromCopy reports whether a refusing ack is a hold the hub shows
@@ -1036,8 +1098,170 @@ func (s *ManagedServer) Stop() {
 					"code", CodeDoctorManagedHistoryCheckpointFailed, "error", err)
 			}
 		}
+		if s.alarms != nil {
+			if err := s.alarms.FlushFinal(); err != nil {
+				managedLogger().Warn("fleet alarm final shutdown flush failed",
+					"code", CodeDoctorManagedAlarmWriteFailed, "error", err)
+			}
+		}
 		withdrawManagedDoctor(s)
 	})
+}
+
+// Alarms returns the server's hub alarm store. Safe for concurrent use.
+func (s *ManagedServer) Alarms() *ManagedAlarmStore {
+	return s.alarms
+}
+
+// ManagedAlarms returns the running hub's alarm store, or ErrManagedNotServing
+// when no managed server is published. Safe for concurrent use.
+func ManagedAlarms() (*ManagedAlarmStore, error) {
+	managedRegistryReaders.RLock()
+	defer managedRegistryReaders.RUnlock()
+	s := managedDoctorSource.Load()
+	if s == nil {
+		return nil, ErrManagedNotServing
+	}
+	if s.alarms == nil {
+		return nil, ErrManagedNotServing
+	}
+	return s.alarms, nil
+}
+
+// ManagedAlarmList answers a caller-scoped open-alarm query from the running
+// hub. Safe for concurrent use.
+func ManagedAlarmList(scope FleetDeviceScope, q AlarmListQuery) (AlarmListPage, error) {
+	managedRegistryReaders.RLock()
+	defer managedRegistryReaders.RUnlock()
+	s := managedDoctorSource.Load()
+	if s == nil {
+		return AlarmListPage{}, ErrManagedNotServing
+	}
+	if s.alarms == nil {
+		return AlarmListPage{}, ErrManagedNotServing
+	}
+	return s.alarms.QueryOpen(scope, q)
+}
+
+// ManagedAlarmHistory answers a caller-scoped per-device alarm history query
+// from the running hub. Safe for concurrent use.
+func ManagedAlarmHistory(scope FleetDeviceScope, q AlarmHistoryQuery) (AlarmHistoryPage, error) {
+	managedRegistryReaders.RLock()
+	defer managedRegistryReaders.RUnlock()
+	s := managedDoctorSource.Load()
+	if s == nil {
+		return AlarmHistoryPage{}, ErrManagedNotServing
+	}
+	if s.alarms == nil {
+		return AlarmHistoryPage{}, ErrManagedNotServing
+	}
+	return s.alarms.QueryHistory(scope, q)
+}
+
+// reconcileStartupAlarms joins loaded startup device records, held-config keys
+// (with their version details), and metric history health into s.alarms before
+// any listener binds. Storage reads run outside s.mu and s.alarms.mu.
+func (s *ManagedServer) reconcileStartupAlarms() error {
+	held := make(map[string]string)
+	if s.svc != nil && s.svc.records != nil {
+		names, err := HeldClients(s.svc.records.store)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			if diverged, detail := s.readHeldDetail(name); diverged {
+				held[name] = detail
+			}
+		}
+	}
+
+	s.mu.Lock()
+	devices := make([]ManagedDevice, 0, len(s.devices))
+	for name := range s.devices {
+		if dev := s.visibleDeviceLocked(name); dev != nil {
+			devices = append(devices, dev.snapshotLocked())
+		}
+	}
+	s.mu.Unlock()
+
+	var histHealth *ManagedHistoryHealth
+	if s.history != nil {
+		h := s.history.HealthSnapshot(s.currentTime())
+		histHealth = &h
+	}
+	s.alarms.ReconcileStartup(devices, held, histHealth)
+	return nil
+}
+
+// readHeldDetail inspects name's held configuration key outside s.mu and
+// s.alarms.mu, returning whether a held copy exists and its operator-facing
+// detail string (held-version=<hash> or the decode error for unreadable keys).
+func (s *ManagedServer) readHeldDetail(name string) (diverged bool, detail string) {
+	if s.svc == nil {
+		return false, ""
+	}
+	if s.svc.records == nil {
+		return false, ""
+	}
+	if !fleet.ValidDeviceKeyName(name) {
+		return false, ""
+	}
+	record, held, err := ReadHeldRecord(s.svc.records.store, name)
+	switch {
+	case err == nil && held:
+		var tb textbuf.Buffer
+		return true, tb.Str("held-version=").Str(record.Version()).String()
+	case err != nil:
+		// An unreadable held key still exists on disk and counts as
+		// diverged, matching managed_registry_versions.go.
+		if _, readErr := s.svc.records.store.ReadKey(HeldRecordKey(name)); readErr == nil {
+			return true, boundedManagedDetail(err.Error())
+		}
+	}
+	return false, ""
+}
+
+// observeClientConfigWrite reacts to active client config writes and held
+// record writes in the hub store. It runs outside store locks and may re-enter
+// storage.
+func (s *ManagedServer) observeClientConfigWrite(key string) {
+	if name, ok := ClientNameFromConfigKey(key); ok {
+		s.MarkManagedConfigChanged(name)
+		s.NotifyConfigChanged(name)
+		s.refreshDeviceConfigAlarm(name)
+		return
+	}
+	if name, ok := clientNameFromHeldKey(key); ok {
+		s.refreshDeviceConfigAlarm(name)
+	}
+}
+
+// refreshDeviceConfigAlarm reads name's held configuration state outside s.mu
+// and s.alarms.mu, joins it with the device's recorded ACK status, and updates
+// config-diverged and config-rejected alarms.
+func (s *ManagedServer) refreshDeviceConfigAlarm(name string) {
+	if s.alarms == nil {
+		return
+	}
+	if name == "" {
+		return
+	}
+	diverged, heldDetail := s.readHeldDetail(name)
+
+	s.mu.Lock()
+	device := s.visibleDeviceLocked(name)
+	if device == nil {
+		s.mu.Unlock()
+		return
+	}
+	rejected := device.declared && device.AckResult == ManagedAckRefused
+	rejectErr := ""
+	if rejected {
+		rejectErr = device.AckError
+	}
+	s.mu.Unlock()
+
+	s.alarms.OnConfigState(name, diverged, heldDetail, rejected, rejectErr)
 }
 
 // History returns the server's bounded metric history store. Safe for
@@ -1062,21 +1286,35 @@ func (s *ManagedServer) recordSampleReport(name string, mc *rpc.MuxConn, report 
 		return errors.New("sample report requires an active authenticated session")
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	device := s.visibleDeviceLocked(name)
 	if device == nil {
+		s.mu.Unlock()
 		s.history.RecordRejected()
 		return errors.New("sample report session is no longer active")
 	}
 	if !device.declared {
+		s.mu.Unlock()
 		s.history.RecordRejected()
 		return errors.New("sample report device is not declared")
 	}
 	if device.conn != mc {
+		s.mu.Unlock()
 		s.history.RecordRejected()
 		return errors.New("sample report session is superseded")
 	}
-	return s.history.Ingest(name, report, s.currentTime().UTC())
+	receivedAt := s.currentTime().UTC()
+	if err := s.history.Ingest(name, report, receivedAt); err != nil {
+		s.mu.Unlock()
+		return err
+	}
+	if s.alarms != nil {
+		s.alarms.OnSampleReport(name, *report, receivedAt)
+	}
+	s.mu.Unlock()
+	if s.alarms != nil {
+		s.alarms.OnHistoryHealth(s.history.HealthSnapshot(receivedAt))
+	}
+	return nil
 }
 
 func (s *ManagedServer) historyDeviceMetaSnapshot() map[string]HistoryDeviceMeta {

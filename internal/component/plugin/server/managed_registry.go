@@ -207,6 +207,9 @@ func (s *ManagedServer) admitOnListener(name string, addr netip.Addr, conn *rpc.
 	}
 	device.SourceAddress = addr.Unmap()
 	s.dirtyDeviceLocked(name)
+	if s.alarms != nil {
+		s.alarms.OnDeviceConnected(name, device.ConnectedSince)
+	}
 	return nil
 }
 
@@ -233,14 +236,38 @@ func (s *ManagedServer) disconnectDevice(name string, conn *rpc.MuxConn) {
 	}
 	device.LastSeen = s.now().UTC()
 	s.dirtyDeviceLocked(name)
+	if s.alarms != nil {
+		s.alarms.OnDeviceDisconnected(name, device.LastSeen)
+	}
 }
 
-func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetchResponse, fetchErr error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *ManagedServer) activeSessionLocked(name string, mc *rpc.MuxConn, op string) (*managedDevice, error) {
+	if mc == nil {
+		return nil, errors.New(op + " requires an active authenticated session")
+	}
 	device := s.visibleDeviceLocked(name)
 	if device == nil {
-		return // The operator forgot this record before the fetch completed.
+		return nil, errors.New(op + " session is no longer active")
+	}
+	if device.conn != mc {
+		return nil, errors.New(op + " session is superseded")
+	}
+	return device, nil
+}
+
+func (s *ManagedServer) checkActiveSession(name string, mc *rpc.MuxConn, op string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, err := s.activeSessionLocked(name, mc, op)
+	return err
+}
+
+func (s *ManagedServer) recordFetch(name string, mc *rpc.MuxConn, version string, resp fleet.ConfigFetchResponse, fetchErr error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	device, err := s.activeSessionLocked(name, mc, "config-fetch")
+	if err != nil {
+		return err
 	}
 	device.LastFetch = s.now().UTC()
 	device.DeviceVersion = version
@@ -255,14 +282,15 @@ func (s *ManagedServer) recordFetch(name, version string, resp fleet.ConfigFetch
 		device.LastFetchResult = ManagedFetchServed
 	}
 	s.dirtyDeviceLocked(name)
+	return nil
 }
 
-func (s *ManagedServer) recordAck(name string, ack fleet.ConfigAck, result ManagedAckResult) {
+func (s *ManagedServer) recordAck(name string, mc *rpc.MuxConn, ack fleet.ConfigAck, result ManagedAckResult) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	device := s.visibleDeviceLocked(name)
-	if device == nil {
-		return // A late acknowledgement cannot restore a forgotten record.
+	device, err := s.activeSessionLocked(name, mc, "config-ack")
+	if err != nil {
+		return err
 	}
 	device.LastAck = s.now().UTC()
 	device.AckVersion = ack.Version
@@ -272,6 +300,7 @@ func (s *ManagedServer) recordAck(name string, ack fleet.ConfigAck, result Manag
 		device.AckError = boundedManagedDetail(ack.Error)
 	}
 	s.dirtyDeviceLocked(name)
+	return nil
 }
 
 func (s *ManagedServer) recordInventoryReport(name string, mc *rpc.MuxConn, report fleet.InventoryReport) error {
@@ -291,12 +320,16 @@ func (s *ManagedServer) recordInventoryReport(name string, mc *rpc.MuxConn, repo
 	if device.conn != mc {
 		return errors.New("inventory report session is superseded")
 	}
-	device.Inventory = &ManagedInventorySnapshot{
+	snap := &ManagedInventorySnapshot{
 		Report:     cloned,
 		ReceivedAt: s.currentTime().UTC(),
 	}
+	device.Inventory = snap
 	device.persisted = false
 	s.dirtyDeviceLocked(name)
+	if s.alarms != nil {
+		s.alarms.OnInventoryReport(name, *snap)
+	}
 	return nil
 }
 
@@ -317,12 +350,16 @@ func (s *ManagedServer) recordHealthReport(name string, mc *rpc.MuxConn, report 
 	if device.conn != mc {
 		return errors.New("health report session is superseded")
 	}
-	device.Health = &ManagedHealthSnapshot{
+	snap := &ManagedHealthSnapshot{
 		Report:     cloned,
 		ReceivedAt: s.currentTime().UTC(),
 	}
+	device.Health = snap
 	device.persisted = false
 	s.dirtyDeviceLocked(name)
+	if s.alarms != nil {
+		s.alarms.OnHealthReport(name, *snap)
+	}
 	return nil
 }
 

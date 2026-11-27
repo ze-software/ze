@@ -240,7 +240,7 @@ func TestMalformedConfigAckDoesNotCorruptHistory(t *testing.T) {
 	s.ctx = t.Context()
 	conn := &rpc.MuxConn{}
 	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.10"), conn))
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "v1", OK: true}, ManagedAckApplied)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "v1", OK: true}, ManagedAckApplied))
 
 	clientPipe, serverPipe := net.Pipe()
 	defer clientPipe.Close()

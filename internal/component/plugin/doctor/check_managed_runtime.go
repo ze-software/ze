@@ -1,5 +1,5 @@
 // Design: docs/architecture/fleet-config.md -- what the managed config server tells doctor
-// Related: register_external.go -- registers the six managed runtime checks below
+// Related: register_external.go -- registers the managed runtime checks below
 // Related: ../server/managed_doctor.go -- ManagedRuntimeHealth, the record the checks read
 
 package doctor
@@ -39,6 +39,13 @@ const managedHistoryCapacityCheckName = "managed-history-capacity"
 // managedHistoryCorruptCheckName reports persisted fleet metric history shards
 // or latest records that failed validation on startup load.
 const managedHistoryCorruptCheckName = "managed-history-corrupt"
+
+// managedAlarmWriteCheckName reports failed hub fleet alarm shard persistence.
+const managedAlarmWriteCheckName = "managed-alarm-write"
+
+// managedAlarmCorruptCheckName reports persisted fleet alarm shards that failed
+// validation on startup load.
+const managedAlarmCorruptCheckName = "managed-alarm-corrupt"
 
 // checkManagedListenerUnbound answers one error per managed listen address the
 // daemon could not bind, naming the address and the kernel's error. A
@@ -369,4 +376,69 @@ func managedHistoryCorruptRows(health *server.ManagedHistoryHealth) []diagnostic
 		})
 	}
 	return rows
+}
+
+// checkManagedAlarmWrite reports a failed hub fleet alarm shard persistence
+// attempt while dirty shards remain queued for retry.
+func checkManagedAlarmWrite(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedAlarmWriteRows(record.Alarms)
+}
+
+func managedAlarmWriteRows(health *server.ManagedAlarmHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	if !health.WriteFailed {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("managed fleet alarm persistence failed")
+	if !health.LastWriteFailAt.IsZero() {
+		message.Str(" at ").Str(health.LastWriteFailAt.UTC().Format(time.RFC3339))
+	}
+	if health.LastWriteOKAt.IsZero() {
+		message.Str(" (no alarm shard write has succeeded yet)")
+	} else {
+		message.Str(" (last successful write at ").Str(health.LastWriteOKAt.UTC().Format(time.RFC3339)).Str(")")
+	}
+	if health.LastWriteError != "" {
+		message.Str(": ").Str(health.LastWriteError)
+	}
+	message.Str("; live alarms remain derived in memory and dirty shards stay queued for retry while durability is degraded")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedAlarmWriteFailed,
+		Severity: diagnostic.SeverityError,
+		Message:  message.String(),
+		Fix:      "run ze show data check and ze show fleet alarm, then repair the daemon state store before the next alarm flush",
+	}}
+}
+
+// checkManagedAlarmCorrupt reports persisted fleet alarm shards that failed
+// size, version, or schema validation on startup load and were skipped.
+func checkManagedAlarmCorrupt(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedAlarmCorruptRows(record.Alarms)
+}
+
+func managedAlarmCorruptRows(health *server.ManagedAlarmHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	if health.CorruptShards <= 0 {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("skipped ").Int(int64(health.CorruptShards)).
+		Str(" unreadable managed fleet alarm shard(s) on startup load")
+	if health.LastCorruptError != "" {
+		message.Str(": ").Str(health.LastCorruptError)
+	}
+	message.Str("; healthy alarm shards remain readable and live alarms continue to be derived")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedAlarmCorrupt,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(),
+		Fix:      "inspect ze show fleet alarm and ze show warnings; the next alarm state transition replaces the damaged shard",
+	}}
 }

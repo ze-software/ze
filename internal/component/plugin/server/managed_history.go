@@ -90,6 +90,9 @@ type ManagedHistoryStoreConfig struct {
 	Now                func() time.Time
 	CheckpointInterval time.Duration
 	DeclaredClients    int
+	// OnHealthChanged is optionally invoked outside h.mu after CheckpointOnce
+	// updates persisted byte accounting or checkpoint status.
+	OnHealthChanged func(ManagedHistoryHealth)
 }
 
 // ManagedHistoryHealth summarizes hub-side metric history durability and
@@ -376,7 +379,8 @@ type ManagedHistoryStore struct {
 	rejectedReports      uint64
 	rateLimitedReports   uint64
 
-	deleteWake chan struct{}
+	deleteWake      chan struct{}
+	onHealthChanged func(ManagedHistoryHealth)
 
 	// Optional test hooks (nil in production).
 	beforeShardWrite func(device, shard string)
@@ -430,6 +434,7 @@ func NewManagedHistoryStore(cfg ManagedHistoryStoreConfig) *ManagedHistoryStore 
 		pendingDeletes:     make(map[string]uint64),
 		corruptRecords:     make(map[string]ManagedDeviceRecordFailure),
 		deleteWake:         make(chan struct{}, 1),
+		onHealthChanged:    cfg.OnHealthChanged,
 	}
 }
 
@@ -977,6 +982,19 @@ func (h *ManagedHistoryStore) FlushFinal() error {
 // On write failure, failed devices remain dirty for retry while healthy writes
 // stay committed. Safe for concurrent use.
 func (h *ManagedHistoryStore) CheckpointOnce() error {
+	err := h.checkpointOnceIO()
+	h.notifyHealthChanged(h.currentTime())
+	return err
+}
+
+func (h *ManagedHistoryStore) notifyHealthChanged(now time.Time) {
+	if h.onHealthChanged == nil {
+		return
+	}
+	h.onHealthChanged(h.HealthSnapshot(now))
+}
+
+func (h *ManagedHistoryStore) checkpointOnceIO() error {
 	// refuse-by-default: guards runCheckpointLoop -- memory-only stores perform no disk checkpointing
 	if h.store == nil {
 		h.mu.Lock()

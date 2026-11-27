@@ -25,11 +25,19 @@ func registryWithHistory(t *testing.T, store storage.Storage) *ManagedServer {
 	return s
 }
 
+func attachTestSession(s *ManagedServer, name string) *rpc.MuxConn {
+	conn := &rpc.MuxConn{}
+	s.mu.Lock()
+	s.devices[name].conn = conn
+	s.mu.Unlock()
+	return conn
+}
+
 func recordTestSession(t *testing.T, s *ManagedServer) *rpc.MuxConn {
 	t.Helper()
 	conn := &rpc.MuxConn{}
 	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.10"), conn))
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "original"}, ManagedAckApplied)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "original"}, ManagedAckApplied))
 	s.drainDeviceRecords()
 	return conn
 }
@@ -95,9 +103,11 @@ func TestRegistryWriterCoalescesPerDevice(t *testing.T) {
 	store.SetWriteObserver(func(key string) {
 		writes[key]++
 	})
+	conn1 := attachTestSession(s, testClientName)
+	conn2 := attachTestSession(s, testClient2Name)
 	for range 50 {
-		s.recordAck(testClientName, fleet.ConfigAck{Version: "v1"}, ManagedAckApplied)
-		s.recordAck(testClient2Name, fleet.ConfigAck{Version: "v2"}, ManagedAckRefused)
+		require.NoError(t, s.recordAck(testClientName, conn1, fleet.ConfigAck{Version: "v1"}, ManagedAckApplied))
+		require.NoError(t, s.recordAck(testClient2Name, conn2, fleet.ConfigAck{Version: "v2"}, ManagedAckRefused))
 	}
 	require.Len(t, s.recordIO.pending, 2)
 	s.drainDeviceRecords()
@@ -146,8 +156,9 @@ func (store *failingRecordStore) AcquireLock(key string) (storage.WriteGuard, er
 func TestRegistryWriteFailureKeepsLiveFacts(t *testing.T) {
 	store := &failingRecordStore{Storage: heldTestStore(t)}
 	s := registryWithHistory(t, store)
+	conn := attachTestSession(s, testClientName)
 	store.fail = true
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "initial"}, ManagedAckRefused)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "initial"}, ManagedAckRefused))
 	s.drainDeviceRecords()
 	before := s.snapshotDevices()[0]
 	require.False(t, before.Persisted)
@@ -158,7 +169,7 @@ func TestRegistryWriteFailureKeepsLiveFacts(t *testing.T) {
 	require.Equal(t, testClientName, doctor.Unwritable[0].Name)
 	require.Contains(t, doctor.Unwritable[0].Error, "disk is full")
 	store.fail = false
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "next"}, ManagedAckApplied)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "next"}, ManagedAckApplied))
 	s.drainDeviceRecords()
 	var repaired ManagedDoctorRecord
 	s.appendDeviceRecordFailures(&repaired)
@@ -169,15 +180,17 @@ func TestRegistryWriteFailureKeepsLiveFacts(t *testing.T) {
 func TestRegistryStoppedWriterCannotRetryAfterHandover(t *testing.T) {
 	store := &failingRecordStore{Storage: heldTestStore(t)}
 	first := registryWithHistory(t, store)
+	firstConn := attachTestSession(first, testClientName)
 	store.fail = true
-	first.recordAck(testClientName, fleet.ConfigAck{Version: "old"}, ManagedAckRefused)
+	require.NoError(t, first.recordAck(testClientName, firstConn, fleet.ConfigAck{Version: "old"}, ManagedAckRefused))
 	first.Stop()
 	require.Contains(t, first.recordIO.failed, testClientName)
 
 	store.fail = false
 	second := registryWithHistory(t, store)
 	t.Cleanup(second.Stop)
-	second.recordAck(testClientName, fleet.ConfigAck{Version: "new"}, ManagedAckApplied)
+	secondConn := attachTestSession(second, testClientName)
+	require.NoError(t, second.recordAck(testClientName, secondConn, fleet.ConfigAck{Version: "new"}, ManagedAckApplied))
 	second.drainDeviceRecords()
 	first.Stop()
 	raw, err := store.ReadKey(deviceRecordKey(testClientName))
@@ -246,10 +259,10 @@ func TestRegistryOnlineOverwriteWrittenBack(t *testing.T) {
 func TestRegistryOnlineDeleteFollowedByEventBeforeWriter(t *testing.T) {
 	store := heldTestStore(t)
 	s := registryWithHistory(t, store)
-	recordTestSession(t, s)
+	conn := recordTestSession(t, s)
 	key := deviceRecordKey(testClientName)
 	require.NoError(t, store.RemoveKey(key))
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "after-delete"}, ManagedAckApplied)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "after-delete"}, ManagedAckApplied))
 	s.drainDeviceRecords()
 	restarted := registryWithHistory(t, store).snapshotDevices()[0]
 	require.Equal(t, "after-delete", restarted.AckVersion)
@@ -415,7 +428,8 @@ func TestRegistryUnavailableOriginalNeverRestoresPartialBytes(t *testing.T) {
 	var doctor ManagedDoctorRecord
 	s.appendDeviceRecordFailures(&doctor)
 	require.Len(t, doctor.Unwritable, 1)
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "new"}, ManagedAckApplied)
+	conn := attachTestSession(s, testClientName)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "new"}, ManagedAckApplied))
 	s.drainDeviceRecords()
 	require.False(t, s.snapshotDevices()[0].Unreadable)
 	value, err = store.ReadKey(key)
@@ -452,13 +466,13 @@ func TestRegistryShutdownRetriesUnreadableRecordRepair(t *testing.T) {
 func TestRegistryDeletionSupersedesCompletingFailedSave(t *testing.T) {
 	store := &failingRecordStore{Storage: heldTestStore(t)}
 	s := registryWithHistory(t, store)
-	recordTestSession(t, s)
+	conn := recordTestSession(t, s)
 	key := deviceRecordKey(testClientName)
 	store.fail = true
 	store.afterRelease = func() {
 		require.NoError(t, store.Storage.RemoveKey(key))
 	}
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "previous"}, ManagedAckRefused)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "previous"}, ManagedAckRefused))
 	s.drainDeviceRecords()
 	var doctor ManagedDoctorRecord
 	s.appendDeviceRecordFailures(&doctor)
@@ -472,7 +486,7 @@ func TestRegistryDeletionSupersedesCompletingFailedSave(t *testing.T) {
 func TestRegistrySaveCompletesBeforeUnusedGuardFails(t *testing.T) {
 	store := &failingRecordStore{Storage: heldTestStore(t)}
 	s := registryWithHistory(t, store)
-	recordTestSession(t, s)
+	conn := recordTestSession(t, s)
 	require.Empty(t, s.recordIO.saving)
 
 	// A queued name can have no pending work by the time the writer gets
@@ -482,7 +496,7 @@ func TestRegistrySaveCompletesBeforeUnusedGuardFails(t *testing.T) {
 	require.Empty(t, s.recordIO.failed)
 	require.True(t, s.snapshotDevices()[0].Persisted)
 
-	s.recordAck(testClientName, fleet.ConfigAck{Version: "retry"}, ManagedAckApplied)
+	require.NoError(t, s.recordAck(testClientName, conn, fleet.ConfigAck{Version: "retry"}, ManagedAckApplied))
 	s.drainDeviceRecords()
 	require.Empty(t, s.recordIO.saving)
 	require.Contains(t, s.recordIO.failed, testClientName)

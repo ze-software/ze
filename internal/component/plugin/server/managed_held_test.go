@@ -63,6 +63,7 @@ func heldTestServer(t *testing.T, store storage.Storage) (*ManagedServer, *rpc.M
 	hubEnd, clientEnd := net.Pipe()
 	go io.Copy(io.Discard, clientEnd) //nolint:errcheck // drains the hub's answers until the pipe closes
 	mc := rpc.NewMuxConn(rpc.NewConn(hubEnd, hubEnd))
+	s.devices[testClientName].conn = mc
 	t.Cleanup(func() {
 		_ = mc.Close()
 		_ = hubEnd.Close()
@@ -325,7 +326,7 @@ func TestAckOKClearsRecord(t *testing.T) {
 	s, mc := heldTestServer(t, store)
 	sendHeld(t, s, mc, heldClientText)
 
-	s.handleConfigAck("edge-01", fleet.ConfigAck{Version: fleet.VersionHash([]byte(heldHubText)), OK: true}, fleet.VersionHash([]byte(heldHubText)))
+	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: fleet.VersionHash([]byte(heldHubText)), OK: true}, fleet.VersionHash([]byte(heldHubText))))
 
 	_, held, err := ReadHeldRecord(store, "edge-01")
 	require.NoError(t, err)
@@ -346,7 +347,7 @@ func TestHoldingAckWithRecordClearsRefusal(t *testing.T) {
 	s.doctor.recordRejected("edge-01", ManagedRejectConfigRejected, "an earlier refusal")
 	sendHeld(t, s, mc, heldClientText)
 
-	s.handleConfigAck("edge-01", fleet.ConfigAck{OK: false, Holding: true, Error: "holding: ..."}, fleet.VersionHash([]byte(heldClientText)))
+	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: ..."}, fleet.VersionHash([]byte(heldClientText))))
 
 	assert.Empty(t, s.doctor.snapshot().Rejected)
 	got := s.snapshotDevices()[0]
@@ -373,7 +374,7 @@ func TestHoldingAckWithOlderRecordRecordsText(t *testing.T) {
 	sendHeld(t, s, mc, heldClientText)
 	newer := fleet.VersionHash([]byte(heldClientText + "# edited again\n"))
 
-	s.handleConfigAck("edge-01", fleet.ConfigAck{OK: false, Holding: true, Error: "holding: the copy was not sent"}, newer)
+	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: the copy was not sent"}, newer))
 
 	rejected := s.doctor.snapshot().Rejected
 	require.Len(t, rejected, 1)
@@ -390,9 +391,9 @@ func TestHoldingAckWithOlderRecordRecordsText(t *testing.T) {
 // MUTATION: clear the refusal on every holding ack and this fails.
 func TestHoldingAckWithoutRecordRecordsText(t *testing.T) {
 	store := heldTestStore(t)
-	s, _ := heldTestServer(t, store)
+	s, mc := heldTestServer(t, store)
 
-	s.handleConfigAck("edge-01", fleet.ConfigAck{OK: false, Holding: true, Error: "holding: no copy was sent"}, fleet.VersionHash([]byte(heldClientText)))
+	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: no copy was sent"}, fleet.VersionHash([]byte(heldClientText))))
 
 	rejected := s.doctor.snapshot().Rejected
 	require.Len(t, rejected, 1)

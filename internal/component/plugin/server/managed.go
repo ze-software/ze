@@ -36,6 +36,9 @@ type ManagedConfigService struct {
 	// sampleInterval returns the hub's configured metric sample interval in
 	// seconds (0 disables sampling). nil omits sample-interval-seconds.
 	sampleInterval func() int
+	// onHeldCleared notifies the owning server after a "current" fetch removes
+	// a stale held configuration copy so config-diverged alarms update.
+	onHeldCleared func(clientName string)
 }
 
 // newManagedConfigService creates a service that reads client configs via reader.
@@ -73,9 +76,12 @@ func (s *ManagedConfigService) HandleConfigFetch(clientName string, req fleet.Co
 	}
 
 	if req.Version == version {
-		if clearErr := s.records.clear(clientName); clearErr != nil {
+		cleared, clearErr := s.records.clearAndReport(clientName)
+		if clearErr != nil {
 			managedLogger().Warn("the hub could not remove the held copy of a managed client that is now in sync",
 				"code", diagnostic.CodeDoctorStoreIntegrity, "name", clientName, "error", clearErr)
+		} else if cleared && s.onHeldCleared != nil {
+			s.onHeldCleared(clientName)
 		}
 		return fleet.ConfigFetchResponse{
 			Status:                managedFetchStatusCurrent,

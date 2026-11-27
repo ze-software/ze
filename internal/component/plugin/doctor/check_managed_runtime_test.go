@@ -149,3 +149,83 @@ func TestCheckManagedHandshakeSaturated(t *testing.T) {
 	require.True(t, registered)
 	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedHandshakeSaturated))
 }
+
+// VALIDATES: fleet-ui-5 -- managed-alarm-write reports failed alarm shard
+// persistence with timestamps, last error, and fix, and is registered in the
+// runtime phase.
+// PREVENTS: silent loss of durable fleet alarm history on store write failure.
+func TestCheckManagedAlarmWrite(t *testing.T) {
+	require.Empty(t, managedAlarmWriteRows(nil))
+	require.Empty(t, managedAlarmWriteRows(&server.ManagedAlarmHealth{}))
+
+	failAt := time.Date(2026, 11, 27, 6, 10, 0, 0, time.UTC)
+	okAt := time.Date(2026, 11, 27, 6, 5, 0, 0, time.UTC)
+
+	firstFailRows := managedAlarmWriteRows(&server.ManagedAlarmHealth{
+		Degraded:        true,
+		WriteFailed:     true,
+		LastWriteFailAt: failAt,
+		LastWriteError:  "store read-only",
+	})
+	require.Len(t, firstFailRows, 1)
+	require.Equal(t, server.CodeDoctorManagedAlarmWriteFailed, firstFailRows[0].Code)
+	require.Equal(t, diagnostic.SeverityError, firstFailRows[0].Severity)
+	require.Contains(t, firstFailRows[0].Message, failAt.Format(time.RFC3339))
+	require.Contains(t, firstFailRows[0].Message, "no alarm shard write has succeeded yet")
+	require.Contains(t, firstFailRows[0].Message, "store read-only")
+	require.Contains(t, firstFailRows[0].Fix, "ze show data check")
+	require.Contains(t, firstFailRows[0].Fix, "ze show fleet alarm")
+
+	laterFailRows := managedAlarmWriteRows(&server.ManagedAlarmHealth{
+		Degraded:        true,
+		WriteFailed:     true,
+		LastWriteOKAt:   okAt,
+		LastWriteFailAt: failAt,
+		LastWriteError:  "no space left on device",
+	})
+	require.Len(t, laterFailRows, 1)
+	require.Contains(t, laterFailRows[0].Message, okAt.Format(time.RFC3339))
+	require.Contains(t, laterFailRows[0].Message, "no space left on device")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedAlarmWriteCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedAlarmWriteFailed))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedAlarmWriteFailed))
+}
+
+// VALIDATES: fleet-ui-5 -- managed-alarm-corrupt reports skipped corrupt alarm
+// shards with count, error detail, and fix, and is registered in the runtime
+// phase.
+// PREVENTS: corrupt alarm shards being silently dropped on startup load.
+func TestCheckManagedAlarmCorrupt(t *testing.T) {
+	require.Empty(t, managedAlarmCorruptRows(nil))
+	require.Empty(t, managedAlarmCorruptRows(&server.ManagedAlarmHealth{}))
+
+	rows := managedAlarmCorruptRows(&server.ManagedAlarmHealth{
+		Degraded:         true,
+		CorruptShards:    2,
+		LastCorruptError: "unsupported alarm device shard version 99",
+	})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedAlarmCorrupt, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
+	require.Contains(t, rows[0].Message, "skipped 2 unreadable managed fleet alarm shard(s)")
+	require.Contains(t, rows[0].Message, "unsupported alarm device shard version 99")
+	require.Contains(t, rows[0].Fix, "ze show fleet alarm")
+	require.Contains(t, rows[0].Fix, "ze show warnings")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedAlarmCorruptCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedAlarmCorrupt))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedAlarmCorrupt))
+}

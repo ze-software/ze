@@ -56,7 +56,7 @@ func prepareManagedReload(tree *zeconfig.Tree, srv *pluginserver.ManagedServer) 
 		return nil, nil // No managed store was opened by this daemon.
 	}
 	listens, certificate := managedListeners(&cfg)
-	return srv.PrepareManagedListenersWithHistory(listens, certificate, cfg.History)
+	return srv.PrepareManagedListenersWithHistoryAndAlarms(listens, certificate, cfg.History, cfg.Alarms)
 }
 
 // startManagedServer starts the registry and its workers on the daemon's store.
@@ -100,6 +100,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		// hub-managed-listener check reports, not an unbound listener.
 		Acceptor: acceptor,
 		History:  hubConfig.History,
+		Alarms:   hubConfig.Alarms,
 	})
 	// refuse-by-default: guards runYANGConfig -- a construction failure leaves no server to start, publish or pass to the fleet commands
 	if err != nil {

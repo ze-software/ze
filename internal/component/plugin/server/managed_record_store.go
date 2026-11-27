@@ -112,8 +112,16 @@ func (s *ManagedServer) observeDeviceRecord(key string, removed bool) {
 		delete(s.recordIO.failed, name)
 		if device := s.devices[name]; device != nil {
 			s.forgetDeviceRecordLocked(name, device)
-		} else if s.history != nil {
-			s.history.FenceForgetDevice(name)
+		} else {
+			if s.history != nil {
+				s.history.FenceForgetDevice(name)
+			}
+			if s.alarms != nil {
+				s.alarms.OnDeviceForgotten(name)
+				if s.history != nil {
+					s.alarms.OnHistoryHealth(s.history.HealthSnapshot(s.currentTime()))
+				}
+			}
 		}
 		return
 	}
@@ -400,6 +408,12 @@ func (s *ManagedServer) syncDeviceRecord(name string) {
 func (s *ManagedServer) forgetDeviceRecordLocked(name string, device *managedDevice) {
 	if s.history != nil {
 		s.history.FenceForgetDevice(name)
+	}
+	if s.alarms != nil {
+		s.alarms.OnDeviceForgotten(name)
+		if s.history != nil {
+			s.alarms.OnHistoryHealth(s.history.HealthSnapshot(s.currentTime()))
+		}
 	}
 	if !device.declared {
 		if device.conn != nil {
