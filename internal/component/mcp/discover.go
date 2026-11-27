@@ -115,7 +115,7 @@ func (s *Streamable) instructions() string {
 		return tb.Str(s.cfg.Provider.ServerName()).
 			Str(" MCP server. Call tools/list to discover the tools it offers.").String()
 	}
-	return "Ze network OS. Call the ze_reference tool first to discover this instance's commands, plugins and address families, then ze_execute to run a ze CLI command."
+	return "Ze network OS. Call the ze_reference tool first to discover this instance's commands, plugins and address families, then ze_execute to run a ze CLI command. For live runtime debugging, read the ze://triage resource (or run show system triage) and load the playbook via show skill ze-diagnostics."
 }
 
 // serverInfo is the Implementation object this server reports in every result's

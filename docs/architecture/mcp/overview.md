@@ -242,7 +242,7 @@ what the server speaks. The result carries:
 |-------|-------|
 | `supportedVersions` | A clone of `supportedProtocolVersions`, so it cannot drift from what the version check accepts |
 | `capabilities` | `tools`, `resources`, and an `extensions` map naming BOTH `io.modelcontextprotocol/ui` and `io.modelcontextprotocol/tasks`, each with an empty settings object. Advertising tasks is what makes `resultType: "task"` interpretable: a client's legal ResultType set is the core set plus the values of extensions advertised via capabilities |
-| `instructions` | Natural-language guidance. In Provider mode it names the provider. Otherwise it points an LLM at `ze_reference` first, then `ze_execute` |
+| `instructions` | Natural-language guidance. In Provider mode it names the provider. Otherwise it points an LLM at `ze_reference` first, then `ze_execute`, and steers live runtime debugging to `ze://triage` (`show system triage`) and `show skill ze-diagnostics` |
 | `resultType`, `_meta` | Stamped by the shared `ok()` helper, like every other result |
 | `ttlMs`, `cacheScope` | `DiscoverResult` extends `CacheableResult`, where both are non-optional. Stamped from the method table, not by this handler (see Cacheable Results) |
 

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -59,8 +60,14 @@ func TestServerDiscoverShape(t *testing.T) {
 		t.Errorf("capabilities.extensions[%q] = %v, want an empty settings object", extensionUI, uiSettings)
 	}
 
-	if instructions, _ := result["instructions"].(string); instructions == "" {
+	instructions, _ := result["instructions"].(string)
+	if instructions == "" {
 		t.Error("instructions missing or empty")
+	}
+	for _, want := range []string{"ze_reference", "ze_execute", "ze://triage", "show system triage", "show skill ze-diagnostics"} {
+		if !strings.Contains(instructions, want) {
+			t.Errorf("instructions = %q, missing %q", instructions, want)
+		}
 	}
 
 	// serverInfo belongs under result._meta, NOT at the top of result.

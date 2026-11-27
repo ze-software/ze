@@ -1,11 +1,11 @@
 ---
 name: ze-diagnostics
-description: Read Ze diagnostics, explanations, and fix plans.
+description: Diagnose Ze config errors and debug live runtime issues, hangs, drift, and bad packets.
 ---
 
 # Ze Diagnostics
 
-Use this when Ze config fails to parse or validate, or when triaging a misbehaving Ze daemon at runtime.
+Use this when Ze config fails to parse or validate, or when debugging a misbehaving Ze daemon at runtime (crashes, hangs, slow reloads, plugin wedges, dataplane drift, unexpected drops, or malformed wire frames).
 
 ## Commands
 
@@ -61,6 +61,32 @@ ze cli -c "show system triage | json"
 Over MCP, call `ze_show_system` with `action: "triage"` (or `ze_execute` with `"show system triage"`), or discover and read the read-only `ze://triage` resource via `resources/list` and `resources/read` (scope-checked against `"show system triage"`, 5s live-state TTL).
 
 One round-trip returns build provenance (`version`), component `health`, daemon `doctor` findings, recent `errors`, active `warnings`, saved `crashes`, unhealthy `plugins`, `reload` status (including `last-operation-id` when a reload has run), `recent-logs` (warn and error), and process `runtime` vitals (including `watchdog-running`, `stall-count`, `hung-handler-count`, and `bad-packet-count`). Sections whose runtime source is unreachable report `available: false` with a reason; capped lists report `total-count` and `truncated` so you know when to fetch full details.
+
+### Symptom-to-Command Routing
+
+Pick the drill-down matching what `show system triage` (or the operator's symptom) reports:
+
+| Symptom | First command(s) |
+|---|---|
+| Unknown failure — start here | `show system triage` (or MCP `resources/read` `ze://triage`) |
+| Crash or recovered panic (`doctor-internal-defect`) | `show crashes name <file>` |
+| Command timed out or daemon feels wedged | `show system watchdog`, then `show system goroutines mode blocked` and `show system trace id <id>` |
+| Failed or slow config reload | `show system reload history`, `show system reload status`, then correlate with `\| operation <id>` |
+| Reconstruct one incident across surfaces | `\| operation <id>` on `show log recent`, `show event recent`, `show errors`, `show audit`, `show system reload history` |
+| High CPU, memory growth, or lock contention | `show system profile type <cpu\|heap\|allocs\|mutex\|block\|goroutine> \| summary` |
+| One plugin (internal or forked) misbehaving or stuck | Add `\| plugin <name>` to `show system goroutines`, `show system profile`, `show runtime memory`, `show system memory`, or `show log recent` |
+| Intended config diverges from kernel/dataplane (`doctor-dataplane-drift`) | `show system drift` or `show system drift \| subsystem <name>` |
+| Packet dropped or accepted unexpectedly by firewall | `show firewall trace table <t> [chain <c>] ...` |
+| BGP route missing, wrong best path, or policy drop | `show bgp rib best \| reason` and `show policy test peer <sel> <direction> update <hex>` |
+| Malformed BGP wire frame or protocol panic reproducer | `show system bad-packets \| protocol bgp` |
+| Portable live diagnostic snapshot for escalation | `request support archive module log-ring,report,health,watchdog,bad-packets,drift,goroutines,event-ring,plugins,reload-history` |
+
+### Agent Rules (CLI and MCP)
+
+- **Always pass structured `pipe` arrays over MCP**: never embed `"| summary"` or `"| plugin bgp"` inside a command argument string. Pass `pipe: [{"name": "summary"}]` (no `"args"` key when argumentless) or `pipe: [{"name": "plugin", "args": ["bgp"]}]` (exact `"args"` string array for value pipes). Multiple pipes compose in order in the same array.
+- **Trust honesty flags before concluding**: check `available: false` (unreachable source — not an empty healthy list), `truncated: true` (more records exist — narrow or raise `count`), `incomplete: true` / `unevaluated: true` on `show firewall trace` (kernel-only predicate could not be decided offline), and `fallback: true` on `| plugin <name>` (forked plugin did not answer RPC; inspect `fallback-reason`, `host`, and `stderr-tail`).
+- **Diagnostic reads survive reload wedges**: `show system triage`, `show system watchdog`, `show system reload status`, and `show system reload history` read only leaf locks/atomics without taking `Server.txLock` — run them even when config reloads or other commands time out.
+- **Remote `request support archive` saves to the daemon store**: over MCP/SSH/REST/gRPC, never pass `--output`; read the returned `archive-key` with `show data cat <key>`.
 
 ### 2. Drill Down Based on What Triage Flags
 

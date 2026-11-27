@@ -318,3 +318,76 @@ func TestSkillsDiagnosticsIncludesPart2Commands(t *testing.T) {
 		assert.Contains(t, answer.Skill.Content, want)
 	}
 }
+
+// TestSkillsDiagnosticsIncludesParts3To5AndRouting verifies that show skills,
+// ze, ze full, and ze-diagnostics surface all Part 3-5 runtime debugging
+// capabilities, the symptom-to-command routing table, and MCP pipe rules.
+//
+// VALIDATES: show skills advertises live runtime debugging on ze-diagnostics,
+// ze and ze full steer to ze://triage and Part 5 drill-down commands, and
+// ze-diagnostics teaches routing, MCP structured pipe syntax, and honesty flags.
+// PREVENTS: an AI configured via ze create agent skill missing runtime triage
+// features or misusing CLI pipe strings inside MCP tool parameters.
+func TestSkillsDiagnosticsIncludesParts3To5AndRouting(t *testing.T) {
+	listOut := local(t, showSkills, "show skills")
+	assert.Contains(t, listOut, "ze-diagnostics — ")
+	assert.Contains(t, strings.ToLower(listOut), "live runtime")
+
+	for _, tokens := range [][]string{{"ze"}, {"ze", "full"}} {
+		validated, err := command.ValidateModelArgs("show skill", tokens, nil)
+		require.NoError(t, err)
+		result := runQuiet(t, showSkill, tokens...)
+		require.Equal(t, 0, result.Code, "diagnostic: %s", result.Diagnostic)
+		answer, ok := result.Payload.(skillAnswer)
+		require.True(t, ok)
+		assert.Contains(t, answer.Skill.Content, "ze://triage")
+		assert.Contains(t, answer.Skill.Content, "ze-diagnostics")
+		_ = validated
+	}
+
+	fullRes := runQuiet(t, showSkill, "ze", "--full")
+	require.Equal(t, 0, fullRes.Code)
+	fullDoc := fullRes.Payload.(skillAnswer).Skill.Content
+	for _, want := range []string{
+		"show system drift",
+		"show system bad-packets",
+		"show firewall trace",
+		"show bgp rib best | reason",
+		"| plugin <name>",
+		"| operation <id>",
+	} {
+		assert.Contains(t, fullDoc, want)
+	}
+
+	diagRes := runQuiet(t, showSkill, "ze-diagnostics")
+	require.Equal(t, 0, diagRes.Code)
+	diagDoc := diagRes.Payload.(skillAnswer).Skill.Content
+	for _, want := range []string{
+		"### Symptom-to-Command Routing",
+		"### Agent Rules (CLI and MCP)",
+		"ze://triage",
+		"| plugin <name>",
+		"fallback-reason",
+		"stderr-tail",
+		"doctor-command-handler-hung",
+		"doctor-daemon-stall-detected",
+		"show system drift",
+		"| subsystem <name>",
+		"doctor-dataplane-drift",
+		"show firewall trace",
+		"unevaluated: true",
+		"incomplete: true",
+		"show bgp rib best | reason",
+		"show policy test",
+		"show system bad-packets",
+		"| protocol bgp",
+		"bad-packet-count",
+		"request support archive module log-ring,report,health,watchdog,bad-packets,drift,goroutines,event-ring,plugins,reload-history",
+		`pipe: [{"name": "plugin", "args": ["<name>"]}]`,
+		`pipe: [{"name": "subsystem", "args": ["firewall"]}]`,
+		`pipe: [{"name": "protocol", "args": ["bgp"]}]`,
+		"available: false",
+	} {
+		assert.Contains(t, diagDoc, want)
+	}
+}

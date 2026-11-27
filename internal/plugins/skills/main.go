@@ -53,7 +53,7 @@ type skill struct {
 
 var inventory = []skill{
 	{Name: "ze", Description: "Ze network OS overview and agent entry points", File: "data/ze.md", FullFile: "data/ze-full.md"},
-	{Name: "ze-diagnostics", Description: "Read Ze diagnostics, explanations, and fix plans", File: "data/ze-diagnostics.md"},
+	{Name: "ze-diagnostics", Description: "Diagnose Ze config errors and debug live runtime issues, hangs, drift, and bad packets", File: "data/ze-diagnostics.md"},
 	{Name: "ze-config", Description: "Ze config syntax, validation, and common errors", File: "data/ze-config.md"},
 	{Name: "ze-commands", Description: "CLI command reference, dispatch keys, and MCP tools", File: "data/ze-commands.md"},
 	{Name: "ze-agent", Description: "Agent workflow for config validation and repair", File: "data/ze-agent.md"},

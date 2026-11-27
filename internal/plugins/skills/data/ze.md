@@ -19,7 +19,7 @@ ze show skills
 ze show skill <name> [--full]
 ```
 
-Start live runtime bug triage with `show system triage` (over CLI or MCP `ze_show_system` action `triage`), then load `ze show skill ze-diagnostics` for the full drill-down playbook.
+Start live runtime bug triage with `show system triage` (over CLI, MCP `ze_show_system` action `triage`, or MCP resource `ze://triage`), then load `ze show skill ze-diagnostics` for the full runtime debugging playbook (crashes, hangs, reload history, plugin introspection, dataplane drift, firewall/BGP trace, bad packets, and live support bundles).
 
 Driving ze over MCP instead of the CLI? Call the `ze_reference` tool (it appears
 in `tools/list` on connect) for the same `ze help ai --json` reference. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->

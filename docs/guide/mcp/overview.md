@@ -403,10 +403,11 @@ re-fetching it every turn:
 
 | Method | `ttlMs` | `cacheScope` |
 |--------|---------|--------------|
+| `resources/read` (`ze://` URIs) | `5000` (5 s) | `private` |
 | `tools/list` | `60000` (60 s) | `private` | <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 | `server/discover` | `60000` (60 s) | `private` |
 | `resources/list` | `3600000` (1 h) | `private` |
-| `resources/read` | `3600000` (1 h) | `private` |
+| `resources/read` (`ui://` URIs) | `3600000` (1 h) | `private` |
 
 `tools/call` and the three `tasks/*` methods (`tasks/get`, `tasks/update`, <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 `tasks/cancel`) carry no hints. Their results are not cacheable.

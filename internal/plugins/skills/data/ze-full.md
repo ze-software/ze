@@ -30,15 +30,15 @@ ze show skill <name> [--full] [--json]
 
 ## Live Runtime Triage Loop
 
-1. Run `ze cli -c "show system triage | json"` (or MCP `ze_show_system` action `triage`) to capture build provenance, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, and `runtime` in one call.
-2. Inspect `doctor`, `errors`, `crashes`, and `recent-logs` first (including any `doctor-internal-defect` raised by a recovered panic).
-3. Drill down only into the sections triage flags: `show crashes name <file>`, `show log recent level err`, `show event recent`, `show system goroutines mode blocked`, `show system profile`, `show system reload status`, `show system reload history`, `show system watchdog`, or `show plugin list`.
-4. Load `ze show skill ze-diagnostics` for the full runtime triage playbook and bug report checklist.
+1. Run `ze cli -c "show system triage | json"` (or MCP `ze_show_system` action `triage`, or MCP resource `ze://triage`) to capture build provenance, `health`, `doctor`, `errors`, `warnings`, `crashes`, `plugins`, `reload`, `recent-logs`, and `runtime` in one call.
+2. Inspect `doctor`, `errors`, `crashes`, and `recent-logs` first (including `doctor-internal-defect` from recovered panics and `doctor-dataplane-drift` from dataplane divergence).
+3. Drill down only into the sections triage flags: `show crashes name <file>`, `show log recent level err`, `show event recent`, `show system goroutines mode blocked`, `show system profile type heap | summary`, `show system trace`, `show system reload status`, `show system reload history`, `show system watchdog`, `show system drift`, `show system bad-packets`, `show firewall trace`, `show bgp rib best | reason`, `show plugin list`, or scope runtime queries to one plugin with `| plugin <name>` and correlate incidents with `| operation <id>`.
+4. Load `ze show skill ze-diagnostics` for the full symptom-to-command routing table, MCP pipe rules, live `request support archive` modules, and bug report checklist.
 
 ## Skills
 
 Use `ze show skills` to see all bundled skills.
-Use `ze show skill ze-diagnostics` for config diagnostics and live runtime triage.
+Use `ze show skill ze-diagnostics` for config diagnostics and live runtime debugging (crashes, hangs, drift, packet trace, bad packets, support bundles).
 Use `ze show skill ze-config` for config syntax and common errors.
 Use `ze show skill ze-commands` for CLI and dispatch key reference.
 Use `ze show skill ze-agent` for the agent edit loop.
