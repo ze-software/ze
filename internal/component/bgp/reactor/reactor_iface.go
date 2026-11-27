@@ -13,8 +13,10 @@ import (
 	"sync"
 	"syscall"
 
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // bgpListenerReadyPayload is the JSON payload emitted by the reactor on
@@ -329,7 +331,17 @@ func (r *Reactor) handleAddressAdded(addr netip.Addr) bool {
 	if r.eventBus != nil {
 		readyPayload, _ := json.Marshal(bgpListenerReadyPayload{Address: addr.String()})
 		if _, emitErr := r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventListenerReady, string(readyPayload)); emitErr != nil {
-			reactorLogger().Debug("iface: emit listener-ready", "address", addr, "error", emitErr)
+			addrStr := addr.String()
+			reactorLogger().Warn("iface: listener-ready event not delivered",
+				"code", bgpserver.CodeDoctorBGPPluginEventsUndelivered,
+				"address", addrStr,
+				"event", bgpevents.EventListenerReady,
+				"why", "interface migration waiters or plugins watching listener readiness may time out or miss this address",
+				"fix", bgpserver.PluginEventsUndeliveredFix,
+				"error", emitErr)
+			report.RaiseErrorFixOnce(reportSourceBGP, bgpserver.CodeDoctorBGPPluginEventsUndelivered, addrStr,
+				report.FitMessage("BGP listener-ready event after interface address add was not delivered for "+addrStr+": "+emitErr.Error()),
+				bgpserver.PluginEventsUndeliveredFix, wellKnownScanLogInterval)
 		}
 	}
 	return true

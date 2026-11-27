@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -145,4 +146,141 @@ func TestDecodePluginKeywordNamesARegisteredPlugin(t *testing.T) {
 	_, err := command.ValidateModelArgs(pathDecode, []string{"plugin", "/bin/sh", privateCapabilityOpenHex}, nil)
 	require.Error(t, err, "the keyword takes a plugin name, never a program path")
 	require.Contains(t, err.Error(), "/bin/sh")
+}
+
+// writeFailingLabPlugin writes an executable shell script with body into a
+// temporary directory and returns its path.
+func writeFailingLabPlugin(t *testing.T, name, body string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o700))
+	return path
+}
+
+// TestInvokePluginPathReturnsFailure proves that when an operator runs
+// `ze bgp decode --plugin <path>` and the external plugin fails to start,
+// exits non-zero, or exits non-zero after writing a line, the failure is
+// returned to the caller rather than dropped at Debug.
+//
+// VALIDATES: AC-2 — answer-1 error propagation for external `--plugin <path>`
+// failures in decode_plugin.go (`invokePluginPath`).
+// PREVENTS: silent fallback to `"unknown"` capability output with exit code 0
+// when a named decode plugin binary cannot run or crashes.
+func TestInvokePluginPathReturnsFailure(t *testing.T) {
+	cases := []struct {
+		name    string
+		prepare func(t *testing.T) string
+	}{
+		{
+			name: "missing-binary",
+			prepare: func(t *testing.T) string {
+				t.Helper()
+				return filepath.Join(t.TempDir(), "does-not-exist-plugin")
+			},
+		},
+		{
+			name: "nonzero-exit-no-output",
+			prepare: func(t *testing.T) string {
+				t.Helper()
+				return writeFailingLabPlugin(t, "fail-exit", "#!/bin/sh\nread -r line\nexit 2\n")
+			},
+		},
+		{
+			name: "decoded-then-nonzero-exit",
+			prepare: func(t *testing.T) string {
+				t.Helper()
+				return writeFailingLabPlugin(t, "fail-after-json",
+					"#!/bin/sh\nread -r line\necho 'decoded json {\"name\":\"lab-private\",\"value\":\"ABCD\"}'\nexit 2\n")
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			program := tc.prepare(t)
+
+			answer := answerDecode(command.ValidatedArgs{},
+				[]string{"--plugin", program, "--open", privateCapabilityOpenHex}, command.RouteLocal)
+			require.Equal(t, 1, answer.Code, "plugin failure must exit non-zero")
+			result, ok := answer.Payload.(decodeAnswer)
+			require.True(t, ok, "answer payload must be decodeAnswer, got %T", answer.Payload)
+			require.Len(t, result.Decode.Messages, 1)
+			require.NotEmpty(t, result.Decode.Messages[0].Error,
+				"plugin failure must populate the message error for the operator")
+			require.Contains(t, result.Decode.Messages[0].Error, program,
+				"error message must name the failing plugin path")
+
+			plugins, err := parseDecodePlugins([]string{program}, true)
+			require.NoError(t, err)
+			_, decodeErr := decodeHexPacket(plugins, privateCapabilityOpenHex, msgTypeOpen, "", true)
+			require.Error(t, decodeErr, "decodeHexPacket must return the plugin failure to callers")
+			require.Contains(t, decodeErr.Error(), program)
+		})
+	}
+}
+
+// TestInvokePluginInternalAndProtocolErrors proves that internal-mode pipe
+// decoders (ze.<name>), missing internal decoders, malformed JSON responses,
+// and NLRI `--plugin <path>` failures all return errors rather than dropping
+// them at Debug.
+//
+// VALIDATES: AC-2 — answer-1 error propagation across invokePluginInternal,
+// runPluginInternal, parseDecodedJSON, and NLRI plugin decode paths.
+// PREVENTS: silent fallback to unparsed NLRI or nil when a plugin exits
+// non-zero or writes corrupt JSON.
+func TestInvokePluginInternalAndProtocolErrors(t *testing.T) {
+	t.Run("internal-nonzero-exit", func(t *testing.T) {
+		decoder := func(_, output *bytes.Buffer) int {
+			output.WriteString("decoded unknown\n")
+			return 2
+		}
+		res, decoded, err := runPluginInternal("test-internal-fail", decoder, "decode capability 250 ABCD")
+		require.Error(t, err)
+		require.False(t, decoded)
+		require.Nil(t, res)
+		require.Contains(t, err.Error(), "test-internal-fail")
+		require.Contains(t, err.Error(), "status 2")
+	})
+
+	t.Run("internal-malformed-json", func(t *testing.T) {
+		decoder := func(_, output *bytes.Buffer) int {
+			output.WriteString("decoded json {not-valid-json\n")
+			return 0
+		}
+		res, decoded, err := runPluginInternal("test-internal-bad-json", decoder, "decode capability 250 ABCD")
+		require.Error(t, err)
+		require.False(t, decoded)
+		require.Nil(t, res)
+		require.Contains(t, err.Error(), "test-internal-bad-json")
+	})
+
+	t.Run("internal-missing-decoder", func(t *testing.T) {
+		res, decoded, err := invokePluginInternal("no-such-internal-decoder", "decode capability 250 ABCD")
+		require.Error(t, err)
+		require.False(t, decoded)
+		require.Nil(t, res)
+		require.Contains(t, err.Error(), "no-such-internal-decoder")
+	})
+
+	t.Run("path-malformed-json", func(t *testing.T) {
+		program := writeFailingLabPlugin(t, "bad-json",
+			"#!/bin/sh\nread -r line\necho 'decoded json {broken'\nexit 0\n")
+		plugins, err := parseDecodePlugins([]string{program}, true)
+		require.NoError(t, err)
+		_, decodeErr := decodeHexPacket(plugins, privateCapabilityOpenHex, msgTypeOpen, "", true)
+		require.Error(t, decodeErr)
+		require.Contains(t, decodeErr.Error(), program)
+	})
+
+	t.Run("nlri-path-nonzero-exit", func(t *testing.T) {
+		program := writeFailingLabPlugin(t, "fail-nlri", "#!/bin/sh\nread -r line\nexit 3\n")
+		answer := answerDecode(command.ValidatedArgs{},
+			[]string{"--plugin", program, "--nlri", "ipv4/unicast", "180A0000"}, command.RouteLocal)
+		require.Equal(t, 1, answer.Code)
+		result, ok := answer.Payload.(decodeAnswer)
+		require.True(t, ok, "answer payload must be decodeAnswer, got %T", answer.Payload)
+		require.Len(t, result.Decode.Messages, 1)
+		require.Contains(t, result.Decode.Messages[0].Error, program)
+		require.Nil(t, invokePluginNLRIDecode(program, "ipv4/unicast", "180A0000"))
+	})
 }

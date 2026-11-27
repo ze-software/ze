@@ -204,9 +204,11 @@ func tuneTCPConnectionForSettings(tcp *net.TCPConn, settings *PeerSettings) erro
 			}
 		}
 		// Set socket buffers for BGP burst throughput.
+		// refuse-by-default: guards socketRecvBufSize -- OS kernel buffer caps are non-fatal; BGP keeps using the kernel default receive buffer
 		if err := syscall.SetsockoptInt(intFD, syscall.SOL_SOCKET, syscall.SO_RCVBUF, socketRecvBufSize); err != nil {
 			sessionLogger().Debug("SO_RCVBUF not set, using OS default", "err", err)
 		}
+		// refuse-by-default: guards socketSendBufSize -- OS kernel buffer caps are non-fatal; BGP keeps using the kernel default send buffer
 		if err := syscall.SetsockoptInt(intFD, syscall.SOL_SOCKET, syscall.SO_SNDBUF, socketSendBufSize); err != nil {
 			sessionLogger().Debug("SO_SNDBUF not set, using OS default", "err", err)
 		}

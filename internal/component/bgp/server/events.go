@@ -14,6 +14,8 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
@@ -26,7 +28,9 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -1169,10 +1173,62 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 		})
 		if err == nil {
 			if _, err := eorEventBus.Emit(bgpevents.Namespace, bgpevents.EventEOR, string(payload)); err != nil {
-				logger().Debug("emit bgp eor failed", "peer", peerAddr, "family", family, "error", err)
+				reportEOREmitFailure(peerAddr, family, err)
 			}
 		}
 	}
+}
+
+const (
+	// reportSourceBGP is the report bus source name for BGP-originated issues.
+	reportSourceBGP = "bgp"
+
+	// eorEmitReportWindow bounds repeated EOR EventBus failure entries on the
+	// operational report bus per (peer, family).
+	eorEmitReportWindow = time.Minute
+
+	// eorEmitFailureMessage explains an EOR EventBus emit failure in operator terms.
+	eorEmitFailureMessage = "BGP End-of-RIB event could not be delivered on the event bus; subscribers missed the End-of-RIB transition"
+)
+
+// fitReportSubject bounds a report-bus subject to report.SubjectMax on a UTF-8
+// rune boundary so an overlong peer/family label is never silently rejected.
+func fitReportSubject(subject string) string {
+	if len(subject) <= report.SubjectMax {
+		return subject
+	}
+	cut := report.SubjectMax
+	for cut > 0 && !utf8.RuneStart(subject[cut]) {
+		cut--
+	}
+	return subject[:cut]
+}
+
+// reportEOREmitFailure logs an EOR EventBus delivery failure at Warn under
+// CodeDoctorBGPPluginEventsUndelivered and raises a rate-bounded error event on
+// the operational report bus so operators see the missed End-of-RIB transition.
+func reportEOREmitFailure(peerAddr, family string, err error) {
+	logger().Warn(eorEmitFailureMessage,
+		"code", CodeDoctorBGPPluginEventsUndelivered,
+		"peer", peerAddr,
+		"family", family,
+		"why", "subscribers missed End-of-RIB",
+		"fix", PluginEventsUndeliveredFix,
+		"error", err,
+	)
+	var subject textbuf.Buffer
+	subject.Str(peerAddr).Byte('/').Str(family)
+	var msg textbuf.Buffer
+	msg.Str(eorEmitFailureMessage).Str(" (peer ").Str(peerAddr).
+		Str(", family ").Str(family).Str("): ").Err(err)
+	report.RaiseErrorFixOnce(
+		reportSourceBGP,
+		CodeDoctorBGPPluginEventsUndelivered,
+		fitReportSubject(subject.String()),
+		report.FitMessage(msg.String()),
+		PluginEventsUndeliveredFix,
+		eorEmitReportWindow,
+	)
 }
 
 // onMessageSent handles BGP messages sent to peers.

@@ -85,6 +85,15 @@ var bufMuxStd = withCollapseProbe(newProbedPool(message.MaxMsgLen, bufMuxBlockSi
 // Collapse probe wired via withCollapseProbe; overflow probe available via AddProbe.
 var bufMuxExt = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
+// ReadPoolInUse returns the number of currently checked-out 4K (standard) and
+// 64K (extended) read-pool buffers across the reactor. Used by simulation and
+// leak-detection checkers after teardown.
+func ReadPoolInUse() (stdInUse, extInUse int) {
+	_, stdInUse = bufMuxStd.Stats()
+	_, extInUse = bufMuxExt.Stats()
+	return stdInUse, extInUse
+}
+
 // initBufMuxBudget wires a shared byte budget into both multiplexers.
 // Called once from reactor startup, before any concurrent use.
 // maxBytes <= 0 means unlimited initially (AC-27). A budget is always
@@ -831,6 +840,10 @@ type Session struct {
 	// asZeroSendLog bounds the RFC 7607 outbound refusal warning. Its zero
 	// value is ready, independently of the AS_SET operator override.
 	asZeroSendLog wellKnownScanLog
+	// malformedAttrIndexLog bounds the Warn when a received UPDATE's attribute
+	// section cannot be indexed in publishBase (session_validation.go). Zero
+	// value is ready.
+	malformedAttrIndexLog wellKnownScanLog
 
 	// onNotifSent is called after every NOTIFICATION write attempt, with
 	// delivered saying whether the write returned no error. A refused write
@@ -991,6 +1004,7 @@ func NewSession(settings *PeerSettings) *Session {
 		// stuck writer parks a bounded number of goroutines, never one more
 		// per fire for good.
 		if conn != nil {
+			// refuse-by-default: guards Session.sendKeepalive -- a busy write path or closed socket is handled by write-budget expiry and session teardown
 			if err := s.sendKeepalive(conn); err != nil {
 				sessionLogger().Debug("keepalive send failed", "peer", s.settings.Address, "error", err)
 			}
@@ -998,6 +1012,28 @@ func NewSession(settings *PeerSettings) *Session {
 	})
 
 	return s
+}
+
+// nowUnixNano reads the session's injected clock (or the real clock for
+// zero-value test sessions) so rate-limit windows honor simulated time.
+func (s *Session) nowUnixNano() int64 {
+	c := s.clock
+	if c == nil {
+		c = clock.RealClock{}
+	}
+	return c.Now().UnixNano()
+}
+
+// peerAddrLabel returns the cached peer address string for logs and report-bus
+// subjects, falling back to settings.Address for struct-literal test sessions.
+func (s *Session) peerAddrLabel() string {
+	if s.addrLabel != "" {
+		return s.addrLabel
+	}
+	if s.settings != nil && s.settings.Address.IsValid() {
+		return s.settings.Address.String()
+	}
+	return "unknown-peer"
 }
 
 // SetClock sets the clock used for deadline and sleep operations.

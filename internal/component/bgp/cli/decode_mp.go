@@ -19,9 +19,9 @@ import (
 )
 
 // buildMPReachZe builds Ze format NLRI operations from MP_REACH_NLRI.
-func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string]any) {
+func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string]any, error) {
 	if len(mpReach) < 5 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	afi := family.AFI(binary.BigEndian.Uint16(mpReach[0:2]))
@@ -29,7 +29,7 @@ func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string
 	nhLen := int(mpReach[3])
 
 	if len(mpReach) < 4+nhLen+1 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	nhData := mpReach[4 : 4+nhLen]
@@ -37,15 +37,18 @@ func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string
 
 	nlriOffset := 4 + nhLen + 1
 	if nlriOffset >= len(mpReach) {
-		return "", nil
+		return "", nil, nil
 	}
 
 	nlriData := mpReach[nlriOffset:]
 	familyKey := formatFamily(afi, safi)
 
-	routes := parseNLRIByFamily(plugins, nlriData, afi, safi, false)
+	routes, err := parseNLRIByFamily(plugins, nlriData, afi, safi, false)
+	if err != nil {
+		return "", nil, err
+	}
 	if len(routes) == 0 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	// Ze format: array of operations with action/next-hop/nlri
@@ -55,28 +58,31 @@ func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string
 		jsonKeyNLRI:   routes,
 	}
 
-	return familyKey, []map[string]any{op}
+	return familyKey, []map[string]any{op}, nil
 }
 
 // buildMPUnreachZe builds Ze format NLRI operations from MP_UNREACH_NLRI.
-func buildMPUnreachZe(plugins decodePlugins, mpUnreach []byte) (string, []map[string]any) {
+func buildMPUnreachZe(plugins decodePlugins, mpUnreach []byte) (string, []map[string]any, error) {
 	if len(mpUnreach) < 3 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	afi := family.AFI(binary.BigEndian.Uint16(mpUnreach[0:2]))
 	safi := family.SAFI(mpUnreach[2])
 
 	if len(mpUnreach) <= 3 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	nlriData := mpUnreach[3:]
 	familyKey := formatFamily(afi, safi)
 
-	routes := parseNLRIByFamily(plugins, nlriData, afi, safi, true)
+	routes, err := parseNLRIByFamily(plugins, nlriData, afi, safi, true)
+	if err != nil {
+		return "", nil, err
+	}
 	if len(routes) == 0 {
-		return "", nil
+		return "", nil, nil
 	}
 
 	// Ze format: withdraw operation
@@ -85,7 +91,7 @@ func buildMPUnreachZe(plugins decodePlugins, mpUnreach []byte) (string, []map[st
 		jsonKeyNLRI:   routes,
 	}
 
-	return familyKey, []map[string]any{op}
+	return familyKey, []map[string]any{op}, nil
 }
 
 // parseIPv4Prefixes parses IPv4 NLRI prefixes.
@@ -160,15 +166,19 @@ func formatFamily(afi family.AFI, safi family.SAFI) string {
 // order matters: the registered in-process decoder and the plugin's decode
 // command run the same producer, so the fast path answers identically without
 // a subprocess.
-func parseNLRIByFamily(plugins decodePlugins, data []byte, afi family.AFI, safi family.SAFI, withdraw bool) []any {
+func parseNLRIByFamily(plugins decodePlugins, data []byte, afi family.AFI, safi family.SAFI, withdraw bool) ([]any, error) {
 	famStr := family.Family{AFI: afi, SAFI: safi}.String()
 	hexData := textbuf.StringHexUpper(data)
-	if result, decoded := plugins.nlri(famStr, hexData); decoded {
-		return nlriRoutes(result)
+	result, decoded, err := plugins.nlri(famStr, hexData)
+	if err != nil {
+		return nil, err
+	}
+	if decoded {
+		return nlriRoutes(result), nil
 	}
 	pluginName := lookupFamilyPlugin(famStr)
 	if pluginName == "" {
-		return parseGenericNLRI(data, afi)
+		return parseGenericNLRI(data, afi), nil
 	}
 
 	unparsed := []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
@@ -178,18 +188,21 @@ func parseNLRIByFamily(plugins decodePlugins, data []byte, afi family.AFI, safi 
 	if raw, err := registry.DecodeNLRIByFamily(famStr, hexData, false, withdraw); err == nil {
 		var decoded any
 		if err := json.Unmarshal(raw, &decoded); err != nil {
-			return unparsed
+			return nil, fmt.Errorf("decode NLRI %s JSON failed (%w): registered decoder returned malformed JSON", famStr, err)
 		}
-		return nlriRoutes(decoded)
+		return nlriRoutes(decoded), nil
 	}
 
 	// The plugin registered no in-process NLRI decoder, so reach its decode
 	// command instead. bgp-nlri-ls is the one plugin on this route today.
-	result := invokePluginNLRIDecode(pluginName, famStr, hexData)
-	if result == nil {
-		return unparsed
+	result, decoded, err = invokePluginNLRIDecodeResult(pluginName, famStr, hexData)
+	if err != nil {
+		return nil, err
 	}
-	return nlriRoutes(result)
+	if decoded {
+		return nlriRoutes(result), nil
+	}
+	return unparsed, nil
 }
 
 // nlriRoutes normalizes a plugin's decode answer. A packed MP_REACH holding
@@ -248,8 +261,12 @@ func decodeNLRIOnly(plugins decodePlugins, data []byte, family string, outputJSO
 	}
 
 	hexData := textbuf.StringHexUpper(data)
-	if result, decoded := plugins.nlri(family, hexData); decoded {
-		return drawPluginNLRI(result, family, outputJSON)
+	pluginResult, decoded, err := plugins.nlri(family, hexData)
+	if err != nil {
+		return "", err
+	}
+	if decoded {
+		return drawPluginNLRI(pluginResult, family, outputJSON)
 	}
 
 	// Fast path: in-process NLRI decoder registered in plugin registry.
@@ -268,9 +285,12 @@ func decodeNLRIOnly(plugins decodePlugins, data []byte, family string, outputJSO
 	// Try plugin subprocess decode if a plugin is registered for this family.
 	pluginName := lookupFamilyPlugin(family)
 	if pluginName != "" {
-		result := invokePluginNLRIDecode(pluginName, family, hexData)
-		if result != nil {
-			return drawPluginNLRI(result, family, outputJSON)
+		familyResult, familyDecoded, familyErr := invokePluginNLRIDecodeResult(pluginName, family, hexData)
+		if familyErr != nil {
+			return "", familyErr
+		}
+		if familyDecoded {
+			return drawPluginNLRI(familyResult, family, outputJSON)
 		}
 	}
 

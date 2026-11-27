@@ -4,6 +4,7 @@ package reactor
 
 import (
 	"encoding/hex"
+	"log/slog"
 	"net/netip"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // staticRouteAt builds one IPv4 unicast static route with an explicit next hop,
@@ -166,4 +168,61 @@ func TestStaticWithdrawWithheldOnAConnectionThatAdvertisedNothing(t *testing.T) 
 	peer.withdrawStaticRoutes(peer.currentSession(), []StaticRoute{staticRouteAt("10.0.1.0/24", "10.9.9.9")}, 4096, false)
 
 	assert.Empty(t, conn.written(), "no withdrawal is written on a connection that advertised nothing")
+}
+
+// TestSendStaticRoutesReportsUnresolvedNextHop proves that an unresolved static
+// route next hop is reported at WARN (the default log level) with its registered
+// doctor code, peer, prefix, why, and fix, and raised on the operational report
+// bus for both ungrouped and grouped static route sends.
+//
+// VALIDATES: AC-3 — answer-2 reporting for Peer.sendStaticRoutes and
+// Peer.sendStaticRoutesGrouped when resolveNextHop returns an error.
+// PREVENTS: a configured static route silently vanishing at Debug with no
+// operator-visible warning or report-bus event.
+func TestSendStaticRoutesReportsUnresolvedNextHop(t *testing.T) {
+	const unresolvedPrefix = "10.0.1.0/24"
+	routes := []StaticRoute{
+		{Prefix: netip.MustParsePrefix(unresolvedPrefix), NextHop: bgptypes.RouteNextHop{}},
+	}
+
+	for _, tc := range []struct {
+		name  string
+		group bool
+	}{
+		{name: "ungrouped", group: false},
+		{name: "grouped", group: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			report.ResetForTest()
+			t.Cleanup(report.ResetForTest)
+
+			sink := &syncBuffer{}
+			t.Cleanup(swapRoutesLogger(slog.New(slog.NewJSONHandler(sink, &slog.HandlerOptions{Level: slog.LevelWarn}))))
+
+			peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+			negotiateForwardTestFamilies(peer, family.IPv4Unicast)
+
+			sent := peer.sendStaticRoutes(peer.currentSession(), routes, tc.group, 4096, false)
+
+			assert.Empty(t, sent, "a static route with an unresolved next hop must not be recorded as sent")
+			assert.Empty(t, conn.written(), "a static route with an unresolved next hop must not reach the wire")
+
+			coded := closeRecordsWith(closeLogRecords(t, sink), "code", codeDoctorBGPRouteNotSent)
+			require.Len(t, coded, 1, "unresolved static route must emit one coded WARN line")
+			assert.Equal(t, "WARN", coded[0]["level"])
+			assert.Equal(t, peer.addrString, coded[0]["peer"])
+			assert.Equal(t, unresolvedPrefix, coded[0]["prefix"])
+			assert.NotEmpty(t, coded[0]["why"], "WARN line must explain why it matters")
+			assert.Equal(t, fixRouteNotSent, coded[0]["fix"])
+			assert.NotEmpty(t, coded[0]["error"], "WARN line must carry the resolution error")
+
+			events := report.Errors(0)
+			require.Len(t, events, 1, "unresolved static route must raise one report-bus event")
+			assert.Equal(t, reportSourceBGP, events[0].Source)
+			assert.Equal(t, codeDoctorBGPRouteNotSent, events[0].Code)
+			assert.Equal(t, peer.addrString, events[0].Subject)
+			assert.Equal(t, fixRouteNotSent, events[0].Fix)
+			assert.Contains(t, events[0].Message, unresolvedPrefix)
+		})
+	}
 }

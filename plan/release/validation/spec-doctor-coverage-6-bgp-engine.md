@@ -55,7 +55,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
   → Constraint: a health row takes no code and is never refused by the gate; the audit maps it to a check by hand (Data Flow 4b)
 - [ ] `plan/release/validation/spec-doctor-coverage-2-home-cpe-batch.md` - sibling child
   → Constraint: it owns no BGP engine row (it names BGP only as one IPsec own-traffic flow); nothing here respecs it
-- [ ] `plan/release/fixes/spec-dropped-error-1-bgp-engine.md` - raises 57 Debug-dropped BGP engine errors to Warn
+- [ ] `spec-dropped-error-1-bgp-engine` - raises 57 Debug-dropped BGP engine errors to Warn
   → Constraint: every line it raises to Warn becomes a problem site the gate judges, and `./le commit create` refuses an added Warn site whose `code` no check declares. That spec names no code of its own: its Depends row cites this spec's Data Flow map, so the code of each such line is the class code this spec assigns, carried by whichever spec lands second (R-3)
 - [ ] `ai/rules/user-facing-errors.md`
   → Constraint: problem first, why, then the fixing command on a line of its own; JSON carries no color
@@ -128,7 +128,7 @@ C47) and 2 are covered (C18, C20a). This spec closes every gap:
 | BGP listen probe | `internal/component/doctor/checks_listener.go` `extractBGPListeners`, `doctor-bgp-listen` | Pre-start bind probe from the config | extends: the runtime check compares the reactor's listener set with the addresses the config requires (C15) |
 | Reactor metrics | `internal/component/bgp/reactor/reactor_metrics.go` (`asSetWithdrawn` and the prefix metrics) | Per-peer Prometheus counters | extends: C42 reads the count the reactor keeps beside its metric; the new per-peer refusal record (P5) is incremented at the same sites, never instead of a metric |
 | Prefix-limit staleness | `internal/component/bgp/reactor/session_prefix.go` `isPrefixDataStale` | Decides the stale verdict at peer add and reload | extends: the C8 local check calls it |
-| Dropped-error spec | `plan/release/fixes/spec-dropped-error-1-bgp-engine.md` | Raises 57 Debug-dropped errors to Warn | does not apply as a change here: each line it raises names the class code this spec assigns; Risks R-3 |
+| Dropped-error spec | `spec-dropped-error-1-bgp-engine` | Raises 57 Debug-dropped errors to Warn | does not apply as a change here: each line it raises names the class code this spec assigns; Risks R-3 |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

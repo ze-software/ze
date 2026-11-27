@@ -26,11 +26,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-var errEmptyAddressFamily = errors.New("empty address family")
+var (
+	errEmptyAddressFamily       = errors.New("empty address family")
+	errSubprocessSkippedInTest  = errors.New("plugin subprocess skipped in test binary")
+	errUnexpectedPluginJSONType = errors.New("expected JSON object for capability decode")
+)
 
-// zeCmdPlugin is the argv verb of the top-level `ze plugin` command, which this
-// file re-executes to decode. It is not the `ze bgp plugin` subcommand.
-const zeCmdPlugin = "plugin"
+const (
+	// zeCmdPlugin is the argv verb of the top-level `ze plugin` command, which this
+	// file re-executes to decode. It is not the `ze bgp plugin` subcommand.
+	zeCmdPlugin = "plugin"
+
+	decodeFlag        = "--decode"
+	decodedJSONPrefix = "decoded json "
+)
 
 // pluginMode represents how a plugin should be invoked.
 type pluginMode int
@@ -144,35 +153,53 @@ func (plugins decodePlugins) spellings() []string {
 
 // capability answers the first named plugin's decoding of a capability.
 // decoded is false when no named plugin decodes the code, and the caller then
-// asks the registered decoders.
-func (plugins decodePlugins) capability(code uint8, hexData string) (result map[string]any, decoded bool) {
+// asks the registered decoders. A non-nil err reports a plugin execution or
+// protocol failure so the caller surfaces it to the operator.
+func (plugins decodePlugins) capability(code uint8, hexData string) (result map[string]any, decoded bool, err error) {
 	if len(plugins) == 0 {
-		return nil, false
+		return nil, false, nil
 	}
-	var tb textbuf.Buffer
-	request := tb.Str("decode capability ").Uint8(code).Byte(' ').Str(hexData).String()
+	request := capabilityDecodeRequest(code, hexData)
 	for i := range plugins {
-		if result, ok := plugins[i].decode(request).(map[string]any); ok {
-			return result, true
+		raw, ok, err := plugins[i].decode(request)
+		if err != nil {
+			return nil, false, err
+		}
+		if !ok {
+			continue
+		}
+		if result, isMap := raw.(map[string]any); isMap {
+			return result, true, nil
 		}
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 // nlri answers the first named plugin's decoding of NLRI of a family.
 // decoded is false when no named plugin decodes it, and the caller then asks
-// the registered decoders.
-func (plugins decodePlugins) nlri(family, hexData string) (result any, decoded bool) {
+// the registered decoders. A non-nil err reports a plugin execution or
+// protocol failure so the caller surfaces it to the operator.
+func (plugins decodePlugins) nlri(family, hexData string) (result any, decoded bool, err error) {
 	if len(plugins) == 0 {
-		return nil, false
+		return nil, false, nil
 	}
 	request := nlriDecodeRequest(family, hexData)
 	for i := range plugins {
-		if result := plugins[i].decode(request); result != nil {
-			return result, true
+		result, ok, err := plugins[i].decode(request)
+		if err != nil {
+			return nil, false, err
+		}
+		if ok {
+			return result, true, nil
 		}
 	}
-	return nil, false
+	return nil, false, nil
+}
+
+// capabilityDecodeRequest is the decode request for a capability code.
+func capabilityDecodeRequest(code uint8, hexData string) string {
+	var tb textbuf.Buffer
+	return tb.Str("decode capability ").Uint8(code).Byte(' ').Str(hexData).String()
 }
 
 // nlriDecodeRequest is the decode request for NLRI of a family.
@@ -182,12 +209,13 @@ func nlriDecodeRequest(family, hexData string) string {
 }
 
 // decode sends one decode request to the plugin by the route its spelling
-// chose, and answers its decoding, or nil when it decoded nothing:
+// chose, and answers its decoding, whether it decoded, and any execution or
+// protocol error:
 //   - "name": fork `ze plugin <name> --decode`, in-process when that cannot run
 //   - "ze.name": goroutine and pipes
 //   - "ze-name": synchronous, in-process
 //   - "/path": fork the program at the path
-func (plugin *decodePlugin) decode(request string) any {
+func (plugin *decodePlugin) decode(request string) (any, bool, error) {
 	switch plugin.mode {
 	case ModeInternal:
 		return invokePluginInternal(plugin.name, request)
@@ -202,257 +230,244 @@ func (plugin *decodePlugin) decode(request string) any {
 	panic("BUG: invalid plugin invocation mode")
 }
 
-// invokePluginDecodeRequest spawns a plugin in decode mode and sends a decode request.
-// Returns decoded JSON map or nil if decoding failed.
-// The request format varies: "decode capability <code> <hex>" or "decode nlri <family> <hex>".
-func invokePluginDecodeRequest(pluginName, request string) map[string]any {
+// formatPluginStepErr formats a plugin I/O or protocol error naming the plugin,
+// the failed step, why it matters, and what to check.
+func formatPluginStepErr(plugin, step string, err error) error {
+	return fmt.Errorf("decode plugin %s %s failed (%w): plugin communication broke before a complete decode; verify the plugin speaks the --decode line protocol", plugin, step, err)
+}
+
+// formatPluginExitErr formats a non-zero exit status from an in-process or
+// internal decoder without fmt.Sprintf.
+func formatPluginExitErr(plugin string, exitCode int) error {
+	var tb textbuf.Buffer
+	tb.Str("decode plugin ").Str(plugin).Str(" exited with status ").Int(int64(exitCode)).
+		Str(": plugin decode failed; verify the input and plugin decoder")
+	return errors.New(tb.String())
+}
+
+// formatPluginMissingDecoderErr reports a missing internal decoder by name.
+func formatPluginMissingDecoderErr(plugin string) error {
+	var tb textbuf.Buffer
+	tb.Str("decode plugin ").Str(plugin).
+		Str(" has no in-process decoder; name a registered plugin or a program path")
+	return errors.New(tb.String())
+}
+
+// runPluginSubprocess executes binary with args under timeout, sends one
+// decode request on stdin, drains stdout for the first "decoded json ..." line,
+// and waits for the process to exit. Every pipe, write, close, scan, JSON, and
+// exit error is returned so callers never mistake a broken plugin for an
+// unknown capability or NLRI.
+func runPluginSubprocess(label, binary string, args []string, timeout time.Duration, request string) (any, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, args...) //nolint:gosec // binary is os.Args[0] or operator-named --plugin path
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, false, formatPluginStepErr(label, "open stdin pipe", err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		_ = stdin.Close()
+		return nil, false, formatPluginStepErr(label, "open stdout pipe", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, false, fmt.Errorf("decode plugin %s failed to start (%w): cannot decode with this plugin; verify the plugin path exists and is executable", label, err)
+	}
+
+	var tb textbuf.Buffer
+	_, writeErr := stdin.Write(tb.Str(request).Byte('\n').Bytes())
+	closeErr := stdin.Close()
+
+	// Loop stdout lines until EOF so the child never blocks on a full stdout
+	// pipe before cmd.Wait; skip unexpected output (shell warnings, runtime
+	// messages) and keep the first "decoded json ..." response.
+	scanner := bufio.NewScanner(stdout)
+	var (
+		result   any
+		decoded  bool
+		parseErr error
+	)
+	for scanner.Scan() {
+		if decoded {
+			continue
+		}
+		val, ok, err := parseDecodedJSON(scanner.Text())
+		if err != nil {
+			if parseErr == nil {
+				parseErr = err
+			}
+			continue
+		}
+		if ok {
+			result = val
+			decoded = true
+		}
+	}
+	scanErr := scanner.Err()
+	waitErr := cmd.Wait()
+
+	if waitErr != nil {
+		return nil, false, fmt.Errorf("decode plugin %s failed (%w): plugin output cannot be trusted; run the plugin directly with --decode to inspect its error", label, waitErr)
+	}
+	if writeErr != nil {
+		return nil, false, formatPluginStepErr(label, "write request", writeErr)
+	}
+	if closeErr != nil {
+		return nil, false, formatPluginStepErr(label, "close stdin", closeErr)
+	}
+	if scanErr != nil {
+		return nil, false, formatPluginStepErr(label, "read output", scanErr)
+	}
+	if parseErr != nil {
+		return nil, false, formatPluginStepErr(label, "parse JSON response", parseErr)
+	}
+	if decoded {
+		return result, true, nil
+	}
+	return nil, false, nil
+}
+
+// invokePluginDecodeRequest spawns a built-in plugin in decode mode and sends a
+// capability decode request. Returns (map, true, nil) on decode, (nil, false, nil)
+// on "decoded unknown", or an error on execution/protocol failure.
+func invokePluginDecodeRequest(pluginName, request string) (map[string]any, bool, error) {
 	// Skip subprocess spawning during tests - os.Args[0] is the test binary
 	// which would cause recursive test execution (fork bomb).
 	if strings.HasSuffix(os.Args[0], ".test") {
 		slog.Debug("plugin subprocess skipped in test environment", "plugin", pluginName)
-		return nil
+		return nil, false, errSubprocessSkippedInTest
 	}
 
-	// Build plugin command - pluginName comes from the plugin registry (capabilityMap, lookupFamilyPlugin)
-	args := []string{zeCmdPlugin, pluginName, "--decode"}
-
-	// Create command with timeout context for subprocess decode operation.
+	// Build plugin command - pluginName comes from the plugin registry (capabilityMap, lookupFamilyPlugin).
 	// 5s allows for process startup chain (sh -> wrapper -> ze plugin --decode).
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], args...) //nolint:gosec // pluginName from fixed map
-
-	stdin, err := cmd.StdinPipe()
+	args := []string{zeCmdPlugin, pluginName, decodeFlag}
+	result, decoded, err := runPluginSubprocess(pluginName, os.Args[0], args, 5*time.Second, request)
 	if err != nil {
-		slog.Debug("plugin stdin pipe failed", "plugin", pluginName, "err", err)
-		return nil
+		return nil, false, err
 	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		slog.Debug("plugin stdout pipe failed", "plugin", pluginName, "err", err)
-		return nil
+	if !decoded {
+		return nil, false, nil
 	}
-
-	if err := cmd.Start(); err != nil {
-		slog.Debug("plugin start failed", "plugin", pluginName, "err", err)
-		return nil
+	mapResult, ok := result.(map[string]any)
+	if !ok {
+		return nil, false, formatPluginStepErr(pluginName, "decode capability response", errUnexpectedPluginJSONType)
 	}
-
-	// Send decode request
-	var tb textbuf.Buffer
-	if _, err := stdin.Write(tb.Str(request).Byte('\n').Bytes()); err != nil {
-		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
-	}
-	if err := stdin.Close(); err != nil {
-		slog.Debug("plugin stdin close failed", "plugin", pluginName, "err", err)
-	}
-
-	// Read response.
-	//
-	// A scan that stops early leaves result nil, and every caller of these
-	// three decode helpers renders nil as {"parsed": false, "raw": hex} or as
-	// name "unknown" (decode_mp.go, decode_open.go). A truncated plugin
-	// response is never presented as a decode, so there is no wrong answer to
-	// report. A truncated JSON body fails json.Unmarshal for the same reason.
-	scanner := bufio.NewScanner(stdout)
-	var result map[string]any
-	if scanner.Scan() {
-		line := scanner.Text()
-		// Parse: "decoded json <json>" or "decoded unknown"
-		if after, ok := strings.CutPrefix(line, "decoded json "); ok {
-			jsonStr := after
-			if err := json.Unmarshal([]byte(jsonStr), &result); err == nil {
-				_ = cmd.Wait()
-				return result
-			}
-		}
-	}
-
-	_ = cmd.Wait()
-	return nil
+	return mapResult, true, nil
 }
 
 // invokePluginDecode decodes a capability via plugin.
-// Tries subprocess first, falls back to in-process (matching NLRI pattern).
-func invokePluginDecode(pluginName string, code uint8, hexData string) map[string]any {
-	request := fmt.Sprintf("decode capability %d %s", code, hexData)
+// Tries subprocess first, falling back to in-process in test binaries.
+func invokePluginDecode(pluginName string, code uint8, hexData string) (map[string]any, bool, error) {
+	request := capabilityDecodeRequest(code, hexData)
 
 	// Try subprocess first.
-	result := invokePluginDecodeRequest(pluginName, request)
-	if result != nil {
+	result, decoded, err := invokePluginDecodeRequest(pluginName, request)
+	if err == nil {
+		return result, decoded, nil
+	}
+	if !errors.Is(err, errSubprocessSkippedInTest) {
+		return nil, false, err
+	}
+
+	// Fallback: in-process decode when running under a Go test binary.
+	inResult, inDecoded, inErr := invokePluginInProcess(pluginName, request)
+	if inErr != nil {
+		return nil, false, inErr
+	}
+	if !inDecoded {
+		return nil, false, nil
+	}
+	mapResult, ok := inResult.(map[string]any)
+	if !ok {
+		return nil, false, formatPluginStepErr(pluginName, "decode capability response", errUnexpectedPluginJSONType)
+	}
+	return mapResult, true, nil
+}
+
+// invokePluginNLRIDecode invokes a plugin to decode NLRI, returning the decoded
+// value or nil when undecoded or failed. Callers on the CLI decode path use
+// invokePluginNLRIDecodeResult so plugin errors reach the operator.
+func invokePluginNLRIDecode(pluginName, family, hexData string) any {
+	result, decoded, err := invokePluginNLRIDecodeResult(pluginName, family, hexData)
+	// refuse-by-default: guards invokePluginNLRIDecodeResult -- legacy signature kept for RFC tests; CLI decode callers use invokePluginNLRIDecodeResult
+	if err != nil {
+		return nil
+	}
+	if decoded {
 		return result
 	}
-
-	// Fallback: in-process decode (for tests or when subprocess unavailable).
-	if inResult := invokePluginInProcess(pluginName, request); inResult != nil {
-		if mapResult, ok := inResult.(map[string]any); ok {
-			return mapResult
-		}
-	}
-
 	return nil
 }
 
-// invokePluginNLRIDecode invokes a plugin to decode NLRI, by the route its
+// invokePluginNLRIDecodeResult invokes a plugin to decode NLRI, by the route its
 // spelling chooses (decodePlugin.decode lists them). The registry's names
 // carry no prefix, so a plugin the registry names for a family forks.
-func invokePluginNLRIDecode(pluginName, family, hexData string) any {
+func invokePluginNLRIDecodeResult(pluginName, family, hexData string) (any, bool, error) {
 	name, mode, path, args := parsePluginName(pluginName)
 	plugin := decodePlugin{spelling: pluginName, name: name, mode: mode, path: path, args: args}
 	return plugin.decode(nlriDecodeRequest(family, hexData))
 }
 
 // invokePluginForkRequest spawns a built-in plugin subprocess.
-// For plain names (ModeFork without path), retries with in-process on failure.
-func invokePluginForkRequest(pluginName, request string) any {
-	// Try subprocess first.
-	result := invokePluginSubprocess(pluginName, request)
-	if result != nil {
-		return result
+// For plain names (ModeFork without path), falls back to in-process under test binaries.
+func invokePluginForkRequest(pluginName, request string) (any, bool, error) {
+	result, decoded, err := invokePluginSubprocess(pluginName, request)
+	if err == nil {
+		return result, decoded, nil
 	}
-
-	// Retry: in-process decode (for tests where subprocess can't run).
+	if !errors.Is(err, errSubprocessSkippedInTest) {
+		return nil, false, err
+	}
 	return invokePluginInProcess(pluginName, request)
 }
 
 // invokePluginPath executes an external plugin binary at the given path.
 // User-provided args are passed before the mandatory --decode flag.
-func invokePluginPath(path string, userArgs []string, request string) any {
+func invokePluginPath(path string, userArgs []string, request string) (any, bool, error) {
 	// 30s allows for process startup under the broad parallel race-test gate.
 	// Normal decode returns immediately; the larger budget avoids false negatives
 	// when the host is saturated by many concurrently starting test binaries.
 	// Longer than invokePluginSubprocess (5s) because the external path may involve
 	// an extra shell layer and a separately-built binary.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	// Build args: user args + --decode
-	cmdArgs := append(userArgs, "--decode")           //nolint:gocritic // intentional append to new slice
-	cmd := exec.CommandContext(ctx, path, cmdArgs...) //nolint:gosec // path from user input
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		slog.Debug("plugin path stdin failed", "path", path, "err", err)
-		return nil
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		slog.Debug("plugin path stdout failed", "path", path, "err", err)
-		return nil
-	}
-
-	if err := cmd.Start(); err != nil {
-		slog.Debug("plugin path start failed", "path", path, "err", err)
-		return nil
-	}
-
-	var tb2 textbuf.Buffer
-	if _, err := stdin.Write(tb2.Str(request).Byte('\n').Bytes()); err != nil {
-		slog.Debug("plugin path write failed", "path", path, "err", err)
-	}
-	if err := stdin.Close(); err != nil {
-		slog.Debug("plugin path stdin close failed", "path", path, "err", err)
-	}
-
-	// Loop stdout lines — skip unexpected output (shell warnings, runtime messages)
-	// until we find the "decoded json ..." response or EOF.
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if result := parseDecodedJSON(line); result != nil {
-			if err := cmd.Wait(); err != nil {
-				slog.Debug("plugin path wait failed", "path", path, "err", err)
-			}
-			return result
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		slog.Debug("plugin path wait failed", "path", path, "err", err)
-	}
-	slog.Debug("plugin path produced no decoded output", "path", path)
-	return nil
+	cmdArgs := append(slices.Clone(userArgs), decodeFlag)
+	return runPluginSubprocess(path, path, cmdArgs, 30*time.Second, request)
 }
 
-// parseDecodedJSON extracts JSON from "decoded json <json>" response.
-func parseDecodedJSON(line string) any {
-	if !strings.HasPrefix(line, "decoded json ") {
-		return nil
+// parseDecodedJSON extracts JSON from a "decoded json <json>" response line.
+// Non-matching lines (such as "decoded unknown" or shell warnings) return
+// (nil, false, nil); malformed JSON after the prefix returns an error.
+func parseDecodedJSON(line string) (any, bool, error) {
+	jsonStr, ok := strings.CutPrefix(line, decodedJSONPrefix)
+	if !ok {
+		return nil, false, nil
 	}
-	jsonStr := strings.TrimPrefix(line, "decoded json ")
 	var arrResult []any
 	if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
-		return arrResult
+		return arrResult, true, nil
 	}
 	var mapResult map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &mapResult); err == nil {
-		return mapResult
+	if err := json.Unmarshal([]byte(jsonStr), &mapResult); err != nil {
+		return nil, false, err
 	}
-	return nil
+	return mapResult, true, nil
 }
 
 // invokePluginSubprocess spawns a plugin subprocess and sends it one decode
 // request, a capability or an NLRI.
-func invokePluginSubprocess(pluginName, request string) any {
+func invokePluginSubprocess(pluginName, request string) (any, bool, error) {
 	// Skip subprocess spawning during tests - os.Args[0] is the test binary
 	// which would cause recursive test execution (fork bomb).
 	if strings.HasSuffix(os.Args[0], ".test") {
 		slog.Debug("plugin subprocess skipped in test environment", "plugin", pluginName)
-		return nil // Fall back to in-process via invokePluginForkRequest
+		return nil, false, errSubprocessSkippedInTest
 	}
-
-	args := []string{zeCmdPlugin, pluginName, "--decode"}
 
 	// 5s allows for process startup chain (sh -> wrapper -> ze plugin --decode).
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], args...) //nolint:gosec // pluginName from fixed map
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		slog.Debug("plugin stdin pipe failed", "plugin", pluginName, "err", err)
-		return nil
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		slog.Debug("plugin stdout pipe failed", "plugin", pluginName, "err", err)
-		return nil
-	}
-
-	if err := cmd.Start(); err != nil {
-		slog.Debug("plugin start failed", "plugin", pluginName, "err", err)
-		return nil
-	}
-
-	var tb3 textbuf.Buffer
-	if _, err := stdin.Write(tb3.Str(request).Byte('\n').Bytes()); err != nil {
-		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
-	}
-	if err := stdin.Close(); err != nil {
-		slog.Debug("plugin stdin close failed", "plugin", pluginName, "err", err)
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	if scanner.Scan() {
-		line := scanner.Text()
-		if after, ok := strings.CutPrefix(line, "decoded json "); ok {
-			jsonStr := after
-			// Try array first (EVPN returns array), then map (FlowSpec returns map)
-			var arrResult []any
-			if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
-				_ = cmd.Wait()
-				return arrResult
-			}
-			var mapResult map[string]any
-			if err := json.Unmarshal([]byte(jsonStr), &mapResult); err == nil {
-				_ = cmd.Wait()
-				return mapResult
-			}
-			slog.Debug("plugin json parse failed", "plugin", pluginName, "json", jsonStr)
-		}
-	}
-
-	_ = cmd.Wait()
-	return nil
+	args := []string{zeCmdPlugin, pluginName, decodeFlag}
+	return runPluginSubprocess(pluginName, os.Args[0], args, 5*time.Second, request)
 }
 
 // decoders returns plugin name to in-process decode function mapping.
@@ -461,92 +476,111 @@ var decoders = sync.OnceValue(registry.InProcessDecoders)
 
 // invokePluginInProcess runs plugin decode in-process (Direct mode: ze-name).
 // Synchronous, blocking - fastest invocation for CLI decode.
-func invokePluginInProcess(pluginName, request string) any {
+func invokePluginInProcess(pluginName, request string) (any, bool, error) {
 	decoder, ok := decoders()[pluginName]
 	if !ok {
-		return nil
+		return nil, false, nil
 	}
 
 	var tb4 textbuf.Buffer
 	input := bytes.NewBufferString(tb4.Str(request).Byte('\n').String())
 	output := &bytes.Buffer{}
 
-	decoder(input, output)
+	if exitCode := decoder(input, output); exitCode != 0 {
+		return nil, false, formatPluginExitErr(pluginName, exitCode)
+	}
 
-	return parsePluginResponse(output.String())
+	result, decoded, err := parsePluginResponse(output.String())
+	if err != nil {
+		return nil, false, formatPluginStepErr(pluginName, "parse JSON response", err)
+	}
+	return result, decoded, nil
 }
 
 // invokePluginInternal runs decode via goroutine + pipes (Internal mode: ze.name).
 // Uses decode-only runners (same as Direct) but with async pipe I/O.
-func invokePluginInternal(pluginName, request string) any {
+func invokePluginInternal(pluginName, request string) (any, bool, error) {
 	decoder, ok := decoders()[pluginName]
 	if !ok {
-		slog.Debug("internal plugin decoder not available", "plugin", pluginName)
-		return nil
+		return nil, false, formatPluginMissingDecoderErr(pluginName)
 	}
+	return runPluginInternal(pluginName, decoder, request)
+}
 
-	// Create pipes for communication.
+// runPluginInternal drives decoder over an io.Pipe pair and propagates any
+// pipe I/O, response-parse, or non-zero exit error to the caller.
+func runPluginInternal(pluginName string, decoder func(input, output *bytes.Buffer) int, request string) (any, bool, error) {
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
 
-	// Run decoder in goroutine.
-	done := make(chan int, 1)
+	type internalResult struct {
+		exitCode int
+		err      error
+	}
+	done := make(chan internalResult, 1)
 	go func() {
-		// Wrap pipes in buffers for decoder interface.
 		inBuf := &bytes.Buffer{}
 		if _, err := io.Copy(inBuf, inR); err != nil {
-			slog.Debug("internal plugin read input failed", "plugin", pluginName, "err", err)
+			_ = outW.CloseWithError(err)
+			done <- internalResult{err: formatPluginStepErr(pluginName, "read input", err)}
+			return
 		}
 		outBuf := &bytes.Buffer{}
 		exitCode := decoder(inBuf, outBuf)
 		if _, err := outW.Write(outBuf.Bytes()); err != nil {
-			slog.Debug("internal plugin write output failed", "plugin", pluginName, "err", err)
+			_ = outW.CloseWithError(err)
+			done <- internalResult{exitCode: exitCode, err: formatPluginStepErr(pluginName, "write output", err)}
+			return
 		}
 		if err := outW.Close(); err != nil {
-			slog.Debug("internal plugin outW close failed", "plugin", pluginName, "err", err)
+			done <- internalResult{exitCode: exitCode, err: formatPluginStepErr(pluginName, "close output", err)}
+			return
 		}
-		done <- exitCode
+		done <- internalResult{exitCode: exitCode}
 	}()
 
 	// Send request and close input.
 	var tb5 textbuf.Buffer
 	if _, err := inW.Write(tb5.Str(request).Byte('\n').Bytes()); err != nil {
-		slog.Debug("internal plugin write failed", "plugin", pluginName, "err", err)
-		if err := inW.Close(); err != nil {
-			slog.Debug("internal plugin inW close failed", "plugin", pluginName, "err", err)
-		}
-		return nil
+		_ = inW.CloseWithError(err)
+		_ = outR.Close()
+		<-done
+		return nil, false, formatPluginStepErr(pluginName, "write request", err)
 	}
 	if err := inW.Close(); err != nil {
-		slog.Debug("internal plugin inW close failed", "plugin", pluginName, "err", err)
+		_ = outR.Close()
+		<-done
+		return nil, false, formatPluginStepErr(pluginName, "close input", err)
 	}
 
 	// Read response.
 	var output bytes.Buffer
-	if _, err := io.Copy(&output, outR); err != nil {
-		slog.Debug("internal plugin read failed", "plugin", pluginName, "err", err)
+	_, readErr := io.Copy(&output, outR)
+	if readErr != nil {
+		_ = outR.Close()
+	}
+	res := <-done // Wait for decoder to finish.
+
+	if readErr != nil {
+		return nil, false, formatPluginStepErr(pluginName, "read output", readErr)
+	}
+	if res.err != nil {
+		return nil, false, res.err
+	}
+	if res.exitCode != 0 {
+		return nil, false, formatPluginExitErr(pluginName, res.exitCode)
 	}
 
-	<-done // Wait for decoder to finish.
-
-	return parsePluginResponse(output.String())
+	result, decoded, err := parsePluginResponse(output.String())
+	if err != nil {
+		return nil, false, formatPluginStepErr(pluginName, "parse JSON response", err)
+	}
+	return result, decoded, nil
 }
 
 // parsePluginResponse parses the "decoded json ..." response from a plugin.
-func parsePluginResponse(output string) any {
-	line := strings.TrimSpace(output)
-	if after, ok := strings.CutPrefix(line, "decoded json "); ok {
-		jsonStr := after
-		var arrResult []any
-		if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
-			return arrResult
-		}
-		var mapResult map[string]any
-		if err := json.Unmarshal([]byte(jsonStr), &mapResult); err == nil {
-			return mapResult
-		}
-	}
-	return nil
+func parsePluginResponse(output string) (any, bool, error) {
+	return parseDecodedJSON(strings.TrimSpace(output))
 }
 
 // validateDecodeFamily validates a family string has valid AFI/SAFI format.

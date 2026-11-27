@@ -103,6 +103,7 @@ func (s *Session) raiseBFDHoldTimerExpired() {
 	sessionLogger().Warn("bfd strict-mode: BfdHoldTimer expired waiting for the BFD session to come up",
 		"peer", s.settings.Address,
 		"bfd-hold-time", s.timers.BfdHoldTime())
+	// refuse-by-default: guards Session.handleBFDEvent -- BfdHoldTimer expiry already logged at Warn and handleBFDEvent tears down the session if still active
 	if err := s.handleBFDEvent(fsm.EventBfdHoldTimerExpires); err != nil {
 		sessionLogger().Debug("bfd hold-timer teardown failed",
 			"peer", s.settings.Address, "err", err)
@@ -121,12 +122,14 @@ func (s *Session) releaseBFDHoldDown() {
 		"peer", s.settings.Address, "hold-down", s.timers.BfdHoldDown())
 
 	if s.bfdHoldDownKeepalive.Swap(false) {
+		// refuse-by-default: guards Session.handleKeepalive -- hold-down timer callback cannot propagate an error if the session closed concurrently
 		if err := s.handleKeepalive(); err != nil {
 			sessionLogger().Debug("bfd hold-down keepalive release failed",
 				"peer", s.settings.Address, "err", err)
 		}
 		return
 	}
+	// refuse-by-default: guards Session.handleBFDEvent -- hold-down timer callback cannot propagate an error if the session already left the pending state
 	if err := s.handleBFDEvent(fsm.EventBfdUp); err != nil {
 		sessionLogger().Debug("bfd hold-down release failed",
 			"peer", s.settings.Address, "err", err)
@@ -220,6 +223,7 @@ func (s *Session) raiseBFDStrictConfigChanged() {
 	if bfd == nil || !bfd.Enabled {
 		event = fsm.EventBfdAdminDown
 	}
+	// refuse-by-default: guards Session.handleBFDEvent -- a concurrent session close or Idle state already fulfills the strict-mode config-change reset
 	if err := s.handleBFDEvent(event); err != nil {
 		sessionLogger().Debug("bfd strict-mode config change event failed",
 			"peer", s.settings.Address, "event", event.String(), "err", err)

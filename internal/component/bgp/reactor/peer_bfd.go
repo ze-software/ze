@@ -51,6 +51,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // bfdClient holds the per-peer BFD session state. Zero value is safe
@@ -330,8 +331,16 @@ func (p *Peer) openBFDSession() (*openedBFD, bool) {
 			handle.Unsubscribe(opened.sub)
 			// RFC 5882 Section 8
 			if releaseErr := svc.ReleaseSession(handle); releaseErr != nil {
-				peerLogger().Debug("bfd ReleaseSession of a canceled start failed",
-					"peer", p.settings.Address, "err", releaseErr)
+				peerAddr := p.peerAddrLabel()
+				peerLogger().Warn("bfd session release after canceled start failed",
+					"code", codeDoctorBGPBFDUnavailable,
+					"peer", peerAddr,
+					"why", "a stale BFD session handle may remain active after the canceled BGP peer start",
+					"fix", fixBFDUnavailable,
+					"error", releaseErr)
+				report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPBFDUnavailable, peerAddr,
+					report.FitMessage("BGP peer "+peerAddr+" failed to release BFD session after canceled start: "+releaseErr.Error()),
+					fixBFDUnavailable, wellKnownScanLogInterval)
 			}
 		}
 		return nil, again
@@ -749,8 +758,16 @@ func (p *Peer) releaseBFDClient() bfdRelease {
 	handle.Unsubscribe(sub)
 	if svc != nil {
 		if err := svc.ReleaseSession(handle); err != nil {
-			peerLogger().Debug("bfd ReleaseSession failed",
-				"peer", p.settings.Address, "err", err)
+			peerAddr := p.peerAddrLabel()
+			peerLogger().Warn("bfd session release failed",
+				"code", codeDoctorBGPBFDUnavailable,
+				"peer", peerAddr,
+				"why", "a stale BFD session handle may remain active after BGP released the client",
+				"fix", fixBFDUnavailable,
+				"error", err)
+			report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPBFDUnavailable, peerAddr,
+				report.FitMessage("BGP peer "+peerAddr+" failed to release BFD session: "+err.Error()),
+				fixBFDUnavailable, wellKnownScanLogInterval)
 		}
 	}
 	return bfdRelease{released: true, done: done}

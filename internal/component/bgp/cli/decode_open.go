@@ -54,7 +54,10 @@ func decodeOpenMessage(plugins decodePlugins, data []byte, hasHeader bool) (map[
 	// Ze format: capabilities as array of objects with code, name, value
 	capsArray := make([]map[string]any, 0, len(caps))
 	for _, c := range caps {
-		capJSON := capabilityToZeJSON(plugins, c)
+		capJSON, err := capabilityToZeJSON(plugins, c)
+		if err != nil {
+			return nil, err
+		}
 		capsArray = append(capsArray, capJSON)
 	}
 
@@ -72,8 +75,9 @@ func decodeOpenMessage(plugins decodePlugins, data []byte, hasHeader bool) (map[
 // capabilityToZeJSON converts a capability to Ze ze-bgp JSON format.
 // Ze format: {"code": N, "name": "...", "value": "..."}.
 // The plugins the operator named are asked first, then the registered plugin
-// decoder for the code. Falls back to raw hex when none of them decodes it.
-func capabilityToZeJSON(plugins decodePlugins, c capability.Capability) map[string]any {
+// decoder for the code. Falls back to raw hex when none of them decodes it,
+// and propagates any plugin execution or protocol failure to the caller.
+func capabilityToZeJSON(plugins decodePlugins, c capability.Capability) (map[string]any, error) {
 	code := int(c.Code())
 	raw := make([]byte, c.Len())
 	c.WriteTo(raw, 0)
@@ -82,20 +86,27 @@ func capabilityToZeJSON(plugins decodePlugins, c capability.Capability) map[stri
 		rawHex = textbuf.StringHexUpper(raw[2:])
 	}
 
-	if result, decoded := plugins.capability(uint8(c.Code()), rawHex); decoded {
+	result, decoded, err := plugins.capability(uint8(c.Code()), rawHex)
+	if err != nil {
+		return nil, err
+	}
+	if decoded {
 		result["code"] = code
-		return result
+		return result, nil
 	}
 
 	// Auto-invoke registered plugin for known capability codes.
 	pluginName, hasPlugin := capabilityMap()[uint8(c.Code())]
 	if hasPlugin {
-		result := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)
-		if result != nil {
+		result, decoded, err := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)
+		if err != nil {
+			return nil, err
+		}
+		if decoded {
 			result["code"] = code
-			return result
+			return result, nil
 		}
 	}
 
-	return map[string]any{"code": code, "name": capNameUnknown, jsonKeyRaw: rawHex}
+	return map[string]any{"code": code, "name": capNameUnknown, jsonKeyRaw: rawHex}, nil
 }

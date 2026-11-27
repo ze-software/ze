@@ -32,4 +32,19 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPASZeroOutbound}); err != nil {
 		panic("BUG: bgp reactor: outbound AS zero event code registration failed: " + err.Error())
 	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPBFDUnavailable}); err != nil {
+		panic("BUG: bgp reactor: BFD unavailable event code registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPDefaultOriginateNotSent}); err != nil {
+		panic("BUG: bgp reactor: default-originate unsent event code registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPRouteNotSent}); err != nil {
+		panic("BUG: bgp reactor: route not sent event code registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPCachePressure}); err != nil {
+		panic("BUG: bgp reactor: cache pressure event code registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorBGPMalformedFromPeer}); err != nil {
+		panic("BUG: bgp reactor: malformed UPDATE from peer event code registration failed: " + err.Error())
+	}
 }

@@ -167,6 +167,7 @@ func (p *Peer) finishCollisionHandoff(session *Session, conn net.Conn, remoteID 
 			session.closeConn()
 			return
 		}
+		// refuse-by-default: guards Session.CloseWithNotification -- the losing session is already being retired for collision resolution even if the peer dropped TCP first
 		if err := session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision); err != nil {
 			sessionLogger().Debug("collision close failed", "error", err)
 		}

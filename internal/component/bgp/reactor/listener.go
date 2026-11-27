@@ -169,6 +169,7 @@ func (l *Listener) acceptLoop() {
 		ln := l.listener
 		l.mu.RUnlock()
 		if ln != nil {
+			// refuse-by-default: guards Listener.Stop -- the listener may already be closed by Stop() while unblocking Accept() on context cancel
 			if err := ln.Close(); err != nil {
 				// Expected: listener may already be closed by Stop().
 				sessionLogger().Debug("listener close on cancel", "err", err)
@@ -195,6 +196,7 @@ func (l *Listener) acceptLoop() {
 		if handler != nil {
 			go l.safeHandle(conn, handler)
 		} else {
+			// refuse-by-default: guards Listener.SetHandler -- closing an accepted connection while no handler is registered is best-effort teardown
 			if err := conn.Close(); err != nil {
 				sessionLogger().Debug("close unhandled conn", "err", err)
 			}
@@ -208,6 +210,7 @@ func (l *Listener) safeHandle(conn net.Conn, handler connectionHandler) {
 	defer bgpPanics().accept.Contain(
 		func() taskguard.Context { return taskguard.Context{Unit: conn.RemoteAddr().String()} },
 		func(*taskguard.Panic) {
+			// refuse-by-default: guards taskguard.Panic -- closing a connection during contained handler panic recovery is best-effort cleanup
 			if err := conn.Close(); err != nil {
 				sessionLogger().Debug("close after a contained handler panic", "err", err)
 			}

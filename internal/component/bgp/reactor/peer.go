@@ -239,6 +239,11 @@ type Peer struct {
 	// repeat it at the flap rate. Zero value is ready; see peer_initial_sync.go.
 	defaultOriginateRefusalLog wellKnownScanLog
 
+	// routeNotSentLog bounds the Warn for skipped static, queued, or plugin
+	// routes to one line per second for this peer. Zero value is ready; see
+	// peer_static_wire.go and peer_initial_sync.go.
+	routeNotSentLog wellKnownScanLog
+
 	// remoteRouterID is the peer's BGP Identifier from their OPEN message.
 	// Set in validateOpen when OPEN is received, cleared on teardown.
 	// Used by route reflection to set ORIGINATOR_ID (RFC 4456 Section 8).
@@ -2404,6 +2409,7 @@ func (p *Peer) teardownOf(target *Session, notice teardownNotice, automatic bool
 
 	if session != nil {
 		p.mu.Unlock()
+		// refuse-by-default: guards sessionTeardown -- teardown still moves the peer to PeerStateConnecting if the NOTIFICATION write fails on a lost socket
 		if err := sessionTeardown(session, notice, automatic); err != nil {
 			peerLogger().Debug("teardown error", "peer", p.settings.Address, "error", err)
 		}
@@ -2931,6 +2937,16 @@ func (p *Peer) retireQueuedAcceptedLocked(admission uint64, n nlri.NLRI) {
 		}
 		op.Retired = true
 	}
+}
+
+// nowUnixNano reads the peer's injected clock (or the real clock for zero-value
+// test peers) so rate-limit windows honor simulated time.
+func (p *Peer) nowUnixNano() int64 {
+	c := p.clock
+	if c == nil {
+		c = clock.RealClock{}
+	}
+	return c.Now().UnixNano()
 }
 
 // Wait waits for the peer to stop.

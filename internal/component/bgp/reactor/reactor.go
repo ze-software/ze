@@ -57,6 +57,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/report"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
@@ -311,6 +312,13 @@ type Reactor struct {
 	// from a peer, so the line fires at the peer's send rate. Zero value is
 	// ready; see forward_wellknown.go.
 	wellKnownScanLog wellKnownScanLog
+
+	// congestionEventLog, updateNotifyEventLog, and cacheAckLog bound repeating
+	// operator warnings for failed EventBus emissions and expired cache batch
+	// acknowledgements to one line per second each. Zero values are ready.
+	congestionEventLog   wellKnownScanLog
+	updateNotifyEventLog wellKnownScanLog
+	cacheAckLog          wellKnownScanLog
 
 	// pluginCapabilitySeam replaces api as the source of the capabilities plugins
 	// declared for a peer. It is nil in production and set only by a test, exactly
@@ -994,7 +1002,23 @@ func (r *Reactor) emitCongestionEventBus(peerAddr, eventType string) {
 		return
 	}
 	if _, err := r.eventBus.Emit(bgpevents.Namespace, eventType, string(data)); err != nil {
-		reactorLogger().Debug("emit bgp congestion failed", "event", eventType, "error", err)
+		subject := peerAddr
+		if subject == "" {
+			subject = "reactor"
+		}
+		if emit, suppressed := r.congestionEventLog.allow(r.nowUnixNano()); emit {
+			reactorLogger().Warn("bgp congestion event not delivered on event bus",
+				"code", bgpserver.CodeDoctorBGPPluginEventsUndelivered,
+				"peer", subject,
+				"event", eventType,
+				"why", "plugins or components watching BGP peer congestion state may miss this transition",
+				"fix", bgpserver.PluginEventsUndeliveredFix,
+				"suppressed-since-last", suppressed,
+				"error", err)
+		}
+		report.RaiseErrorFixOnce(reportSourceBGP, bgpserver.CodeDoctorBGPPluginEventsUndelivered, subject,
+			report.FitMessage("BGP "+eventType+" event for peer "+subject+" was not delivered on the event bus: "+err.Error()),
+			bgpserver.PluginEventsUndeliveredFix, wellKnownScanLogInterval)
 	}
 }
 
@@ -1014,7 +1038,24 @@ func (r *Reactor) emitUpdateNotificationEvent(peerAddr, direction string) {
 		return
 	}
 	if _, err := r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventUpdateNotification, string(data)); err != nil {
-		reactorLogger().Debug("emit bgp update-notification failed", "error", err)
+		subject := peerAddr
+		if subject == "" {
+			subject = "reactor"
+		}
+		if emit, suppressed := r.updateNotifyEventLog.allow(r.nowUnixNano()); emit {
+			reactorLogger().Warn("bgp update-notification event not delivered on event bus",
+				"code", bgpserver.CodeDoctorBGPPluginEventsUndelivered,
+				"peer", subject,
+				"direction", direction,
+				"event", bgpevents.EventUpdateNotification,
+				"why", "plugins or observers watching lightweight BGP update notifications may miss activity for this peer",
+				"fix", bgpserver.PluginEventsUndeliveredFix,
+				"suppressed-since-last", suppressed,
+				"error", err)
+		}
+		report.RaiseErrorFixOnce(reportSourceBGP, bgpserver.CodeDoctorBGPPluginEventsUndelivered, subject,
+			report.FitMessage("BGP update-notification ("+direction+") event for peer "+subject+" was not delivered on the event bus: "+err.Error()),
+			bgpserver.PluginEventsUndeliveredFix, wellKnownScanLogInterval)
 	}
 }
 

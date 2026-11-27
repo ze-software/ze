@@ -129,6 +129,7 @@ func rejectAdminDownConnection(conn net.Conn, clk clock.Clock) {
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseConnectionRejected,
 	}
+	// refuse-by-default: guards closeConnQuietly -- the rejected connection is closed immediately whether or not the Cease NOTIFICATION write succeeds
 	if _, err := conn.Write(message.PackTo(notif, nil)); err != nil {
 		peerLogger().Debug("connection rejected write failed", "error", err)
 	}

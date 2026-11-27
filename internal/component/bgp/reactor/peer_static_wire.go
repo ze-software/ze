@@ -7,11 +7,13 @@ package reactor
 import (
 	"context"
 	"encoding/binary"
+	"net/netip"
 	"reflect"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // staticWireSet is the static route set one connection has been sent.
@@ -64,7 +66,7 @@ func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bo
 		// Resolve next-hop from RouteNextHop policy.
 		nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 		if nhErr != nil {
-			routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", route.Prefix, "error", nhErr)
+			p.warnStaticNextHopUnresolved(addr, route.Prefix, nhErr)
 			continue
 		}
 		addPath := p.addPathFor(fam)
@@ -141,7 +143,7 @@ func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, m
 			fam := route.Family()
 			nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 			if nhErr != nil {
-				routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
+				p.warnStaticNextHopUnresolved(addr, route.Prefix, nhErr)
 				continue
 			}
 			// RFC 8950 Section 3 carries IPv4 NLRI with IPv6 next hops in
@@ -460,4 +462,28 @@ func sameStaticRouteSet(a, b []StaticRoute) bool {
 		return true
 	}
 	return &a[0] == &b[0]
+}
+
+// warnStaticNextHopUnresolved reports a static route skipped because its next
+// hop failed to resolve. Rate-limited per peer so a broken next-hop policy
+// over many configured routes emits one coded warning per second.
+func (p *Peer) warnStaticNextHopUnresolved(addr string, prefix netip.Prefix, nhErr error) {
+	prefixStr := prefix.String()
+	subject := addr
+	if subject == "" {
+		subject = p.peerAddrLabel()
+	}
+	if emit, suppressed := p.routeNotSentLog.allow(p.nowUnixNano()); emit {
+		routesLogger().Warn("static route not sent: next-hop resolution failed",
+			"code", codeDoctorBGPRouteNotSent,
+			"peer", subject,
+			"prefix", prefixStr,
+			"why", "the configured static route was skipped while the BGP session stays up",
+			"fix", fixRouteNotSent,
+			"suppressed-since-last", suppressed,
+			"error", nhErr)
+	}
+	report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPRouteNotSent, subject,
+		report.FitMessage("BGP static route "+prefixStr+" was not sent to peer "+subject+": next-hop resolution failed: "+nhErr.Error()),
+		fixRouteNotSent, wellKnownScanLogInterval)
 }

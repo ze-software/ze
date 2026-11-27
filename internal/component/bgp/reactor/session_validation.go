@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -505,8 +506,19 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 
 	attrs, err := wu.Attrs()
 	if err != nil {
-		sessionLogger().Debug("attribute index not built",
-			"peer", s.settings.Address, "error", err)
+		peerAddr := s.peerAddrLabel()
+		if emit, suppressed := s.malformedAttrIndexLog.allow(s.nowUnixNano()); emit {
+			sessionLogger().Warn("received BGP UPDATE attribute index could not be built",
+				"code", codeDoctorBGPMalformedFromPeer,
+				"peer", peerAddr,
+				"why", "downstream consumers receive the parse error instead of indexed attributes for this UPDATE",
+				"fix", fixMalformedFromPeer,
+				"suppressed-since-last", suppressed,
+				"error", err)
+		}
+		report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPMalformedFromPeer, peerAddr,
+			report.FitMessage("BGP UPDATE attribute index could not be built for peer "+peerAddr+": "+err.Error()),
+			fixMalformedFromPeer, wellKnownScanLogInterval)
 		return wu
 	}
 	if attrs != nil && attrs.Spilled() && s.prefixMetrics != nil {

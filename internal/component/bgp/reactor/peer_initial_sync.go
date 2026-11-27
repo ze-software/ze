@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // spawnInitialSync starts session's initial sync, the one per-session lifecycle
@@ -330,6 +331,7 @@ func (p *Peer) sendInitialRoutes(session *Session) {
 			sendErr := p.sendQueuedRefreshMarker(op.Marker, session)
 			p.mu.Lock()
 			queueLocked = true
+			// refuse-by-default: guards Peer.sendQueuedRefreshMarker -- connError stops the drain and session teardown reports the connection loss
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued route refresh marker", "peer", addr, "error", sendErr)
 				connError = true
@@ -619,7 +621,15 @@ func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSiz
 			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath, op.Replay)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
-				routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)
+				if isRouteScopedSendError(sendErr) {
+					target := "unknown"
+					if op.Route != nil && op.Route.NLRI() != nil {
+						target = op.Route.NLRI().String()
+					}
+					p.warnRouteNotSent(addr, target, "queued route not sent", sendErr)
+				} else {
+					routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)
+				}
 				p.mu.Lock()
 				queueLocked = true
 				finalProcessed++
@@ -642,7 +652,15 @@ func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSiz
 			queueLocked = false
 			sendErr := p.sendQueuedWithdrawal(session, op, opMaxMsgSize)
 			if sendErr != nil {
-				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
+				if isRouteScopedSendError(sendErr) {
+					target := "unknown"
+					if op.NLRI != nil {
+						target = op.NLRI.String()
+					}
+					p.warnRouteNotSent(addr, target, "queued withdrawal not sent", sendErr)
+				} else {
+					routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
+				}
 				p.mu.Lock()
 				queueLocked = true
 				finalProcessed++
@@ -667,6 +685,7 @@ func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSiz
 			sendErr := p.sendQueuedRefreshMarker(op.Marker, session)
 			p.mu.Lock()
 			queueLocked = true
+			// refuse-by-default: guards Peer.sendQueuedRefreshMarker -- the gate must finish draining and close while session teardown reports the connection loss
 			if sendErr != nil {
 				// Attempted to the end, for the reason the announce case states.
 				routesLogger().Debug("send error for a queued route refresh marker", "peer", addr, "error", sendErr)
@@ -757,6 +776,7 @@ func (p *Peer) runQueuedTeardown(session *Session, addr string, op peerOp) {
 	// still shows Established, the new connection is rejected by collision check.
 	// The FSM callback will also set this, but may fire too late.
 	p.setState(PeerStateConnecting)
+	// refuse-by-default: guards sessionTeardown -- queued teardown still clears sync state and wakes overflow even if the NOTIFICATION write fails on a closed socket
 	if err := sessionTeardown(session, op.Notice, op.Automatic); err != nil {
 		routesLogger().Debug("teardown error", "peer", addr, "error", err)
 	}
@@ -1069,7 +1089,11 @@ func (p *Peer) sendPluginRoutesVia(session *Session, sendFn func(*message.Update
 			continue
 		}
 		if err := sendFn(update); err != nil {
-			routesLogger().Debug("plugin route send error", "peer", addr, "family", route.Family, "error", err)
+			if isRouteScopedSendError(err) {
+				p.warnRouteNotSent(addr, route.Family, "plugin route not sent", err)
+			} else {
+				routesLogger().Debug("plugin route send error", "peer", addr, "family", route.Family, "error", err)
+			}
 		}
 		message.PutUpdateBuilder(ub)
 	}
@@ -1112,7 +1136,11 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 			return
 		}
 		if err := sendFn(update); err != nil {
-			routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
+			if isRouteScopedSendError(err) {
+				p.warnRouteNotSent(addr, g.rep.Family, "plugin route group not sent", err)
+			} else {
+				routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
+			}
 		}
 		message.PutUpdateBuilder(ub)
 	}
@@ -1142,7 +1170,11 @@ func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMs
 	fits := pluginUpdateSize(update) <= maxMsgSize
 	if fits {
 		if err := sendFn(update); err != nil {
-			routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
+			if isRouteScopedSendError(err) {
+				p.warnRouteNotSent(addr, g.rep.Family, "plugin route group not sent", err)
+			} else {
+				routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
+			}
 		}
 	}
 	message.PutUpdateBuilder(ub)
@@ -1284,11 +1316,58 @@ func (p *Peer) sendDefaultOriginateRoutes(session *Session, nc *NegotiatedCapabi
 		err = session.SendUpdate(update)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
-			routesLogger().Debug("default-originate send error", "peer", addr, "family", familyKey, "error", err)
+			p.warnDefaultOriginateSendFailed(familyKey, defaultPrefix, nextHop, err)
 			continue
 		}
 		routesLogger().Debug("sent default route", "peer", addr, "family", familyKey)
 	}
+}
+
+// warnRouteNotSent reports a queued or plugin route skipped because of a
+// route-scoped encode or admission failure while the session stays up.
+// Rate-limited per peer so a bulk initial sync emits one coded warning per
+// second.
+func (p *Peer) warnRouteNotSent(addr, target, operation string, err error) {
+	subject := addr
+	if subject == "" {
+		subject = p.peerAddrLabel()
+	}
+	if emit, suppressed := p.routeNotSentLog.allow(p.nowUnixNano()); emit {
+		routesLogger().Warn(operation,
+			"code", codeDoctorBGPRouteNotSent,
+			"peer", subject,
+			"target", target,
+			"why", "the route was skipped because it could not be encoded or admitted on this session",
+			"fix", fixRouteNotSent,
+			"suppressed-since-last", suppressed,
+			"error", err)
+	}
+	report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPRouteNotSent, subject,
+		report.FitMessage("BGP "+operation+" ("+target+") on peer "+subject+": "+err.Error()),
+		fixRouteNotSent, wellKnownScanLogInterval)
+}
+
+// warnDefaultOriginateSendFailed reports that sending a configured
+// default-originate route failed on the session. Bounded by the peer's
+// defaultOriginateRefusalLog window so flaps emit one coded warning per second.
+func (p *Peer) warnDefaultOriginateSendFailed(familyKey string, prefix netip.Prefix, nextHop netip.Addr, err error) {
+	peerAddr := p.peerAddrLabel()
+	prefixStr := prefix.String()
+	if emit, suppressed := p.defaultOriginateRefusalLog.allow(p.nowUnixNano()); emit {
+		routesLogger().Warn("default-originate: route send failed",
+			"code", codeDoctorBGPDefaultOriginateNotSent,
+			"peer", peerAddr,
+			"prefix", prefixStr,
+			"family", familyKey,
+			"next-hop", nextHop,
+			"why", "the peer will not receive the configured default route until the session or policy recovers",
+			"fix", fixDefaultOriginateNotSent,
+			"suppressed-since-last", suppressed,
+			"error", err)
+	}
+	report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPDefaultOriginateNotSent, peerAddr,
+		report.FitMessage("BGP default-originate route "+prefixStr+" ("+familyKey+") was not sent to peer "+peerAddr+": "+err.Error()),
+		fixDefaultOriginateNotSent, wellKnownScanLogInterval)
 }
 
 // warnDefaultOriginateRefused says, at Warn, that the default route configured

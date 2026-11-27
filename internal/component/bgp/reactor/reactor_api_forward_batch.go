@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -236,8 +237,22 @@ func (a *reactorAPIAdapter) ackBatch(updateIDs []uint64, pluginName string) {
 	}
 	for _, id := range dedupIDs(updateIDs) {
 		if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
-			cacheLogger().Debug("cache ack on refused batch failed",
-				"id", id, "plugin", pluginName, "err", ackErr)
+			if emit, suppressed := a.r.cacheAckLog.allow(a.r.nowUnixNano()); emit {
+				cacheLogger().Warn("cache ack on refused batch failed",
+					"code", codeDoctorBGPCachePressure,
+					"id", id,
+					"plugin", pluginName,
+					"why", "cached UPDATE entries expired before the consumer acknowledged them, indicating cache pressure or a delayed consumer",
+					"fix", fixCachePressure,
+					"suppressed-since-last", suppressed,
+					"error", ackErr)
+			}
+			var msg textbuf.Buffer
+			msg.Str("BGP cache ack failed on refused batch for plugin ").Str(pluginName).
+				Str(" (id ").Uint(id).Str("): ").Str(ackErr.Error())
+			report.RaiseErrorFixOnce(reportSourceBGP, codeDoctorBGPCachePressure, pluginName,
+				report.FitMessage(msg.String()),
+				fixCachePressure, wellKnownScanLogInterval)
 		}
 	}
 }

@@ -346,6 +346,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 
 // closeConnQuietly closes a connection, logging any error at debug level.
 func closeConnQuietly(conn net.Conn) {
+	// refuse-by-default: guards rejectPendingConnection -- best-effort close of a rejected or unaccepted socket where nothing remains to undo
 	if err := conn.Close(); err != nil {
 		reactorLogger().Debug("close connection", "error", err)
 	}

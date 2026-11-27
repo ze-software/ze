@@ -56,7 +56,8 @@ func TestDecodeMPReachNextHopProfile(t *testing.T) {
 			raw = append(raw, 0)
 			raw = append(raw, nlri...)
 			before := bytes.Clone(raw)
-			_, operations := buildMPReachZe(nil, raw)
+			_, operations, err := buildMPReachZe(nil, raw)
+			require.NoError(t, err)
 			require.Len(t, operations, 1)
 			require.Equal(t, tc.want, operations[0]["next-hop"])
 			require.Equal(t, "add", operations[0][jsonKeyAction])
@@ -83,7 +84,8 @@ func TestDecodeMPReachUnknownIPv6ProfileNativeIPv4(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			raw := []byte{0, 2, tc.safi, 4, 0xc0, 0, 2, 1, 0, 24, 10, 0, 0}
 			before := bytes.Clone(raw)
-			_, operations := buildMPReachZe(nil, raw)
+			_, operations, err := buildMPReachZe(nil, raw)
+			require.NoError(t, err)
 			require.Len(t, operations, 1)
 			require.Equal(t, tc.want, operations[0]["next-hop"])
 			require.Equal(t, "add", operations[0][jsonKeyAction])

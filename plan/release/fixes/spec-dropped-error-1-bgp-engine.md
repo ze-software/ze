@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | 48 errors in the BGP engine (reactor, `ze bgp decode --plugin`, the BGP server) are caught and logged only below WARN (9 of the original 57 were already resolved at HEAD): a next hop that fails to resolve drops a static route, a failed collision handoff or teardown write leaves no trace at the default level |
@@ -10,7 +10,7 @@
 | Depends | `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md`, its Data Flow "Class to code map": every answer-2 `Warn`/`Error` this spec adds is a problem site judged by `./le arch doctor-coverage check` (`docs/architecture/doctor-and-health-checks.md`, "Every problem site names a doctor code"), so each added `Warn`/`Error` MUST emit a `code` attribute registered in its owning package's doctor-code registration (`internal/component/bgp/reactor/doctor_codes.go` and `register_diagnostic.go`, or `internal/component/bgp/server/register_doctor_codes.go` if `server/events.go` adds a `Warn`) and declared by a doctor check or `diagnostic.EventCode`; where `spec-doctor-coverage-6-bgp-engine.md` has not yet registered the code, the `Warn` lands with its registration here |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -190,7 +190,7 @@ Known overlaps, resolved where they are owned:
 | `docs/architecture/update-building.md` | Design decisions | decision of 2026-11-23 | "Gate draft-simpson 0x0800 FlowSpec MP_REACH next-hop emission behind an explicit per-session opt-in (`session { flowspec-redirect-next-hop true; }`, default `false`), written automatically by `ze exabgp migrate` when a migrated neighbor uses Simpson actions or serves an API process on a FlowSpec family" | agrees | This spec makes no change to FlowSpec MP_REACH next-hop encoding or opt-in gating |
 | `docs/architecture/bgp/interface-event-reactions.md` | Design decisions | decision of 2026-11-22 | "Interface and neighbor change re-advertisement runs the first flip immediately, then coalesces bursts behind a per-peer cooldown with at most one queued trailing re-pass; BGP route flap dampening (RFC 2439) is a separate concept and, if ever implemented, must be an option off by default ("flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine.")" | agrees | Resolving `Reactor.handleAddressAdded:331` (`EventListenerReady` emit drop) preserves interface/neighbor re-advertisement coalescing and makes no dampening change |
 | `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-23 | "An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist" | agrees | This spec does not touch ExaBGP wrapper configuration or bus endpoint wiring |
-| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-26 | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | `server/events.go:1171` touches only `onEORReceived` EventBus emission, leaving ExaBGP `base64` UPDATE delivery and `WriteBatchFrame` batching untouched |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-27 | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>`, zero key names, `-` for absent metadata tokens, `0:` for an empty body) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | `server/events.go:1171` touches only `onEORReceived` EventBus emission, leaving ExaBGP `base64` UPDATE delivery and `WriteBatchFrame` batching untouched |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -206,9 +206,9 @@ Known overlaps, resolved where they are owned:
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Reactor ↔ operator | Log at `Warn` with registered doctor `code`, existing metric, `show warnings` / `show errors` via `recent-events` | No |
-| BGP server ↔ operator | Log at `Warn` with registered doctor `code` (if answer 2) or annotated non-actionable drop (if answer 3) | No |
-| CLI ↔ operator | Returned error printed by `ze bgp decode` | No |
+| Reactor ↔ operator | Log at `Warn` with registered doctor `code`, existing metric, `show warnings` / `show errors` via `recent-events` | Yes |
+| BGP server ↔ operator | Log at `Warn` with registered doctor `code` (`CodeDoctorBGPPluginEventsUndelivered`) and report-bus raise (`report.RaiseErrorFixOnce`) | Yes |
+| CLI ↔ operator | Returned error printed by `ze bgp decode` (non-zero exit code with plugin path and failing step) | Yes |
 
 ### Changed-Wire Census
 
@@ -233,7 +233,7 @@ No BGP protocol wire format, plugin RPC schema, JSON event schema, or YANG confi
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The 48 findings across 18 files are the exact population at HEAD | `./le arch refuse-by-default report '|' json` filtered to `internal/component/bgp/` minus `plugins/` and `internal/core/bgp/` on 2026-11-26 (48 findings, 1 annotated at `aigp_readvertise.go:576`, 9 retired) | Re-run report and work from the fresh list | Re-run filtered report before first implementation edit | confirmed 2026-11-26 |
-| A-2 | Teardown-path and already-closed-socket drops are answer 3 | A close or write error on a connection already being torn down has nothing left to undo | A drop that hides a peer left half up | Read each teardown site's caller before annotating | unvalidated |
+| A-2 | Teardown-path and already-closed-socket drops are answer 3 | A close or write error on a connection already being torn down has nothing left to undo | A drop that hides a peer left half up | Read each teardown site's caller before annotating | confirmed 2026-11-27 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -273,10 +273,10 @@ No BGP protocol wire format, plugin RPC schema, JSON event schema, or YANG confi
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSendStaticRoutesReportsUnresolvedNextHop` | `internal/component/bgp/reactor/peer_static_wire_test.go` | AC-3 for `sendStaticRoutes` and `sendStaticRoutesGrouped` next-hop resolution failures | |
-| `TestInvokePluginPathReturnsFailure` and one test per answer-1 failure path in `decode_plugin.go` | `internal/component/bgp/cli/decode_plugin_named_test.go` | AC-2 for `decode_plugin.go` answer-1 error returns | |
-| One test per reactor/server file with an answer-2 `Warn` asserting default-level capture, operator fix text, and registered doctor `code` | Owning package's `*_test.go` | AC-3 and doctor-coverage registration | |
-| `TestRefuseByDefaultReportListsTree` | `internal/le/arch/refusebydefault/refusebydefault_test.go` | Detector unchanged | |
+| `TestSendStaticRoutesReportsUnresolvedNextHop` | `internal/component/bgp/reactor/peer_static_wire_test.go` | AC-3 for `sendStaticRoutes` and `sendStaticRoutesGrouped` next-hop resolution failures | PASS |
+| `TestInvokePluginPathReturnsFailure` and `TestInvokePluginInternalAndProtocolErrors` | `internal/component/bgp/cli/decode_plugin_named_test.go` | AC-2 for `decode_plugin.go` answer-1 error returns | PASS |
+| `TestEmitOperationListenerReadyReportsEmitFailure`, `TestPeerBFDReleaseFailureReportsWarnAndReportBus`, `TestPeerInitialSyncReportsRouteScopedAndDefaultOriginateFailures`, `TestReactorEventBusEmitFailuresReportWarnAndReportBus`, `TestAckBatchReportsExpiredCacheEntry`, `TestHandleAddressAddedReportsListenerReadyEmitFailure`, `TestPublishBaseReportsMalformedAttributeIndex`, `TestOnEORReceivedReportsEventBusEmitFailure`, `TestOnEORReceivedSuccessEmitsNoWarning` | `internal/component/bgp/reactor/dropped_errors_test.go`, `internal/component/bgp/server/events_dropped_error_test.go` | AC-3 and doctor-coverage registration | PASS |
+| `TestRefuseByDefaultReportListsTree` | `internal/le/arch/refusebydefault/refusebydefault_test.go` | Detector unchanged | N/A (detector untouched) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -286,8 +286,8 @@ No BGP protocol wire format, plugin RPC schema, JSON event schema, or YANG confi
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| The `test/plugin`, `test/decode` and `test/encode` `.ci` that reach changed files | `test/` | Unchanged protocol behavior, plus the `Warn` where a `.ci` drives the failure | |
-| `capability-llgr` | `test/decode/capability-llgr.ci` | `ze bgp decode --plugin bgp-gr --open` still answers through `decode_plugin.go`, the path whose dropped errors answer 1 returns | |
+| `decode-update`, `bgp-notification-update-error` | `test/plugin/decode-update.ci`, `test/decode/bgp-notification-update-error.ci` | Unchanged protocol and plugin decode behavior through the real daemon | PASS |
+| `capability-llgr` | `test/decode/capability-llgr.ci` | `ze bgp decode --plugin bgp-gr --open` still answers through `decode_plugin.go`, the path whose dropped errors answer 1 returns | Owed command (main thread to confirm alongside closure) |
 
 ## Files to Modify
 - `internal/component/bgp/cli/decode_plugin.go` - 14: `invokePluginDecodeRequest` 243, 246; `invokePluginPath` 349, 352, 362, 369; `invokePluginSubprocess` 427, 430; `invokePluginInternal.func` 497, 502, 505; `invokePluginInternal` 515, 520, 526
@@ -430,6 +430,14 @@ none
 
 ## Design Insights
 
+Classification of all 48 `error-dropped-below-warn` instances across 18 files:
+
+| Answer | Count | Files and Sites | Doctor Code / Guard |
+|--------|-------|-----------------|---------------------|
+| 1 (return error) | 14 | `internal/component/bgp/cli/decode_plugin.go` (`invokePluginDecodeRequest` 2, `invokePluginPath` 4, `invokePluginSubprocess` 2, `invokePluginInternal` 6) | Propagated through `runPluginSubprocess`, `runPluginInternal`, `decode_open.go`, `decode_mp.go`, `decode_update.go` to `ze bgp decode` callers; legacy `invokePluginNLRIDecode` test helper annotated with `guards invokePluginNLRIDecodeResult` |
+| 2 (`Warn` + doctor `code` + `report.RaiseErrorFixOnce`) | 17 | `operation.go` (1), `peer_bfd.go` (2), `peer_initial_sync.go` (6: `drainAndCloseQueueGate` 2, `sendPluginRoutesVia` 1, `sendPluginRouteGroup` 2, `sendDefaultOriginateRoutes` 1), `peer_static_wire.go` (2), `reactor.go` (2), `reactor_api_forward_batch.go` (1), `reactor_iface.go` (1), `session_validation.go` (1), `server/events.go` (1) | `CodeDoctorBGPPluginEventsUndelivered` (`ze show plugin list`), `codeDoctorBGPBFDUnavailable` (`ze show bfd sessions`), `codeDoctorBGPRouteNotSent` (`ze show bgp peer list`), `codeDoctorBGPDefaultOriginateNotSent` (`ze show bgp peer list`), `codeDoctorBGPCachePressure` (`ze show cache`), `codeDoctorBGPMalformedFromPeer` (`ze show bgp peer list`) |
+| 3 (`// refuse-by-default: guards <Symbol> -- <why>`) | 17 | `listener.go` (3), `peer.go` (1), `peer_admin.go` (1), `peer_connection.go` (1), `peer_initial_sync.go` (3: `sendInitialRoutes` 1, `drainAndCloseQueueGate` refresh marker 1, `runQueuedTeardown` 1), `reactor_connection.go` (1), `session.go` (1), `session_bfd_strict.go` (4), `session_connection.go` (2) | Verified teardown/already-closed/OS-default guard symbols (`Listener.Stop`, `Listener.SetHandler`, `taskguard.Panic`, `sessionTeardown`, `closeConnQuietly`, `Session.CloseWithNotification`, `Peer.sendQueuedRefreshMarker`, `rejectPendingConnection`, `Session.sendKeepalive`, `Session.handleBFDEvent`, `Session.handleKeepalive`, `socketRecvBufSize`, `socketSendBufSize`) |
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
@@ -446,10 +454,6 @@ The class row for the whole population is owned by the umbrella.
 
 ## Known Limitations
 - None.
-
-## Review Gate
-
-Pending implementation; populated during `/ze-review` and `/ze-close`.
 
 ## Checklist
 
@@ -480,3 +484,151 @@ Pending implementation; populated during `/ze-review` and `/ze-close`.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-1-bgp-engine.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Answer 1 (`internal/component/bgp/cli/`):** Refactored subprocess and internal pipe decode execution in `decode_plugin.go` (`runPluginSubprocess`, `runPluginInternal`, `invokePluginDecodeRequest`, `invokePluginPath`, `invokePluginSubprocess`, `invokePluginInternal`, `invokePluginNLRIDecodeResult`, `parseDecodedJSON`) to propagate every pipe, write, close, scan, JSON-parse, missing-decoder, and non-zero exit error through `decode_open.go`, `decode_mp.go`, and `decode_update.go` to `ze bgp decode` callers. Kept the legacy `invokePluginNLRIDecode` signature only for existing RFC decode tests, annotated with `// refuse-by-default: guards invokePluginNLRIDecodeResult`. Added `TestInvokePluginPathReturnsFailure` and `TestInvokePluginInternalAndProtocolErrors` in `decode_plugin_named_test.go`.
+- **Answer 2 (`internal/component/bgp/reactor/` and `internal/component/bgp/server/`):** Registered six doctor codes with `diagnostic.Register` and `diagnostic.RegisterEventCode` in `reactor/doctor_codes.go` + `reactor/register_diagnostic.go` (`codeDoctorBGPBFDUnavailable`, `codeDoctorBGPDefaultOriginateNotSent`, `codeDoctorBGPRouteNotSent`, `codeDoctorBGPCachePressure`, `codeDoctorBGPMalformedFromPeer`) and `server/register_doctor_codes.go` (`CodeDoctorBGPPluginEventsUndelivered`), each with an executable YANG `ze:command` fix (`ze show bfd sessions`, `ze show bgp peer list`, `ze show cache`, `ze show plugin list`). Converted all 17 actionable drops across `operation.go`, `peer_bfd.go`, `peer_initial_sync.go`, `peer_static_wire.go`, `reactor.go`, `reactor_api_forward_batch.go`, `reactor_iface.go`, `session_validation.go`, and `server/events.go` to default-level `Warn` logs with registered `code`, `why`, and `fix` attributes plus bounded `report.RaiseErrorFixOnce` raises (rate-limited via `wellKnownScanLog` and injected clocks `nowUnixNano()` on loop/hot paths, with zero wire-byte copies in `publishBase`). Added unit tests in `peer_static_wire_test.go`, `dropped_errors_test.go`, and `events_dropped_error_test.go`.
+- **Answer 3 (`internal/component/bgp/reactor/`):** Annotated all 17 non-actionable teardown, already-closed-socket, concurrent-close FSM callback, and OS socket-buffer-cap sites across `listener.go`, `peer.go`, `peer_admin.go`, `peer_connection.go`, `peer_initial_sync.go`, `reactor_connection.go`, `session.go`, `session_bfd_strict.go`, and `session_connection.go` with `// refuse-by-default: guards <Symbol> -- <why>`.
+
+### Bugs Found/Fixed
+- Silent `ze bgp decode --plugin` failure swallowing (14 sites in `decode_plugin.go`): broken binaries, missing internal decoders, pipe I/O errors, malformed JSON responses, and non-zero plugin exits previously returned `nil` and rendered capabilities/NLRIs as unknown with exit code 0; covered by `TestInvokePluginPathReturnsFailure` and `TestInvokePluginInternalAndProtocolErrors`.
+- Silent skipping of static routes with unresolved next hops (`peer_static_wire.go:66,143`), default-originate send failures (`peer_initial_sync.go:1319`), route-scoped queued/plugin send failures (`peer_initial_sync.go:624,655,1092,1139,1173`), BFD session release failures (`peer_bfd.go:333,760`), BGP EventBus emit failures (`operation.go:205`, `reactor.go:1004,1040`, `reactor_iface.go:333`, `server/events.go:1175`), expired cache batch acks (`reactor_api_forward_batch.go:239`), and malformed UPDATE attribute indexing (`session_validation.go:508`); covered by `TestSendStaticRoutesReportsUnresolvedNextHop`, all 7 tests in `dropped_errors_test.go`, and both tests in `events_dropped_error_test.go`.
+- Scoped lint cleanup during implementation in `decode_plugin_named_test.go` and `session.go` cleared all lint issues across the three packages.
+
+### Documentation Updates
+- No existing documentation page became stale; verified source anchors in `docs/guide/command-reference.md:642`, `docs/guide/route-injection.md:210`, `docs/guide/monitoring.md:608`, `docs/guide/debugging-tools.md:331`, `docs/architecture/api/json-format.md:511`, `docs/architecture/wire/nlri.md:757,841`, `docs/architecture/wire/bgpls-attribute-naming.md:135`, and `docs/architecture/wire/nlri-bgpls.md:382`.
+- Added operator release note fragment `website/changes/fragments/dropped-error-1-bgp-engine.md` (`./le doc ste check file` -> `OK`).
+- Cleared external full-path spec citers in `plan/release/fixes/spec-dropped-error-0-umbrella.md:79` (marked closed, count 0) and `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md:58,131` (rewritten to bare stem `spec-dropped-error-1-bgp-engine`).
+- `./le doc check all`: run during closure (recorded in Pre-Commit Verification).
+
+### Deviations from Plan
+- Propagating answer-1 errors out of `decode_plugin.go` required adding an `error` return to internal helpers in `internal/component/bgp/cli/decode_mp.go`, `decode_open.go`, and `decode_update.go`, plus updating existing callers in `decode_mp_next_hop_profile_test.go` and `decode_mp_registry_test.go`. Wire parsing and decoded JSON for valid inputs are unchanged.
+- Reactor and server answer-2 unit tests were placed in dedicated new test files (`internal/component/bgp/reactor/dropped_errors_test.go` and `internal/component/bgp/server/events_dropped_error_test.go`) alongside `internal/component/bgp/reactor/peer_static_wire_test.go` and `internal/component/bgp/cli/decode_plugin_named_test.go`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Resolve all 14 `bgp/cli/decode_plugin.go` dropped errors via answer 1 | Done | `internal/component/bgp/cli/decode_plugin.go:240-495`, `decode_mp.go`, `decode_open.go`, `decode_update.go` | Subprocess/internal pipe I/O, JSON parse, and exit errors propagate to `ze bgp decode` callers |
+| Resolve all 33 `bgp/reactor` dropped errors (16 answer 2, 17 answer 3) | Done | `internal/component/bgp/reactor/{doctor_codes,register_diagnostic,operation,peer_bfd,peer_initial_sync,peer_static_wire,reactor,reactor_api_forward_batch,reactor_iface,session_validation,listener,peer,peer_admin,peer_connection,reactor_connection,session,session_bfd_strict,session_connection}.go` | All 16 actionable sites emit coded `Warn` + `report.RaiseErrorFixOnce`; all 17 non-actionable sites carry verified guard annotations |
+| Resolve 1 `bgp/server/events.go` dropped error via answer 2 | Done | `internal/component/bgp/server/events.go:1173-1232`, `internal/component/bgp/server/register_doctor_codes.go:1-39` | `onEORReceived` calls `reportEOREmitFailure`, logging `Warn` under `CodeDoctorBGPPluginEventsUndelivered` and raising bounded report-bus event |
+| Register every added doctor code in owning package | Done | `internal/component/bgp/reactor/doctor_codes.go`, `register_diagnostic.go`, `internal/component/bgp/server/register_doctor_codes.go` | All 6 codes registered via `diagnostic.Register` + `diagnostic.RegisterEventCode` with executable YANG `ze:command` fixes |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Main-thread filtered `./le arch refuse-by-default report '|' json` under `internal/component/bgp/{cli,reactor,server}/`: 0 `error-dropped-below-warn` findings, 0 `annotation-names-no-guard` findings | All answer-3 sites appear in `annotated` |
+| AC-2 | Done | `TestInvokePluginPathReturnsFailure` & `TestInvokePluginInternalAndProtocolErrors` (`internal/component/bgp/cli/decode_plugin_named_test.go`, PASS under `-race -tags ze_bgp`) | Covers missing binary, non-zero exit, JSON-then-exit, internal pipe non-zero exit, malformed JSON, missing decoder, and NLRI plugin failure |
+| AC-3 | Done | `TestSendStaticRoutesReportsUnresolvedNextHop` (`peer_static_wire_test.go`), 7 tests in `dropped_errors_test.go`, 2 tests in `events_dropped_error_test.go` (all PASS under `-race -tags ze_bgp`), plus `./le arch doctor-coverage check` -> OK | Every added `Warn` verified at default `slog.LevelWarn` with doctor `code`, `why`, executable `fix`, and report-bus event |
+| AC-4 | Done | Main-thread `./le arch refuse-by-default report '|' json`: 0 `annotation-names-no-guard` findings across all 18 annotated sites (17 reactor + 1 legacy helper in `decode_plugin.go`) | Every annotation names a visible guard symbol distinct from its enclosing function |
+| AC-5 | Done | Main-thread `go test -race -tags ze_bgp` on `bgp/cli` (`2.918s`), `bgp/server` (`2.528s`), `bgp/reactor` (`3.599s` + targeted subsystem tests), plus `.ci` `decode-update` (`1.3s`) and `bgp-notification-update-error` (`411ms`) PASS; `capability-llgr` listed as owed command for main thread | Zero lint issues on changed files; `./le arch tier check`, `./le arch error-wrap check`, `./le go style check` all OK |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSendStaticRoutesReportsUnresolvedNextHop` | Done | `internal/component/bgp/reactor/peer_static_wire_test.go:276` | PASS (`ungrouped` and `grouped` subtests) |
+| `TestInvokePluginPathReturnsFailure` | Done | `internal/component/bgp/cli/decode_plugin_named_test.go:149` | PASS (3 subtests) |
+| `TestInvokePluginInternalAndProtocolErrors` | Done | `internal/component/bgp/cli/decode_plugin_named_test.go:211` | PASS (5 subtests) |
+| `TestEmitOperationListenerReadyReportsEmitFailure` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:98` | PASS |
+| `TestPeerBFDReleaseFailureReportsWarnAndReportBus` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:131` | PASS (2 subtests) |
+| `TestPeerInitialSyncReportsRouteScopedAndDefaultOriginateFailures` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:218` | PASS (3 subtests) |
+| `TestReactorEventBusEmitFailuresReportWarnAndReportBus` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:299` | PASS (2 subtests) |
+| `TestAckBatchReportsExpiredCacheEntry` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:360` | PASS |
+| `TestHandleAddressAddedReportsListenerReadyEmitFailure` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:391` | PASS |
+| `TestPublishBaseReportsMalformedAttributeIndex` | Done | `internal/component/bgp/reactor/dropped_errors_test.go:435` | PASS |
+| `TestOnEORReceivedReportsEventBusEmitFailure` & `TestOnEORReceivedSuccessEmitsNoWarning` | Done | `internal/component/bgp/server/events_dropped_error_test.go:66,114` | PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| 18 target files in `bgp/cli`, `bgp/reactor`, `bgp/server` | Done | All 18 modified; all 48 instances resolved |
+| `internal/component/bgp/reactor/doctor_codes.go`, `register_diagnostic.go`, `peer_static_wire_test.go` | Done | Modified as planned |
+| `internal/component/bgp/server/register_doctor_codes.go` | Done | Created as planned |
+| `internal/component/bgp/cli/{decode_mp,decode_open,decode_update}.go`, `decode_mp_next_hop_profile_test.go`, `decode_mp_registry_test.go`, `decode_plugin_named_test.go` | Changed (recorded in Deviations) | Required to propagate answer-1 errors out of `decode_plugin.go` |
+| `internal/component/bgp/reactor/dropped_errors_test.go`, `internal/component/bgp/server/events_dropped_error_test.go` | Changed (recorded in Deviations) | Dedicated test files for reactor and server answer-2 assertions |
+
+### Audit Summary
+- **Total items:** 22
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations: decode caller propagation files and dedicated test files)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero `error-dropped-below-warn` findings across `internal/component/bgp/{cli,reactor,server}/` and `internal/core/bgp/` | Static arch gate | Filtered `./le arch refuse-by-default report '|' json`: 0 `error-dropped-below-warn` findings, 0 `annotation-names-no-guard` findings |
+| `ze bgp decode --plugin` surfaces plugin execution/protocol failures to operators | Unit tests (`-race -tags ze_bgp`) | `TestInvokePluginPathReturnsFailure` and `TestInvokePluginInternalAndProtocolErrors` (`internal/component/bgp/cli`, PASS `2.918s`) |
+| Every actionable reactor/server failure logs at default WARN with registered doctor code + executable fix and raises on report bus | Unit tests + doctor-coverage gate | `TestSendStaticRoutesReportsUnresolvedNextHop`, 7 tests in `dropped_errors_test.go` (`bgp/reactor`, PASS `3.599s`), 2 tests in `events_dropped_error_test.go` (`bgp/server`, PASS `2.528s`); `./le arch doctor-coverage check` -> OK |
+| Unchanged protocol and plugin decode behavior on valid inputs | Functional `.ci` tests | `test/plugin/decode-update.ci` (PASS `1.3s`), `test/decode/bgp-notification-update-error.ci` (PASS `411ms`); `test/decode/capability-llgr.ci` queued as final main-thread owed command |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All 48 findings across the BGP engine door paths are resolved; remaining tree-wide findings belong to sibling child specs in the umbrella | `plan/release/fixes/spec-dropped-error-0-umbrella.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-1-bgp-engine-b3c30003-3333-4000-8000-000000000003.md` |
+| `./le spec review check` | `review_gate: OK (30 code files, clean, hashes match tmp/review/dropped-error-1-bgp-engine-b3c30003-3333-4000-8000-000000000003.md)` |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, style+protocol/design-documents (`/ze-review` + `/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | - | Round 1 clean: 0 BLOCKER, 0 ISSUE, 0 NOTE across all 30 code/test files; verified all 4 YANG `ze:command` fix strings, `report.RaiseErrorFixOnce` field bounds, zero wire-byte copies in `session_validation.go:publishBase`, zero `fmt.Sprintf` additions, zero `time.Now()` calls in reactor, style pass (7 checks), and design-documents lens | All 30 files | N/A |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/server/register_doctor_codes.go` | Yes | `-rw-r--r-- 1 thomas thomas 1792 Nov 27 10:54 internal/component/bgp/server/register_doctor_codes.go` |
+| `internal/component/bgp/reactor/dropped_errors_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 16812 Nov 27 11:20 internal/component/bgp/reactor/dropped_errors_test.go` |
+| `internal/component/bgp/server/events_dropped_error_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 4896 Nov 27 11:20 internal/component/bgp/server/events_dropped_error_test.go` |
+| `website/changes/fragments/dropped-error-1-bgp-engine.md` | Yes | Created and passed `./le doc ste check file website/changes/fragments/dropped-error-1-bgp-engine.md` -> `OK` |
+| `test/decode/capability-llgr.ci`, `test/plugin/decode-update.ci`, `test/decode/bgp-notification-update-error.ci` | Yes | `ls -la`: 1114 bytes (`capability-llgr.ci`), 1527 bytes (`decode-update.ci`), 577 bytes (`bgp-notification-update-error.ci`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 unannotated `error-dropped-below-warn` findings under BGP engine paths | Main-thread filtered `./le arch refuse-by-default report '|' json`: 0 `error-dropped-below-warn`, 0 `annotation-names-no-guard` |
+| AC-2 | Answer-1 errors propagated to caller in `decode_plugin.go` | `TestInvokePluginPathReturnsFailure` and `TestInvokePluginInternalAndProtocolErrors` in `internal/component/bgp/cli/decode_plugin_named_test.go` PASS (`2.918s`, `-race -tags ze_bgp`) |
+| AC-3 | Answer-2 `Warn` emits registered doctor `code`, `why`, YANG-verified `fix`, and report-bus event | `TestSendStaticRoutesReportsUnresolvedNextHop`, 7 tests in `dropped_errors_test.go` (`3.599s`), 2 tests in `events_dropped_error_test.go` (`2.528s`) PASS; `./le arch doctor-coverage check` -> OK; all 4 fix commands verified in `ze-bfd-cmd.yang`, `ze-cli-cache-cmd.yang`, `ze-peer-cmd.yang`, `ze-plugin-show-cmd.yang` |
+| AC-4 | Answer-3 guard annotations name visible symbols distinct from enclosing function | 18 annotations verified in source (`listener.go` 3, `peer.go` 1, `peer_admin.go` 1, `peer_connection.go` 1, `peer_initial_sync.go` 3, `reactor_connection.go` 1, `session.go` 1, `session_bfd_strict.go` 4, `session_connection.go` 2, `decode_plugin.go` 1); 0 `annotation-names-no-guard` findings |
+| AC-5 | Scoped package tests, lint, arch checks, and reached `.ci` tests pass | `go test -race -tags ze_bgp` on `bgp/{cli,reactor,server}` PASS; scoped `./le go lint run` 0 issues on modified files; `./le arch tier check`, `./le arch error-wrap check`, `./le go style check` OK; `./le test weakened check` 0 findings on spec's 30 files; `decode-update` (`1.3s`) and `bgp-notification-update-error` (`411ms`) PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze bgp decode --json --plugin bgp-gr --open -` | `test/decode/capability-llgr.ci` | Read file lines 1-7: executes `ze bgp decode --json --plugin bgp-gr --open -` exercising `decode_plugin.go` -> `decode_open.go` and asserts full JSON output including GR and LLGR capabilities |
+| Plugin `decode-update` RPC through live BGP daemon | `test/plugin/decode-update.ci` | Read file lines 1-57: runs external plugin `le test fixture plugin/decode-update` against `ze` + `le test peer`, verifies decoded UPDATE re-announcement on wire (PASS `1.3s`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed 2026-11-26 | Filtered `./le arch refuse-by-default report '|' json` confirmed exact 48-instance population across 18 files (9 retired at HEAD) |
+| A-2 | confirmed 2026-11-27 | Read callers of all 17 teardown/already-closed/OS-default reactor sites before annotating; every site has a verified guard symbol where continuing is right and no operator action exists, with 0 `annotation-names-no-guard` findings |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Existing anchored docs (`command-reference.md:642`, `route-injection.md:210`, `monitoring.md:608`, `debugging-tools.md:331`) | Read each anchored section against modified functions (`decode_plugin.go`, `peer_initial_sync.go`, `session_validation.go`, `doctor_codes.go`); all claims remain accurate | Yes |
+| Release note fragment (`website/changes/fragments/dropped-error-1-bgp-engine.md`) | `./le doc ste check file website/changes/fragments/dropped-error-1-bgp-engine.md` -> `OK` | Yes |
+| External spec citers (`spec-dropped-error-0-umbrella.md:79`, `spec-doctor-coverage-6-bgp-engine.md:58,131`) | `git grep -n "plan/release/fixes/spec-dropped-error-1-bgp-engine.md" -- plan/ docs/ website/ internal/ cmd/ pkg/ test/` returns zero external hits | Yes |

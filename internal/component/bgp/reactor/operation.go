@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"net/netip"
 
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -201,7 +203,17 @@ func (a *reactorAPIAdapter) emitOperationListenerReady(settings *PeerSettings) {
 		return
 	}
 	if _, emitErr := a.r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventListenerReady, string(readyPayload)); emitErr != nil {
-		reactorLogger().Debug("bgp operation: emit listener-ready", "address", settings.LocalAddress, "error", emitErr)
+		addr := settings.LocalAddress.String()
+		reactorLogger().Warn("bgp operation: listener-ready event not delivered",
+			"code", bgpserver.CodeDoctorBGPPluginEventsUndelivered,
+			"address", addr,
+			"event", bgpevents.EventListenerReady,
+			"why", "plugins or interface migration waiters watching listener readiness may miss this local address",
+			"fix", bgpserver.PluginEventsUndeliveredFix,
+			"error", emitErr)
+		report.RaiseErrorFixOnce(reportSourceBGP, bgpserver.CodeDoctorBGPPluginEventsUndelivered, addr,
+			report.FitMessage("BGP listener-ready event was not delivered for "+addr+": "+emitErr.Error()),
+			bgpserver.PluginEventsUndeliveredFix, wellKnownScanLogInterval)
 	}
 }
 
