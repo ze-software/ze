@@ -225,17 +225,19 @@ func newPostauthEnv(t *testing.T, status int) postauthEnv {
 
 	crlPEM := postauthCRLPEM(t, ca, caKey)
 	serverCfg := eap.MethodConfig{
-		ServerCertPEM: certPEM(t, serverDER),
-		ServerKeyPEM:  keyPEM(t, serverKey),
-		CACertPEM:     certPEM(t, caDER),
-		CRLPEM:        crlPEM,
-		Resumption:    eap.NewResumption(time.Now, true),
+		ServerCertPEM:     certPEM(t, serverDER),
+		ServerKeyPEM:      keyPEM(t, serverKey),
+		CACertPEM:         certPEM(t, caDER),
+		CRLPEM:            crlPEM,
+		Resumption:        eap.NewResumption(time.Now, true),
+		AllowedIdentities: []string{"postauth-client"},
 	}
 	peerCfg := &eap.PeerTLSConfig{
-		CertPEM:   certPEM(t, clientDER),
-		KeyPEM:    keyPEM(t, clientKey),
-		CACertPEM: certPEM(t, caDER),
-		CRLPEM:    crlPEM,
+		CertPEM:        certPEM(t, clientDER),
+		KeyPEM:         keyPEM(t, clientKey),
+		CACertPEM:      certPEM(t, caDER),
+		CRLPEM:         crlPEM,
+		ServerIdentity: "postauth-server",
 	}
 
 	return postauthEnv{sa: postauthSA(t, serverCfg, peerCfg), client: srv.Client()}

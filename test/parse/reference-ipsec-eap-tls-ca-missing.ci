@@ -47,6 +47,7 @@ vpn {
 					mode eap-tls
 					ca-certificate nowhere-ca
 					certificate server1
+					server-identity "localhost"
 				}
 			}
 		}
@@ -88,6 +89,7 @@ vpn {
 					mode eap-tls
 					ca-certificate vpn-ca
 					certificate server1
+					server-identity "localhost"
 				}
 			}
 		}

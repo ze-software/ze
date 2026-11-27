@@ -222,13 +222,17 @@ func testPeerEveryMember(t testing.TB) ipsec.SiteToSitePeer {
 		LocalAddress:   "192.0.2.10",
 		RemoteAddress:  "192.0.2.1",
 		Auth: ipsec.AuthConfig{
-			Mode:                ipsec.AuthPreSharedSecret,
-			PSK:                 "test-secret",
-			LocalID:             "ze.example.net",
-			RemoteID:            "peer.example.net",
-			CACertificate:       "test-ca",
-			Certificate:         "test-cert",
-			Additions:           &ipsec.AuthAdditions{IntermediateCertificates: &ipsec.CertificateRefs{Names: []string{"test-sub-ca"}}},
+			Mode:          ipsec.AuthPreSharedSecret,
+			PSK:           "test-secret",
+			LocalID:       "ze.example.net",
+			RemoteID:      "peer.example.net",
+			CACertificate: "test-ca",
+			Certificate:   "test-cert",
+			Additions: &ipsec.AuthAdditions{
+				IntermediateCertificates: &ipsec.CertificateRefs{Names: []string{"test-sub-ca"}},
+				AllowedIdentities:        []string{"client.example.com"},
+				ServerIdentity:           "server.example.com",
+			},
 			RemoteIDType:        2,
 			CertificateCount:    4,
 			HashAndURL:          true,
@@ -351,8 +355,26 @@ func TestPeerConfigChangedIgnoresNothingSilently(t *testing.T) {
 		{"Auth.RemoteIDType", func(_ *testing.T, p *ipsec.SiteToSitePeer) { p.Auth.RemoteIDType = 3 }, "the peer must now assert another ID type"},
 		{"Auth.CACertificate", func(_ *testing.T, p *ipsec.SiteToSitePeer) { p.Auth.CACertificate = "other-ca" }, "another trust anchor validates the peer"},
 		{"Auth.Additions.IntermediateCertificates", func(_ *testing.T, p *ipsec.SiteToSitePeer) {
-			p.Auth.Additions = &ipsec.AuthAdditions{IntermediateCertificates: &ipsec.CertificateRefs{Names: []string{"other-sub-ca"}}}
+			p.Auth.Additions = &ipsec.AuthAdditions{
+				IntermediateCertificates: &ipsec.CertificateRefs{Names: []string{"other-sub-ca"}},
+				AllowedIdentities:        []string{"client.example.com"},
+				ServerIdentity:           "server.example.com",
+			}
 		}, "another intermediate completes the client chain"},
+		{"Auth.Additions.AllowedIdentities", func(_ *testing.T, p *ipsec.SiteToSitePeer) {
+			p.Auth.Additions = &ipsec.AuthAdditions{
+				IntermediateCertificates: &ipsec.CertificateRefs{Names: []string{"test-sub-ca"}},
+				AllowedIdentities:        []string{"other.example.com"},
+				ServerIdentity:           "server.example.com",
+			}
+		}, "the EAP-TLS client identity allow-list changed"},
+		{"Auth.Additions.ServerIdentity", func(_ *testing.T, p *ipsec.SiteToSitePeer) {
+			p.Auth.Additions = &ipsec.AuthAdditions{
+				IntermediateCertificates: &ipsec.CertificateRefs{Names: []string{"test-sub-ca"}},
+				AllowedIdentities:        []string{"client.example.com"},
+				ServerIdentity:           "other.example.com",
+			}
+		}, "the EAP-TLS expected server identity changed"},
 		{"Auth.CertificateCount", func(_ *testing.T, p *ipsec.SiteToSitePeer) { p.Auth.CertificateCount = 2 }, "the accepted chain length changed"},
 		{"Auth.HashAndURL", func(_ *testing.T, p *ipsec.SiteToSitePeer) { p.Auth.HashAndURL = false }, "hash-and-url certificates were turned off"},
 		{"Auth.CertificateURL", func(_ *testing.T, p *ipsec.SiteToSitePeer) {

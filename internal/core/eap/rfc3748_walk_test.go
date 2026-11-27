@@ -464,10 +464,11 @@ func runTamperedEAPTLS(t *testing.T, serverCfg MethodConfig, peer *PeerSession) 
 func TestRFC3748EAPTLSValidatesItsPerPacketMIC(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peerCfg := &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	}
 
 	// RFC requirement: RFC3748-7.5-1 positive -- RFC 3748 Section 7.5: "If a
@@ -496,10 +497,11 @@ func TestRFC3748EAPTLSValidatesItsPerPacketMIC(t *testing.T) {
 func TestRFC3748KeyDerivingMethodAuthenticatesBothEnds(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peerCfg := &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	}
 
 	// RFC requirement: RFC3748-7.10-4 positive -- RFC 3748 Section 7.10: "EAP
@@ -520,11 +522,12 @@ func TestRFC3748KeyDerivingMethodAuthenticatesBothEnds(t *testing.T) {
 	// RFC requirement: RFC3748-7.10-4 negative -- a server the peer cannot chain to
 	// its trust anchor gets no MSK. One-way authentication does not reach a key.
 	rogue := MethodConfig{
-		ServerCertPEM: pki.untrustedServerCertPEM,
-		ServerKeyPEM:  pki.untrustedServerKeyPEM,
-		CACertPEM:     pki.trustedCAPEM,
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.untrustedServerCertPEM,
+		ServerKeyPEM:      pki.untrustedServerKeyPEM,
+		CACertPEM:         pki.trustedCAPEM,
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	bad := runEAPTLSHandshake(t, rogue, NewPeerSessionTLS("eap-tls-client", peerCfg))
 	if bad.peerDone {

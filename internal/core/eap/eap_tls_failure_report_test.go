@@ -123,20 +123,22 @@ func newImpostorPKI(t *testing.T) *impostorPKI {
 
 func (p *impostorPKI) serverConfig() MethodConfig {
 	return MethodConfig{
-		ServerCertPEM: p.serverCertPEM,
-		ServerKeyPEM:  p.serverKeyPEM,
-		CACertPEM:     p.caPEM,
-		CRLPEM:        p.crlPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     p.serverCertPEM,
+		ServerKeyPEM:      p.serverKeyPEM,
+		CACertPEM:         p.caPEM,
+		CRLPEM:            p.crlPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"impostor-pki-client"},
 	}
 }
 
 func (p *impostorPKI) peerConfig() *PeerTLSConfig {
 	return &PeerTLSConfig{
-		CertPEM:   p.clientCertPEM,
-		KeyPEM:    p.clientKeyPEM,
-		CACertPEM: p.caPEM,
-		CRLPEM:    p.crlPEM,
+		CertPEM:        p.clientCertPEM,
+		KeyPEM:         p.clientKeyPEM,
+		CACertPEM:      p.caPEM,
+		CRLPEM:         p.crlPEM,
+		ServerIdentity: "impostor-pki-server",
 	}
 }
 
@@ -173,8 +175,9 @@ func TestEAPTLSAuthenticatorReportsRejectedClientCertificate(t *testing.T) {
 				KeyPEM:  trusted.untrustedClientKeyPEM,
 				// The peer trusts the authenticator, so it does not fail first: the
 				// rejection under test is the authenticator's.
-				CACertPEM: trusted.trustedCAPEM,
-				CRLPEM:    trusted.trustedCRLPEM,
+				CACertPEM:      trusted.trustedCAPEM,
+				CRLPEM:         trusted.trustedCRLPEM,
+				ServerIdentity: "eap-tls-server",
 			},
 			wantReason: "certificate",
 		},

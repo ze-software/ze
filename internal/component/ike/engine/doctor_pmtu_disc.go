@@ -47,7 +47,7 @@ func checkIPsecNoPMTUDisc(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiag
 			Code:     codeDoctorIPsecNoPMTUDisc,
 			Severity: severityWarning,
 			Message:  "vpn ipsec: this doctor run holds no parsed configuration, so it cannot say whether a df-bit copy peer has its IPv4 tunnel header written with DF clear; the command below prints the running configuration, whose df-bit copy peers are affected when `sysctl net.ipv4.ip_no_pmtu_disc` is not 0",
-			Fix:      "show config running",
+			Fix:      fixShowConfigRunning,
 		}}
 	}
 	// refuse-by-default: guards ipsec.ParseIPsecConfig -- it answers a nil tree with EmptyConfig, which holds no peer for this check to report, and the runner reports a missing config before this phase

@@ -562,10 +562,11 @@ func runTamperedPeerResponse(t *testing.T, serverCfg MethodConfig, peer *PeerSes
 func TestRFC3748TheServerValidatesThePeersMIC(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peerCfg := &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	}
 
 	// RFC requirement: RFC3748-7.5-1 positive -- RFC 3748 Section 7.5: "If a
@@ -611,10 +612,11 @@ func TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo(t *testing.T) {
 	// the authenticator refuses a wrong NT-Response, and the peer refuses a wrong
 	// Authenticator Response.
 	rogue := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-		CertPEM:   pki.untrustedClientCertPEM,
-		KeyPEM:    pki.untrustedClientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.untrustedClientCertPEM,
+		KeyPEM:         pki.untrustedClientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	res := runEAPTLSHandshake(t, pki.serverConfig(), rogue)
 	if res.serverEAPSuccess {

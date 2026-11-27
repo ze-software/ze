@@ -77,6 +77,10 @@ func ocspWiringSA(statusRequest bool) *SA {
 		Certificate:              "ocsp-cert",
 		CACertificate:            "ocsp-ca",
 		CertificateStatusRequest: statusRequest,
+		Additions: &ipsec.AuthAdditions{
+			AllowedIdentities: []string{"client.example.com"},
+			ServerIdentity:    "server.example.com",
+		},
 	}}, Resumption: eap.NewResumption(time.Now, true)}
 }
 

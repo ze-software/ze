@@ -42,10 +42,11 @@ func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, 
 
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	sess, err := NewSession(TypeTLS, pki.serverConfig())

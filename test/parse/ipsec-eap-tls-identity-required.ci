@@ -1,0 +1,410 @@
+# Functional test: `ze config validate` enforces the RFC 5216 Section 5.3
+# fail-closed identity policy for site-to-site eap-tls peers.
+# Spec: spec-eap-tls-identity-authorization, AC-4, User Story 4.
+#
+# ONE QUESTION: Does `ze config validate` wire the YANG schema leaves
+# (allowed-identities and server-identity) through InProcessConfigVerifier into
+# ValidateEAPTLSIdentities, refusing missing, wrong-role, wrong-mode, and
+# malformed constraints with opererr fixes while accepting every valid form?
+# Unit tests call ValidateEAPTLSIdentities directly on Go structs; this test
+# proves the real CLI binary parses the YANG leaves and runs the verifier.
+
+# ── 1. Respond eap-tls peer without allowed-identities -> refused ──
+stdin=respond-missing:terminator=EOF_RESPOND_MISSING
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+		}
+	}
+}
+EOF_RESPOND_MISSING
+
+# ── 2. Initiate eap-tls peer targeting an IP without server-identity -> refused ──
+stdin=initiate-ip-missing:terminator=EOF_INITIATE_IP_MISSING
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer hq-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 198.51.100.1
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+		}
+	}
+}
+EOF_INITIATE_IP_MISSING
+
+# ── 3. Wrong-role: respond peer with server-identity -> refused ──
+stdin=respond-server-id:terminator=EOF_RESPOND_SERVER_ID
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					allowed-identities "alice@example.com"
+					server-identity "vpn.example.com"
+				}
+			}
+		}
+	}
+}
+EOF_RESPOND_SERVER_ID
+
+# ── 4. Wrong-role: initiate peer with allowed-identities -> refused ──
+stdin=initiate-allowed:terminator=EOF_INITIATE_ALLOWED
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer hq-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address vpn.example.com
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					allowed-identities "alice@example.com"
+				}
+			}
+		}
+	}
+}
+EOF_INITIATE_ALLOWED
+
+# ── 5. Wrong-mode: pre-shared-secret peer with allowed-identities -> refused ──
+stdin=wrong-mode-allowed:terminator=EOF_WRONG_MODE_ALLOWED
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer psk-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+					allowed-identities "alice@example.com"
+				}
+			}
+		}
+	}
+}
+EOF_WRONG_MODE_ALLOWED
+
+# ── 6. Wrong-mode: pre-shared-secret peer with server-identity -> refused ──
+stdin=wrong-mode-server:terminator=EOF_WRONG_MODE_SERVER
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer psk-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+					server-identity "vpn.example.com"
+				}
+			}
+		}
+	}
+}
+EOF_WRONG_MODE_SERVER
+
+# ── 7. Malformed allowed-identities (*.com) -> refused ──
+stdin=malformed-wildcard:terminator=EOF_MALFORMED_WILDCARD
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					allowed-identities "*.com"
+				}
+			}
+		}
+	}
+}
+EOF_MALFORMED_WILDCARD
+
+# ── 8. Mixing "*" with specific entry -> refused ──
+stdin=mixed-wildcard:terminator=EOF_MIXED_WILDCARD
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					allowed-identities "*"
+					allowed-identities "alice@example.com"
+				}
+			}
+		}
+	}
+}
+EOF_MIXED_WILDCARD
+
+# ── 9. Malformed server-identity (*.example.com) -> refused ──
+stdin=malformed-server-id:terminator=EOF_MALFORMED_SERVER_ID
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer hq-1 {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 198.51.100.1
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					server-identity "*.example.com"
+				}
+			}
+		}
+	}
+}
+EOF_MALFORMED_SERVER_ID
+
+# ── 10. Valid configs: exact/wildcard/realm/IP/URI, lone *, explicit server-identity, FQDN remote-address ──
+stdin=valid-all:terminator=EOF_VALID_ALL
+pki {
+	ca vpn-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate server1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+vpn {
+	ipsec {
+		ike-group IKE-A { proposal 1 { encryption aes256gcm; hash sha256; dh-group 14; } }
+		esp-group ESP-A { proposal 1 { encryption aes256gcm; } }
+		site-to-site {
+			peer respond-multi {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 198.51.100.10
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					allowed-identities "gw1.example.com"
+					allowed-identities "*.branch.example.com"
+					allowed-identities "alice@example.com"
+					allowed-identities "@corp.example.com"
+					allowed-identities "192.0.2.10"
+					allowed-identities "spiffe://corp.example/node/1"
+				}
+			}
+			peer respond-any {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 198.51.100.11
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					allowed-identities "*"
+				}
+			}
+			peer initiate-explicit {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 198.51.100.12
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+					server-identity "vpn.example.com"
+				}
+			}
+			peer initiate-fqdn {
+				ike-group IKE-A
+				esp-group ESP-A
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address vpn.example.com
+				authentication {
+					mode eap-tls
+					ca-certificate vpn-ca
+					certificate server1
+				}
+			}
+		}
+	}
+}
+EOF_VALID_ALL
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=respond-missing
+expect=exit:code=1
+expect=stdout:contains=has no allowed-identities
+expect=stdout:contains=set vpn ipsec site-to-site peer branch-1 authentication allowed-identities <identity>
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=initiate-ip-missing
+expect=exit:code=1
+expect=stdout:contains=has no server-identity or unambiguous FQDN remote-address
+expect=stdout:contains=set vpn ipsec site-to-site peer hq-1 authentication server-identity <hostname-or-ip>
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=respond-server-id
+expect=exit:code=1
+expect=stdout:contains=sets authentication server-identity with connection-type respond
+expect=stdout:contains=delete vpn ipsec site-to-site peer branch-1 authentication server-identity
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=initiate-allowed
+expect=exit:code=1
+expect=stdout:contains=sets authentication allowed-identities with connection-type initiate
+expect=stdout:contains=delete vpn ipsec site-to-site peer hq-1 authentication allowed-identities
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=wrong-mode-allowed
+expect=exit:code=1
+expect=stdout:contains=sets authentication allowed-identities in pre-shared-secret mode
+expect=stdout:contains=delete vpn ipsec site-to-site peer psk-1 authentication allowed-identities
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=wrong-mode-server
+expect=exit:code=1
+expect=stdout:contains=sets authentication server-identity in pre-shared-secret mode
+expect=stdout:contains=delete vpn ipsec site-to-site peer psk-1 authentication server-identity
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=malformed-wildcard
+expect=exit:code=1
+expect=stdout:contains=has invalid authentication allowed-identities entry
+expect=stdout:contains=at least two valid DNS labels
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=mixed-wildcard
+expect=exit:code=1
+expect=stdout:contains=mixes wildcard
+expect=stdout:contains=delete vpn ipsec site-to-site peer branch-1 authentication allowed-identities
+
+cmd=foreground:seq=9:exec=ze config validate -:stdin=malformed-server-id
+expect=exit:code=1
+expect=stdout:contains=has invalid authentication server-identity
+expect=stdout:contains=must not contain wildcards
+
+cmd=foreground:seq=10:exec=ze config validate -:stdin=valid-all
+expect=exit:code=0
+expect=stdout:contains=configuration valid

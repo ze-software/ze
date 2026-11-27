@@ -36,11 +36,11 @@
     "rid": "RFC5216-2.1.3-4",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate",
-    "unit-sha": "0f7a6ddcfa53ebab",
+    "unit-sha": "471a780713cf3627",
     "claim-sha": "a2d32a310c2ac8ef",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::Process",
     "producer-sha": "a7122cb1288ea14a",
-    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

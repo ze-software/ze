@@ -224,11 +224,12 @@ func driveAttackExchange(t *testing.T, pki *eapTLSPKI, maxTLSVersion uint16) *at
 // given, and a test that drives the peer itself closes it in a cleanup.
 func newAttackPeer(pki *eapTLSPKI) *PeerSession {
 	return NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:    pki.clientCertPEM,
-		KeyPEM:     pki.clientKeyPEM,
-		CACertPEM:  pki.trustedCAPEM,
-		CRLPEM:     pki.trustedCRLPEM,
-		Resumption: NewResumption(time.Now, true),
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		Resumption:     NewResumption(time.Now, true),
+		ServerIdentity: "eap-tls-server",
 	})
 }
 

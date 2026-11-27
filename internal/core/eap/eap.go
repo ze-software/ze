@@ -378,6 +378,11 @@ type MethodConfig struct {
 	// THIS certificate, and it checks that at config load where the message can
 	// name the config (parseDeviceCert, internal/component/pki/config.go).
 	OCSPStaple []byte
+
+	// AllowedIdentities holds the client certificate identities authorized to
+	// authenticate over EAP-TLS (RFC 5216 Section 5.3). Each entry is parsed by
+	// ParseAllowedIdentity.
+	AllowedIdentities []string
 }
 
 // Begin returns the initial EAP-Request/Identity packet.
@@ -501,6 +506,50 @@ func (s *Session) Err() error { return s.err }
 // for the rest without naming them.
 type resumingMethod interface {
 	resumed() bool
+}
+
+// peerIdentityMethod is implemented by an EAP method that authenticates a
+// certificate-backed peer identity (RFC 5216 Section 5.2). EAP-TLS is the only
+// one, so Session.PeerID and Session.PeerIDs answer for other methods without
+// naming them.
+type peerIdentityMethod interface {
+	peerID() string
+	peerIDs() []string
+}
+
+// PeerID returns the primary verified certificate identity of the authenticated
+// EAP-TLS peer (RFC 5216 Section 5.2), or empty when the method has none.
+func (s *Session) PeerID() string {
+	if s == nil {
+		return ""
+	}
+	if s.method == nil {
+		return ""
+	}
+	m, ok := s.method.(peerIdentityMethod)
+	// refuse-by-default: guards NewSession -- only TypeTLS implements peerIdentityMethod; password methods have no certificate identity
+	if !ok {
+		return ""
+	}
+	return m.peerID()
+}
+
+// PeerIDs returns all verified certificate identities of the authenticated
+// EAP-TLS peer in certificate wire order (RFC 5216 Section 5.2), or nil when
+// the method has none.
+func (s *Session) PeerIDs() []string {
+	if s == nil {
+		return nil
+	}
+	if s.method == nil {
+		return nil
+	}
+	m, ok := s.method.(peerIdentityMethod)
+	// refuse-by-default: guards NewSession -- only TypeTLS implements peerIdentityMethod; password methods have no certificate identity
+	if !ok {
+		return nil
+	}
+	return m.peerIDs()
 }
 
 // Resumed reports whether this exchange resumed a previous one rather than

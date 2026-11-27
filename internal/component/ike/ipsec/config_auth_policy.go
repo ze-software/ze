@@ -149,3 +149,30 @@ func parseCertificatePolicy(peerName string, t *config.Tree, auth *AuthConfig) e
 	}
 	return nil
 }
+
+// parseEAPTLSIdentityPolicy reads the EAP-TLS certificate identity leaves:
+// allowed-identities and server-identity.
+//
+// Read in every mode so ValidateEAPTLSIdentities can refuse either leaf on a
+// non-eap-tls peer or on the wrong connection-type, rather than silently
+// ignoring a leaf the operator configured. AuthConfig.Additions stays nil when
+// both leaves and every other addition are absent.
+func parseEAPTLSIdentityPolicy(t *config.Tree, auth *AuthConfig) {
+	allowed := t.GetSlice("allowed-identities")
+	serverID, hasServerID := t.Get("server-identity")
+	if !hasServerID {
+		serverID = ""
+	}
+	if len(allowed) == 0 && serverID == "" {
+		return
+	}
+	if auth.Additions == nil {
+		auth.Additions = &AuthAdditions{}
+	}
+	if len(allowed) > 0 {
+		auth.Additions.AllowedIdentities = allowed
+	}
+	if serverID != "" {
+		auth.Additions.ServerIdentity = serverID
+	}
+}

@@ -2,8 +2,8 @@
   "note": "Forbidden: octets past the Length field read as packet data. TestRFC5216PaddingPastTheLengthIsIgnored decodes a packet with seven padding octets shaped like flags and a TLS record header and errors if TypeData differs from the unpadded TypeData, if its length exceeds Length less 5, or if the padding bytes appear inside TypeData; the unpadded decode is the positive.",
   "requirement_sha": "2bce7f43dc354485",
   "tests": {
-    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored": "50ee52d235cf2a36",
-    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored#2": "50ee52d235cf2a36"
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored": "3f5deedba1e8e601",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored#2": "3f5deedba1e8e601"
   },
   "units": {
     "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored": "8d74fd98b1b2268d",

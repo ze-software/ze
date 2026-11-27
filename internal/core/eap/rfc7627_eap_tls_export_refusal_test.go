@@ -166,7 +166,7 @@ func TestEAPTLSExportRefusalNamesTheCause(t *testing.T) {
 	for _, want := range []string{
 		"eap-tls",                          // the subsystem, so the operator knows who is speaking
 		"RFC 5216 Section 2.3",             // what ze was trying to derive
-		"CN=eap-tls-server",                // the peer
+		"peer eap-tls-server",              // the peer identity (RFC 5216 Section 5.2 primary ID)
 		"TLS 1.2",                          // the negotiated version
 		"RFC 7627",                         // the missing property
 		"extended master secret",           // in words, for an operator who does not know the number
@@ -243,10 +243,11 @@ func TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret(t *testing.T) {
 func TestEAPTLSAuthenticatorKeepsItsRefusalReason(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-		CertPEM:   pki.untrustedClientCertPEM,
-		KeyPEM:    pki.untrustedClientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.untrustedClientCertPEM,
+		KeyPEM:         pki.untrustedClientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)

@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: the server answering the peer's alert with anything but EAP-Failure, or later than the next packet. TestRFC5216ServerRepliesEAPFailureToPeerAlert fatals if no Failure is sent, errors on any Success, and errors unless failureAt == alertAt+1. Negative: TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate errors if a mutually authenticated conversation draws any Failure.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 2.1.3 (rfc/full/rfc5216.txt): \"The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition.\" TestRFC5216ServerRepliesEAPFailureToPeerAlert and TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate only added AllowedIdentities=[\"eap-tls-client\"] and ServerIdentity=\"eap-tls-server\". The positive still triggers peer-side chain verification failure (asserting \"verification failed\" in peerErr), sends a fatal TLS alert, and requires failureAt == alertAt+1 with no EAP-Success; the negative still completes mutual auth with EAP-Success and no EAP-Failure. Verdict stands: enforced.",
   "requirement_sha": "82aa7318bed7b2aa",
   "tests": {
-    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2d2ff094ce07cd34",
-    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "2d2ff094ce07cd34"
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "3f75fc857a41022c",
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3f75fc857a41022c"
   },
   "units": {
-    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2dd0fc2cca5c3428",
-    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3451722f3567d342"
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "817d033fa5fde77c",
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "1d1d4594725f8d3b"
   },
   "verdict": "enforced"
 }

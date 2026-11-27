@@ -11,12 +11,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // pemBlockCertificate is the PEM block type of an X.509 certificate
@@ -151,6 +154,24 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 			sa.PeerName)
 	}
 	cfg.Resumption = sa.Resumption
+	// RFC 5216 Section 5.3: "Once a TLS session is established, EAP-TLS peer and
+	// server implementations MUST validate that the identities represented in the
+	// certificate are appropriate and authorized for use with EAP-TLS."
+	// Config validation (ipsec.ValidateEAPTLSIdentities) refuses an empty list at
+	// commit, validate, and reload; this check is the runtime fail-closed backstop
+	// for a daemon started from an unvalidated config file.
+	allowed := sa.PeerCfg.Auth.AllowedIdentities()
+	if len(allowed) == 0 {
+		var problem, fix textbuf.Buffer
+		problem.Str("ike: EAP-TLS peer ").Quoted(sa.PeerName).Str(" has no allowed-identities configured")
+		fix.Str("set vpn ipsec site-to-site peer ").Str(sa.PeerName).Str(" authentication allowed-identities <identity>")
+		return eap.MethodConfig{}, opererr.New(
+			problem.String(),
+			"RFC 5216 Section 5.3 requires an EAP-TLS authenticator to authorize client certificate identities rather than accepting any certificate signed by ca-certificate",
+			fix.String(),
+		)
+	}
+	cfg.AllowedIdentities = slices.Clone(allowed)
 	return cfg, nil
 }
 
@@ -390,13 +411,13 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 	if next == nil {
 		if sess.Succeeded() {
 			sa.EAPMSK = sess.MSK()
-			recordEAPTLSAuthentication(sa, sess.Resumed(), log)
+			recordEAPTLSAuthentication(sa, sess.Resumed(), sess.PeerID(), log)
 		}
 		return
 	}
 	if next.Code == eap.CodeSuccess {
 		sa.EAPMSK = sess.MSK()
-		recordEAPTLSAuthentication(sa, sess.Resumed(), log)
+		recordEAPTLSAuthentication(sa, sess.Resumed(), sess.PeerID(), log)
 	}
 	ps.sendResponderEAP(sa, msg.Header.MessageID, next, tr, remote, log)
 

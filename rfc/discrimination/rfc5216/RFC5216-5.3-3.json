@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-5.3-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_identity_test.go::TestRFC5216ServerIdentityRFC2818Rules",
+    "unit-sha": "53edae9288faf2b4",
+    "claim-sha": "b06303c864a4af1a",
+    "route": "revert",
+    "producer": "internal/core/eap/identity.go::verifyServerCertificate",
+    "producer-sha": "60a145cdfaf15183",
+    "break": "body of verifyServerCertificate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-5.3-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_identity_test.go::TestRFC5216ServerIdentityRFC2818Rules",
+    "unit-sha": "53edae9288faf2b4",
+    "claim-sha": "2fff35c6a170578e",
+    "route": "revert",
+    "producer": "internal/core/eap/identity.go::verifyServerCertificate",
+    "producer-sha": "60a145cdfaf15183",
+    "break": "body of verifyServerCertificate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

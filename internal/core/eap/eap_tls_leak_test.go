@@ -96,10 +96,11 @@ func startAbandonedPeer(t *testing.T, pki *eapTLSPKI) *PeerSession {
 	t.Helper()
 
 	peer := NewPeerSessionTLS("leak-test-user", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	identity := peer.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: TypeIdentity})
@@ -235,10 +236,11 @@ func TestEAPTLSCloseIsSafeOnEveryShape(t *testing.T) {
 func TestEAPTLSCloseAfterCompletedHandshakeIsHarmless(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("leak-test-user", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)

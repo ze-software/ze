@@ -35,6 +35,7 @@ const (
 	codeDoctorIPsecXFRMUnavailable       = "doctor-ipsec-xfrm-unavailable"
 	codeDoctorIPsecXFRMUnknown           = "doctor-ipsec-xfrm-unknown"
 	codeDoctorIPsecMOBIKESocketNotShared = "doctor-ipsec-mobike-socket-not-shared"
+	codeDoctorIPsecEAPTLSIdentity        = "doctor-ipsec-eap-tls-identity"
 	exampleDoctorJSON                    = "ze doctor --json"
 )
 
@@ -423,6 +424,18 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"runs under ze.service, otherwise the steps for a ze started another way.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-mobike-socket-not-shared"},
 		RelatedCodes: []string{"doctor-ipsec-mobike-unavailable"},
+	},
+	{
+		Code:  codeDoctorIPsecEAPTLSIdentity,
+		Title: "IPsec EAP-TLS peer has no certificate identity constraint",
+		Description: "A site-to-site peer using mode eap-tls has no certificate identity constraint " +
+			"(allowed-identities on a respond peer, or server-identity / an unambiguous FQDN " +
+			"remote-address on an initiate peer). RFC 5216 Section 5.3 requires both EAP-TLS roles " +
+			"to authorize certificate identities rather than accepting any certificate signed by " +
+			"ca-certificate. Validation, commit, and reload refuse this configuration fail-closed, " +
+			"and a daemon started from an unvalidated file refuses the handshake until an identity " +
+			"constraint is configured.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-eap-tls-identity"},
 	},
 }
 

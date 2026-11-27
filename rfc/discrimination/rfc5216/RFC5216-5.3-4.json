@@ -3,33 +3,33 @@
     "rid": "RFC5216-5.3-4",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
-    "unit-sha": "10fb5e08a4e1addf",
+    "unit-sha": "2da92a0dd05e0782",
     "claim-sha": "03b9e9414307eb82",
     "route": "revert",
     "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
     "producer-sha": "21a7756cc3463e46",
-    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5216-5.3-4",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain",
-    "unit-sha": "b903caa417528ded",
+    "unit-sha": "9e3b21450c05d8ee",
     "claim-sha": "2104fc29941083e1",
     "route": "revert",
     "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
     "producer-sha": "21a7756cc3463e46",
-    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5216-5.3-4",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart",
-    "unit-sha": "774abc7444873796",
+    "unit-sha": "d0467d92eade477c",
     "claim-sha": "ac8b6d4328089f53",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::startTLSClient",
-    "producer-sha": "12b766abcc807753",
+    "producer-sha": "0402f4e6b3db617d",
     "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -91,6 +91,9 @@ func eapTLSResponderSA(certName, caName string) *SA {
 	sa.PeerCfg.Auth.Mode = ipsec.AuthEAPTLS
 	sa.PeerCfg.Auth.Certificate = certName
 	sa.PeerCfg.Auth.CACertificate = caName
+	sa.PeerCfg.Auth.Additions = &ipsec.AuthAdditions{
+		AllowedIdentities: []string{"client.example.com"},
+	}
 	// Every production SA carries the peering's resumption store, so a test SA
 	// that omitted it would exercise eapTLSServerConfig's refusal rather than
 	// the path this helper is about.

@@ -1,9 +1,9 @@
 {
   "code": {
     "internal/core/eap/client_chain.go::verify": "55efe4f2325e5b5b",
-    "internal/core/eap/eap_tls.go::newTLSMethod": "1155889dcdec7001"
+    "internal/core/eap/eap_tls.go::newTLSMethod": "fe904fa8959af77f"
   },
-  "note": "Re-judged 2026-11-10 independently of the producer authors. RFC 5216 Section 5.3 requires support for retrieving intermediate certificates and then explicitly names pre-configuration or peer-provided intermediates as fallbacks for a server unable to retrieve them. clientChainVerifier.verify constructs Intermediates from configured and peer-sent certificates and calls x509.Certificate.Verify. newTLSMethod installs that verifier when configured intermediates exist, otherwise uses crypto/tls path validation; its remaining callbacks control revocation and TLS session tickets, not AIA retrieval. Neither boundary fetches caIssuers. The gap annotation accurately distinguishes the implemented fallback from absent retrieval; retain unimplemented, not enforced.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 5.3 (rfc/full/rfc5216.txt). eap_tls.go::newTLSMethod changed only to validate AllowedIdentities and invoke m.authorizeClient inside both VerifyConnection callbacks; client_chain.go::verify is unchanged. Neither boundary performs AIA caIssuers retrieval over the network; Ze still implements only the Section 5.3 pre-configured intermediate fallback. Gap annotation remains accurate; retain unimplemented.",
   "requirement_sha": "e6898f11ea820b2c",
   "verdict": "unimplemented"
 }

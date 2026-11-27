@@ -176,6 +176,9 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateIntermediateRefs(candidate.caCert); err != nil {
 		return err
 	}
+	if err := cfg.ValidateEAPTLSIdentities(); err != nil {
+		return err
+	}
 	if err := cfg.ValidateIdentities(); err != nil {
 		return err
 	}

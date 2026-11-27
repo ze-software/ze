@@ -1,14 +1,14 @@
 {
   "code": {
     "internal/component/ike/engine/eap_auth.go::eapMessageDiscarded": "851520037939ddc8",
-    "internal/component/ike/engine/fsm.go::handleEAPResponse": "1fbb8ecd5a6ac8e9",
+    "internal/component/ike/engine/fsm.go::handleEAPResponse": "9e1960e945c99ee1",
     "internal/component/ike/engine/protected_input.go::openProtected": "5d44134a06a0ab2c",
     "internal/component/ike/engine/responder.go::handleResponderInbound": "f12e37a94e89e877",
-    "internal/component/ike/engine/responder_eap.go::handleResponderEAP": "24a215b2e93075ac",
+    "internal/component/ike/engine/responder_eap.go::handleResponderEAP": "f522c78b1f2cf413",
     "internal/core/eap/eap.go::Process": "481750de5c1bf481",
     "internal/core/eap/peer.go::Process": "ee07131482ea0948"
   },
-  "note": "Re-judged 2026-11-20 by an independent agent after 11f6e1a3fe changed protected_input.go::openProtected. RFC 3748 Section 4: \"Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.\" openProtected gained two refusals: a message whose last payload is not the Encrypted payload is dropped as unauthenticated before decryption, and an authenticated chain holding a nested Encrypted payload is answered as an errInnerChain error wrapping errNestedSK. Neither reaches the EAP Code check: a well-formed sealed EAP payload with Code 0, 5 or 255 still opens cleanly and reaches the peer's or authenticator's Process, which discards it with no state, Message ID, retransmit or send change, and eapMessageDiscarded still matches only ErrEAPLengthExceedsData. The tagged units are unchanged and still seal their injected Codes with the production builder under the live keys, so they pass openProtected and exercise the RFC 3748 arm. Verdict stands.",
+  "note": "Re-judged 2026-11-27 independently against RFC 3748 Section 4 (rfc/full/rfc3748.txt): \"Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.\" Only fsm.go::handleEAPResponse and responder_eap.go::handleResponderEAP changed among the 7 cited producers, passing ps.ServerID() / sess.PeerID() to recordEAPTLSAuthentication inside their already-authenticated success branches. openProtected, eapMessageDiscarded, eap.go::Process, peer.go::Process, and the silent-discard paths for undefined Codes 0/5/255 are untouched, and all 6 tagged test entries are byte-identical. Verdict stands: enforced.",
   "requirement_sha": "b79c6b2da2e91564",
   "tests": {
     "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange": "9f3f8ce8f5d7aa2d",

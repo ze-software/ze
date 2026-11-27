@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: the peer terminating on the round it discovers the failure, before the server replies. TestRFC5216PeerRepliesBeforeItTerminates fatals if that round returns Err or no Response, errors if the Response is a bare ACK rather than the alert, and requires the error only from the round that processes the server's EAP-Failure. Negative: TestRFC5216PeerDoesNotWaitWhenItSentNothing errors if a peer that sent nothing parks its error or sends a Response.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 2.1.3 (rfc/full/rfc5216.txt): \"To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation.\" TestRFC5216PeerRepliesBeforeItTerminates only added AllowedIdentities=[\"eap-tls-client\"] and ServerIdentity=\"eap-tls-server\"; it still asserts the rejecting round returns the alert Response with nil Err and parked pendingErr, receives CodeFailure from the server, and only then reports the chain verification error. TestRFC5216PeerDoesNotWaitWhenItSentNothing is unchanged and still fails immediately with errNoPeerTrustAnchor (which precedes the ServerIdentity check) and nil pendingErr. Verdict stands: enforced.",
   "requirement_sha": "3f3c974797907d9d",
   "tests": {
-    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "38aaea74d3fe410a",
-    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "38aaea74d3fe410a"
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "86b86a22d3990eea",
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "86b86a22d3990eea"
   },
   "units": {
     "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "50d4c5aaa786527e",
-    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "424072c276ebeaca"
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "2526a49a2e14b10b"
   },
   "verdict": "enforced"
 }

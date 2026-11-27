@@ -113,10 +113,11 @@ func driveEAPTLSPeerWithoutIndication(t *testing.T, cfg MethodConfig, peer *Peer
 func TestEAPTLS13RequiresProtectedSuccessIndication(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := driveEAPTLSPeerWithoutIndication(t, pki.serverConfig(), peer)
@@ -154,10 +155,11 @@ func TestEAPTLS13RequiresProtectedSuccessIndication(t *testing.T) {
 func TestEAPTLS13PeerCompletesWithTheIndication(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
@@ -179,10 +181,11 @@ func TestEAPTLS13PeerCompletesWithTheIndication(t *testing.T) {
 func TestEAPTLS12PeerCompletesWithNoIndication(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, eapTLS13Rounds)
@@ -209,10 +212,11 @@ func TestEAPTLS12PeerCompletesWithNoIndication(t *testing.T) {
 func TestEAPTLS13PeerRefusesTheWrongIndicationPayload(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
 	requireCompleted(t, fl, "the conformant exchange this test then re-judges")
@@ -289,10 +293,11 @@ func TestEAPTLSPeerAccumulatesTheApplicationDataItReads(t *testing.T) {
 func TestEAPTLS13PeerTellsAnUnreadableIndicationFromAnAbsentOne(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
 	requireCompleted(t, fl, "the conformant exchange this test then re-judges")

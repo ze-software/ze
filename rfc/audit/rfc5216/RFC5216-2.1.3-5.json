@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: the packet before EAP-Success is not an EAP-TLS Request carrying change_cipher_spec then the Finished handshake record, or a rejected peer receives that flight. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess fatals on a non-Request/non-TLS packet or a bare ACK there, errors unless record types are [change_cipher_spec, handshake], and requires equal non-zero MSKs. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any change_cipher_spec record sent to a rejected peer.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 2.1.3 (rfc/full/rfc5216.txt). TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess and TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected only added ServerIdentity=\"eap-tls-server\". Positive still asserts the EAP-TLS Request directly before EAP-Success carries [change_cipher_spec, handshake] records and yields matching non-zero MSKs; negative still asserts no change_cipher_spec record and no EAP-Success when the peer certificate is rejected. Verdict stands: enforced.",
   "requirement_sha": "9697324aefd997fd",
   "tests": {
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "60bd713e09c87b21",
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "2832445c60def645",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "2832445c60def645"
   },
   "units": {
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "174ae2e4b4954f1b",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "7c70d02085ac2938"
   },
   "verdict": "enforced"
 }

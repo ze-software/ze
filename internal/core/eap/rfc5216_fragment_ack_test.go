@@ -68,21 +68,23 @@ func newFragmentingPKI(t *testing.T) (MethodConfig, *PeerSession) {
 	t.Helper()
 	pki := newEAPTLSPKI(t)
 	long := strings.Repeat("x", 2*eapTLSFragmentSize)
-	serverCert, serverKey := newLeaf(t, pki.trustedCA, pki.trustedCAKey, "server-"+long, 701, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth})
-	clientCert, clientKey := newLeaf(t, pki.trustedCA, pki.trustedCAKey, "client-"+long, 702, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth})
+	serverCert, serverKey := newLeafWithSAN(t, pki.trustedCA, pki.trustedCAKey, "server-"+long, 701, []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, []string{"eap-tls-server"})
+	clientCert, clientKey := newLeafWithSAN(t, pki.trustedCA, pki.trustedCAKey, "client-"+long, 702, []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}, []string{"eap-tls-client"})
 
 	cfg := MethodConfig{
-		ServerCertPEM: serverCert,
-		ServerKeyPEM:  serverKey,
-		CACertPEM:     pki.trustedCAPEM,
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     serverCert,
+		ServerKeyPEM:      serverKey,
+		CACertPEM:         pki.trustedCAPEM,
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   clientCert,
-		KeyPEM:    clientKey,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        clientCert,
+		KeyPEM:         clientKey,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	return cfg, peer
 }

@@ -68,10 +68,11 @@ func newLeafOnlyChainWith(t *testing.T, eku []x509.ExtKeyUsage, revokedBySub ...
 		leafPEM:         leafPEM,
 		crlPEM:          crls,
 		peer: NewPeerSessionTLS("eap-tls-leaf-only-client", &PeerTLSConfig{
-			CertPEM:   leafPEM,
-			KeyPEM:    leafKeyPEM,
-			CACertPEM: pki.trustedCAPEM,
-			CRLPEM:    pki.trustedCRLPEM,
+			CertPEM:        leafPEM,
+			KeyPEM:         leafKeyPEM,
+			CACertPEM:      pki.trustedCAPEM,
+			CRLPEM:         pki.trustedCRLPEM,
+			ServerIdentity: "eap-tls-server",
 		}),
 	}
 }
@@ -80,6 +81,7 @@ func (c *leafOnlyChain) serverConfig(intermediatePEM []byte) MethodConfig {
 	cfg := c.pki.serverConfig()
 	cfg.CRLPEM = c.crlPEM
 	cfg.IntermediateCertPEM = intermediatePEM
+	cfg.AllowedIdentities = []string{"eap-tls-leaf-only-client"}
 	return cfg
 }
 

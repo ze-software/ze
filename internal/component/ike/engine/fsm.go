@@ -1310,7 +1310,7 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	if result.Done {
 		// RFC 7296 Section 2.16: EAP succeeded, send AUTH derived from MSK.
 		sa.EAPMSK = result.MSK
-		recordEAPTLSAuthentication(sa, ps.Resumed(), log)
+		recordEAPTLSAuthentication(sa, ps.Resumed(), ps.ServerID(), log)
 		sa.advanceMsgID()
 		authMsg, err := buildEAPAuthMessage(sa)
 		if err != nil {
@@ -1483,6 +1483,21 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 		return nil
 	}
 	cfg.Resumption = sa.Resumption
+	// RFC 5216 Section 5.3 / RFC 2818 Section 3.1: an EAP-TLS peer MUST verify
+	// the server certificate identity against the configured server-identity or
+	// an unambiguous multi-label FQDN remote-address. Config validation refuses
+	// an unconstrained peer at commit, validate, and reload; this check is the
+	// runtime fail-closed backstop for a daemon started from an unvalidated file.
+	serverID := sa.PeerCfg.EffectiveEAPTLSServerIdentity()
+	if serverID == "" {
+		log.Warn("ike: EAP-TLS peer has no server-identity or unambiguous FQDN remote-address; refusing handshake (RFC 5216 Section 5.3)",
+			"peer", sa.PeerName,
+			"code", codeDoctorIPsecEAPTLSIdentity,
+			"fix", "set vpn ipsec site-to-site peer "+sa.PeerName+" authentication server-identity <hostname-or-ip>",
+		)
+		return nil
+	}
+	cfg.ServerIdentity = serverID
 
 	return cfg
 }

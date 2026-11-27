@@ -168,10 +168,11 @@ func driveRejectedEAPTLS13(t *testing.T, cfg MethodConfig, peer *PeerSession) (*
 func TestEAPTLS13SendsProtectedSuccessIndication(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, eapTLS13Rounds)
@@ -264,10 +265,11 @@ func TestEAPTLS13SendsProtectedSuccessIndication(t *testing.T) {
 func TestEAPTLS13RefusedClientGetsNoSuccessIndication(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-		CertPEM:   pki.untrustedClientCertPEM,
-		KeyPEM:    pki.untrustedClientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.untrustedClientCertPEM,
+		KeyPEM:         pki.untrustedClientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	method, refusal := driveRejectedEAPTLS13(t, pki.serverConfig(), peer)
@@ -299,10 +301,11 @@ func TestEAPTLS13RefusedClientGetsNoSuccessIndication(t *testing.T) {
 func TestEAPTLS12SendsNoProtectedSuccessIndication(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, eapTLS13Rounds)

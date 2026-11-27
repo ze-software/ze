@@ -1,13 +1,13 @@
 {
-  "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server path-validation SHOULD. Positive: a valid peer chain is path-validated and accepted (TestEAPTLSMutualAuthHandshakeSucceeds). Negative no longer confounded: since D-8 the peer sends its untrusted certificate, and TestEAPTLSServerRejectsUntrustedClientChain asserts the authenticator's refusal is a tls.CertificateVerificationError wrapping x509.UnknownAuthorityError whose UnverifiedCertificates[0] is the configured untrusted leaf, besides no EAP-Success and an incomplete handshake; it is distinct from the certless refusal of 2.1.1-1, which asserts NOT a verification error. Records observed red on newTLSMethod for both polarities.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 5.3 (rfc/full/rfc5216.txt). TestEAPTLSMutualAuthHandshakeSucceeds and TestEAPTLSServerRejectsUntrustedClientChain only added ServerIdentity=\"eap-tls-server\" (and serverConfig added AllowedIdentities=[\"eap-tls-client\"]). Positive completes valid client path validation; negative still explicitly asserts *tls.CertificateVerificationError wrapping x509.UnknownAuthorityError over the peer's untrusted client leaf, which fires in crypto/tls before VerifyConnection/authorizeClient and is therefore completely unconfounded by identity authorization. Verdict stands: enforced.",
   "requirement_sha": "aad42ad6fc241725",
   "tests": {
-    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
-    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "24154b07f453f130"
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "477aa6acf906ffa7",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "477aa6acf906ffa7"
   },
   "units": {
-    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
-    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "cd0a07850a01a5cc"
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "cd91136eb05b5cd0",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "bc2222400092de5c"
   },
   "verdict": "enforced"
 }

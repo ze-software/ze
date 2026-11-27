@@ -384,10 +384,11 @@ func TestEAPTLS13FatalErrorSendsATLSAlert(t *testing.T) {
 
 	t.Run("authenticator refuses the client", func(t *testing.T) {
 		peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-			CertPEM:   pki.untrustedClientCertPEM,
-			KeyPEM:    pki.untrustedClientKeyPEM,
-			CACertPEM: pki.trustedCAPEM,
-			CRLPEM:    pki.trustedCRLPEM,
+			CertPEM:        pki.untrustedClientCertPEM,
+			KeyPEM:         pki.untrustedClientKeyPEM,
+			CACertPEM:      pki.trustedCAPEM,
+			CRLPEM:         pki.trustedCRLPEM,
+			ServerIdentity: "eap-tls-server",
 		})
 		_, refusal := driveRejectedEAPTLS13(t, pki.serverConfig(), peer)
 		if refusal.FinalRequest == nil || refusal.FinalRequest.Type != TypeTLS {

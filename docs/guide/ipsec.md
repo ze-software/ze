@@ -572,11 +572,15 @@ pki {
     ca corp-root { certificate "<pem>"; crl "<pem>"; }
     ca corp-sub  { certificate "<pem>"; crl "<pem>"; }
 }
-vpn ipsec site-to-site peer branch authentication {
-    mode eap-tls
-    certificate ze-server
-    ca-certificate corp-root
-    intermediate-certificate corp-sub
+vpn ipsec site-to-site peer branch {
+    connection-type respond
+    authentication {
+        mode eap-tls
+        certificate ze-server
+        ca-certificate corp-root
+        intermediate-certificate corp-sub
+        allowed-identities "*.branch.example.com"
+    }
 }
 ```
 
@@ -758,12 +762,67 @@ Use `certificate-url-allow` to permit a destination the deny list refuses. Run
 <!-- source: internal/component/ike/engine/certbundle.go -- encodeCertBundle, decodeCertBundle -->
 <!-- source: internal/component/ike/engine/doctor_certurl.go -- checkIPsecCertURL -->
 
-The EAP peer validates the authenticator's certificate chain against that trust
-anchor. EAP-TLS has no server hostname, so the check validates the chain without
-DNS-name matching.
+## EAP-TLS certificate identity authorization
 
+Both EAP-TLS roles verify the remote certificate chain and authorize the certificate identity.
+RFC 5216 Section 5.2 sets Peer-Id and Server-Id from the `subjectAltName` extension when present.
+Ze checks Subject Common Name only when the certificate has no `subjectAltName` extension.
+
+`ze config validate`, commit, and reload fail closed when an `eap-tls` peer has no identity constraint.
+Both `allowed-identities` and `server-identity` are refused on non-`eap-tls` peers and on the wrong `connection-type`.
+
+### Authenticator `allowed-identities` (`connection-type respond`)
+
+An EAP-TLS responder peer MUST set `allowed-identities` to authorize client certificates (RFC 5216 Section 5.3).
+A client certificate passes when any configured entry matches any extracted SAN entry.
+
+| Form | Example | Match rule |
+|------|---------|------------|
+| Exact DNS name | `swan-eap-client` | Case-insensitive ASCII exact match on `dNSName` SAN |
+| Single-label DNS wildcard | `*.branch.example.com` | One DNS label before `.branch.example.com` (RFC 2818 Section 3.1) |
+| Exact NAI | `alice@example.com` | Case-insensitive ASCII exact match on `rfc822Name` or UPN SAN |
+| NAI realm | `@example.com` | Any non-empty username in realm `example.com` |
+| Exact IP address | `192.0.2.10` | Exact match on `iPAddress` SAN alone |
+| Exact URI | `spiffe://corp.example/node/1` | Exact octet match on URI SAN alone |
+| Explicit allow-any | `*` | Accepts any valid CA-signed client with a non-empty identity |
+
+Use `*` alone when you opt in to all certificates from `ca-certificate`.
+Commit refuses `*` beside any other entry so no rule becomes dead configuration.
+
+### Peer `server-identity` (`connection-type initiate`)
+
+An EAP-TLS initiator peer verifies the authenticator certificate under RFC 2818 Section 3.1.
+Set `server-identity` to an exact IP address, DNS hostname, or `user@realm` NAI without wildcards.
+
+```
+vpn ipsec site-to-site peer hq {
+    connection-type initiate
+    remote-address 198.51.100.1
+    authentication {
+        mode eap-tls
+        certificate ze-client
+        ca-certificate corp-root
+        server-identity "vpn.example.com"
+    }
+}
+```
+
+When `server-identity` is unset, Ze uses `remote-address` only if it is an unambiguous multi-label FQDN such as `vpn.example.com`.
+An IP literal, single-label name, or empty `remote-address` requires an explicit `server-identity`.
+
+On a mismatch, either role sends a fatal TLS `bad_certificate` alert and closes the handshake.
+Resumed TLS 1.3 sessions re-check certificate identity against the cached leaf, and policy edits invalidate cached tickets.
+Each completed EAP-TLS exchange logs `peer-id` on the responder or `server-id` on the initiator.
+Run `ze doctor` to detect an unvalidated startup config that lacks an EAP-TLS identity constraint (`doctor-ipsec-eap-tls-identity`).
+
+<!-- source: internal/core/eap/identity.go -- ParseAllowedIdentity, ParseServerIdentity, IsUnambiguousFQDN, authorizePeerCertificate, verifyServerCertificate -->
 <!-- source: internal/core/eap/peer.go -- startTLSClient -->
-<!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyPeerCertificate -->
+<!-- source: internal/core/eap/peer_chain.go -- serverChainCheck.verifyPeerCertificate, serverChainCheck.verifyConnection -->
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateEAPTLSIdentities, ValidatePeerEAPTLSIdentity -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
+<!-- source: internal/component/ike/engine/fsm.go -- buildPeerTLSConfig -->
+<!-- source: internal/component/ike/engine/resumption.go -- recordEAPTLSAuthentication -->
+<!-- source: internal/component/ike/engine/doctor_eap_tls_identity.go -- checkIPsecEAPTLSIdentity -->
 
 ## A second authentication round (RFC 4739)
 
@@ -1775,7 +1834,7 @@ tunnel's traffic selectors cover still goes through the tunnel. These entries
 carry ICMP errors in clear, so commit refuses them beside a site-to-site peer
 whose `icmp-error-check` is true and that has no `vti bind` (see ICMP error
 messages above): set `icmp-error-check false` on each such peer, and the
-entries then decide where an error goes. The refusal and the start-up log below print the same ICMP
+entries then decide where an error goes. The refusal and the startup log below print the same ICMP
 example.
 
 Or write `set vpn ipsec unmatched bypass` to pass all of that traffic, with

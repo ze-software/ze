@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/core/eap"
 )
 
 const unknownEnum = "unknown"
@@ -632,6 +633,14 @@ type AuthAdditions struct {
 	// direction. Nil means the operator configured no second-round container,
 	// which keeps the exchange to one authentication each way.
 	SecondRound *SecondRoundAuth
+	// AllowedIdentities holds the authorized client certificate identities for
+	// an EAP-TLS responder peer (connection-type respond, RFC 5216 Section 5.3).
+	// Nil when unset.
+	AllowedIdentities []string
+	// ServerIdentity holds the expected server certificate identity for an
+	// EAP-TLS initiator peer (connection-type initiate, RFC 5216 Section 5.3 /
+	// RFC 2818 Section 3.1). Empty when unset.
+	ServerIdentity string
 }
 
 // Intermediates answers the configured EAP-TLS intermediate certificate names,
@@ -641,6 +650,24 @@ func (a AuthConfig) Intermediates() []string {
 		return nil
 	}
 	return a.Additions.IntermediateCertificates.List()
+}
+
+// AllowedIdentities answers the configured EAP-TLS client identity allow-list,
+// and nil when none is configured.
+func (a AuthConfig) AllowedIdentities() []string {
+	if a.Additions == nil {
+		return nil
+	}
+	return a.Additions.AllowedIdentities
+}
+
+// ServerIdentity answers the configured EAP-TLS expected server identity, and
+// empty when none is configured.
+func (a AuthConfig) ServerIdentity() string {
+	if a.Additions == nil {
+		return ""
+	}
+	return a.Additions.ServerIdentity
 }
 
 // SecondRound answers the RFC 4739 second round, and nil when none is
@@ -832,6 +859,20 @@ func (p *SiteToSitePeer) VirtualIPPoolName() string {
 		return ""
 	}
 	return p.VirtualIP.Pool
+}
+
+// EffectiveEAPTLSServerIdentity returns the server identity an initiating
+// EAP-TLS peer verifies the authenticator's certificate against: the explicit
+// server-identity leaf when set, or remote-address when it is an unambiguous
+// multi-label FQDN. Returns empty when neither provides one.
+func (p *SiteToSitePeer) EffectiveEAPTLSServerIdentity() string {
+	if id := p.Auth.ServerIdentity(); id != "" {
+		return id
+	}
+	if eap.IsUnambiguousFQDN(p.RemoteAddress) {
+		return p.RemoteAddress
+	}
+	return ""
 }
 
 // EAPUser is a remote-access EAP user entry.

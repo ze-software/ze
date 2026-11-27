@@ -461,6 +461,18 @@ func init() {
 			Platforms:    []string{doctorPlatformAny},
 			Codes:        []string{codeDoctorIPsecImplicitDiscard},
 			Check:        checkIPsecImplicitDiscard,
+		}, {
+			// RFC 5216 Section 5.3 requires EAP-TLS peers and authenticators to authorize
+			// the remote certificate identity. Commit and validate refuse unconstrained
+			// eap-tls peers, but a daemon started from an unvalidated config file needs
+			// doctor to surface them (doctor_eap_tls_identity.go).
+			Name:         "ipsec-eap-tls-identity",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        742,
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{codeDoctorIPsecEAPTLSIdentity},
+			Check:        checkIPsecEAPTLSIdentity,
 		}},
 	}
 	reg.CLIHandler = func(args []string) int {

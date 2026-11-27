@@ -148,6 +148,10 @@ func TestEAPTLSConfigsCarryTheCARevocationLists(t *testing.T) {
 		Mode:          ipsec.AuthEAPTLS,
 		Certificate:   "crl-cert",
 		CACertificate: "crl-ca",
+		Additions: &ipsec.AuthAdditions{
+			AllowedIdentities: []string{"client.example.com"},
+			ServerIdentity:    "server.example.com",
+		},
 	}}, Resumption: eap.NewResumption(time.Now, true)}
 
 	serverCfg, err := eapTLSServerConfig(sa)
@@ -179,6 +183,10 @@ func TestEAPTLSConfigsCarryNoListWhenTheCAHasNone(t *testing.T) {
 		Mode:          ipsec.AuthEAPTLS,
 		Certificate:   "crl-cert",
 		CACertificate: "crl-ca",
+		Additions: &ipsec.AuthAdditions{
+			AllowedIdentities: []string{"client.example.com"},
+			ServerIdentity:    "server.example.com",
+		},
 	}}, Resumption: eap.NewResumption(time.Now, true)}
 
 	serverCfg, err := eapTLSServerConfig(sa)

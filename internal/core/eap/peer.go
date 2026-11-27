@@ -26,9 +26,14 @@ var (
 
 	// errNoPeerTrustAnchor refuses an EAP-TLS peer session that could not
 	// path-validate the authenticator. RFC 5216 Section 5.3 makes that validation
-	// a MUST, and the configured CA is the peer's only trust anchor: EAP carries
-	// no server hostname, so there is nothing else to check the chain against.
+	// mandatory, and the configured CA is the peer's only trust anchor.
 	errNoPeerTrustAnchor = errors.New("eap-tls: no CA certificate configured: RFC 5216 Section 5.3 requires the peer to path-validate the authenticator chain, which needs a trust anchor")
+
+	// errNoPeerServerIdentity refuses an EAP-TLS peer session that has no
+	// expected server identity to verify the authenticator certificate against.
+	// RFC 5216 Section 5.3 requires validating the server certificate identity
+	// per RFC 2818 Section 3.1.
+	errNoPeerServerIdentity = errors.New("eap-tls: no server-identity configured: RFC 5216 Section 5.3 requires verifying the authenticator certificate identity")
 
 	// errTLSClientStalled reports a TLS client that settled and wrote nothing
 	// while its handshake was still running. The other answer is the bare flags
@@ -129,6 +134,10 @@ type PeerTLSConfig struct {
 	// (checkChainRevocation, revocation.go). Section 5.4's stapling sentence is
 	// RECOMMENDED rather than required, so the operator chooses.
 	CertificateStatusRequest bool
+
+	// ServerIdentity is the expected EAP-TLS server certificate identity checked
+	// under RFC 5216 Section 5.3 and RFC 2818 Section 3.1.
+	ServerIdentity string
 }
 
 // PeerSession manages the EAP peer (client/initiator) side of an exchange.
@@ -1269,13 +1278,14 @@ func (ps *PeerSession) startTLSClient() error {
 		return fmt.Errorf("eap-tls: failed to parse peer CA certificate")
 	}
 
-	// EAP-TLS carries no server hostname, so Go's default (SNI/hostname-based)
-	// verification cannot be used: with a CA set but no ServerName, tls.Client
-	// rejects the config outright ("either ServerName or InsecureSkipVerify must
-	// be specified") and never sends a ClientHello. InsecureSkipVerify disables
-	// only that default hostname check; the chain itself is always verified
-	// against the trust anchor in VerifyPeerCertificate, which the guard above
-	// guarantees is present.
+	// Go's default hostname verification (tls.Config.ServerName without
+	// InsecureSkipVerify) emits a cleartext SNI extension, dropped Common Name
+	// fallback in Go 1.15 (violating RFC 5216 Section 5.2 / RFC 2818 Section 3.1
+	// for SAN-less server certificates), and does not match rfc822Name SANs.
+	// InsecureSkipVerify disables only Go's built-in check; the chain is always
+	// verified against the trust anchor in verifyPeerCertificate (and
+	// rebuildResumedChains), and RFC 2818 Section 3.1 server-identity matching
+	// runs in verifyConnection on both full and resumed sessions.
 
 	// Parse the revocation material HERE rather than at the handshake. A CRL the
 	// operator pasted wrong is a configuration error, and it is reported when the
@@ -1285,7 +1295,22 @@ func (ps *PeerSession) startTLSClient() error {
 	if err != nil {
 		return fmt.Errorf("eap-tls: %w", err)
 	}
-	check := &serverChainCheck{roots: rootCAs, crls: crls, requireStatus: ps.tlsCfg.CertificateStatusRequest}
+	// RFC 5216 Section 5.3: "Once a TLS session is established, EAP-TLS peer and
+	// server implementations MUST validate that the identities represented in the
+	// certificate are appropriate and authorized for use with EAP-TLS."
+	if ps.tlsCfg.ServerIdentity == "" {
+		return errNoPeerServerIdentity
+	}
+	expectedServer, err := ParseServerIdentity(ps.tlsCfg.ServerIdentity)
+	if err != nil {
+		return fmt.Errorf("eap-tls: server-identity %q: %w", ps.tlsCfg.ServerIdentity, err)
+	}
+	check := &serverChainCheck{
+		roots:          rootCAs,
+		crls:           crls,
+		requireStatus:  ps.tlsCfg.CertificateStatusRequest,
+		expectedServer: expectedServer,
+	}
 	ps.serverCheck = check
 
 	ps.tlsCertificate = cert
@@ -1327,7 +1352,7 @@ func (ps *PeerSession) answerCertificateRequest(*tls.CertificateRequestInfo) (*t
 func (ps *PeerSession) tlsClientConfig(rootCAs *x509.CertPool, check *serverChainCheck) *tls.Config {
 	return &tls.Config{
 		GetClientCertificate: ps.answerCertificateRequest,
-		InsecureSkipVerify:   true, //nolint:gosec // EAP has no server hostname; the chain is always verified in VerifyPeerCertificate
+		InsecureSkipVerify:   true, //nolint:gosec // chain is verified in verifyPeerCertificate/rebuildResumedChains and RFC 2818 Section 3.1 server identity in verifyConnection
 		MinVersion:           tls.VersionTLS12,
 
 		// RFC 9190 Section 1: "Therefore, implementations MUST limit the maximum
@@ -1475,6 +1500,36 @@ func (ps *PeerSession) Resumed() bool {
 		return false
 	}
 	return ps.tlsConn.ConnectionState().DidResume
+}
+
+// ServerID returns the primary verified certificate identity of the
+// authenticated EAP-TLS server (RFC 5216 Section 5.2), or empty when the
+// session has none.
+//
+// Safe for concurrent use.
+func (ps *PeerSession) ServerID() string {
+	if ps == nil {
+		return ""
+	}
+	if ps.serverCheck == nil {
+		return ""
+	}
+	return ps.serverCheck.primaryServerID()
+}
+
+// ServerIDs returns all verified certificate identities of the authenticated
+// EAP-TLS server in certificate wire order (RFC 5216 Section 5.2), or nil when
+// the session has none.
+//
+// Safe for concurrent use.
+func (ps *PeerSession) ServerIDs() []string {
+	if ps == nil {
+		return nil
+	}
+	if ps.serverCheck == nil {
+		return nil
+	}
+	return ps.serverCheck.verifiedServerIDs()
 }
 
 // deriveTLSKeys derives the peer's EAP-TLS MSK and EMSK from the completed TLS

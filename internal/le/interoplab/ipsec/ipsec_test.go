@@ -1586,3 +1586,83 @@ func TestChildESPEncryptionOfRefusesEveryUnreadableAnswer(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: responder-eap-tls13-unauthorized-client passes only when strongSwan
+// logs the fatal bad_certificate alert on TLS 1.3, neither end installs an SA,
+// and Ze logs the extracted client SAN refusal.
+// PREVENTS: an absence-only failure or unrelated TLS failure passing as proof of
+// RFC 5216 Section 5.3 client identity authorization.
+func TestResponderEAPTLS13UnauthorizedClientCheckerDiscriminates(t *testing.T) {
+	entry, ok := scenarioCheckers["responder-eap-tls13-unauthorized-client"]
+	if !ok {
+		t.Fatal("native integration registry does not execute responder-eap-tls13-unauthorized-client")
+	}
+	newLab := func(swanLog, zeLog, sas, zeXFRM string) *scenarioLab {
+		fake := scriptedLab()
+		fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: swanLog}
+		fake.peerLogs[zePeer] = interoplab.LogResult{Available: true, Text: zeLog}
+		fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, sas)
+		fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "")
+		fake.answer(zePeer, []string{"ip", "xfrm", "state"}, zeXFRM)
+		return checkerFixture(fake)
+	}
+
+	goodSwan := "negotiated TLS 1.3\nsending TLS client certificate\nreceived fatal TLS alert 'bad certificate'\nEAP_TLS method failed\n"
+	goodZe := "ike: EAP authentication failed error=\"eap-tls: client certificate identity \\\"swan-eap-client\\\" is not authorized by allowed-identities (RFC 5216 Section 5.3)\"\n"
+
+	if err := entry.run(context.Background(), newLab(goodSwan, goodZe, "", "")); err != nil {
+		t.Fatalf("proven unauthorized-client refusal rejected: %v", err)
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan+"received protected success indication via TLS\n", goodZe, "", "")); err == nil {
+		t.Fatal("checker accepted a run where strongSwan received protected success indication")
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan, goodZe, "ze: ESTABLISHED\n", "")); err == nil {
+		t.Fatal("checker accepted an established SA")
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan, goodZe, "", "proto esp spi 0x1\n")); err == nil {
+		t.Fatal("checker accepted an installed XFRM SA")
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan, "ike: EAP authentication failed error=\"other\"\n", "", "")); err == nil {
+		t.Fatal("checker accepted a Ze refusal that omitted the unauthorized SAN identity")
+	}
+}
+
+// VALIDATES: eap-tls13-unauthorized-server passes only when strongSwan logs the
+// fatal bad_certificate alert on TLS 1.3, neither end installs an SA, and Ze logs
+// both the presented and expected Server-Id under RFC 2818 Section 3.1.
+// PREVENTS: an absence-only failure or unrelated TLS failure passing as proof of
+// RFC 5216 Section 5.3 / RFC 2818 Section 3.1 server identity verification.
+func TestEAPTLS13UnauthorizedServerCheckerDiscriminates(t *testing.T) {
+	entry, ok := scenarioCheckers["eap-tls13-unauthorized-server"]
+	if !ok {
+		t.Fatal("native integration registry does not execute eap-tls13-unauthorized-server")
+	}
+	newLab := func(swanLog, zeLog, sas, swanXFRM string) *scenarioLab {
+		fake := scriptedLab()
+		fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: swanLog}
+		fake.peerLogs[zePeer] = interoplab.LogResult{Available: true, Text: zeLog}
+		fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, sas)
+		fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, swanXFRM)
+		fake.answer(zePeer, []string{"ip", "xfrm", "state"}, "")
+		return checkerFixture(fake)
+	}
+
+	goodSwan := "negotiated TLS 1.3\nsending TLS cert request\nreceived fatal TLS alert 'bad certificate'\nEAP method EAP_TLS failed for peer ze-test-client\n"
+	goodZe := "ike: EAP failed error=\"eap-tls: server certificate identity \\\"172.28.0.3\\\" does not match expected server-identity \\\"other-server.example.com\\\" (RFC 5216 Section 5.3 / RFC 2818 Section 3.1)\"\n"
+
+	if err := entry.run(context.Background(), newLab(goodSwan, goodZe, "", "")); err != nil {
+		t.Fatalf("proven unauthorized-server refusal rejected: %v", err)
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan+"EAP method EAP_TLS succeeded\n", goodZe, "", "")); err == nil {
+		t.Fatal("checker accepted a run where strongSwan reported EAP_TLS succeeded")
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan, goodZe, "ze: ESTABLISHED\n", "")); err == nil {
+		t.Fatal("checker accepted an established SA")
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan, goodZe, "", "proto esp spi 0x1\n")); err == nil {
+		t.Fatal("checker accepted an installed XFRM SA")
+	}
+	if err := entry.run(context.Background(), newLab(goodSwan, "ike: EAP failed error=\"other\"\n", "", "")); err == nil {
+		t.Fatal("checker accepted a Ze refusal that omitted expected/presented Server-Id")
+	}
+}

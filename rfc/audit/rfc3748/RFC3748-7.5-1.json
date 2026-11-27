@@ -1,17 +1,17 @@
 {
-  "note": "Peer clause: TestRFC3748EAPTLSValidatesItsPerPacketMIC. Server clause: TestRFC3748TheServerValidatesThePeersMIC: a clean flight ends in EAP-Success; one octet changed in the peer's second record-bearing Response (the TLS 1.3 encrypted client flight, so the octet sits under the AEAD tag) never draws EAP-Success. Ze's authenticator is the authentication server, no pass-through mode exists.",
+  "note": "Re-judged 2026-11-27 independently against RFC 3748 Section 7.5 (rfc/full/rfc3748.txt): \"If a per-packet MIC is employed within an EAP method, then peers, authentication servers, and authenticators not operating in pass-through mode MUST validate the MIC.\" Both tagged units (TestRFC3748EAPTLSValidatesItsPerPacketMIC on peer, TestRFC3748TheServerValidatesThePeersMIC on server) only added matching ServerIdentity=\"eap-tls-server\" (and serverConfig Added AllowedIdentities=[\"eap-tls-client\"]) to satisfy RFC 5216 Section 5.3. Clean exchanges still complete with EAP-Success; single-octet in-flight tampering of server or peer TLS records still fails record integrity without completion or EAP-Success, unconfounded by identity checks. Ze has no pass-through mode. Verdict stands: enforced.",
   "requirement_sha": "8cc87d68fc0fd5ed",
   "tests": {
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "8ca42a58d78f22be",
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "8ca42a58d78f22be",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "08e46d8cbdf7058a",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "08e46d8cbdf7058a"
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "a92cd28113dfc889",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "a92cd28113dfc889",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "be76f24d10a7f5ed",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "be76f24d10a7f5ed"
   },
   "units": {
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "c20da329926c37cc",
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "c20da329926c37cc",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "d597baa1e5357773",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "d597baa1e5357773"
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "8f1fc100776d44af",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "8f1fc100776d44af",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "57afabfc64d9a192",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "57afabfc64d9a192"
   },
   "verdict": "enforced"
 }

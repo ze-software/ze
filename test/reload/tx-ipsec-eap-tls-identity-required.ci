@@ -1,0 +1,187 @@
+# Functional test: SIGHUP reload refuses switching a site-to-site peer to
+# eap-tls without an identity constraint and preserves the running config.
+# Spec: spec-eap-tls-identity-authorization, AC-4, User Story 4.
+#
+# ONE QUESTION: Does the live daemon SIGHUP reload transaction invoke
+# ValidateEAPTLSIdentities through OnConfigVerify, refuse a candidate that
+# supplies ca-certificate and certificate (passing ValidatePKIRefs) while
+# omitting server-identity on an IP-addressed eap-tls peer, log the opererr fix,
+# and keep the running daemon and BGP session intact?
+
+option=env:var=ze_test_ike_dataplane:value=recording
+option=skip-os:value=darwin
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Initial config: peer authenticates with pre-shared-secret, starts cleanly.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		unmatched bypass;
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				icmp-error-check false
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: peer switches to eap-tls with valid ca-certificate and
+# certificate (so ValidatePKIRefs passes) but targets IP 198.51.100.2 with no
+# server-identity. Reload must reject and preserve the running config.
+tmpfs=config2.conf:refused=config-plugin-verify:terminator=EOF_CONF2
+pki {
+	ca test-ca {
+		certificate MIIBgDCCASWgAwIBAgIUN8tmPUUL2Ec/2cVjYvX05q2i+QEwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBUxEzARBgNVBAMMCnplLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATN9NaXzwmSRYDK2D74maehpcicub6tEvETMBE/LIJojtnRALX71x1KovqCz+9LffIy0AOFVTP+/A8anJUkFYEWo1MwUTAdBgNVHQ4EFgQUBQPnmMeLjJEwa6rsZviFJpmHdswwHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNJADBGAiEAtUbaI4yvaJ/KruZs+nMnOPZJi0Ib6rqQFoEOUlwADZwCIQDuDJmTlfDJHsDNcZ2HPGDKmJeG7G9EH+oIoll3jk6cLg==
+	}
+	certificate client1 {
+		certificate MIIBnjCCAUSgAwIBAgIUWVT7slD2/AmhaxwNbOY9qMifRwwwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAeFw0yNjA4MDMyMTIyMDFaFw0zNjA3MzEyMTIyMDFaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPbo4UfgLsjaYwpavcEt3z4OLCw4diWHYly0YodhA1QzSQIRUBEOkW6ocHUjJ2VJjwQbqDW7dU+lPo3K0chdFYSjczBxMBoGA1UdEQQTMBGCCWxvY2FsaG9zdIcEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUYe9xoQJZ+g+2cBU6E0Ujr2KDvT8wHwYDVR0jBBgwFoAUBQPnmMeLjJEwa6rsZviFJpmHdswwCgYIKoZIzj0EAwIDSAAwRQIhAO+/G55WJP26P4lVzGvIPPRCrk5KPWgjcGFhWIYL321JAiAmlw29VZUWmYA2geAIFN0m8G77Z7I8/v31cOm4VE8V4Q==
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		unmatched bypass;
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				icmp-error-check false
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode eap-tls
+					ca-certificate test-ca
+					certificate client1
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+await=stderr:contains=has no server-identity or unambiguous FQDN remote-address
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=stderr:contains=has no server-identity or unambiguous FQDN remote-address
+expect=stderr:contains=set vpn ipsec site-to-site peer branch authentication server-identity <hostname-or-ip>
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

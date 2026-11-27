@@ -38,10 +38,11 @@ const revocationRounds = 12
 // role refused.
 func (p *eapTLSPKI) peerConfigWithCRL(crlPEM []byte) *PeerTLSConfig {
 	return &PeerTLSConfig{
-		CertPEM:   p.clientCertPEM,
-		KeyPEM:    p.clientKeyPEM,
-		CACertPEM: p.trustedCAPEM,
-		CRLPEM:    crlPEM,
+		CertPEM:        p.clientCertPEM,
+		KeyPEM:         p.clientKeyPEM,
+		CACertPEM:      p.trustedCAPEM,
+		CRLPEM:         crlPEM,
+		ServerIdentity: "eap-tls-server",
 	}
 }
 
@@ -180,10 +181,11 @@ func TestEAPTLS13RefusesARevokedIntermediate(t *testing.T) {
 	serverCfg.CRLPEM = crls
 
 	peer := NewPeerSessionTLS("eap-tls-deep-client", &PeerTLSConfig{
-		CertPEM:   append(append([]byte{}, leafPEM...), subPEM...),
-		KeyPEM:    leafKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        append(append([]byte{}, leafPEM...), subPEM...),
+		KeyPEM:         leafKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, serverCfg, peer)

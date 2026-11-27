@@ -35,16 +35,18 @@ func TestEAPTLSAuthenticatorWithoutCARejectsEveryClient(t *testing.T) {
 
 	// Same as pki.serverConfig() but with the trust anchor withheld.
 	serverCfg := MethodConfig{
-		ServerCertPEM: pki.serverCertPEM,
-		ServerKeyPEM:  pki.serverKeyPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.serverCertPEM,
+		ServerKeyPEM:      pki.serverKeyPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, serverCfg, peer)
@@ -81,9 +83,10 @@ func TestNewTLSMethodNeverPassesNilClientCAs(t *testing.T) {
 	}{
 		{"with a trust anchor", pki.serverConfig()},
 		{"without a trust anchor", MethodConfig{
-			ServerCertPEM: pki.serverCertPEM,
-			ServerKeyPEM:  pki.serverKeyPEM,
-			Resumption:    NewResumption(time.Now, true),
+			ServerCertPEM:     pki.serverCertPEM,
+			ServerKeyPEM:      pki.serverKeyPEM,
+			Resumption:        NewResumption(time.Now, true),
+			AllowedIdentities: []string{"eap-tls-client"},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

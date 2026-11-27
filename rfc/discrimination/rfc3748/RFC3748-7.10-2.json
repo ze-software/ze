@@ -14,12 +14,12 @@
     "rid": "RFC3748-7.10-2",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport",
-    "unit-sha": "15042aa7bc5ca698",
+    "unit-sha": "759a74f70fb6f337",
     "claim-sha": "c3fd21f76f435c5b",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
     "producer-sha": "98b4d1240b3a48b9",
-    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC3748-7.10-2",

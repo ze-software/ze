@@ -133,17 +133,19 @@ func TestRFC5216ServerRepliesEAPFailureToPeerAlert(t *testing.T) {
 	// The authenticator presents a server certificate the peer cannot chain to
 	// its trust anchor, so the PEER is the side that rejects.
 	serverCfg := MethodConfig{
-		ServerCertPEM: pki.untrustedServerCertPEM,
-		ServerKeyPEM:  pki.untrustedServerKeyPEM,
-		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.untrustedServerCertPEM,
+		ServerKeyPEM:      pki.untrustedServerKeyPEM,
+		CACertPEM:         pki.trustedCAPEM, // the client certificate stays valid
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	ex := driveEAPTLSConversation(t, serverCfg, peer, 40)
@@ -217,10 +219,11 @@ func TestRFC5216ServerRepliesEAPFailureToPeerAlert(t *testing.T) {
 func TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	ex := driveEAPTLSConversation(t, pki.serverConfig(), peer, 40)

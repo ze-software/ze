@@ -1,11 +1,11 @@
 {
   "code": {
     "internal/component/ike/engine/fsm.go::handleAuthResponse": "396bcea47c28d7a6",
-    "internal/component/ike/engine/fsm.go::handleEAPResponse": "1fbb8ecd5a6ac8e9",
+    "internal/component/ike/engine/fsm.go::handleEAPResponse": "9e1960e945c99ee1",
     "internal/component/ike/engine/held_successor.go::handleHeldSuccessorInbound": "686d1297b5c40794",
     "internal/component/ike/engine/protected_input.go::openProtected": "5d44134a06a0ab2c"
   },
-  "note": "Independent rejudgment 2026-11-24 against RFC 7296 Section 2.4 (rfc/full/rfc7296.txt): \"Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs).\" Verified changes since f804b97b80: fsm.go::handleAuthResponse (f4a0df7781) moved the doctor diagnostic code to a package-local constant with identical value; unprotected_response.go::authInjectBypassCommand (ba30c73b7c) pre-allocated its slice and used xfrmDirOut with zero behavioral change. openProtected, handleEAPResponse, handleHeldSuccessorInbound, and all 20 tagged test units (initiator/responder handshakes, established/unowned/held-successor SAs, MOBIKE retransmit, ICMP, strongSwan interop, and ike-auth-corrupt-response.ci) remain intact. Verdict stands: enforced.",
+  "note": "Re-judged 2026-11-27 independently against RFC 7296 Section 2.4 (rfc/full/rfc7296.txt): \"Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs).\" Only fsm.go::handleEAPResponse changed among the 4 cited producers, passing ps.ServerID() to recordEAPTLSAuthentication inside the if result.Done branch after openProtected has verified cryptographic protection and EAP succeeded. openProtected, the if dropped { return } guard, handleAuthResponse, handleHeldSuccessorInbound, and all 20 tagged test units remain byte-identical. Verdict stands: enforced.",
   "requirement_sha": "cf7c5c842e6cd8d6",
   "tests": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeRetransmitArmCountsUnprotectedMessage": "c03cfd3d4a94ad4c",
@@ -26,8 +26,8 @@
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorAuthSurvivesUnprotectedIKEAuthResponse": "ef097bc05ba276fc",
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorEAPSurvivesUnprotectedIKEAuthResponse": "ef097bc05ba276fc",
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorSecondAuthExchangeCountsUnprotectedResponse": "ef097bc05ba276fc",
-    "internal/le/interoplab/ipsec/unprotected_response.go::checkInitiatorSurvivesUnprotectedAuthResponse": "ac09919b041882f7",
-    "test/ipsec/ike-auth-corrupt-response.ci": "d253e0d161f20561"
+    "internal/le/interoplab/ipsec/unprotected_response.go::checkInitiatorSurvivesUnprotectedAuthResponse": "910d53fcedbdf389",
+    "test/ipsec/ike-auth-corrupt-response.ci": "f4306899a77451c2"
   },
   "units": {
     "internal/component/ike/engine/mobike_test.go::TestMobikeRetransmitArmCountsUnprotectedMessage": "20442c84e2b7d6d4",
@@ -49,7 +49,7 @@
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorEAPSurvivesUnprotectedIKEAuthResponse": "0291a163f9c557ec",
     "internal/component/ike/engine/rfc7296_unprotected_response_test.go::TestInitiatorSecondAuthExchangeCountsUnprotectedResponse": "6ebd86c69db99aed",
     "internal/le/interoplab/ipsec/unprotected_response.go::checkInitiatorSurvivesUnprotectedAuthResponse": "917ad2391c9ddf90",
-    "test/ipsec/ike-auth-corrupt-response.ci": "d253e0d161f20561"
+    "test/ipsec/ike-auth-corrupt-response.ci": "f4306899a77451c2"
   },
   "verdict": "enforced"
 }

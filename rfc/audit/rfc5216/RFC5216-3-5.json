@@ -3,8 +3,8 @@
   "requirement_sha": "88270eb73714c321",
   "tests": {
     "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits": "07752e8e18f47c94",
-    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "50ee52d235cf2a36",
-    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "50ee52d235cf2a36"
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "3f5deedba1e8e601",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "3f5deedba1e8e601"
   },
   "units": {
     "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits": "93965daf37c42e49",

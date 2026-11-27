@@ -139,6 +139,33 @@ the peer and the leaf path, `authentication second-round local` or `remote`.
 <!-- source: internal/component/ike/ipsec/second_round.go -- parseSecondRound, ValidateSecondRounds -->
 <!-- source: internal/component/ike/ipsec/validate.go -- validateIdentityLeaves, validateCertificateChain -->
 
+**EAP-TLS certificate identity policy shares `AuthAdditions` and fails closed at commit.**
+`allowed-identities` (`respond`) and `server-identity` (`initiate`) live under
+`vpn ipsec site-to-site peer authentication` in `ze-ipsec-conf.yang`.
+`parseEAPTLSIdentityPolicy` stores them in `AuthConfig.Additions`. Callers read
+them via `AllowedIdentities()` and `ServerIdentity()`.
+
+Both fields stay inside
+`AuthAdditions`, so `SiteToSitePeer` stays under 288 bytes and
+`AuthConfig.Equal` stays total. Editing either leaf restarts the peer and
+invalidates its EAP-TLS resumption store.
+`SiteToSitePeer.EffectiveEAPTLSServerIdentity` prefers `server-identity` and
+falls back to `remote-address` only when `eap.IsUnambiguousFQDN` holds.
+
+`ValidateEAPTLSIdentities` runs from `engine.validateIPsecSections` after
+`ValidatePKIRefs` and `ValidateIntermediateRefs`. It delegates syntax checks to
+`internal/core/eap` (`ParseAllowedIdentity`, `ParseServerIdentity`,
+`IsUnambiguousFQDN`) so commit validation and TLS matching share one grammar.
+Every refusal is an `opererr.Error` naming the exact `set` or `delete` fix.
+`respond` peers require non-empty `allowed-identities` and refuse `*` mixed
+with specific entries. `initiate` peers require `server-identity` or an
+unambiguous FQDN `remote-address`. Neither leaf is accepted on the wrong
+`connection-type` or on any non-`eap-tls` mode.
+
+<!-- source: internal/component/ike/ipsec/types.go -- AuthAdditions, AuthConfig.AllowedIdentities, AuthConfig.ServerIdentity, SiteToSitePeer.EffectiveEAPTLSServerIdentity -->
+<!-- source: internal/component/ike/ipsec/config_auth_policy.go -- parseEAPTLSIdentityPolicy -->
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateEAPTLSIdentities, ValidatePeerEAPTLSIdentity -->
+
 **The model describes more than one SPD, and names none of them.** `Policies`
 (the `vpn ipsec policy` list) and `Unmatched` populate the node-wide SPD, which
 the kernel keeps at XFRM if_id 0. Every interface a peer names under `vti bind`

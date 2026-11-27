@@ -4,7 +4,8 @@ Ze drives EAP-MSCHAPv2 and EAP-TLS from the initiator seat, against an
 authenticator such as strongSwan. The responder half is described in
 `docs/architecture/ike/ipsec-14-responder.md`.
 
-<!-- source: internal/core/eap/peer.go -- PeerSession, NewPeerSession, NewPeerSessionTLS, Process -->
+<!-- source: internal/core/eap/peer.go -- PeerSession, NewPeerSession, NewPeerSessionTLS, Process, PeerSession.ServerID, PeerSession.ServerIDs -->
+<!-- source: internal/core/eap/identity.go -- ParseServerIdentity, IsUnambiguousFQDN, verifyServerCertificate -->
 <!-- source: internal/component/ike/engine/fsm.go -- startEAPExchange, handleEAPResponse, buildPeerTLSConfig -->
 <!-- source: internal/component/ike/engine/auth.go -- buildAuthRequest, buildEAPResponse, buildEAPAuthMessage -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret -->
@@ -87,6 +88,18 @@ authenticator such as strongSwan. The responder half is described in
   alternative subject name, an anonymous NAI SHOULD be derived from the NAI in
   the certificate". `naiSource` reads it when the configured identity carries no
   realm.
+- RFC 5216 Section 5.3 requires the EAP-TLS peer to authorize the
+  authenticator's certificate identity under RFC 2818 Section 3.1.
+  `startTLSClient` refuses an empty or malformed `PeerTLSConfig.ServerIdentity`.
+  It compiles the value through `ParseServerIdentity` (IP literal, DNS name, or
+  exact `user@realm` NAI) and passes it to `serverChainCheck.verifyConnection`.
+  Keeping `InsecureSkipVerify: true` and an empty `tls.Config.ServerName` avoids
+  cleartext SNI and keeps RFC 2818 Section 3.1 CN fallback (when OID
+  `2.5.29.17` is absent) and `rfc822Name` matching. `verifyServerCertificate`
+  enforces IP-to-`iPAddress`-SAN separation, ASCII case folding, and leftmost
+  `*.a.b` wildcards after `rebuildResumedChains`, CRL, and OCSP checks on full
+  and resumed TLS 1.3 sessions. Verified identities publish atomically for
+  `PeerSession.ServerID` and `PeerSession.ServerIDs`.
 
 ## Decisions
 
@@ -105,13 +118,15 @@ so the multi-round EAP loop is a state rather than a flag.
 
 **The peer's ticket cache belongs to ONE peering, and that is a security
 requirement.** `Conn.clientSessionCacheKey` keys on `ServerName` and falls back
-to the transport's remote address when there is none. EAP-TLS carries no server
-hostname, so ze sets none, and `eapTLSTransport.RemoteAddr` answers the constant
-`"eap"`. Every EAP-TLS connection in the process therefore files its ticket under
-one key, so a cache shared between peerings would offer one authenticator's
-ticket, with its cached certificate chain, on another's session. The engine looks
-the store up by peer name and rebuilds it whenever the peer's authentication
-config changes.
+to the transport's remote address when there is none. Ze leaves `ServerName`
+empty (verifying `PeerTLSConfig.ServerIdentity` inside
+`serverChainCheck.verifyConnection` instead, so no cleartext SNI is emitted and
+RFC 2818 Section 3.1 CN fallback and `rfc822Name` SANs still work), and
+`eapTLSTransport.RemoteAddr` answers the constant `"eap"`. Every EAP-TLS
+connection in the process therefore files its ticket under one key, so a cache
+shared between peerings would offer one authenticator's ticket, with its
+cached certificate chain, on another's session. The engine looks the store up by
+peer name and rebuilds it whenever the peer's authentication config changes.
 
 <!-- source: internal/core/eap/resumption.go -- Resumption, Resumption.ClientCache -->
 <!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, forgetResumption -->
@@ -224,15 +239,16 @@ ends with fewer octets than declared. None of these reaches crypto/tls.
 <!-- source: internal/core/eap/eap_tls.go -- tlsFragmenter.reassemble, eapTLSMaxReassembly, eapTLSMaxPeerBuffered -->
 
 **A trust anchor must be checked, not assumed.** The peer verifies the server
-chain against the configured roots through an explicit callback. `serverChainCheck`
-holds that callback and the revocation gate together, because the two crypto/tls
-callbacks see different halves of what the checks need: `verifyPeerCertificate`
-is where the chain is BUILT (EAP carries no server hostname, so the config sets
-`InsecureSkipVerify` and crypto/tls builds none), and `verifyConnection` is where
-the NEGOTIATED VERSION is known, which is what Section 5.4's "when EAP-TLS is
-used with TLS 1.3" turns on.
+chain against the configured roots through an explicit callback.
+`serverChainCheck` holds chain building, revocation checks, and RFC 2818
+Section 3.1 server identity verification together. The two crypto/tls callbacks
+see different halves of what the checks need. `verifyPeerCertificate` builds
+the chain while `InsecureSkipVerify` keeps `ServerName` empty. `verifyConnection`
+reads the negotiated version (RFC 9190 Section 5.4) and checks revocation, OCSP
+stapling, and `PeerTLSConfig.ServerIdentity` on both full and resumed sessions.
 
-<!-- source: internal/core/eap/peer.go -- serverChainCheck, PeerTLSConfig -->
+<!-- source: internal/core/eap/peer.go -- PeerTLSConfig -->
+<!-- source: internal/core/eap/peer_chain.go -- serverChainCheck -->
 
 **A chain nobody can answer for is refused, not admitted.** On TLS 1.3 an end
 holding no revocation list performs no check, and an unchecked chain is what the
@@ -453,6 +469,15 @@ reported there would leave ze saying nothing but the 30s handshake timeout. The
 scenario asserts both accounts: charon's, which is ze's wire output read by
 another implementation, and ze's own, which is what an operator has.
 
+`responder-eap-tls13-unauthorized-client` changes one line of
+`responder-eap-tls13`: `allowed-identities` requires `other-client.example.com`
+instead of charon's `DNS:swan-eap-client` leaf. `eap-tls13-unauthorized-server`
+changes one line of `eap-tls13`: `server-identity` requires
+`other-server.example.com` instead of charon's `IP:172.28.0.3` leaf. Both
+scenarios assert charon logs `received fatal TLS alert 'bad certificate'` and
+`EAP_TLS method failed`. They also assert Ze logs the SAN identity refusal and
+neither end installs an SA or XFRM state.
+
 <!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSKeys, eapTLS12ExportRefused -->
 <!-- source: internal/core/eap/peer.go -- naks, nakResponse -->
-<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts, checkResponderEAPTLS13RevokedClient -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts, checkResponderEAPTLS13RevokedClient, checkResponderEAPTLS13UnauthorizedClient, checkEAPTLS13UnauthorizedServer -->

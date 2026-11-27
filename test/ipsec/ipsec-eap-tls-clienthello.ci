@@ -127,6 +127,7 @@ vpn {
 					remote-id "ze-eap-client"
 					certificate eap-server
 					ca-certificate eap-test-ca
+					allowed-identities "ze-eap-client"
 				}
 			}
 		}
@@ -216,6 +217,7 @@ vpn {
 					remote-id "ze-eap-server"
 					certificate eap-client
 					ca-certificate eap-test-ca
+					server-identity "ze-eap-server"
 				}
 			}
 		}

@@ -29,10 +29,11 @@ func emskExchange(t *testing.T, version uint16) (sess *Session, peer *PeerSessio
 
 	pki := newEAPTLSPKI(t)
 	peer = NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	sess, err := NewSession(TypeTLS, pki.serverConfig())
@@ -198,10 +199,11 @@ func TestRFC3748EAPTLSExportsASixtyFourOctetEMSK(t *testing.T) {
 func TestRFC3748NoEMSKWithoutACompletedExport(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	rogue := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-		CertPEM:   pki.untrustedClientCertPEM,
-		KeyPEM:    pki.untrustedClientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.untrustedClientCertPEM,
+		KeyPEM:         pki.untrustedClientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), rogue)

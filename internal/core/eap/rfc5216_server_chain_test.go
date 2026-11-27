@@ -40,10 +40,11 @@ func intermediateServerFlight(t *testing.T, sendIntermediate bool) (fl *eapTLSFl
 	serverCfg.ServerKeyPEM = leafKeyPEM
 
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    append(append([]byte{}, pki.trustedCRLPEM...), newCRL(t, subCA, subKey)...),
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         append(append([]byte{}, pki.trustedCRLPEM...), newCRL(t, subCA, subKey)...),
+		ServerIdentity: "eap-tls-deep-server",
 	})
 	fl = driveEAPTLSFlight(t, serverCfg, peer, tls.VersionTLS12, eapTLS13Rounds)
 

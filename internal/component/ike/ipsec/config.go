@@ -869,6 +869,10 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 		auth.Additions = &AuthAdditions{IntermediateCertificates: &CertificateRefs{Names: names}}
 	}
 
+	// Read in every mode, so ValidateEAPTLSIdentities can refuse the leaves on a
+	// peer whose mode or connection-type never reads them.
+	parseEAPTLSIdentityPolicy(t, &auth)
+
 	// Read after every first-round leaf, because each round takes the peer's
 	// certificate-count. ValidateSecondRounds refuses a second round on an EAP
 	// peer, so it is parsed in every mode for that refusal to see it.

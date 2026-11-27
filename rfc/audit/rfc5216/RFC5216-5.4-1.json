@@ -3,8 +3,8 @@
   "requirement_sha": "90205fa573853cfd",
   "tests": {
     "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12": "07752e8e18f47c94",
-    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "b20b4e35d426ac54",
-    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "b20b4e35d426ac54"
+    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "dc712b7fd6bba804",
+    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "dc712b7fd6bba804"
   },
   "units": {
     "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12": "7c51ed98476eb5ad",

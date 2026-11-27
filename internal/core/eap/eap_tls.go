@@ -359,7 +359,7 @@ func eapTLSPeerName(cs tls.ConnectionState) string {
 	if len(cs.PeerCertificates) == 0 {
 		return "(no certificate)"
 	}
-	return cs.PeerCertificates[0].Subject.String()
+	return certificatePrimaryID(cs.PeerCertificates[0])
 }
 
 type tlsState uint8
@@ -377,6 +377,12 @@ type tlsMethod struct {
 	conn       *tls.Conn
 	transport  *eapTLSTransport
 	handshaked atomic.Bool
+
+	// peerCertIDs publishes the verified certificate identities extracted from
+	// the authenticated client leaf in certificate wire order (RFC 5216 Section
+	// 5.2). Written inside VerifyConnection on the TLS server goroutine and read
+	// through Session.PeerID/PeerIDs after handshake completion.
+	peerCertIDs atomic.Pointer[[]string]
 
 	// successIndicated records that the RFC 9190 Section 2.5 protected success
 	// result indication has already gone out. Step 3 of that procedure forbids
@@ -496,6 +502,32 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		}
 	}
 
+	// RFC 5216 Section 5.3: "Once a TLS session is established, EAP-TLS peer and
+	// server implementations MUST validate that the identities represented in the
+	// certificate are appropriate and authorized for use with EAP-TLS."
+	if len(config.AllowedIdentities) == 0 {
+		return nil, errors.New("eap-tls: no allowed-identities configured: RFC 5216 Section 5.3 requires authorizing client certificate identities")
+	}
+	allowed := make([]AllowedIdentity, 0, len(config.AllowedIdentities))
+	for _, raw := range config.AllowedIdentities {
+		rule, parseErr := ParseAllowedIdentity(raw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("eap-tls: allowed-identities %q: %w", raw, parseErr)
+		}
+		allowed = append(allowed, rule)
+	}
+	if len(allowed) > 1 {
+		for _, rule := range allowed {
+			if rule.IsWildcardAny() {
+				return nil, errors.New("eap-tls: allowed-identities wildcard \"*\" must be the only entry")
+			}
+		}
+	}
+
+	m := &tlsMethod{
+		state: tlsStateStart,
+	}
+
 	tlsCfg := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -525,7 +557,12 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		// non-nil return (serverHandshakeStateTLS13.readClientCertificate,
 		// crypto/tls/handshake_server_tls13.go).
 		VerifyConnection: func(cs tls.ConnectionState) error {
-			return checkChainRevocation(crls, cs.VerifiedChains, cs.Version, time.Now())
+			if err := checkChainRevocation(crls, cs.VerifiedChains, cs.Version, time.Now()); err != nil {
+				return err
+			}
+			// RFC 5216 Section 5.3 / RFC 9190 Section 5.7: authorize the client
+			// certificate identity on both full and resumed TLS handshakes.
+			return m.authorizeClient(cs.PeerCertificates, allowed)
 		},
 	}
 
@@ -553,7 +590,12 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 			if vErr != nil {
 				return vErr
 			}
-			return checkChainRevocation(crls, chains, cs.Version, now)
+			if err := checkChainRevocation(crls, chains, cs.Version, now); err != nil {
+				return err
+			}
+			// RFC 5216 Section 5.3 / RFC 9190 Section 5.7: authorize the client
+			// certificate identity on both full and resumed TLS handshakes.
+			return m.authorizeClient(cs.PeerCertificates, allowed)
 		}
 	}
 
@@ -603,10 +645,46 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 		return tls12WithoutTickets(tlsCfg), nil
 	}
 
-	return &tlsMethod{
-		tlsConfig: tlsCfg,
-		state:     tlsStateStart,
-	}, nil
+	m.tlsConfig = tlsCfg
+	return m, nil
+}
+
+// authorizeClient runs RFC 5216 Section 5.3 peer-identity authorization against
+// the client leaf certificate (on both full and resumed sessions, RFC 9190
+// Section 5.7) and publishes the verified identities on m.
+func (m *tlsMethod) authorizeClient(peerCerts []*x509.Certificate, allowed []AllowedIdentity) error {
+	var leaf *x509.Certificate
+	if len(peerCerts) > 0 {
+		leaf = peerCerts[0]
+	}
+	ids, err := authorizePeerCertificate(leaf, allowed)
+	if err != nil {
+		return err
+	}
+	m.peerCertIDs.Store(&ids)
+	return nil
+}
+
+func (m *tlsMethod) peerID() string {
+	ids := m.peerCertIDs.Load()
+	if ids == nil {
+		return ""
+	}
+	if len(*ids) == 0 {
+		return ""
+	}
+	return (*ids)[0]
+}
+
+func (m *tlsMethod) peerIDs() []string {
+	ids := m.peerCertIDs.Load()
+	if ids == nil {
+		return nil
+	}
+	if len(*ids) == 0 {
+		return nil
+	}
+	return slices.Clone(*ids)
 }
 
 func (m *tlsMethod) Type() uint8 { return TypeTLS }

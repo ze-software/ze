@@ -3,12 +3,12 @@
     "rid": "RFC9190-2.1.2-1",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode",
-    "unit-sha": "537a951cb8626f18",
+    "unit-sha": "dddfa1f9840633eb",
     "claim-sha": "701854fc23ae435b",
     "route": "revert",
     "producer": "internal/core/eap/resumption.go::TicketKeys",
     "producer-sha": "c7e047f9231e686f",
-    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9190-2.1.2-1",

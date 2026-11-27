@@ -70,10 +70,11 @@ func driveResumingExchangeAt(t *testing.T, pki *eapTLSPKI, server, peerStore *Re
 func TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	fl := driveEAPTLSFlight(t, pki.serverConfigResuming(NewResumption(time.Now, true)), peer, tls.VersionTLS13, eapTLS13Rounds)
 

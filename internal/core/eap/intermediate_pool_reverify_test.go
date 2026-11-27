@@ -69,13 +69,15 @@ func TestEAPTLSResumedSessionRevalidatesThroughConfiguredIntermediate(t *testing
 		cfg := pki.serverConfigResuming(serverStore)
 		cfg.CRLPEM = append(append([]byte{}, pki.trustedCRLPEM...), newCRL(t, sub, subKey, revoked...)...)
 		cfg.IntermediateCertPEM = subPEM
+		cfg.AllowedIdentities = []string{"eap-tls-resumed-leaf"}
 		return cfg
 	}
 	peer := func() *PeerSession {
 		return NewPeerSessionTLS("eap-tls-resumed-peer", &PeerTLSConfig{
 			CertPEM: leafPEM, KeyPEM: leafKeyPEM,
 			CACertPEM: pki.trustedCAPEM, CRLPEM: pki.trustedCRLPEM,
-			Resumption: peerStore,
+			Resumption:     peerStore,
+			ServerIdentity: "eap-tls-server",
 		})
 	}
 

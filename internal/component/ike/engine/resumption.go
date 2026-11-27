@@ -60,7 +60,8 @@ func resumptionFor(peerName string, auth ipsec.AuthConfig) *eap.Resumption {
 }
 
 // recordEAPTLSAuthentication counts and logs how one completed EAP-TLS
-// authentication was reached, on either role.
+// authentication was reached, on either role, including the verified peer-id
+// (responder) or server-id (initiator) extracted per RFC 5216 Section 5.2.
 //
 // It is the operator's only view of whether resumption is working: no CLI
 // command reports DidResume, and an SA that resumed looks exactly like one that
@@ -69,12 +70,16 @@ func resumptionFor(peerName string, auth ipsec.AuthConfig) *eap.Resumption {
 //
 // A peer running another EAP method is skipped rather than logged with
 // resumed=false, which would read as a resumption that failed.
-func recordEAPTLSAuthentication(sa *SA, resumed bool, log *slog.Logger) {
+func recordEAPTLSAuthentication(sa *SA, resumed bool, remoteID string, log *slog.Logger) {
 	if sa.PeerCfg.Auth.Mode != ipsec.AuthEAPTLS {
 		return
 	}
 	countEAPTLSAuthentication(sa.PeerName, resumed)
-	log.Info("ike: EAP-TLS authenticated", "peer", sa.PeerName, "resumed", resumed)
+	if sa.IsInitiator {
+		log.Info("ike: EAP-TLS authenticated", "peer", sa.PeerName, "resumed", resumed, "server-id", remoteID)
+		return
+	}
+	log.Info("ike: EAP-TLS authenticated", "peer", sa.PeerName, "resumed", resumed, "peer-id", remoteID)
 }
 
 // forgetResumption drops a peer's store, for a peer the config no longer names.

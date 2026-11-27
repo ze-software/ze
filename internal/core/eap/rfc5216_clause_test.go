@@ -25,10 +25,11 @@ func TestRFC5216BothRolesInstallAVersionFloor(t *testing.T) {
 	// version offered by the peer MUST correspond to TLS v1.0 or later." Ze's peer
 	// installs MinVersion TLS 1.2, so crypto/tls offers nothing below it.
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	t.Cleanup(peer.Close)
 	if floor := peerTLSConfigFor(t, peer).MinVersion; floor != tls.VersionTLS12 {

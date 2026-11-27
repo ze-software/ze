@@ -188,17 +188,29 @@ every session and rebuilds it, so a store held on the session alone would be
 discarded by the operator command most likely to be followed by a second
 authentication. It is discarded when the peer leaves the config, and rebuilt
 whenever the peer's authentication config changes: a resumed handshake presents
-no certificate, so an operator who replaces the certificate, the CA or the
-revocation lists must not have the old decision carried past the edit.
+no certificate, so an operator who replaces the certificate, the CA, the
+revocation lists, `allowed-identities`, or `server-identity` must not have the
+old decision carried past the edit (RFC 9190 Section 5.7).
 
 The key ROTATES. `Config.SetSessionTicketKeys` turns Go's own rotation off, so
 `Resumption.TicketKeys` reproduces its schedule, minting a new encryption key
 every 24 hours and keeping a retired one for 7 days. No key outlives the tickets
 it protects, because crypto/tls refuses a ticket older than the same 7 days.
 
+**The authenticator forwards `allowed-identities` and fails closed when unset.**
+`eapTLSServerConfig` copies `sa.PeerCfg.Auth.AllowedIdentities()` into
+`eap.MethodConfig.AllowedIdentities` and refuses the handshake with an
+`opererr.Error` if the list is empty (a runtime fail-closed backstop for daemons
+started from an unvalidated config file, mirrored by `checkIPsecEAPTLSIdentity`
+under `doctor-ipsec-eap-tls-identity`). On EAP-TLS completion, `handleResponderEAP`
+passes `sess.PeerID()` (RFC 5216 Section 5.2 SAN-first identity) to
+`recordEAPTLSAuthentication`, which logs `peer-id` on responder SAs and
+`server-id` on initiator SAs beside `peer` and `resumed`.
+
 <!-- source: internal/core/eap/resumption.go -- Resumption.TicketKeys, resumptionKeyRotation -->
-<!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, resumptionStates -->
-<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig -->
+<!-- source: internal/component/ike/engine/resumption.go -- resumptionFor, resumptionStates, recordEAPTLSAuthentication -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- eapTLSServerConfig, handleResponderEAP -->
+<!-- source: internal/component/ike/engine/doctor_eap_tls_identity.go -- checkIPsecEAPTLSIdentity -->
 
 **The authenticator answers a Certificate Status Request with what the operator
 configured, and with nothing else.** RFC 9190 Section 5.4 requires an EAP-TLS

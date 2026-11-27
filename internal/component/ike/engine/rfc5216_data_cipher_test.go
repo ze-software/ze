@@ -23,20 +23,22 @@ func dataCipherEAPTLS(t *testing.T) *eap.Session {
 	crlPEM := postauthCRLPEM(t, ca, caKey)
 
 	sess, err := eap.NewSession(eap.TypeTLS, eap.MethodConfig{
-		ServerCertPEM: certPEM(t, serverDER),
-		ServerKeyPEM:  keyPEM(t, serverKey),
-		CACertPEM:     certPEM(t, caDER),
-		CRLPEM:        crlPEM,
-		Resumption:    eap.NewResumption(time.Now, true),
+		ServerCertPEM:     certPEM(t, serverDER),
+		ServerKeyPEM:      keyPEM(t, serverKey),
+		CACertPEM:         certPEM(t, caDER),
+		CRLPEM:            crlPEM,
+		Resumption:        eap.NewResumption(time.Now, true),
+		AllowedIdentities: []string{"data-cipher-client"},
 	})
 	if err != nil {
 		t.Fatalf("create the authenticator session: %v", err)
 	}
 	peer := eap.NewPeerSessionTLS("eap-tls-client", &eap.PeerTLSConfig{
-		CertPEM:   certPEM(t, clientDER),
-		KeyPEM:    keyPEM(t, clientKey),
-		CACertPEM: certPEM(t, caDER),
-		CRLPEM:    crlPEM,
+		CertPEM:        certPEM(t, clientDER),
+		KeyPEM:         keyPEM(t, clientKey),
+		CACertPEM:      certPEM(t, caDER),
+		CRLPEM:         crlPEM,
+		ServerIdentity: "data-cipher-server",
 	})
 	t.Cleanup(func() {
 		sess.Close()

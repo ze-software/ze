@@ -1,0 +1,15 @@
+{
+  "note": "Judged 2026-11-27 independently against RFC 5216 Section 5.2 (rfc/full/rfc5216.txt): \"Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName.\" Verified producing code (identity.go::extractCertificateIdentities, certificatePrimaryID, eap_tls.go::authorizeClient/peerID/peerIDs, peer_chain.go::verifyConnection/primaryServerID/verifiedServerIDs) and tagged tests in rfc5216_identity_test.go. Positive: TestRFC5216IdentityIsTakenFromTheSANAndAuthorized builds server and client certs with distinct CNs and explicit wire-order SANs across all 5 supported types (URI, IP, rfc822Name, dNSName, UPN otherName) and asserts Session.PeerID/PeerIDs, PeerSession.ServerID/ServerIDs, and eapTLSPeerName match the wire-order SANs rather than Subject CN; TestRFC5216AllowedIdentitiesMatchingMatrix exercises each SAN type and SAN-absent CN/DN fallback. Negative: TestRFC5216IdentityIsTakenFromTheSANAndAuthorized proves matching Subject CN never authorizes a client or server cert with an unauthorized SAN (error names the extracted SAN), and a SAN extension containing only an unsupported registeredID GeneralName never falls back to Subject CN even under wildcard \"*\". Both roles and polarities are isolated and would fail on non-compliance.",
+  "requirement_sha": "ba22011532766ba8",
+  "tests": {
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216AllowedIdentitiesMatchingMatrix": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized#2": "d7e27290ca32f0e4"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216AllowedIdentitiesMatchingMatrix": "8e32cc8d69fa290b",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized": "f2a93bd8aca3127e",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized#2": "f2a93bd8aca3127e"
+  },
+  "verdict": "enforced"
+}

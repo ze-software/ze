@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: the peer answering the server's closing flight with anything but a no-data EAP-TLS Response. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless bareEAPTLSResponse(peerSent[successAt-1]). Negative: TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse errors if a peer refusing the server sends the no-data Response as its last packet.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 2.1.3 (rfc/full/rfc5216.txt): \"If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data.\" Both tagged units only added ServerIdentity=\"eap-tls-server\" (and AllowedIdentities=[\"eap-tls-client\"]). Positive still asserts bareEAPTLSResponse(peerSent[successAt-1]); negative still asserts a peer rejecting an untrusted server sends its fatal TLS alert rather than the bare no-data Response. Verdict stands: enforced.",
   "requirement_sha": "009b12e84674488f",
   "tests": {
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "60bd713e09c87b21",
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "2832445c60def645",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "2832445c60def645"
   },
   "units": {
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "4bc306464590658a",
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "05449f3b7dd14ba7",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "7c70d02085ac2938"
   },
   "verdict": "enforced"
 }

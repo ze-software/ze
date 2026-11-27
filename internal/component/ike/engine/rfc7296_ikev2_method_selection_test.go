@@ -101,11 +101,12 @@ func ikev2MethodSelectionConfig(t *testing.T) eap.MethodConfig {
 
 	pki := newESCPKI(t)
 	return eap.MethodConfig{
-		Password:      "ikev2-method-selection-secret",
-		ServerCertPEM: pki.certPEM,
-		ServerKeyPEM:  pki.keyPEM,
-		CACertPEM:     pki.caPEM,
-		Resumption:    eap.NewResumption(time.Now, true),
+		Password:          "ikev2-method-selection-secret",
+		ServerCertPEM:     pki.certPEM,
+		ServerKeyPEM:      pki.keyPEM,
+		CACertPEM:         pki.caPEM,
+		Resumption:        eap.NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-close-leaf"},
 	}
 }
 

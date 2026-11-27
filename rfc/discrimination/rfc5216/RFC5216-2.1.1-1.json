@@ -3,11 +3,11 @@
     "rid": "RFC5216-2.1.1-1",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate",
-    "unit-sha": "bf0c5f4f1a339df0",
+    "unit-sha": "c02f5fd5c9b8071b",
     "claim-sha": "55d902b01b84e40a",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "2bebbb8781d67867",
+    "producer-sha": "6bf03ac7c1c95ff1",
     "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -25,11 +25,11 @@
     "rid": "RFC5216-2.1.1-1",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
-    "unit-sha": "10fb5e08a4e1addf",
+    "unit-sha": "2da92a0dd05e0782",
     "claim-sha": "9fa8f962bb8a4e98",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "2bebbb8781d67867",
+    "producer-sha": "6bf03ac7c1c95ff1",
     "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -47,11 +47,11 @@
     "rid": "RFC5216-2.1.1-1",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames",
-    "unit-sha": "b6bf5926745757cd",
+    "unit-sha": "aabb36c333a588f8",
     "claim-sha": "604dccff048c64cd",
     "route": "revert",
     "producer": "internal/core/eap/peer.go::answerCertificateRequest",
     "producer-sha": "c4905821222489fd",
-    "break": "body of answerCertificateRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of answerCertificateRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

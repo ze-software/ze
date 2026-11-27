@@ -243,7 +243,7 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 		    "site-to-site": {
 		      "peer": {
 		        "branch": {
-		          "authentication": {"mode": "eap-tls", "ca-certificate": "corp-ca", "certificate": "corp-cert"}
+		          "authentication": {"mode": "eap-tls", "ca-certificate": "corp-ca", "certificate": "corp-cert", "server-identity": "vpn.example.com"}
 		        }
 		      }
 		    }

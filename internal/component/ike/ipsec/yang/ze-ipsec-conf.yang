@@ -1671,6 +1671,48 @@ module ze-ipsec-conf {
                             ze:help "PKI CA certificates that complete an EAP-TLS client chain.";
                         }
 
+                        leaf-list allowed-identities {
+                            type string {
+                                length "1..255";
+                            }
+                            ordered-by user;
+                            description "Client certificate identities authorized for an EAP-TLS
+                                responder peer (connection-type respond, RFC 5216 Section 5.3).
+                                Each entry is an exact DNS name, a single-label DNS wildcard
+                                ('*.branch.example.com' with at least two suffix labels), an exact
+                                NAI/email ('alice@example.com'), an NAI realm ('@example.com'), an
+                                exact IPv4 or IPv6 literal, an exact URI, or an explicit lone '*'
+                                to accept any valid CA-signed client certificate carrying a
+                                non-empty identity. Identities are matched against the certificate's
+                                subjectAltName extension when present, falling back to Subject Common
+                                Name only when no subjectAltName extension exists (RFC 5216 Section
+                                5.2, RFC 2818 Section 3.1).
+
+                                Required for connection-type respond in eap-tls mode: validation,
+                                commit, and reload fail closed when omitted. Refused on
+                                connection-type initiate and on every non-eap-tls mode. Mixing '*'
+                                with specific entries is refused.";
+                            ze:help "Authorized client certificate identities for an EAP-TLS responder.";
+                        }
+
+                        leaf server-identity {
+                            type string {
+                                length "1..255";
+                            }
+                            description "Expected server certificate identity for an EAP-TLS
+                                initiator peer (connection-type initiate, RFC 5216 Section 5.3 and
+                                RFC 2818 Section 3.1). Accepts an IPv4/IPv6 address literal, a DNS
+                                hostname/FQDN, or an exact user@realm NAI. Wildcards are not
+                                permitted here.
+
+                                When omitted on connection-type initiate in eap-tls mode, Ze derives
+                                the expected server identity from remote-address only when
+                                remote-address is an unambiguous multi-label FQDN; otherwise
+                                validation, commit, and reload fail closed. Refused on
+                                connection-type respond and on every non-eap-tls mode.";
+                            ze:help "Expected server certificate identity for an EAP-TLS initiator.";
+                        }
+
                         leaf certificate {
                             ze:reference "pki-certificate";
                             type string;

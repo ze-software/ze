@@ -57,6 +57,7 @@ var scenarioCheckers = map[string]scenarioCheck{
 	"eap-nak-method-negotiation":       {run: checkEAPNakMethodNegotiation},
 	"eap-tls":                          {run: checkEAPTLS},
 	"eap-tls13":                        {run: checkEAPTLS13},
+	"eap-tls13-unauthorized-server":    {run: checkEAPTLS13UnauthorizedServer},
 	"esn-both-offered":                 {run: checkESNBothOffered},
 	"esn-extended-only-refused":        {run: checkESNExtendedOnlyRefused},
 	"esp-3des-sha1":                    {run: checkESPKernel("3des", "cbc(des3_ede)", "hmac(sha1)")},
@@ -107,11 +108,12 @@ var scenarioCheckers = map[string]scenarioCheck{
 	// The leaf-only client establishes exactly as responder-eap-tls13 does, so it
 	// runs the same checker: the scenario differs in its chain alone (RFC 5216
 	// Section 5.3, Ze's intermediate-certificate list completes the path).
-	"responder-eap-tls13-leaf-only-client": {run: checkResponderEAPTLS13},
-	"responder-eap-tls13-revoked-client":   {run: checkResponderEAPTLS13RevokedClient},
-	"responder-ike-rekey":                  {run: checkResponderIKERekey},
-	"responder-psk":                        {run: checkResponderPSK},
-	"responder-two-subnets":                {run: checkResponderTwoSubnets},
+	"responder-eap-tls13-leaf-only-client":    {run: checkResponderEAPTLS13},
+	"responder-eap-tls13-revoked-client":      {run: checkResponderEAPTLS13RevokedClient},
+	"responder-eap-tls13-unauthorized-client": {run: checkResponderEAPTLS13UnauthorizedClient},
+	"responder-ike-rekey":                     {run: checkResponderIKERekey},
+	"responder-psk":                           {run: checkResponderPSK},
+	"responder-two-subnets":                   {run: checkResponderTwoSubnets},
 	// Ze initiates the same two pairs, and strongSwan's answer of one TSi and two
 	// TSr selectors must install both (RFC 7296 Section 3.13), so the same policy
 	// read decides it.
@@ -446,7 +448,7 @@ func checkEAPNakMethodNegotiation(ctx context.Context, lab *scenarioLab) error {
 
 var eapTLSRefusalFacts = [...]string{
 	"cannot export the RFC 5216 Section 2.3 MSK",
-	"for peer CN=172.28.0.3",
+	"for peer 172.28.0.3",
 	"on TLS 1.2",
 	"RFC 7627 extended master secret",
 	"Move the peer to TLS 1.3 (RFC 9190)",
@@ -719,6 +721,142 @@ func checkResponderEAPTLS13RevokedClient(ctx context.Context, lab *scenarioLab) 
 	// certificate, which serial number, which CA withdrew it, and under which
 	// obligation ze refused.
 	for _, fragment := range []string{"was revoked", "(serial ", "revoked by", "RFC 9190 Section 5.4"} {
+		if !strings.Contains(zeLogs, fragment) {
+			return fail(13, interoplab.WithSearchedOutput(fmt.Errorf("ze's account of the refusal does not carry %q", fragment), zeLogs))
+		}
+	}
+	return nil
+}
+
+// eapTLSRefusalError formats a numbered negative EAP-TLS assertion failure with
+// both peers' logs attached under a fresh context so a timeout still carries
+// diagnostic evidence.
+func eapTLSRefusalError(name string, lab *scenarioLab, assertion int, cause error) error {
+	var tb textbuf.Buffer
+	tb.Str("scenario ").Str(name).Str(" assertion ").Str(strconv.Itoa(assertion)).Str(": ").Err(cause)
+	for _, peer := range []string{zePeer, swanPeer} {
+		tb.Str("\n--- ").Str(peer).Str(" logs ---\n")
+		logs, err := lab.logs(context.Background(), peer)
+		if err != nil {
+			tb.Str("unavailable: ").Err(err)
+			continue
+		}
+		tb.Str(strings.TrimSpace(logs))
+	}
+	return errors.New(tb.String())
+}
+
+// checkResponderEAPTLS13UnauthorizedClient is the mirror of checkResponderEAPTLS13
+// with one line changed in ze.conf: allowed-identities expects
+// "other-client.example.com" instead of strongSwan's valid CA-signed client SAN
+// ("swan-eap-client"). Ze must refuse the client certificate with a fatal TLS
+// bad_certificate alert, log the extracted SAN identity, and install zero XFRM SAs
+// (RFC 5216 Section 5.2 and Section 5.3).
+func checkResponderEAPTLS13UnauthorizedClient(ctx context.Context, lab *scenarioLab) error {
+	const name = "responder-eap-tls13-unauthorized-client"
+	fail := func(assertion int, cause error) error {
+		return eapTLSRefusalError(name, lab, assertion, cause)
+	}
+
+	if err := lab.waitLog(ctx, swanPeer, "received fatal TLS alert 'bad certificate'", lab.timeout); err != nil {
+		return fail(1, err)
+	}
+	logs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return fail(2, err)
+	}
+	if !strings.Contains(logs, "negotiated TLS 1.3") {
+		return fail(3, interoplab.WithSearchedOutput(errors.New("charon never logged negotiated TLS 1.3"), logs))
+	}
+	if !strings.Contains(logs, "sending TLS client certificate") {
+		return fail(4, interoplab.WithSearchedOutput(errors.New("charon never sent its client certificate, so ze refused something earlier than identity authorization"), logs))
+	}
+	if !strings.Contains(logs, "EAP_TLS method failed") {
+		return fail(5, interoplab.WithSearchedOutput(errors.New("charon did not report the EAP-TLS method failing"), logs))
+	}
+	if strings.Contains(logs, "received protected success indication via TLS") {
+		return fail(6, interoplab.WithSearchedOutput(errors.New("charon received the protected success indication, so ze accepted an unauthorized client identity"), logs))
+	}
+	sas, err := lab.listSAs(ctx)
+	if err != nil {
+		return fail(7, err)
+	}
+	if strings.Contains(sas, "ESTABLISHED") {
+		return fail(8, fmt.Errorf("strongSwan reports an established SA after ze refused an unauthorized client identity: %s", sas))
+	}
+	if err := lab.checkXFRMCount(ctx, swanPeer, 0); err != nil {
+		return fail(9, err)
+	}
+	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
+		return fail(10, err)
+	}
+	if err := lab.waitLog(ctx, zePeer, "ike: EAP authentication failed", lab.timeout); err != nil {
+		return fail(11, err)
+	}
+	zeLogs, err := lab.logs(ctx, zePeer)
+	if err != nil {
+		return fail(12, err)
+	}
+	for _, fragment := range []string{"swan-eap-client", "is not authorized by allowed-identities", "RFC 5216 Section 5.3"} {
+		if !strings.Contains(zeLogs, fragment) {
+			return fail(13, interoplab.WithSearchedOutput(fmt.Errorf("ze's account of the refusal does not carry %q", fragment), zeLogs))
+		}
+	}
+	return nil
+}
+
+// checkEAPTLS13UnauthorizedServer is the mirror of checkEAPTLS13 with one line
+// changed in ze.conf: server-identity expects "other-server.example.com" instead of
+// strongSwan's valid CA-signed server SAN ("172.28.0.3"). Ze must refuse the server
+// certificate with a fatal TLS bad_certificate alert, log both the presented and
+// expected Server-Id, and install zero XFRM SAs (RFC 5216 Section 5.3 / RFC 2818
+// Section 3.1).
+func checkEAPTLS13UnauthorizedServer(ctx context.Context, lab *scenarioLab) error {
+	const name = "eap-tls13-unauthorized-server"
+	fail := func(assertion int, cause error) error {
+		return eapTLSRefusalError(name, lab, assertion, cause)
+	}
+
+	if err := lab.waitLog(ctx, swanPeer, "received fatal TLS alert 'bad certificate'", lab.timeout); err != nil {
+		return fail(1, err)
+	}
+	logs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return fail(2, err)
+	}
+	if !strings.Contains(logs, "negotiated TLS 1.3") {
+		return fail(3, interoplab.WithSearchedOutput(errors.New("charon never logged negotiated TLS 1.3"), logs))
+	}
+	if !strings.Contains(logs, "sending TLS cert request") {
+		return fail(4, interoplab.WithSearchedOutput(errors.New("charon never sent its TLS server flight and cert request"), logs))
+	}
+	if !strings.Contains(logs, "EAP method EAP_TLS failed") {
+		return fail(5, interoplab.WithSearchedOutput(errors.New("charon did not report the EAP-TLS method failing"), logs))
+	}
+	if strings.Contains(logs, "EAP method EAP_TLS succeeded") {
+		return fail(6, interoplab.WithSearchedOutput(errors.New("charon reported EAP-TLS success despite mismatched server-identity"), logs))
+	}
+	sas, err := lab.listSAs(ctx)
+	if err != nil {
+		return fail(7, err)
+	}
+	if strings.Contains(sas, "ESTABLISHED") {
+		return fail(8, fmt.Errorf("strongSwan reports an established SA after ze refused an unauthorized server identity: %s", sas))
+	}
+	if err := lab.checkXFRMCount(ctx, swanPeer, 0); err != nil {
+		return fail(9, err)
+	}
+	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
+		return fail(10, err)
+	}
+	if err := lab.waitLog(ctx, zePeer, "ike: EAP failed", lab.timeout); err != nil {
+		return fail(11, err)
+	}
+	zeLogs, err := lab.logs(ctx, zePeer)
+	if err != nil {
+		return fail(12, err)
+	}
+	for _, fragment := range []string{"172.28.0.3", "other-server.example.com", "does not match expected server-identity", "RFC 2818 Section 3.1"} {
 		if !strings.Contains(zeLogs, fragment) {
 			return fail(13, interoplab.WithSearchedOutput(fmt.Errorf("ze's account of the refusal does not carry %q", fragment), zeLogs))
 		}

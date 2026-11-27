@@ -35,10 +35,11 @@ import (
 func TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-		CertPEM:   pki.untrustedClientCertPEM,
-		KeyPEM:    pki.untrustedClientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.untrustedClientCertPEM,
+		KeyPEM:         pki.untrustedClientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, eapTLS13Rounds)
 

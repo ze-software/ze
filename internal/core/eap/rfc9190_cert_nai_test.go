@@ -181,7 +181,9 @@ func TestEAPTLS13PeerDerivesItsRealmFromTheCertificateNAI(t *testing.T) {
 	})
 
 	peer := NewPeerSessionTLS("ze-test-client", pki.peerConfigWithCert(certPEM, keyPEM))
-	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS13, naiExchangeRounds)
+	serverCfg := pki.serverConfig()
+	serverCfg.AllowedIdentities = []string{"alice@example.com"}
+	fl := driveEAPTLSFlight(t, serverCfg, peer, tls.VersionTLS13, naiExchangeRounds)
 
 	if len(fl.peerSent) == 0 {
 		t.Fatal("the peer answered nothing, so the exchange carried no Identity Response")

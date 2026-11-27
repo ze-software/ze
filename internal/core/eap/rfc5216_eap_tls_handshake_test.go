@@ -216,11 +216,12 @@ func (p *eapTLSPKI) serverConfig() MethodConfig {
 // the first one issued under.
 func (p *eapTLSPKI) serverConfigResuming(r *Resumption) MethodConfig {
 	return MethodConfig{
-		ServerCertPEM: p.serverCertPEM,
-		ServerKeyPEM:  p.serverKeyPEM,
-		CACertPEM:     p.trustedCAPEM,
-		CRLPEM:        p.trustedCRLPEM,
-		Resumption:    r,
+		ServerCertPEM:     p.serverCertPEM,
+		ServerKeyPEM:      p.serverKeyPEM,
+		CACertPEM:         p.trustedCAPEM,
+		CRLPEM:            p.trustedCRLPEM,
+		Resumption:        r,
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 }
 
@@ -335,7 +336,9 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 		}
 		if next.Code == CodeFailure {
 			res.serverEAPFailure = true
-			peer.Process(next)
+			if final := peer.Process(next); final.Err != nil {
+				res.peerErr = final.Err
+			}
 			break
 		}
 		req = next
@@ -379,10 +382,11 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 func TestEAPTLSMutualAuthHandshakeSucceeds(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)
@@ -483,8 +487,9 @@ func TestEAPTLSServerRejectsUntrustedClientChain(t *testing.T) {
 		// The peer trusts the authenticator's CA, so it does not reject the server
 		// first; the point of this test is the authenticator rejecting the
 		// untrusted CLIENT chain.
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	res := runEAPTLSHandshake(t, pki.serverConfig(), peer)
@@ -525,17 +530,21 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	// Authenticator uses a server cert signed by the untrusted CA.
 	serverCfg := MethodConfig{
-		ServerCertPEM: pki.untrustedServerCertPEM,
-		ServerKeyPEM:  pki.untrustedServerKeyPEM,
-		CACertPEM:     pki.trustedCAPEM, // still verifies the (valid) client
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.untrustedServerCertPEM,
+		ServerKeyPEM:      pki.untrustedServerKeyPEM,
+		CACertPEM:         pki.trustedCAPEM, // still verifies the (valid) client
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
 		CertPEM:   pki.clientCertPEM,
 		KeyPEM:    pki.clientKeyPEM,
 		CACertPEM: pki.trustedCAPEM, // peer trusts only the trusted CA
 		CRLPEM:    pki.trustedCRLPEM,
+		// Match untrustedServerCertPEM's CN ("rogue-server") so only CA path
+		// validation in verifyPeerCertificate can reject the server.
+		ServerIdentity: "rogue-server",
 	})
 
 	res := runEAPTLSHandshake(t, serverCfg, peer)
@@ -544,6 +553,9 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 	}
 	if res.peerDone {
 		t.Fatal("peer completed against an untrusted server certificate")
+	}
+	if _, unknown := errors.AsType[x509.UnknownAuthorityError](res.peerErr); !unknown {
+		t.Fatalf("peer refused the server chain with %v, want an unknown authority failure", res.peerErr)
 	}
 }
 
@@ -558,11 +570,12 @@ func TestEAPTLSPeerRejectsUntrustedServerChain(t *testing.T) {
 func TestEAPTLSPeerWithoutCARefusesToStart(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	serverCfg := MethodConfig{
-		ServerCertPEM: pki.untrustedServerCertPEM,
-		ServerKeyPEM:  pki.untrustedServerKeyPEM,
-		CACertPEM:     pki.trustedCAPEM,
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.untrustedServerCertPEM,
+		ServerKeyPEM:      pki.untrustedServerKeyPEM,
+		CACertPEM:         pki.trustedCAPEM,
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	noAnchor := func() *PeerSession {
 		return NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{

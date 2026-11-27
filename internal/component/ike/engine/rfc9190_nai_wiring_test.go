@@ -75,6 +75,7 @@ func TestEAPTLSPeerConfigCarriesTheCertificateTheNAIIsDerivedFrom(t *testing.T) 
 		Mode:          ipsec.AuthEAPTLS,
 		Certificate:   "crl-cert",
 		CACertificate: "crl-ca",
+		Additions:     &ipsec.AuthAdditions{ServerIdentity: "server.example.com"},
 	}}, Resumption: eap.NewResumption(time.Now, true)}
 
 	peerCfg := buildPeerTLSConfig(sa, slogutil.DiscardLogger())

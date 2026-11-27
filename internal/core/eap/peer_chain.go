@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"slices"
 	"sync/atomic"
 	"time"
 )
@@ -17,10 +18,12 @@ import (
 //
 // It spans the two crypto/tls callbacks because neither one alone sees
 // everything the checks need. verifyPeerCertificate is where the chain is BUILT:
-// EAP carries no server hostname, so the config sets InsecureSkipVerify and
-// crypto/tls builds none of its own. verifyConnection is where the NEGOTIATED
-// VERSION is known, and RFC 9190 Section 5.4's "When EAP-TLS is used with TLS
-// 1.3" turns on it.
+// the config sets InsecureSkipVerify so RFC 2818 Section 3.1 identity checks
+// (including CN fallback when SAN is absent and rfc822Name SANs) run in
+// verifyConnection without emitting cleartext SNI, and crypto/tls builds no
+// chain of its own. verifyConnection is where the NEGOTIATED VERSION is known
+// (RFC 9190 Section 5.4) and where both full and resumed sessions are checked
+// for revocation, OCSP stapling, and expected server identity.
 //
 // crypto/tls calls the two in that order on one goroutine, a few statements
 // apart (Conn.verifyServerCertificate, crypto/tls/handshake_client.go), so
@@ -36,6 +39,10 @@ type serverChainCheck struct {
 	// (checkStapledChainStatus, ocsp.go).
 	requireStatus bool
 
+	// expectedServer is the compiled expected server identity checked under
+	// RFC 5216 Section 5.3 and RFC 2818 Section 3.1.
+	expectedServer ServerIdentity
+
 	// chains is what verifyPeerCertificate built, leaf first and trust anchor
 	// last, for verifyConnection to check the revocation status over.
 	chains [][]*x509.Certificate
@@ -50,6 +57,32 @@ type serverChainCheck struct {
 	// handshake has finished. It carries the chain a RESUMED session rebuilt as
 	// well, which chains does not hold.
 	verified atomic.Pointer[[][]*x509.Certificate]
+
+	// serverIDs publishes the verified server certificate identities extracted in
+	// certificate wire order (RFC 5216 Section 5.2), written once all checks pass.
+	serverIDs atomic.Pointer[[]string]
+}
+
+func (c *serverChainCheck) primaryServerID() string {
+	ids := c.serverIDs.Load()
+	if ids == nil {
+		return ""
+	}
+	if len(*ids) == 0 {
+		return ""
+	}
+	return (*ids)[0]
+}
+
+func (c *serverChainCheck) verifiedServerIDs() []string {
+	ids := c.serverIDs.Load()
+	if ids == nil {
+		return nil
+	}
+	if len(*ids) == 0 {
+		return nil
+	}
+	return slices.Clone(*ids)
 }
 
 // ServerChains answers the authenticator certificate chains this EAP-TLS peer
@@ -75,9 +108,9 @@ func (ps *PeerSession) ServerChains() [][]*x509.Certificate {
 }
 
 // verifyPeerCertificate validates the authenticator's presented certificate
-// chain against the configured roots, without any DNS or hostname check
-// (EAP-TLS has no server hostname), and keeps the verified chain for
-// verifyConnection.
+// chain against the configured roots and keeps the verified chain for
+// verifyConnection, which enforces revocation, OCSP stapling, and RFC 2818
+// Section 3.1 server-identity verification.
 //
 // RFC 5216 Section 5.3: the peer validates the authenticator's certificate.
 func (c *serverChainCheck) verifyPeerCertificate(rawCerts [][]byte, _ [][]*x509.Certificate) error {
@@ -149,6 +182,21 @@ func (c *serverChainCheck) verifyConnection(cs tls.ConnectionState) error {
 			return err
 		}
 	}
+
+	// RFC 5216 Section 5.3 / RFC 2818 Section 3.1 / RFC 9190 Section 5.7:
+	// verify the authenticator leaf certificate identity on both full and resumed
+	// sessions after chain, CRL, and OCSP checks have succeeded.
+	if len(chains) == 0 {
+		return fmt.Errorf("eap-tls: no verified authenticator certificate chain available for server-identity verification")
+	}
+	if len(chains[0]) == 0 {
+		return fmt.Errorf("eap-tls: verified authenticator certificate chain holds no leaf certificate")
+	}
+	ids, err := verifyServerCertificate(chains[0][0], c.expectedServer)
+	if err != nil {
+		return err
+	}
+	c.serverIDs.Store(&ids)
 
 	// Published for the post-authentication check, and only once every check
 	// above accepted the chain. A chain this session refused is one no later

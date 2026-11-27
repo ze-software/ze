@@ -3,8 +3,8 @@
   "requirement_sha": "5aa99365ea6145f5",
   "tests": {
     "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP": "c21a5491f2e72d68",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "08e46d8cbdf7058a",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "08e46d8cbdf7058a"
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "be76f24d10a7f5ed",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "be76f24d10a7f5ed"
   },
   "units": {
     "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP": "8ee29aaf0b5ed24d",

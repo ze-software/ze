@@ -37,11 +37,12 @@ import (
 // store, so a second exchange can offer the ticket the first one was issued.
 func (p *eapTLSPKI) resumptionPeerConfig(r *Resumption) *PeerTLSConfig {
 	return &PeerTLSConfig{
-		CertPEM:    p.clientCertPEM,
-		KeyPEM:     p.clientKeyPEM,
-		CACertPEM:  p.trustedCAPEM,
-		CRLPEM:     p.trustedCRLPEM,
-		Resumption: r,
+		CertPEM:        p.clientCertPEM,
+		KeyPEM:         p.clientKeyPEM,
+		CACertPEM:      p.trustedCAPEM,
+		CRLPEM:         p.trustedCRLPEM,
+		Resumption:     r,
+		ServerIdentity: "eap-tls-server",
 	}
 }
 

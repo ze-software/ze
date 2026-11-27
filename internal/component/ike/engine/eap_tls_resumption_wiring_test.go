@@ -30,6 +30,10 @@ func resumptionWiringAuth() ipsec.AuthConfig {
 		Certificate:       "crl-cert",
 		CACertificate:     "crl-ca",
 		SessionResumption: true,
+		Additions: &ipsec.AuthAdditions{
+			AllowedIdentities: []string{"client.example.com"},
+			ServerIdentity:    "server.example.com",
+		},
 	}
 }
 
@@ -164,13 +168,13 @@ func TestEAPTLSAuthenticationIsCountedByOutcome(t *testing.T) {
 	log := slogutil.DiscardLogger()
 
 	hits, misses := eapTLSResumptionCounts(peerName)
-	recordEAPTLSAuthentication(sa, false, log)
+	recordEAPTLSAuthentication(sa, false, "", log)
 	afterMiss, afterMissM := eapTLSResumptionCounts(peerName)
 	if afterMiss != hits || afterMissM != misses+1 {
 		t.Fatalf("a full handshake moved the counters to (%d, %d), want (%d, %d)", afterMiss, afterMissM, hits, misses+1)
 	}
 
-	recordEAPTLSAuthentication(sa, true, log)
+	recordEAPTLSAuthentication(sa, true, "", log)
 	afterHit, afterHitM := eapTLSResumptionCounts(peerName)
 	if afterHit != hits+1 || afterHitM != misses+1 {
 		t.Fatalf("a resumption moved the counters to (%d, %d), want (%d, %d)", afterHit, afterHitM, hits+1, misses+1)
@@ -179,7 +183,7 @@ func TestEAPTLSAuthenticationIsCountedByOutcome(t *testing.T) {
 	// A peer running another EAP method has no resumption to report, and a
 	// resumed=false row for it would read as a resumption that failed.
 	other := &SA{PeerName: peerName, PeerCfg: ipsec.SiteToSitePeer{Auth: ipsec.AuthConfig{Mode: ipsec.AuthEAPMSCHAPv2}}}
-	recordEAPTLSAuthentication(other, false, log)
+	recordEAPTLSAuthentication(other, false, "", log)
 	finalH, finalM := eapTLSResumptionCounts(peerName)
 	if finalH != hits+1 || finalM != misses+1 {
 		t.Fatalf("an EAP-MSCHAPv2 authentication moved the EAP-TLS counters to (%d, %d)", finalH, finalM)

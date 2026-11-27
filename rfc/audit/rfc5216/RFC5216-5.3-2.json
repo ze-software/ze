@@ -1,0 +1,23 @@
+{
+  "note": "Judged 2026-11-27 independently against RFC 5216 Section 5.3 (rfc/full/rfc5216.txt): \"Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS.\" Verified producing code (identity.go::authorizePeerCertificate/verifyServerCertificate, eap_tls.go::newTLSMethod/authorizeClient, peer.go::startTLSClient, peer_chain.go::verifyPeerCertificate/verifyConnection, responder_eap.go::eapTLSServerConfig, fsm.go::buildPeerTLSConfig) and all 4 tagged tests in rfc5216_identity_test.go. Positive: authorized client and server SANs succeed on full handshakes across exact DNS, single-label DNS wildcard, exact NAI, NAI realm, exact IPv4/IPv6, exact URI, and explicit lone \"*\" (TestRFC5216IdentityIsTakenFromTheSANAndAuthorized, TestRFC5216AllowedIdentitiesMatchingMatrix) and on resumed TLS 1.3 sessions (TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity). Negative: valid CA-signed certs with unauthorized SAN (despite matching CN), multi-label/apex wildcards, bare @realm, IP-in-dNSName/CN, URI case mismatch or URI-in-CN, Unicode Kelvin-sign U+212A folding, empty Subject, spoofed unauthenticated EAP-Response/Identity, wrong EKU (ServerAuth-only client cert), narrowed AllowedIdentities on a resumed TLS 1.3 session, and unset/mixed-wildcard AllowedIdentities are all refused. Covers both roles, full and resumed sessions, and EKU appropriateness.",
+  "requirement_sha": "c66be180f96e85fd",
+  "tests": {
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216AllowedIdentitiesMatchingMatrix": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216AllowedIdentitiesMatchingMatrix#2": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216FailClosedWhenIdentityPolicyUnset": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized#2": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity": "d7e27290ca32f0e4",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity#2": "d7e27290ca32f0e4"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216AllowedIdentitiesMatchingMatrix": "8e32cc8d69fa290b",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216AllowedIdentitiesMatchingMatrix#2": "8e32cc8d69fa290b",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216FailClosedWhenIdentityPolicyUnset": "9757e0c3cd307950",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized": "f2a93bd8aca3127e",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216IdentityIsTakenFromTheSANAndAuthorized#2": "f2a93bd8aca3127e",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity": "0cebb4b6cd44e640",
+    "internal/core/eap/rfc5216_identity_test.go::TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity#2": "0cebb4b6cd44e640"
+  },
+  "verdict": "enforced"
+}

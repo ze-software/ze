@@ -131,10 +131,11 @@ func TestForgetKeysClosesResponderEAPSession(t *testing.T) {
 	pki := newESCPKI(t)
 
 	sess, err := eap.NewSession(eap.TypeTLS, eap.MethodConfig{
-		ServerCertPEM: pki.certPEM,
-		ServerKeyPEM:  pki.keyPEM,
-		CACertPEM:     pki.caPEM,
-		Resumption:    eap.NewResumption(time.Now, true),
+		ServerCertPEM:     pki.certPEM,
+		ServerKeyPEM:      pki.keyPEM,
+		CACertPEM:         pki.caPEM,
+		Resumption:        eap.NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-close-leaf"},
 	})
 	if err != nil {
 		t.Fatalf("create authenticator session: %v", err)
@@ -174,9 +175,10 @@ func TestForgetKeysClosesInitiatorEAPSession(t *testing.T) {
 	pki := newESCPKI(t)
 
 	peer := eap.NewPeerSessionTLS("close-test-user", &eap.PeerTLSConfig{
-		CertPEM:   pki.certPEM,
-		KeyPEM:    pki.keyPEM,
-		CACertPEM: pki.caPEM,
+		CertPEM:        pki.certPEM,
+		KeyPEM:         pki.keyPEM,
+		CACertPEM:      pki.caPEM,
+		ServerIdentity: "eap-close-leaf",
 	})
 
 	if res := peer.Process(&eap.Packet{Code: eap.CodeRequest, Identifier: 1, Type: eap.TypeIdentity}); res.Err != nil {
@@ -220,10 +222,11 @@ func TestRunResponderStopReleasesAbandonedEAPSession(t *testing.T) {
 	pki := newESCPKI(t)
 
 	sess, err := eap.NewSession(eap.TypeTLS, eap.MethodConfig{
-		ServerCertPEM: pki.certPEM,
-		ServerKeyPEM:  pki.keyPEM,
-		CACertPEM:     pki.caPEM,
-		Resumption:    eap.NewResumption(time.Now, true),
+		ServerCertPEM:     pki.certPEM,
+		ServerKeyPEM:      pki.keyPEM,
+		CACertPEM:         pki.caPEM,
+		Resumption:        eap.NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-close-leaf"},
 	})
 	if err != nil {
 		t.Fatalf("create authenticator session: %v", err)

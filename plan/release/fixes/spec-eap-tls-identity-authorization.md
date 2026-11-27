@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P0 |
 | Release reason | A trusted certificate chain must not authorize an unintended client or server identity. |
 | RFC gaps | RFC5216-5.2-1, RFC5216-5.3-2, RFC5216-5.3-3 |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -252,11 +252,11 @@ in the SAN extension").
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |---|---|---|
-| YANG / Config Provider -> `ike` plugin | JSON `sdk.ConfigSection` (`vpn`, `pki`) lowered by `config.TreeFromPluginMap` into `ipsec.IPsecConfig` | No |
-| `ike/ipsec` -> `core/eap` | Direct downward Go import (`eap.ParseAllowedIdentity`, `eap.ParseServerIdentity`, `eap.IsUnambiguousFQDN`) | No |
-| `ike/engine` -> `core/eap` | `eap.MethodConfig.AllowedIdentities` and `eap.PeerTLSConfig.ServerIdentity` passed at session construction; `Session.PeerID()`/`PeerIDs()` and `PeerSession.ServerID()`/`ServerIDs()` read on completion | No |
-| `core/eap` -> `ike/engine` (alert & failure cause) | `MethodResult.FinalRequest` + `Session.Err()` (authenticator) and `PeerResult.Err` (peer) over IKE_AUTH SK-encrypted EAP payloads | No |
-| `ike/engine` -> Operator / Doctor | `opererr` refusals at validate/commit/reload; `recordEAPTLSAuthentication` Info log (`peer-id`/`server-id`); `checkIPsecEAPTLSIdentity` (`doctor-ipsec-eap-tls-identity`) | No |
+| YANG / Config Provider -> `ike` plugin | JSON `sdk.ConfigSection` (`vpn`, `pki`) lowered by `config.TreeFromPluginMap` into `ipsec.IPsecConfig` | Yes (`test/parse/ipsec-eap-tls-identity-required.ci`, `test/reload/tx-ipsec-eap-tls-identity-required.ci`) |
+| `ike/ipsec` -> `core/eap` | Direct downward Go import (`eap.ParseAllowedIdentity`, `eap.ParseServerIdentity`, `eap.IsUnambiguousFQDN`) | Yes (`./le arch tier check`, `TestValidateEAPTLSIdentitiesMatrix`) |
+| `ike/engine` -> `core/eap` | `eap.MethodConfig.AllowedIdentities` and `eap.PeerTLSConfig.ServerIdentity` passed at session construction; `Session.PeerID()`/`PeerIDs()` and `PeerSession.ServerID()`/`ServerIDs()` read on completion | Yes (`TestEAPTLSServerConfigWiresAllowedIdentities`, `TestBuildPeerTLSConfigWiresServerIdentity`, `test/ipsec/ipsec-eap-tls-identity-authorized.ci`) |
+| `core/eap` -> `ike/engine` (alert & failure cause) | `MethodResult.FinalRequest` + `Session.Err()` (authenticator) and `PeerResult.Err` (peer) over IKE_AUTH SK-encrypted EAP payloads | Yes (`test/ipsec/ipsec-eap-tls-identity-rejected.ci`, `responder-eap-tls13-unauthorized-client`, `eap-tls13-unauthorized-server`) |
+| `ike/engine` -> Operator / Doctor | `opererr` refusals at validate/commit/reload; `recordEAPTLSAuthentication` Info log (`peer-id`/`server-id`); `checkIPsecEAPTLSIdentity` (`doctor-ipsec-eap-tls-identity`) | Yes (`./le arch operator-error check`, `./le arch doctor-coverage check`, `TestDoctorIPsecEAPTLSIdentityCheck`) |
 
 ### Changed-Wire Census
 
@@ -281,23 +281,23 @@ in the SAN extension").
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |---|---|---|
-| No bypassed layers (data flows through the intended path) | No | Verify during implementation: config flows YANG -> `ipsec.ParseIPsecConfig` -> `validateIPsecSections` -> `eapTLSServerConfig` / `buildPeerTLSConfig` -> `eap.NewSession` / `eap.NewPeerSessionTLS` -> `VerifyConnection` |
-| No unintended coupling (components stay isolated) | No | Verify `./le arch tier check`: `internal/core/eap` imports stdlib only; `ipsec` and `engine` import `core/eap` downward |
-| No duplicated functionality (extends existing, does not recreate) | No | Verify `identity.go` reuses `nai.go` ASN.1/NAI helpers (`oidSubjectAltName`, `oidUserPrincipalName`, `otherNameText`, `validNAI`, `validRealm`), `ipsec` calls `eap`'s single pattern parsers, and `AuthAdditions` holds the new config fields |
-| Zero-copy preserved where applicable (refs, not copies) | No | Verify `SiteToSitePeer` stays `< 288` bytes via `TestSiteToSitePeerStaysUnderTheHugeParamThreshold` |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | Verify YANG module registers via generated `./le yang glue update`; doctor check registers in `engine/register.go` and code in `register_doctor_codes.go`; no switch or central list added outside `ike`/`eap` |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | Verify `allowed-identities` and `server-identity` appear in editor completion and help automatically from `ze-ipsec-conf.yang`; searched `internal/component/ike/ipsec/` (`yang_vocabulary_test.go`) and `internal/component/config/` for leaf lists (none duplicate YANG leaves) |
+| No bypassed layers (data flows through the intended path) | Yes | Config flows `ze-ipsec-conf.yang` -> `ipsec.ParseIPsecConfig` (`parseEAPTLSIdentityPolicy`) -> `engine.validateIPsecSections` (`ValidateEAPTLSIdentities`) -> `eapTLSServerConfig` / `buildPeerTLSConfig` -> `eap.NewSession` / `eap.NewPeerSessionTLS` -> `VerifyConnection` (`authorizePeerCertificate` / `verifyServerCertificate`), proved by `ipsec-eap-tls-identity-authorized.ci` and `ipsec-eap-tls-identity-rejected.ci` |
+| No unintended coupling (components stay isolated) | Yes | `./le arch tier check` passes; `internal/core/eap/identity.go` imports Go stdlib only; `internal/component/ike/ipsec` and `engine` import `internal/core/eap` downward |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `identity.go` reuses `nai.go` (`oidSubjectAltName`, `oidUserPrincipalName`, `otherName`, `otherNameText`, `validNAI`, `validRealm`), `ipsec/validate.go` delegates syntax checks to `eap.ParseAllowedIdentity`/`ParseServerIdentity`/`IsUnambiguousFQDN`, and `AuthAdditions` holds the new config fields |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `SiteToSitePeer` stays strictly under 288 bytes (`TestSiteToSitePeerStaysUnderTheHugeParamThreshold` PASS) |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `./le yang glue check` and `./le config claims` pass; doctor check registers in `engine/register.go` and code in `register_doctor_codes.go`; no switch or central list added outside `ike`/`eap` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | `allowed-identities` and `server-identity` derive automatically from `ze-ipsec-conf.yang` (verified by `./le config claims` and `test/parse/ipsec-eap-tls-identity-required.ci`); no duplicate leaf list exists in `internal/component/ike/ipsec/` or `internal/component/config/` |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |---|---|---|---|---|---|
-| A-1 | `internal/component/ike/ipsec` is allowed by `./le arch tier check` to import `internal/core/eap` for shared identity pattern parsing (`ParseAllowedIdentity`, `ParseServerIdentity`, `IsUnambiguousFQDN`) | `ai/doors/core.md`: "Components, plugins and the public SDK all import core"; `internal/component/ike/engine` already imports `internal/core/eap` | Move shared pattern validation into a tiny stdlib-only helper or duplicate with parity test | `./le arch tier check` and `go test ./internal/component/ike/ipsec/...` | unvalidated |
-| A-2 | On a TLS 1.3 resumed handshake on the authenticator, `cs.PeerCertificates` in `VerifyConnection` contains the cached client leaf certificate restored from the session ticket | `internal/core/eap/client_chain.go:81` comment ("It reads peerCerts on a resumed session too, where crypto/tls restores the client's certificates from the ticket") and `crypto/tls` `serverHandshakeStateTLS13.readClientHello` | Resumed authenticator sessions would fail closed with empty `PeerCertificates` and would require refusing resumption or caching Peer-Id in ticket state | `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity` in `internal/core/eap/rfc5216_identity_test.go` | unvalidated |
-| A-3 | Existing strongSwan interop certificates carry `IP Address:172.28.0.3` (`eap-tls13/pki/server.pem`) and `DNS:swan-eap-client` (`responder-eap-tls13/pki/server.pem`, `responder-eap-tls13-leaf-only-client/pki/server.pem`) | Inspected directly with `openssl x509 -noout -subject -ext subjectAltName` on 2026-11-26 | Scenario configs would fail identity check until given the actual SANs | Passing runs of `eap-tls13`, `responder-eap-tls13`, `responder-eap-tls13-leaf-only-client`, `responder-eap-tls12`, `responder-eap-tls13-revoked-client`, `real-nat-port-translated-eap-ze-responder` | unvalidated |
-| A-4 | strongSwan 6.x logs a peer TLS `bad_certificate` alert and installs no XFRM SA when Ze rejects its server or client identity during EAP-TLS | `docs/architecture/ike/ipsec-11-interop-eap.md` ("`responder-eap-tls13-revoked-client`", where strongSwan already receives Ze's `bad_certificate` alert from `VerifyConnection`) | Checker log needle for strongSwan side must be verified against strongSwan 6.x source before finalizing assertions (`ai/rules/interop-and-goal-validation.md`) | Read strongSwan 6.x `libtls` alert handling and run both new negative interop scenarios with revert-to-red proof | unvalidated |
-| A-5 | Adding `AllowedIdentities` and `ServerIdentity` inside `AuthAdditions` keeps `unsafe.Sizeof(SiteToSitePeer{}) < 288` | `internal/component/ike/ipsec/types.go:496`: `Additions` is already a single pointer on `AuthConfig` | `TestSiteToSitePeerStaysUnderTheHugeParamThreshold` fails | `TestSiteToSitePeerStaysUnderTheHugeParamThreshold` | unvalidated |
+| A-1 | `internal/component/ike/ipsec` is allowed by `./le arch tier check` to import `internal/core/eap` for shared identity pattern parsing (`ParseAllowedIdentity`, `ParseServerIdentity`, `IsUnambiguousFQDN`) | `ai/doors/core.md`: "Components, plugins and the public SDK all import core"; `internal/component/ike/engine` already imports `internal/core/eap` | Move shared pattern validation into a tiny stdlib-only helper or duplicate with parity test | `./le arch tier check` PASS and `./internal/component/ike/ipsec/` unit tests PASS | confirmed |
+| A-2 | On a TLS 1.3 resumed handshake on the authenticator, `cs.PeerCertificates` in `VerifyConnection` contains the cached client leaf certificate restored from the session ticket | `internal/core/eap/client_chain.go:81` comment and `crypto/tls` `serverHandshakeStateTLS13.readClientHello` | Resumed authenticator sessions would fail closed with empty `PeerCertificates` and would require refusing resumption or caching Peer-Id in ticket state | `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity` PASS (verified resumed authenticator both succeeds with matching policy and refuses with narrowed policy on cached leaf) | confirmed |
+| A-3 | Existing strongSwan interop certificates carry `IP Address:172.28.0.3` (`eap-tls13/pki/server.pem`) and `DNS:swan-eap-client` (`responder-eap-tls13/pki/server.pem`, `responder-eap-tls13-leaf-only-client/pki/server.pem`) | Inspected directly with `openssl x509 -noout -subject -ext subjectAltName` on 2026-11-26 | Scenario configs would fail identity check until given the actual SANs | Verified in strongSwan runs: `eap-tls` PASS, `responder-eap-tls13-revoked-client` PASS, and `eap-tls13`/`responder-eap-tls13` logged `EAP-TLS authenticated` with `server-id=172.28.0.3` and `peer-id=swan-eap-client` | confirmed |
+| A-4 | strongSwan 6.x logs a peer TLS `bad_certificate` alert and installs no XFRM SA when Ze rejects its server or client identity during EAP-TLS | `docs/architecture/ike/ipsec-11-interop-eap.md` (`responder-eap-tls13-revoked-client`) | Checker log needle for strongSwan side must be verified against strongSwan 6.x source before finalizing assertions (`ai/rules/interop-and-goal-validation.md`) | `responder-eap-tls13-unauthorized-client` PASS (13s, counterfactual red `SWAN_CLIENT_RC=1`) and `eap-tls13-unauthorized-server` PASS (11s, counterfactual red `SWAN_SERVER_RC=1`) | confirmed |
+| A-5 | Adding `AllowedIdentities` and `ServerIdentity` inside `AuthAdditions` keeps `unsafe.Sizeof(SiteToSitePeer{}) < 288` | `internal/component/ike/ipsec/types.go:496`: `Additions` is already a single pointer on `AuthConfig` | `TestSiteToSitePeerStaysUnderTheHugeParamThreshold` fails | `TestSiteToSitePeerStaysUnderTheHugeParamThreshold` PASS | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -668,4 +668,182 @@ Add `// RFC 5216 Section 5.2: "<quoted requirement>"`, `// RFC 5216 Section 5.3:
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
 
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Core EAP-TLS identity extraction & authorization (`internal/core/eap/`):** Created `identity.go` (stdlib-only) implementing SAN-first wire-order extraction (`extractCertificateIdentities`, `certificatePrimaryID`, `appendSANIdentities`, `decodeGeneralName`, `mostSpecificCommonName`), unified pattern parsers (`ParseAllowedIdentity`, `ParseServerIdentity`, `IsUnambiguousFQDN`), authenticator authorization (`authorizePeerCertificate`, `allowedIdentityMatches`), and peer RFC 2818 Section 3.1 verification (`verifyServerCertificate`, `serverIdentityMatches`). Updated `eapTLSPeerName` (`eap_tls.go`), exported `Session.PeerID()`/`PeerIDs()` (`eap.go`) and `PeerSession.ServerID()`/`ServerIDs()` (`peer.go`), and enforced authorization in both `newTLSMethod` `VerifyConnection` branches (`eap_tls.go`) and `serverChainCheck.verifyConnection` (`peer_chain.go`) on full and resumed TLS 1.3 handshakes.
+- **YANG schema, IPsec data model, and fail-closed validation (`internal/component/ike/ipsec/`):** Added `leaf-list allowed-identities` and `leaf server-identity` (`type string { length "1..255"; }`) under `vpn ipsec site-to-site peer authentication` in `ze-ipsec-conf.yang`; packed `AllowedIdentities` and `ServerIdentity` inside `AuthAdditions` (`types.go`) with `AllowedIdentities()`, `ServerIdentity()`, and `SiteToSitePeer.EffectiveEAPTLSServerIdentity()`; added `parseEAPTLSIdentityPolicy` (`config_auth_policy.go`, called from `config.go::parseAuthConfig`); implemented `IPsecConfig.ValidateEAPTLSIdentities()` and `ValidatePeerEAPTLSIdentity` (`validate.go`) with `opererr` refusals and exact `set`/`delete` fix commands.
+- **IKE engine wiring, resumption invalidation, logging, and doctor (`internal/component/ike/engine/`):** Wired `cfg.ValidateEAPTLSIdentities()` in `validateIPsecSections` (`config.go`) right after `ValidateIntermediateRefs`; forwarded `AllowedIdentities` in `eapTLSServerConfig` (`responder_eap.go`, failing closed with `opererr` if empty) and `EffectiveEAPTLSServerIdentity()` in `buildPeerTLSConfig` (`fsm.go`, failing closed with `code: doctor-ipsec-eap-tls-identity` Warn if empty); extended `recordEAPTLSAuthentication` (`resumption.go`) to log `peer-id` (responder) and `server-id` (initiator); added `checkIPsecEAPTLSIdentity` (`doctor_eap_tls_identity.go`), registered `ipsec-eap-tls-identity` at `DoctorPhasePostConfig` (`register.go`), and registered `doctor-ipsec-eap-tls-identity` (`register_doctor_codes.go`). Deduplicated `"show config running"` via `fixShowConfigRunning` across `doctor_eap_tls_identity.go`, `doctor_implicit_discard.go`, and `doctor_pmtu_disc.go`.
+- **Tests, strongSwan interop, RFC conformance, docs, and news fragment:** Added unit suites (`rfc5216_identity_test.go`, `validate_eaptls_identity_test.go`, `eap_tls_identity_wiring_test.go`, `doctor_eap_tls_identity_test.go`), 4 functional `.ci` tests (`ipsec-eap-tls-identity-authorized.ci`, `ipsec-eap-tls-identity-rejected.ci`, `ipsec-eap-tls-identity-required.ci`, `tx-ipsec-eap-tls-identity-required.ci`), 2 negative strongSwan interop scenarios (`responder-eap-tls13-unauthorized-client`, `eap-tls13-unauthorized-server`) with checkers (`internal/le/interoplab/ipsec/checkers.go`, `ipsec_test.go`, `test/interop-ipsec/parity_test.go`), updated all 6 existing `.ci` tests, 7 existing strongSwan `ze.conf` files, and 40 unit test fixtures, updated `rfc/short/rfc5216.md` plus all RFC audit/discrimination records, updated `docs/guide/ipsec.md` and four `docs/architecture/ike/` pages, cleared citers in `plan/release/fixes/spec-ipsec-remote-access.md`, and created `website/changes/fragments/eap-tls-identity-authorization.md`.
+
+### Bugs Found/Fixed
+- `internal/le/interoplab/ipsec/checkers.go`: `eapTLSRefusalFacts[1]` expected `"for peer CN=172.28.0.3"` from the pre-SAN `eapTLSPeerName`; updated to `"for peer 172.28.0.3"` matching RFC 5216 Section 5.2 SAN-first extraction (verified by strongSwan `eap-tls` PASS).
+- `internal/component/ike/engine/doctor_implicit_discard.go` & `doctor_pmtu_disc.go`: extracted shared `fixShowConfigRunning = "show config running"` constant to satisfy `goconst` lint after adding `doctor_eap_tls_identity.go`.
+
+### Documentation Updates
+- `docs/guide/ipsec.md`: updated EAP-TLS responder example with `connection-type respond` and `allowed-identities`; replaced stale "without DNS-name matching" paragraph with `## EAP-TLS certificate identity authorization` with source anchors (`identity.go`, `peer.go`, `peer_chain.go`, `validate.go`, `responder_eap.go`, `fsm.go`, `resumption.go`, `doctor_eap_tls_identity.go`).
+- `docs/architecture/ike/ipsec-3-data-model.md`: documented `allowed-identities`, `server-identity`, `AuthAdditions`, `EffectiveEAPTLSServerIdentity`, `parseEAPTLSIdentityPolicy`, and `ValidateEAPTLSIdentities`/`ValidatePeerEAPTLSIdentity` with source anchors.
+- `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md`: documented SAN-first extraction (`extractCertificateIdentities`), `eapTLSPeerName`, `Session.PeerID`/`PeerIDs`, and authenticator `authorizePeerCertificate` with source anchors.
+- `docs/architecture/ike/ipsec-11-interop-eap.md`: updated `ServerName`/`InsecureSkipVerify` explanation, documented `verifyServerCertificate` and `PeerSession.ServerID`/`ServerIDs`, and added `responder-eap-tls13-unauthorized-client` and `eap-tls13-unauthorized-server` with checker source anchors.
+- `docs/architecture/ike/ipsec-14-responder.md`: documented `eapTLSServerConfig` `allowed-identities` wiring, `resumptionFor` ticket invalidation, `recordEAPTLSAuthentication` `peer-id`/`server-id`, and `checkIPsecEAPTLSIdentity` with source anchors.
+- `rfc/short/rfc5216.md`: closed `{gap}` on `RFC5216-5.2-1`, `RFC5216-5.3-2`, and `RFC5216-5.3-3`; updated Meta `Enrolment reason`.
+- `website/changes/fragments/eap-tls-identity-authorization.md`: created operator-facing news fragment (`topic: IPsec`, `feature: ipsec-eap-authentication`, `found-by: rfc-check`).
+- `./le doc check all`: 0 errors and 0 broken source anchors across all modified `docs/guide/ipsec.md` and `docs/architecture/ike/*.md` files (checked 6137 code paths; remaining failures in tree are unrelated concurrent-session files `catalog.go` and `ze-policy-conf`).
+
+### Deviations from Plan
+- `internal/component/ike/ipsec/yang/embed.go` and `register.go` required no diff because `embed.go` embeds `ze-ipsec-conf.yang` via `//go:embed`; `./le yang glue check` confirmed glue is in sync.
+- Extracted `fixShowConfigRunning` constant across `doctor_eap_tls_identity.go`, `doctor_implicit_discard.go`, and `doctor_pmtu_disc.go` to clear `goconst` lint cleanly.
+- Added `TestRFC5216IdentityParsingBoundaries` in `internal/core/eap/rfc5216_identity_test.go` beyond the TDD plan list to pin every length and label-count boundary in one dedicated test.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. SAN-first wire-order Peer-Id/Server-Id extraction, `eapTLSPeerName`, `Session.PeerID`/`PeerIDs`, `PeerSession.ServerID`/`ServerIDs` | Done | `internal/core/eap/identity.go:359-553`, `eap_tls.go:359-363,668-688`, `eap.go:515-553`, `peer.go:1510-1538`, `peer_chain.go:47-66` | Verified by `TestRFC5216IdentityIsTakenFromTheSANAndAuthorized` |
+| 2. YANG `allowed-identities` leaf-list & `server-identity` leaf packed in `ipsec.AuthAdditions` | Done | `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang:1674-1715`, `types.go:633-664,861-875`, `config.go:872`, `config_auth_policy.go:261-279` | Zero size growth on `SiteToSitePeer` (`TestSiteToSitePeerStaysUnderTheHugeParamThreshold` PASS) |
+| 3. Fail-closed commit/validate/reload + runtime guards + post-config doctor check | Done | `internal/component/ike/ipsec/validate.go:401-533`, `engine/config.go:179`, `responder_eap.go:165-176`, `fsm.go:1491-1501`, `eap_tls.go:508-525`, `peer.go:1306-1312`, `doctor_eap_tls_identity.go:28-75`, `register.go:467-474`, `register_doctor_codes.go:112,428-438` | `opererr` fixes verified; `doctor-ipsec-eap-tls-identity` registered |
+| 4. Mutual `VerifyConnection` authorization (full + resumed TLS 1.3), fatal `bad_certificate` alert, and `peer-id`/`server-id` logging | Done | `internal/core/eap/eap_tls.go:559-600,655-666`, `peer_chain.go:183-200`, `engine/responder_eap.go:414,421`, `fsm.go:1313`, `resumption.go:216-227` | Proved in unit, `.ci`, and strongSwan interop |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC5216IdentityIsTakenFromTheSANAndAuthorized`, `test/ipsec/ipsec-eap-tls-identity-authorized.ci` | Wire-order SAN extraction, CN-no-fallback, and `eapTLSPeerName` verified |
+| AC-2 | Done | `TestRFC5216AllowedIdentitiesMatchingMatrix`, `ipsec-eap-tls-identity-authorized.ci`, `ipsec-eap-tls-identity-rejected.ci`, `responder-eap-tls13-unauthorized-client` | All 7 rule forms + negative boundaries + fatal alert verified |
+| AC-3 | Done | `TestRFC5216ServerIdentityRFC2818Rules`, `ipsec-eap-tls-identity-authorized.ci`, `ipsec-eap-tls-identity-rejected.ci`, `eap-tls13-unauthorized-server` | RFC 2818 §3.1 DNS/wildcard/IP/NAI/CN rules + fatal alert verified |
+| AC-4 | Done | `TestValidateEAPTLSIdentitiesMatrix`, `TestValidateIPsecSectionsEnforcesEAPTLSIdentityConstraints`, `test/parse/ipsec-eap-tls-identity-required.ci`, `test/reload/tx-ipsec-eap-tls-identity-required.ci`, `test/reload/tx-ipsec-eap-tls-requires-ca.ci` | Full fail-closed matrix and `ValidatePKIRefs` precedence verified |
+| AC-5 | Done | `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity`, `TestEAPTLSServerConfigWiresAllowedIdentities`, `TestBuildPeerTLSConfigWiresServerIdentity`, `TestPeerConfigChangedIgnoresNothingSilently`, `test/ipsec/ipsec-eap-tls13-resumption.ci` | Resumed TLS 1.3 re-verification and ticket invalidation on edit verified |
+| AC-6 | Done | `TestRFC5216FailClosedWhenIdentityPolicyUnset`, `TestEAPTLSServerConfigWiresAllowedIdentities`, `TestBuildPeerTLSConfigWiresServerIdentity`, `TestDoctorIPsecEAPTLSIdentityCheck` | Runtime backstops + `doctor-ipsec-eap-tls-identity` verified |
+| AC-7 | Done | `rfc/short/rfc5216.md`, `rfc/audit/rfc5216/RFC5216-{5.2-1,5.3-2,5.3-3}.json`, `rfc/discrimination/rfc5216/RFC5216-{5.2-1,5.3-2,5.3-3}.json` | Independent `/ze-rfc-audit` (`4a47c236`) `enforced` + 36 discrimination records clean |
+| AC-8 | Done | `responder-eap-tls13-unauthorized-client` (PASS 13s + red), `eap-tls13-unauthorized-server` (PASS 11s + red), `eap-tls` (PASS 35s), `responder-eap-tls13-revoked-client` (PASS 16s), `eap-tls13` & `responder-eap-tls13` (auth + IKE SA proved; XFRM Child SA halted on host kernel `0xf != 0xef`) | See Goal Validation for full host kernel note |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRFC5216IdentityIsTakenFromTheSANAndAuthorized` | Done | `internal/core/eap/rfc5216_identity_test.go:208` | PASS |
+| `TestRFC5216AllowedIdentitiesMatchingMatrix` | Done | `internal/core/eap/rfc5216_identity_test.go:407` | PASS |
+| `TestRFC5216ServerIdentityRFC2818Rules` | Done | `internal/core/eap/rfc5216_identity_test.go:596` | PASS |
+| `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity` | Done | `internal/core/eap/rfc5216_identity_test.go:722` | PASS |
+| `TestRFC5216FailClosedWhenIdentityPolicyUnset` | Done | `internal/core/eap/rfc5216_identity_test.go:825` | PASS |
+| `TestRFC5216IdentityParsingBoundaries` (extra) | Done | `internal/core/eap/rfc5216_identity_test.go:873` | PASS (all numeric/label boundaries) |
+| `TestValidateEAPTLSIdentitiesMatrix` | Done | `internal/component/ike/ipsec/validate_eaptls_identity_test.go:75` | PASS |
+| `TestParseEAPTLSIdentityPolicyAndEquality` | Done | `internal/component/ike/ipsec/validate_eaptls_identity_test.go:581` | PASS |
+| `TestEAPTLSServerConfigWiresAllowedIdentities` | Done | `internal/component/ike/engine/eap_tls_identity_wiring_test.go:129` | PASS |
+| `TestBuildPeerTLSConfigWiresServerIdentity` | Done | `internal/component/ike/engine/eap_tls_identity_wiring_test.go:202` | PASS |
+| `TestValidateIPsecSectionsEnforcesEAPTLSIdentityConstraints` | Done | `internal/component/ike/engine/eap_tls_identity_wiring_test.go:40` | PASS |
+| `TestDoctorIPsecEAPTLSIdentityCheck` | Done | `internal/component/ike/engine/doctor_eap_tls_identity_test.go:56` | PASS |
+| `ipsec-eap-tls-identity-authorized.ci` | Done | `test/ipsec/ipsec-eap-tls-identity-authorized.ci` | PASS 80/80 under 64 CPU burners |
+| `ipsec-eap-tls-identity-rejected.ci` | Done | `test/ipsec/ipsec-eap-tls-identity-rejected.ci` | PASS 80/80 under 64 CPU burners + counterfactual red (`EAP_CI_RC=1`) |
+| `ipsec-eap-tls-identity-required.ci` | Done | `test/parse/ipsec-eap-tls-identity-required.ci` | PASS 80/80 under 64 CPU burners |
+| `tx-ipsec-eap-tls-identity-required.ci` | Done | `test/reload/tx-ipsec-eap-tls-identity-required.ci` | PASS 80/80 under 64 CPU burners |
+| `responder-eap-tls13-unauthorized-client` | Done | `test/interop-ipsec/scenarios/responder-eap-tls13-unauthorized-client/` | PASS (13s) + counterfactual red (`SWAN_CLIENT_RC=1`) |
+| `eap-tls13-unauthorized-server` | Done | `test/interop-ipsec/scenarios/eap-tls13-unauthorized-server/` | PASS (11s) + counterfactual red (`SWAN_SERVER_RC=1`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 12 Files to Create | Done | Verified via `ls -1` in Pre-Commit Verification |
+| All Files to Modify (product, tests, interop, RFC, docs) | Done | `yang/embed.go` and `register.go` unchanged because `//go:embed ze-ipsec-conf.yang` needs no diff; added `doctor_implicit_discard.go` and `doctor_pmtu_disc.go` for `fixShowConfigRunning` constant; cleared citers in `plan/release/fixes/spec-ipsec-remote-access.md`; created `website/changes/fragments/eap-tls-identity-authorization.md` |
+
+### Audit Summary
+- **Total items:** 36 (4 task requirements + 8 ACs + 18 planned/added tests + 6 doc/RFC/interop deliverables)
+- **Done:** 36
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (YANG glue unchanged via `//go:embed`; `fixShowConfigRunning` constant deduplication)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Extract Peer-Id and Server-Id from `subjectAltName` in wire order (RFC 5216 §5.2), update `eapTLSPeerName`, export `PeerID`/`PeerIDs` and `ServerID`/`ServerIDs` | Unit + functional + interop | `TestRFC5216IdentityIsTakenFromTheSANAndAuthorized` PASS; `rfc/discrimination/rfc5216/RFC5216-5.2-1.json` + `/ze-rfc-audit` `enforced`; `ipsec-eap-tls-identity-authorized.ci` PASS 80/80 asserting `peer-id=ze-eap-client` and `server-id=ze-eap-server`; strongSwan `eap-tls` PASS asserting `"for peer 172.28.0.3"` |
+| Authorize client identities via `allowed-identities` and server identities via `server-identity` / unambiguous FQDN `remote-address` under RFC 5216 §5.3 and RFC 2818 §3.1 on full and resumed TLS 1.3 sessions | Unit + functional + strongSwan interop (with counterfactual red) | `TestRFC5216AllowedIdentitiesMatchingMatrix`, `TestRFC5216ServerIdentityRFC2818Rules`, `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity` PASS; `rfc/discrimination/rfc5216/RFC5216-{5.3-2,5.3-3}.json` + `/ze-rfc-audit` `enforced`; `ipsec-eap-tls-identity-rejected.ci` PASS 80/80 + counterfactual red (`EAP_CI_RC=1`); strongSwan `responder-eap-tls13-unauthorized-client` PASS (13s, red `SWAN_CLIENT_RC=1`) and `eap-tls13-unauthorized-server` PASS (11s, red `SWAN_SERVER_RC=1`); strongSwan `eap-tls13` & `responder-eap-tls13` proved full EAP-TLS 1.3 auth (`server-id=172.28.0.3`, `peer-id=swan-eap-client`) + IKE SA establishment (stopping only at XFRM Child SA install because host `claude` runs kernel scope `0xf` rather than Ze's 7.3 runtime kernel `0xef`) |
+| Fail-closed commit/validate/reload default + runtime backstops + post-config doctor check (`doctor-ipsec-eap-tls-identity`) | Unit + functional + arch gates | `TestValidateEAPTLSIdentitiesMatrix`, `TestValidateIPsecSectionsEnforcesEAPTLSIdentityConstraints`, `TestEAPTLSServerConfigWiresAllowedIdentities`, `TestBuildPeerTLSConfigWiresServerIdentity`, `TestDoctorIPsecEAPTLSIdentityCheck` PASS; `ipsec-eap-tls-identity-required.ci` and `tx-ipsec-eap-tls-identity-required.ci` PASS 80/80; `tx-ipsec-eap-tls-requires-ca.ci` PASS; `./le arch operator-error check` and `./le arch doctor-coverage check` PASS |
+| Preserve `SiteToSitePeer` struct size (`< 288` bytes) and `AuthConfig.Equal` reload/resumption sensitivity | Unit | `TestSiteToSitePeerStaysUnderTheHugeParamThreshold`, `TestParseEAPTLSIdentityPolicyAndEquality`, `TestPeerConfigChangedIgnoresNothingSilently` PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All in-scope deliverables completed. (`remote-access` EAP-TLS `eap-user` pinning and RFC 5216 §§5.2-2..4 certificate profile rules were out of scope and already live in `plan/release/fixes/spec-ipsec-remote-access.md` and `plan/post-release/features/spec-eap-tls-certificate-profile.md`.) | - |
+
 ## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/eap-tls-identity-authorization-9e4a1f62-3b7c-4d8e-a105-c6b2d8e4f901.md` |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | logic+wiring, security+edge-cases, rfc+design+style (+ `/ze-review-spec`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | NOTE | `./le repo check` notes `Session.PeerIDs` (`internal/core/eap/eap.go:540`) and `PeerSession.ServerIDs` (`internal/core/eap/peer.go:1525`) have no cross-package non-test caller yet; both are required by AC-1 and RFC 5216 Section 5.2 (wire-order multi-SAN export), tested in `TestRFC5216IdentityIsTakenFromTheSANAndAuthorized`, and `PeerIDs()` is the exported seam for `spec-ipsec-remote-access` | `internal/core/eap/eap.go:540`, `internal/core/eap/peer.go:1525` | Accepted as NOTE (by spec design) |
+| 2 | NOTE | Positive strongSwan XFRM Child SA install in `eap-tls13` and `responder-eap-tls13` halted on host `claude` kernel scope `0xf != 0xef` after proving full EAP-TLS 1.3 authentication (`server-id=172.28.0.3`, `peer-id=swan-eap-client`) and IKE SA establishment; all negative strongSwan scenarios (`responder-eap-tls13-unauthorized-client`, `eap-tls13-unauthorized-server`, `eap-tls`, `responder-eap-tls13-revoked-client`) and all 4 `.ci` tests (80/80) passed completely | `test/interop-ipsec/scenarios/{eap-tls13,responder-eap-tls13}/` | Recorded honestly in Goal Validation |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/eap/identity.go` | Yes | `ls -1` verified |
+| `internal/core/eap/rfc5216_identity_test.go` | Yes | `ls -1` verified |
+| `internal/component/ike/ipsec/validate_eaptls_identity_test.go` | Yes | `ls -1` verified |
+| `internal/component/ike/engine/doctor_eap_tls_identity.go` | Yes | `ls -1` verified |
+| `internal/component/ike/engine/doctor_eap_tls_identity_test.go` | Yes | `ls -1` verified |
+| `internal/component/ike/engine/eap_tls_identity_wiring_test.go` | Yes | `ls -1` verified |
+| `test/ipsec/ipsec-eap-tls-identity-authorized.ci` | Yes | `ls -1` verified |
+| `test/ipsec/ipsec-eap-tls-identity-rejected.ci` | Yes | `ls -1` verified |
+| `test/parse/ipsec-eap-tls-identity-required.ci` | Yes | `ls -1` verified |
+| `test/reload/tx-ipsec-eap-tls-identity-required.ci` | Yes | `ls -1` verified |
+| `test/interop-ipsec/scenarios/responder-eap-tls13-unauthorized-client/` (10 files) | Yes | `ls -1` verified (`ze.conf`, `swanctl.conf`, `strongswan.conf`, 7 PKI files) |
+| `test/interop-ipsec/scenarios/eap-tls13-unauthorized-server/` (10 files) | Yes | `ls -1` verified (`ze.conf`, `swanctl.conf`, `strongswan.conf`, 7 PKI files) |
+| `rfc/audit/rfc5216/RFC5216-{5.2-1,5.3-2,5.3-3}.json` & `rfc/discrimination/rfc5216/RFC5216-{5.2-1,5.3-2,5.3-3}.json` | Yes | `ls -1` verified |
+| `website/changes/fragments/eap-tls-identity-authorization.md` | Yes | `ls -1` verified |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | SAN wire-order extraction, CN-no-fallback, `eapTLSPeerName`, `PeerID`/`PeerIDs`, `ServerID`/`ServerIDs` | Read `internal/core/eap/identity.go:359-553`, `eap_tls.go:359-363`, `eap.go:515-553`, `peer.go:1510-1538`; `TestRFC5216IdentityIsTakenFromTheSANAndAuthorized` PASS |
+| AC-2 | Authenticator `allowed-identities` (all 7 forms + fatal `bad_certificate` alert + `peer-id` log) | Read `identity.go:560-622`, `eap_tls.go:559-600,655-666`; `TestRFC5216AllowedIdentitiesMatchingMatrix`, `ipsec-eap-tls-identity-authorized.ci` (80/80), `ipsec-eap-tls-identity-rejected.ci` (80/80 + red), `responder-eap-tls13-unauthorized-client` (PASS 13s + red) |
+| AC-3 | Peer `server-identity` / FQDN `remote-address` under RFC 2818 §3.1 + fatal `bad_certificate` alert + `server-id` log | Read `identity.go:631-677`, `peer_chain.go:183-200`, `fsm.go:1491-1501`; `TestRFC5216ServerIdentityRFC2818Rules`, `ipsec-eap-tls-identity-authorized.ci` (80/80), `ipsec-eap-tls-identity-rejected.ci` (80/80 + red), `eap-tls13-unauthorized-server` (PASS 11s + red) |
+| AC-4 | Fail-closed validate/commit/reload matrix with `opererr` fixes and `ValidatePKIRefs` precedence | Read `ipsec/validate.go:401-533`, `engine/config.go:179`; `TestValidateEAPTLSIdentitiesMatrix`, `ipsec-eap-tls-identity-required.ci` (80/80), `tx-ipsec-eap-tls-identity-required.ci` (80/80), `tx-ipsec-eap-tls-requires-ca.ci` PASS |
+| AC-5 | Resumed TLS 1.3 re-verification and ticket invalidation on policy edit | Read `eap_tls.go:559-600`, `peer_chain.go:183-200`, `ipsec/types.go:633-644`; `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity`, `TestPeerConfigChangedIgnoresNothingSilently`, `ipsec-eap-tls13-resumption.ci` PASS |
+| AC-6 | Runtime fail-closed backstops + `doctor-ipsec-eap-tls-identity` | Read `responder_eap.go:165-176`, `fsm.go:1491-1501`, `doctor_eap_tls_identity.go:28-75`, `register.go:467-474`, `register_doctor_codes.go:428-438`; `TestDoctorIPsecEAPTLSIdentityCheck` + `./le arch doctor-coverage check` PASS |
+| AC-7 | `RFC5216-5.2-1`, `RFC5216-5.3-2`, `RFC5216-5.3-3` closed with audit & discrimination records | Read `rfc/short/rfc5216.md:355,360-361` (no `{gap}`); `/ze-rfc-audit` (`4a47c236`) `enforced`; 36 discrimination records clean; `./le test weakened check` clean |
+| AC-8 | strongSwan interop (negative + positive) | `responder-eap-tls13-unauthorized-client` PASS (13s, red), `eap-tls13-unauthorized-server` PASS (11s, red), `eap-tls` PASS (35s), `responder-eap-tls13-revoked-client` PASS (16s), `eap-tls13`/`responder-eap-tls13` auth + IKE SA proved on host `claude` (`0xf != 0xef`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` on `site-to-site peer` with `mode eap-tls` | `test/parse/ipsec-eap-tls-identity-required.ci` | Yes (read file: tests all 9 refusal cases + 4 valid forms via `ze config validate -`) |
+| SIGHUP reload switching peer to `eap-tls` without identity constraint | `test/reload/tx-ipsec-eap-tls-identity-required.ci` | Yes (read file: verifies `OnConfigVerify` refusal + running config preserved) |
+| Live two-daemon EAP-TLS authorized handshake + `peer-id`/`server-id` logging | `test/ipsec/ipsec-eap-tls-identity-authorized.ci` | Yes (read file: two real `ze` daemons, asserts `show vpn ipsec sa`, `peer-id=ze-eap-client`, `server-id=ze-eap-server`) |
+| Live two-daemon EAP-TLS unauthorized client & mismatched server refusal | `test/ipsec/ipsec-eap-tls-identity-rejected.ci` | Yes (read file: three real `ze` daemons, asserts both SAN refusal logs and zero `SA established`/`EAP-TLS authenticated`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `./le arch tier check` PASS; `internal/component/ike/ipsec` imports `internal/core/eap` cleanly |
+| A-2 | confirmed | `TestRFC5216ResumedSessionReverifiesPeerAndServerIdentity` PASS on resumed authenticator (`cs.PeerCertificates` restored from ticket) |
+| A-3 | confirmed | strongSwan `eap-tls` PASS (`172.28.0.3`), `responder-eap-tls13-revoked-client` PASS, and `eap-tls13`/`responder-eap-tls13` authenticated `server-id=172.28.0.3` and `peer-id=swan-eap-client` |
+| A-4 | confirmed | `responder-eap-tls13-unauthorized-client` PASS (13s + red) and `eap-tls13-unauthorized-server` PASS (11s + red) |
+| A-5 | confirmed | `TestSiteToSitePeerStaysUnderTheHugeParamThreshold` PASS (`< 288` bytes) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/ipsec.md` (`## EAP-TLS certificate identity authorization` + updated responder example) | Read diff; anchors resolve to `identity.go`, `peer.go`, `peer_chain.go`, `validate.go`, `responder_eap.go`, `fsm.go`, `resumption.go`, `doctor_eap_tls_identity.go`; `./le doc ste check` + `./le doc check all` clean on file | Yes |
+| `docs/architecture/ike/ipsec-3-data-model.md`, `ipsec-9-ikev2-eap-nat.md`, `ipsec-11-interop-eap.md`, `ipsec-14-responder.md` | Read diff; all anchors verified by `./le doc check all` (0 broken anchors in `docs/architecture/ike/`) | Yes |
+| `rfc/short/rfc5216.md` (`RFC5216-5.2-1`, `5.3-2`, `5.3-3`) | Read diff; `{gap}` removed, audit & discrimination records present; `docs/features/rfc-status.md` is derived on demand (`8ae7424594`) | Yes |
+| External citers (`plan/release/fixes/spec-ipsec-remote-access.md`) | `git grep` confirmed 0 remaining `spec-eap-tls-identity-authorization.md` or `plan/` path citers | Yes |
+| News fragment (`website/changes/fragments/eap-tls-identity-authorization.md`) | Created with valid front matter (`spec`, `topic: IPsec`, `feature: ipsec-eap-authentication`, `found-by: rfc-check`) and all 6 fixed headings | Yes |

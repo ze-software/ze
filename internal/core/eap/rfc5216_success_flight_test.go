@@ -252,10 +252,11 @@ func bareEAPTLSResponse(p *Packet) bool {
 func TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, 40)
@@ -350,10 +351,11 @@ func TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected(t *testing.T) {
 	// The peer trusts the authenticator's CA, so it does not reject the server
 	// first; its own client certificate is the untrusted one.
 	peer := NewPeerSessionTLS("rogue-client", &PeerTLSConfig{
-		CertPEM:   pki.untrustedClientCertPEM,
-		KeyPEM:    pki.untrustedClientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.untrustedClientCertPEM,
+		KeyPEM:         pki.untrustedClientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, pki.serverConfig(), peer, tls.VersionTLS12, 40)
@@ -398,17 +400,19 @@ func TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected(t *testing.T) {
 func TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse(t *testing.T) {
 	pki := newEAPTLSPKI(t)
 	serverCfg := MethodConfig{
-		ServerCertPEM: pki.untrustedServerCertPEM,
-		ServerKeyPEM:  pki.untrustedServerKeyPEM,
-		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.untrustedServerCertPEM,
+		ServerKeyPEM:      pki.untrustedServerKeyPEM,
+		CACertPEM:         pki.trustedCAPEM, // the client certificate stays valid
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	fl := driveEAPTLSFlight(t, serverCfg, peer, tls.VersionTLS12, 40)

@@ -34,7 +34,7 @@ func checkIPsecImplicitDiscard(ctx registry.DoctorCheckContext) []rpc.DoctorChec
 			Code:     codeDoctorIPsecImplicitDiscard,
 			Severity: severityWarning,
 			Message:  "vpn ipsec: this doctor run holds no parsed configuration, so it cannot say whether the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set; the command below prints the running configuration, whose `vpn ipsec unmatched` leaf answers it",
-			Fix:      "show config running",
+			Fix:      fixShowConfigRunning,
 		}}
 	}
 	// refuse-by-default: guards ipsec.ParseIPsecConfig -- it answers a nil tree with EmptyConfig, whose bypass catch-all this check never reports, and the runner reports a missing config before this phase

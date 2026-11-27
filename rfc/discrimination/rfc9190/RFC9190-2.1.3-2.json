@@ -14,11 +14,11 @@
     "rid": "RFC9190-2.1.3-2",
     "polarity": "negative",
     "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode",
-    "unit-sha": "537a951cb8626f18",
+    "unit-sha": "dddfa1f9840633eb",
     "claim-sha": "e2d2b25cc06378fc",
     "route": "revert",
     "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
-    "producer-sha": "2bebbb8781d67867",
+    "producer-sha": "6bf03ac7c1c95ff1",
     "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

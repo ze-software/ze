@@ -5,10 +5,11 @@ warrior client uses the IKEv2 client built into its operating system, and those
 default to EAP. NAT traversal is the other half: without it an IPsec tunnel
 fails whenever either peer sits behind a NAT device.
 
-<!-- source: internal/core/eap/eap.go -- Session, Method, MethodResult, Packet -->
+<!-- source: internal/core/eap/eap.go -- Session, Method, MethodResult, Packet, Session.PeerID, Session.PeerIDs -->
 <!-- source: internal/core/eap/eap_mschapv2.go -- EAP-MSCHAPv2 method -->
 <!-- source: internal/core/eap/eap_md5challenge.go -- EAP MD5-Challenge method -->
-<!-- source: internal/core/eap/eap_tls.go -- tlsMethod, tlsFragmenter, exportEAPTLSKeys -->
+<!-- source: internal/core/eap/eap_tls.go -- tlsMethod, tlsFragmenter, exportEAPTLSKeys, eapTLSPeerName -->
+<!-- source: internal/core/eap/identity.go -- AllowedIdentity, ServerIdentity, ParseAllowedIdentity, ParseServerIdentity, IsUnambiguousFQDN, extractCertificateIdentities, certificatePrimaryID, authorizePeerCertificate, verifyServerCertificate -->
 <!-- source: internal/component/ike/transport/nat.go -- NATDetectionHash, DetectNAT, AddNonESPMarker, StripNonESPMarker -->
 <!-- source: internal/component/ike/transport/keepalive.go -- Keepalive -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret, computeAuthFromSharedSecret, verifyAuthFromSharedSecret, newEAPSession -->
@@ -115,6 +116,29 @@ fails whenever either peer sits behind a NAT device.
   Section 5.3 decision, taken on the certificate it receives.
 - RFC 5216 Section 2.1.3 requires a fatal alert to be delivered to the peer
   before the exchange ends. See the trap on two-round producers below.
+- RFC 5216 Section 5.2 binds Peer-Id and Server-Id to `subjectAltName` whenever
+  OID `2.5.29.17` is present. `extractCertificateIdentities`
+  (`internal/core/eap/identity.go`) walks `subjectAltName` in wire order
+  (`rfc822Name`, `dNSName`, `uniformResourceIdentifier`, `iPAddress`, and UPN
+  `otherName` OID `1.3.6.1.4.1.311.20.2.3`). It never falls back to Subject CN
+  or Subject DN when that extension exists. Only when `subjectAltName` is absent
+  does it read the last Common Name RDN in `Subject.Names`, or a non-empty
+  Subject DN for explicit `*` alone. `eapTLSPeerName`, `Session.PeerID` /
+  `Session.PeerIDs`, and `PeerSession.ServerID` / `PeerSession.ServerIDs` all
+  read from this extractor.
+- RFC 5216 Section 5.3 requires both roles to validate that the certificate
+  identities are appropriate and authorized for EAP-TLS, and RFC 9190 Section
+  5.7 requires authorization policies to be enforced on resumed sessions too.
+  `newTLSMethod` refuses an empty `AllowedIdentities` list or `*` mixed with
+  other entries, compiles rules through `ParseAllowedIdentity` (exact DNS,
+  single-label leftmost DNS wildcard `*.a.b`, exact NAI, `@realm` with at least
+  two labels, exact IP matched strictly against `iPAddress` SAN, exact URI, or
+  explicit lone `*`), and invokes `authorizePeerCertificate` inside both
+  `VerifyConnection` callbacks (covering full and resumed TLS 1.3 handshakes).
+  An unauthorized client draws a fatal `bad_certificate` alert delivered via
+  `MethodResult.FinalRequest` and recorded in `Session.err` on the same round.
+  The unauthenticated `EAP-Response/Identity` (`Session.Identity()`) is never
+  consulted for authorization (RFC 9190 Section 2.2).
 
 <!-- source: internal/core/eap/peer.go -- answerCertificateRequest, tlsClientConfig -->
 - RFC 2759 Section 6 defines the MS-CHAPv2 Failure packet. A refused

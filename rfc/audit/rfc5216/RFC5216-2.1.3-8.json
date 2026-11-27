@@ -1,13 +1,13 @@
 {
-  "note": "Forbidden: the server answering the peer's no-data Response with anything but EAP-Success. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless serverSent[successAt].Code == CodeSuccess directly after that Response. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any Success to a rejected peer.",
+  "note": "Re-judged 2026-11-27 independently against RFC 5216 Section 2.1.3 (rfc/full/rfc5216.txt): \"The EAP Server then MUST respond with an EAP-Success message.\" Both tagged units only added ServerIdentity=\"eap-tls-server\". Positive still asserts serverSent[successAt].Code == CodeSuccess directly after the peer's no-data Response; negative still asserts EAP-Failure and no EAP-Success for a rejected peer. Verdict stands: enforced.",
   "requirement_sha": "c1f354ff6707f33a",
   "tests": {
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "60bd713e09c87b21",
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "2832445c60def645",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "2832445c60def645"
   },
   "units": {
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
-    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "174ae2e4b4954f1b",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "7c70d02085ac2938"
   },
   "verdict": "enforced"
 }

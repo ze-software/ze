@@ -1,17 +1,17 @@
 {
-  "note": "Both directions for both key-deriving methods. EAP-TLS: peer refuses an untrusted server (legacy walk unit); the new unit shows the server refuses an untrusted client certificate with no EAP-Success and zero MSK. MS-CHAPv2: mutual success with an MSK; wrong NT-Response gives EAP-Failure and zero authenticator MSK; wrong Authenticator Response gives peer Err and zero peer MSK. The negative record's red lands in the positive half (driveClauseFlight also calls handleMSCHAPv2Success); Q2 for each negative assertion answered by reading.",
+  "note": "Re-judged 2026-11-27 independently against RFC 3748 Section 7.10 (rfc/full/rfc3748.txt): \"EAP Methods deriving keys MUST provide for mutual authentication between the EAP peer and the EAP Server.\" TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo and TestRFC3748KeyDerivingMethodAuthenticatesBothEnds added ServerIdentity=\"eap-tls-server\" and AllowedIdentities=[\"eap-tls-client\"] to satisfy RFC 5216 Section 5.3. Both roles of both key-deriving methods (EAP-TLS and EAP-MSCHAPv2) remain tested in both polarities: trusted exchanges verify peer and server certificates and derive matching MSKs; untrusted client cert, untrusted server cert, wrong NT-Response, and wrong Authenticator Response each fail without EAP-Success or MSK. Verdict stands: enforced.",
   "requirement_sha": "e7a2118e9331cea4",
   "tests": {
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "8ca42a58d78f22be",
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "8ca42a58d78f22be",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "08e46d8cbdf7058a",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "08e46d8cbdf7058a"
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "a92cd28113dfc889",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "a92cd28113dfc889",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "be76f24d10a7f5ed",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "be76f24d10a7f5ed"
   },
   "units": {
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "cc381412c65e41bb",
-    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "cc381412c65e41bb",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "e8ac955469df9912",
-    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "e8ac955469df9912"
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "ed475d3ef4fa6637",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "ed475d3ef4fa6637",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "068be19f6d5653bd",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "068be19f6d5653bd"
   },
   "verdict": "enforced"
 }

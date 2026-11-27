@@ -1,0 +1,225 @@
+# Functional test: two real ze daemons fail closed on BOTH roles when a valid
+# CA-signed certificate carries a SAN that does not match allowed-identities
+# (responder) or server-identity (initiator).
+# Spec: spec-eap-tls-identity-authorization, AC-2, AC-3, User Stories 2 and 3.
+#
+# ONE QUESTION: When both certificates chain cleanly to the trusted CA with a
+# valid CRL, does the live daemon path reject an unauthorized client SAN on the
+# authenticator AND a mismatched server SAN on the peer, logging the extracted
+# SAN identity on each side and establishing zero SAs?
+#
+# TOPOLOGY: One responder on 127.0.0.1 serves two peers, and two initiators on
+# 127.0.0.2 and 127.0.0.3 (separate daemons because each IKE engine binds one
+# local UDP transport address) initiate one peer each:
+#   - bad-client (127.0.0.2 <-> 127.0.0.1): initiator accepts server-identity
+#     "ze-eap-server", sends client cert (SAN DNS:ze-eap-client); responder
+#     requires allowed-identities "other-client.example.com" and refuses it.
+#   - bad-server (127.0.0.3 <-> 127.0.0.1): responder accepts "ze-eap-client";
+#     initiator requires server-identity "other-server.example.com" and refuses
+#     server cert (SAN DNS:ze-eap-server).
+#
+# ITS PAIR IS ipsec-eap-tls-identity-authorized.ci, which uses the exact same
+# PKI with matching constraints and establishes the SA.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=env:var=ze_log_ike:value=info
+option=timeout:value=60s
+
+# ── Responder daemon (background): EAP-TLS authenticator on 127.0.0.1 ──
+stdin=responder:terminator=EOF_RESPONDER
+pki {
+	ca eap-test-ca {
+		certificate MIIBZDCCAQugAwIBAgIDAQABMAoGCCqGSM49BAMCMBkxFzAVBgNVBAMTDnplLWVhcC10ZXN0LWNhMB4XDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1owGTEXMBUGA1UEAxMOemUtZWFwLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQzPDO8d6E2naePmVLgfxv3Tbg1etB5PKBcuuRUv+o9Bh6l0Iw/jyxFrENDJpTIrjMztM3EoTkq+4fBhwFkH9KZo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUTZeEuzI6u8WvBZfu2tDvt0X8EzswCgYIKoZIzj0EAwIDRwAwRAIgPwYG6PC6h+94auk5G9AUWzMi2CozpSD7ipoMxQJ8jUMCIDSYkKhdV5lJTJh0yPz92nCvXnYE590MLF4H7gNWIZH8
+		crl MIHQMHkCAQEwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAxMOemUtZWFwLXRlc3QtY2EXDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1qgLzAtMB8GA1UdIwQYMBaAFE2XhLsyOrvFrwWX7trQ77dF/BM7MAoGA1UdFAQDAgEBMAoGCCqGSM49BAMCA0cAMEQCIHxLVbhiIqGH5PRxVBG1qI19g05llIsTBLnQvw21YM4BAiAkEtA8swxL2qdZGLsPfob19Y1nYGb9uik87eSglBdzKg==
+	}
+	certificate eap-server {
+		certificate MIIBjjCCATSgAwIBAgIDAQACMAoGCCqGSM49BAMCMBkxFzAVBgNVBAMTDnplLWVhcC10ZXN0LWNhMB4XDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1owGDEWMBQGA1UEAxMNemUtZWFwLXNlcnZlcjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABAGm/KHJFWZGMD4i8AnmwwOhOSI0qMZPaPcxrE+MOnhYj03er36lXqO3VhWGtV2D1GhwJB1djvQ2GTtZsWk85GKjbDBqMA4GA1UdDwEB/wQEAwIHgDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAxEwHwYDVR0jBBgwFoAUTZeEuzI6u8WvBZfu2tDvt0X8EzswGAYDVR0RBBEwD4INemUtZWFwLXNlcnZlcjAKBggqhkjOPQQDAgNIADBFAiAWvhO9VeIgcM43r5RGtLuQFymqBlHGbf5E2nIkmmqhZAIhAKsW06f92l0WzSMq0tCBtCMsMH53dOwk6D5UgX0poKst
+		private {
+			key MHcCAQEEIIKPDcrLot6VtzsXtUOaIBF/oAI3Jlxifh2JWf4h1EHUoAoGCCqGSM49AwEHoUQDQgAEAab8ockVZkYwPiLwCebDA6E5IjSoxk9o9zGsT4w6eFiPTd6vfqVeo7dWFYa1XYPUaHAkHV2O9DYZO1mxaTzkYg==
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer bad-client {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-server"
+					remote-id "ze-eap-client"
+					certificate eap-server
+					ca-certificate eap-test-ca
+					allowed-identities "other-client.example.com"
+				}
+			}
+			peer bad-server {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.3
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-server"
+					remote-id "ze-eap-client"
+					certificate eap-server
+					ca-certificate eap-test-ca
+					allowed-identities "ze-eap-client"
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon 1 (background): EAP-TLS peer on 127.0.0.2 (unauthorized client) ──
+stdin=init-bad-client:terminator=EOF_INIT_BAD_CLIENT
+pki {
+	ca eap-test-ca {
+		certificate MIIBZDCCAQugAwIBAgIDAQABMAoGCCqGSM49BAMCMBkxFzAVBgNVBAMTDnplLWVhcC10ZXN0LWNhMB4XDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1owGTEXMBUGA1UEAxMOemUtZWFwLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQzPDO8d6E2naePmVLgfxv3Tbg1etB5PKBcuuRUv+o9Bh6l0Iw/jyxFrENDJpTIrjMztM3EoTkq+4fBhwFkH9KZo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUTZeEuzI6u8WvBZfu2tDvt0X8EzswCgYIKoZIzj0EAwIDRwAwRAIgPwYG6PC6h+94auk5G9AUWzMi2CozpSD7ipoMxQJ8jUMCIDSYkKhdV5lJTJh0yPz92nCvXnYE590MLF4H7gNWIZH8
+		crl MIHQMHkCAQEwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAxMOemUtZWFwLXRlc3QtY2EXDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1qgLzAtMB8GA1UdIwQYMBaAFE2XhLsyOrvFrwWX7trQ77dF/BM7MAoGA1UdFAQDAgEBMAoGCCqGSM49BAMCA0cAMEQCIHxLVbhiIqGH5PRxVBG1qI19g05llIsTBLnQvw21YM4BAiAkEtA8swxL2qdZGLsPfob19Y1nYGb9uik87eSglBdzKg==
+	}
+	certificate eap-client {
+		certificate MIIBhTCCASqgAwIBAgIDAQADMAoGCCqGSM49BAMCMBkxFzAVBgNVBAMTDnplLWVhcC10ZXN0LWNhMB4XDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1owGDEWMBQGA1UEAxMNemUtZWFwLWNsaWVudDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABBOTwcno146D5l7QYEVH0+a73/egsABl3sMavgJ5+/EdEIT8YeqMLLIAuyOTDltKUXKcelowNIWGrQ6hW3twmI6jYjBgMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAjAfBgNVHSMEGDAWgBRNl4S7Mjq7xa8Fl+7a0O+3RfwTOzAYBgNVHREEETAPgg16ZS1lYXAtY2xpZW50MAoGCCqGSM49BAMCA0kAMEYCIQDZmEDwg2mYwC0bD0UPt39MUN+d+lc8tv8uZy6D8yST2wIhALBAQBb+p9LFlBeglNNM0qz7OFzcN/Yi0ovNueDIsHSk
+		private {
+			key MHcCAQEEIJ9snHyIlDelDor37ATQeE3KDOvIhxzzByB1Ny3+xX+coAoGCCqGSM49AwEHoUQDQgAEE5PByejXjoPmXtBgRUfT5rvf96CwAGXewxq+Ann78R0QhPxh6owssgC7I5MOW0pRcpx6WjA0hYatDqFbe3CYjg==
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer bad-client {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-client"
+					remote-id "ze-eap-server"
+					certificate eap-client
+					ca-certificate eap-test-ca
+					server-identity "ze-eap-server"
+				}
+			}
+		}
+	}
+}
+EOF_INIT_BAD_CLIENT
+
+# ── Initiator daemon 2 (foreground): EAP-TLS peer on 127.0.0.3 (mismatched server-identity) ──
+stdin=init-bad-server:terminator=EOF_INIT_BAD_SERVER
+pki {
+	ca eap-test-ca {
+		certificate MIIBZDCCAQugAwIBAgIDAQABMAoGCCqGSM49BAMCMBkxFzAVBgNVBAMTDnplLWVhcC10ZXN0LWNhMB4XDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1owGTEXMBUGA1UEAxMOemUtZWFwLXRlc3QtY2EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQzPDO8d6E2naePmVLgfxv3Tbg1etB5PKBcuuRUv+o9Bh6l0Iw/jyxFrENDJpTIrjMztM3EoTkq+4fBhwFkH9KZo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUTZeEuzI6u8WvBZfu2tDvt0X8EzswCgYIKoZIzj0EAwIDRwAwRAIgPwYG6PC6h+94auk5G9AUWzMi2CozpSD7ipoMxQJ8jUMCIDSYkKhdV5lJTJh0yPz92nCvXnYE590MLF4H7gNWIZH8
+		crl MIHQMHkCAQEwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAxMOemUtZWFwLXRlc3QtY2EXDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1qgLzAtMB8GA1UdIwQYMBaAFE2XhLsyOrvFrwWX7trQ77dF/BM7MAoGA1UdFAQDAgEBMAoGCCqGSM49BAMCA0cAMEQCIHxLVbhiIqGH5PRxVBG1qI19g05llIsTBLnQvw21YM4BAiAkEtA8swxL2qdZGLsPfob19Y1nYGb9uik87eSglBdzKg==
+	}
+	certificate eap-client {
+		certificate MIIBhTCCASqgAwIBAgIDAQADMAoGCCqGSM49BAMCMBkxFzAVBgNVBAMTDnplLWVhcC10ZXN0LWNhMB4XDTI2MDgxMDE4NDQ0N1oXDTQ2MDgwNTE4NDQ0N1owGDEWMBQGA1UEAxMNemUtZWFwLWNsaWVudDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABBOTwcno146D5l7QYEVH0+a73/egsABl3sMavgJ5+/EdEIT8YeqMLLIAuyOTDltKUXKcelowNIWGrQ6hW3twmI6jYjBgMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAjAfBgNVHSMEGDAWgBRNl4S7Mjq7xa8Fl+7a0O+3RfwTOzAYBgNVHREEETAPgg16ZS1lYXAtY2xpZW50MAoGCCqGSM49BAMCA0kAMEYCIQDZmEDwg2mYwC0bD0UPt39MUN+d+lc8tv8uZy6D8yST2wIhALBAQBb+p9LFlBeglNNM0qz7OFzcN/Yi0ovNueDIsHSk
+		private {
+			key MHcCAQEEIJ9snHyIlDelDor37ATQeE3KDOvIhxzzByB1Ny3+xX+coAoGCCqGSM49AwEHoUQDQgAEE5PByejXjoPmXtBgRUfT5rvf96CwAGXewxq+Ann78R0QhPxh6owssgC7I5MOW0pRcpx6WjA0hYatDqFbe3CYjg==
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer bad-server {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.3
+				remote-address 127.0.0.1
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-client"
+					remote-id "ze-eap-server"
+					certificate eap-client
+					ca-certificate eap-test-ca
+					server-identity "other-server.example.com"
+				}
+			}
+		}
+	}
+}
+EOF_INIT_BAD_SERVER
+
+cmd=background:seq=1:exec=ze -:stdin=responder:name=responder
+cmd=background:seq=2:exec=env ze_config_dir=bad-client-store ze -:stdin=init-bad-client:name=init-bad-client
+cmd=foreground:seq=3:exec=ze -:stdin=init-bad-server:timeout=50s
+
+# Both refusals must be logged before teardown; order between the two peers is free.
+await=stderr:contains=is not authorized by allowed-identities:timeout=40s
+await=stderr:contains=does not match expected server-identity
+
+# Authenticator refusal names the extracted client SAN (ze-eap-client).
+expect=stderr:pattern=client certificate identity .*ze-eap-client.* is not authorized by allowed-identities
+# Peer refusal names both the extracted server SAN (ze-eap-server) and expected server-identity.
+expect=stderr:pattern=server certificate identity .*ze-eap-server.* does not match expected server-identity .*other-server\.example\.com
+
+# Neither direction establishes an SA or completes EAP-TLS authentication.
+reject=stderr:pattern=SA established
+reject=stderr:pattern=EAP-TLS authenticated
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

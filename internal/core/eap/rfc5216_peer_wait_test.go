@@ -58,17 +58,19 @@ func TestRFC5216PeerRepliesBeforeItTerminates(t *testing.T) {
 	// The authenticator presents a server certificate the peer cannot chain to
 	// its trust anchor, so the PEER is the side that rejects.
 	serverCfg := MethodConfig{
-		ServerCertPEM: pki.untrustedServerCertPEM,
-		ServerKeyPEM:  pki.untrustedServerKeyPEM,
-		CACertPEM:     pki.trustedCAPEM, // the client certificate stays valid
-		CRLPEM:        pki.trustedCRLPEM,
-		Resumption:    NewResumption(time.Now, true),
+		ServerCertPEM:     pki.untrustedServerCertPEM,
+		ServerKeyPEM:      pki.untrustedServerKeyPEM,
+		CACertPEM:         pki.trustedCAPEM, // the client certificate stays valid
+		CRLPEM:            pki.trustedCRLPEM,
+		Resumption:        NewResumption(time.Now, true),
+		AllowedIdentities: []string{"eap-tls-client"},
 	}
 	peer := NewPeerSessionTLS("eap-tls-client", &PeerTLSConfig{
-		CertPEM:   pki.clientCertPEM,
-		KeyPEM:    pki.clientKeyPEM,
-		CACertPEM: pki.trustedCAPEM,
-		CRLPEM:    pki.trustedCRLPEM,
+		CertPEM:        pki.clientCertPEM,
+		KeyPEM:         pki.clientKeyPEM,
+		CACertPEM:      pki.trustedCAPEM,
+		CRLPEM:         pki.trustedCRLPEM,
+		ServerIdentity: "eap-tls-server",
 	})
 
 	sess, err := NewSession(TypeTLS, serverCfg)

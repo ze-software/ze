@@ -58,7 +58,7 @@
     "rid": "RFC9190-5.4-1",
     "polarity": "positive",
     "unit": "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS13RefusesARevokedIntermediate",
-    "unit-sha": "ddc83ce6d80515ba",
+    "unit-sha": "0fc817acff99e516",
     "claim-sha": "1ee3c818f2a7ab0e",
     "route": "revert",
     "producer": "internal/core/eap/revocation.go::checkChain",

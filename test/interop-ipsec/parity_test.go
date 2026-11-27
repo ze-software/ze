@@ -48,18 +48,20 @@ func TestIPsecScenarioSelectorRefusesMissingOrUnimplemented(t *testing.T) {
 // PREVENTS: Registering a checker whose independent peer or transition fixture was removed.
 func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
-		"eap-tls":                         {"ze-env"},
-		"eap-tls13":                       {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"fqdn-remote-dynamic-local":       {"dns.conf"},
-		"fqdn-remote-real-nat":            {"dns.conf", "nat.conf"},
-		"initiator-rekey-answer-narrows":  {"ze-env"},
-		"ipsec-bgp-redistribute-frr":      {"frr.conf"},
-		"peer-reload-narrowing":           {"ze-narrowed.conf"},
-		"real-nat-transport-ze-initiator": {"nat.conf"},
-		"real-nat-transport-ze-responder": {"nat.conf"},
-		"real-nat-tunnel-control":         {"nat.conf"},
-		"responder-eap-tls13":             {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
-		"tunnel-df-treatment":             {"ze-copy.conf"},
+		"eap-tls":                                 {"ze-env"},
+		"eap-tls13":                               {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"eap-tls13-unauthorized-server":           {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"fqdn-remote-dynamic-local":               {"dns.conf"},
+		"fqdn-remote-real-nat":                    {"dns.conf", "nat.conf"},
+		"initiator-rekey-answer-narrows":          {"ze-env"},
+		"ipsec-bgp-redistribute-frr":              {"frr.conf"},
+		"peer-reload-narrowing":                   {"ze-narrowed.conf"},
+		"real-nat-transport-ze-initiator":         {"nat.conf"},
+		"real-nat-transport-ze-responder":         {"nat.conf"},
+		"real-nat-tunnel-control":                 {"nat.conf"},
+		"responder-eap-tls13":                     {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"responder-eap-tls13-unauthorized-client": {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"tunnel-df-treatment":                     {"ze-copy.conf"},
 	}
 	for _, name := range ipsec.ScenarioNames() {
 		required := append([]string{"ze.conf", "swanctl.conf"}, extra[name]...)

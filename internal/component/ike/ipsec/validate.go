@@ -12,6 +12,10 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // IsEAPMode reports whether an auth mode runs the EAP exchange. RFC 7296
@@ -347,6 +351,165 @@ func intermediateNotCA(peer, ref string, cert *x509.Certificate) error {
 		"ipsec peer %q: intermediate-certificate %q holds %q, which is not a CA certificate, "+
 			"so it cannot issue a certificate on the client's path; name the CA that issued the client certificate instead",
 		peer, ref, cert.Subject.String())
+}
+
+const (
+	eapTLSPeerPrefix         = "ipsec peer "
+	eapTLSVerbSet            = "set"
+	eapTLSVerbDelete         = "delete"
+	eapTLSAllowedPath        = "authentication allowed-identities"
+	eapTLSAllowedSetTail     = "authentication allowed-identities <identity>"
+	eapTLSServerIdentityPath = "authentication server-identity"
+	eapTLSServerSetTail      = "authentication server-identity <hostname-or-ip>"
+)
+
+func eapTLSPeerCmd(verb, name, tail string) string {
+	var tb textbuf.Buffer
+	return tb.Str(verb).Str(" vpn ipsec site-to-site peer ").Str(name).Str(" ").Str(tail).String()
+}
+
+func eapTLSPeerProblem(name, rest string) string {
+	var tb textbuf.Buffer
+	return tb.Str(eapTLSPeerPrefix).Quoted(name).Str(" ").Str(rest).String()
+}
+
+// ValidateEAPTLSIdentities enforces RFC 5216 Section 5.3 fail-closed identity
+// constraints on every site-to-site peer: responder eap-tls peers require
+// allowed-identities, initiator eap-tls peers require server-identity or an
+// unambiguous FQDN remote-address, and neither leaf is permitted on the wrong
+// connection-type or on a non-eap-tls mode.
+func (c *IPsecConfig) ValidateEAPTLSIdentities() error {
+	for _, name := range slices.Sorted(maps.Keys(c.Peers)) {
+		peer := c.Peers[name]
+		if err := ValidatePeerEAPTLSIdentity(name, &peer); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ValidatePeerEAPTLSIdentity checks one site-to-site peer's EAP-TLS certificate
+// identity policy against RFC 5216 Section 5.3 and RFC 2818 Section 3.1.
+// Returns nil when the peer is valid, or an operator error naming the peer,
+// reason, and exact fix command when it is not.
+func ValidatePeerEAPTLSIdentity(name string, peer *SiteToSitePeer) *opererr.Error {
+	if peer.Auth.Mode != AuthEAPTLS {
+		return validateNonEAPTLSIdentity(name, peer)
+	}
+	switch peer.ConnectionType {
+	case ConnectionRespond:
+		return validateResponderEAPTLSIdentity(name, peer)
+	case ConnectionInitiate:
+		return validateInitiatorEAPTLSIdentity(name, peer)
+	default:
+		// Open-set guard for a ConnectionType constructed outside parseSiteToSitePeer.
+		var problem textbuf.Buffer
+		problem.Str(eapTLSPeerPrefix).Quoted(name).Str(" has unsupported connection-type ").Uint8(uint8(peer.ConnectionType))
+		return opererr.New(
+			problem.String(),
+			"eap-tls certificate identity authorization requires connection-type initiate or respond",
+			eapTLSPeerCmd(eapTLSVerbSet, name, "connection-type initiate"),
+		)
+	}
+}
+
+func validateNonEAPTLSIdentity(name string, peer *SiteToSitePeer) *opererr.Error {
+	if len(peer.Auth.AllowedIdentities()) > 0 {
+		var problem textbuf.Buffer
+		problem.Str(eapTLSPeerPrefix).Quoted(name).Str(" sets authentication allowed-identities in ").Str(peer.Auth.Mode.String()).Str(" mode")
+		return opererr.New(
+			problem.String(),
+			"allowed-identities authorizes EAP-TLS client certificates (RFC 5216 Section 5.3) and is read only in eap-tls mode",
+			eapTLSPeerCmd(eapTLSVerbDelete, name, eapTLSAllowedPath),
+		)
+	}
+	if peer.Auth.ServerIdentity() != "" {
+		var problem textbuf.Buffer
+		problem.Str(eapTLSPeerPrefix).Quoted(name).Str(" sets authentication server-identity in ").Str(peer.Auth.Mode.String()).Str(" mode")
+		return opererr.New(
+			problem.String(),
+			"server-identity verifies EAP-TLS server certificates (RFC 5216 Section 5.3 / RFC 2818 Section 3.1) and is read only in eap-tls mode",
+			eapTLSPeerCmd(eapTLSVerbDelete, name, eapTLSServerIdentityPath),
+		)
+	}
+	return nil
+}
+
+func validateResponderEAPTLSIdentity(name string, peer *SiteToSitePeer) *opererr.Error {
+	if peer.Auth.ServerIdentity() != "" {
+		return opererr.New(
+			eapTLSPeerProblem(name, "sets authentication server-identity with connection-type respond"),
+			"server-identity is read only when Ze initiates as the EAP-TLS peer (connection-type initiate); a responding authenticator authorizes clients with allowed-identities",
+			eapTLSPeerCmd(eapTLSVerbDelete, name, eapTLSServerIdentityPath),
+		)
+	}
+	allowed := peer.Auth.AllowedIdentities()
+	if len(allowed) == 0 {
+		return opererr.New(
+			eapTLSPeerProblem(name, "uses eap-tls with connection-type respond and has no allowed-identities"),
+			"RFC 5216 Section 5.3 requires an EAP-TLS authenticator to authorize client certificate identities; without allowed-identities any certificate issued by ca-certificate would be accepted (use \"*\" alone to opt in explicitly)",
+			eapTLSPeerCmd(eapTLSVerbSet, name, eapTLSAllowedSetTail),
+		)
+	}
+	hasWildcardAny := false
+	for _, entry := range allowed {
+		parsed, err := eap.ParseAllowedIdentity(entry)
+		if err != nil {
+			var problem textbuf.Buffer
+			problem.Str(eapTLSPeerPrefix).Quoted(name).Str(" has invalid authentication allowed-identities entry ").Quoted(entry)
+			return opererr.Wrap(
+				err,
+				problem.String(),
+				"each allowed-identities entry must be a DNS name, \"*.domain.tld\" wildcard, NAI/email, \"@realm\", IP address, URI, or lone \"*\"",
+				eapTLSPeerCmd(eapTLSVerbSet, name, eapTLSAllowedSetTail),
+			)
+		}
+		if parsed.IsWildcardAny() {
+			hasWildcardAny = true
+		}
+	}
+	if hasWildcardAny {
+		if len(allowed) > 1 {
+			return opererr.New(
+				eapTLSPeerProblem(name, "mixes wildcard \"*\" with specific entries in authentication allowed-identities"),
+				"\"*\" accepts any valid CA-signed client certificate, making the specific allowed-identities entries dead configuration",
+				eapTLSPeerCmd(eapTLSVerbDelete, name, eapTLSAllowedPath),
+			)
+		}
+	}
+	return nil
+}
+
+func validateInitiatorEAPTLSIdentity(name string, peer *SiteToSitePeer) *opererr.Error {
+	if len(peer.Auth.AllowedIdentities()) > 0 {
+		return opererr.New(
+			eapTLSPeerProblem(name, "sets authentication allowed-identities with connection-type initiate"),
+			"allowed-identities is read only when Ze responds as the EAP-TLS authenticator (connection-type respond); an initiating peer verifies the server with server-identity or an unambiguous FQDN remote-address",
+			eapTLSPeerCmd(eapTLSVerbDelete, name, eapTLSAllowedPath),
+		)
+	}
+	serverID := peer.Auth.ServerIdentity()
+	if serverID != "" {
+		if _, err := eap.ParseServerIdentity(serverID); err != nil {
+			var problem textbuf.Buffer
+			problem.Str(eapTLSPeerPrefix).Quoted(name).Str(" has invalid authentication server-identity ").Quoted(serverID)
+			return opererr.Wrap(
+				err,
+				problem.String(),
+				"server-identity must be an exact IP address, DNS hostname/FQDN, or user@realm NAI without wildcards (RFC 5216 Section 5.3 / RFC 2818 Section 3.1)",
+				eapTLSPeerCmd(eapTLSVerbSet, name, eapTLSServerSetTail),
+			)
+		}
+		return nil
+	}
+	if eap.IsUnambiguousFQDN(peer.RemoteAddress) {
+		return nil
+	}
+	return opererr.New(
+		eapTLSPeerProblem(name, "uses eap-tls with connection-type initiate and has no server-identity or unambiguous FQDN remote-address"),
+		"RFC 5216 Section 5.3 and RFC 2818 Section 3.1 require an EAP-TLS peer to verify the server certificate identity; an IP literal, single-label name, or empty remote-address does not constrain the server certificate",
+		eapTLSPeerCmd(eapTLSVerbSet, name, eapTLSServerSetTail),
+	)
 }
 
 // ValidatePKIRefs checks that an X.509 or EAP peer names the certificate and
