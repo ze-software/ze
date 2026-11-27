@@ -271,14 +271,16 @@ func TestManagedServerAlarmConfigHeldAdoptAndRejected(t *testing.T) {
 	// Refused config-ack opens config-rejected; applied config-ack clears it.
 	mc := &rpc.MuxConn{}
 	require.NoError(t, srv.admitDevice("edge-01", netip.MustParseAddr("192.0.2.1"), mc))
-	require.NoError(t, srv.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: "v1", OK: false, Error: "invalid bgp asn"}, ""))
+	_, err = srv.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: "v1", OK: false, Error: "invalid bgp asn"}, nil)
+	require.NoError(t, err)
 	page, err = ManagedAlarmList(allowAllFleetScope(), AlarmListQuery{Device: "edge-01"})
 	require.NoError(t, err)
 	rej, ok := findOpenAlarm(page.Alarms, AlarmKindConfigRejected, "edge-01", "")
 	require.True(t, ok)
 	require.Equal(t, "invalid bgp asn", rej.Detail)
 
-	require.NoError(t, srv.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: "v1", OK: true}, ""))
+	_, err = srv.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: "v1", OK: true}, nil)
+	require.NoError(t, err)
 	page, err = ManagedAlarmList(allowAllFleetScope(), AlarmListQuery{Device: "edge-01"})
 	require.NoError(t, err)
 	_, ok = findOpenAlarm(page.Alarms, AlarmKindConfigRejected, "edge-01", "")
@@ -583,10 +585,11 @@ func TestManagedServerAlarmSessionFencingAndRestartHeldDetail(t *testing.T) {
 	require.NoError(t, srv.admitDevice("edge-01", netip.MustParseAddr("192.0.2.2"), activeMC))
 
 	// Active session records an applied ack first.
-	require.NoError(t, srv.handleConfigAck("edge-01", activeMC, fleet.ConfigAck{Version: "active-v1", OK: true}, "active-v1"))
+	_, err := srv.handleConfigAck("edge-01", activeMC, fleet.ConfigAck{Version: "active-v1", OK: true}, &managedSession{fetched: "active-v1"})
+	require.NoError(t, err)
 
 	// Superseded session config-ack MUST fail and leave registry and alarms untouched.
-	err := srv.handleConfigAck("edge-01", staleMC, fleet.ConfigAck{Version: "stale-v0", OK: false, Error: "stale failure"}, "")
+	_, err = srv.handleConfigAck("edge-01", staleMC, fleet.ConfigAck{Version: "stale-v0", OK: false, Error: "stale failure"}, nil)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "superseded")
 

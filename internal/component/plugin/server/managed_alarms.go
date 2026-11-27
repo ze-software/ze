@@ -194,6 +194,7 @@ type alarmDevice struct {
 	configDivergedDetail string
 	configRejected       bool
 	configRejectedError  string
+	resyncFailure        *ManagedResyncFailure
 	health               *ManagedHealthSnapshot
 	inventory            *ManagedInventorySnapshot
 	latestSamples        map[string]float64
@@ -563,7 +564,7 @@ func (s *ManagedAlarmStore) ReconcileStartup(devices []ManagedDevice, held map[s
 				heldDetail = existing.Detail
 			}
 		}
-		rejected := d.Declared && d.AckResult == ManagedAckRefused
+		rejected := d.Declared && d.AckResult == ManagedAckRefused && !isResyncRejectKind(d.AckRejectKind)
 		rejectErr := ""
 		if rejected {
 			rejectErr = d.AckError
@@ -781,11 +782,39 @@ func (s *ManagedAlarmStore) OnConfigState(name string, diverged bool, heldDetail
 	s.evaluateExternalKindsAt(now)
 }
 
+// OnChainResyncState records or clears name's most recent non-verify
+// configuration resync failure and re-evaluates registered external alarm
+// kinds outside s.mu. Safe for concurrent use.
+func (s *ManagedAlarmStore) OnChainResyncState(name string, failure *ManagedResyncFailure) {
+	if name == "" {
+		return
+	}
+	now := s.currentTime()
+	s.mu.Lock()
+	dev := s.devices[name]
+	if failure == nil {
+		if dev != nil {
+			dev.resyncFailure = nil
+		}
+	} else {
+		if dev == nil {
+			dev = s.ensureDeviceLocked(name)
+		}
+		dev.resyncFailure = failure.Clone()
+	}
+	s.mu.Unlock()
+
+	s.evaluateExternalKindsAt(now)
+}
+
 func (s *ManagedAlarmStore) applyConfigStateLocked(dev *alarmDevice, diverged bool, heldDetail string, rejected bool, rejectErr string, at time.Time) {
 	dev.configDiverged = diverged
 	dev.configDivergedDetail = boundedManagedDetail(heldDetail)
 	dev.configRejected = rejected
 	dev.configRejectedError = boundedManagedDetail(rejectErr)
+	if diverged {
+		dev.resyncFailure = nil
+	}
 
 	divKey := alarmKey{kind: AlarmKindConfigDiverged, device: dev.name}
 	if diverged {
@@ -1116,6 +1145,7 @@ func (s *ManagedAlarmStore) buildEvalContextAt(now time.Time) AlarmEvalContext {
 			ConfigDivergedDetail:   dev.configDivergedDetail,
 			ConfigRejected:         dev.configRejected,
 			ConfigRejectedError:    dev.configRejectedError,
+			ResyncFailure:          dev.resyncFailure.Clone(),
 			Health:                 dev.health.Clone(),
 			Inventory:              dev.inventory.Clone(),
 			LatestSamples:          maps.Clone(dev.latestSamples),
@@ -1475,6 +1505,7 @@ func (s *ManagedAlarmStore) closeUndeclaredDeviceAlarmsLocked(dev *alarmDevice, 
 	for _, k := range toClose {
 		s.closeDeviceOccurrenceLocked(dev, k, at)
 	}
+	dev.resyncFailure = nil
 	clear(dev.resourceQualifySince)
 }
 

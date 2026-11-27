@@ -432,10 +432,14 @@ func TestAlarmResourceHighDisconnectReconnect(t *testing.T) {
 // PREVENTS: hardcoding fleet-9 relay alarms in first release or silently
 // accepting duplicate/invalid alarm kinds.
 func TestAlarmOpenKindRegistrationAndRelaySeam(t *testing.T) {
-	// Verify default registry has the 8 first-release kinds and NOT relay-not-granted.
+	// Verify default registry has the 8 built-in kinds plus fleet-10's
+	// config-resync-failed (registered via plugin/all -> component/managed),
+	// and NOT relay-not-granted.
 	_, hasRelay := LookupAlarmKind("relay-not-granted")
 	assert.False(t, hasRelay, "relay-not-granted must not be registered before fleet-9")
-	assert.Len(t, RegisteredAlarmKinds(), 8)
+	_, hasResyncFailed := LookupAlarmKind("config-resync-failed")
+	assert.True(t, hasResyncFailed, "config-resync-failed must be registered by fleet-10")
+	assert.Len(t, RegisteredAlarmKinds(), 9)
 
 	// Validation refusals on an isolated registry.
 	reg := defaultAlarmKindRegistry.Clone()

@@ -244,6 +244,8 @@ type ManagedDoctorRecord struct {
 	HandshakeSaturation   *ManagedHandshakeSaturation
 	History               *ManagedHistoryHealth
 	Alarms                *ManagedAlarmHealth
+	ChainDrifted          []ManagedChainDoctorEntry
+	ChainUnreadable       []ManagedChainUnreadableEntry
 }
 
 // managedDoctorSource is the managed server doctor reads. Start publishes it
@@ -296,7 +298,15 @@ func ManagedRuntimeHealth() (ManagedDoctorRecord, bool) {
 	s.appendCertificateAndAddressDevices(&record)
 	s.appendHistoryHealth(&record, now)
 	s.appendAlarmHealth(&record)
+	s.appendChainHealth(&record)
 	return record, true
+}
+
+func (s *ManagedServer) appendChainHealth(record *ManagedDoctorRecord) {
+	if s.chains == nil {
+		return
+	}
+	record.ChainDrifted, record.ChainUnreadable = s.chains.doctorSnapshots()
 }
 
 func (s *ManagedServer) appendHistoryHealth(record *ManagedDoctorRecord, now time.Time) {

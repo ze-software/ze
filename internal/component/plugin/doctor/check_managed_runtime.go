@@ -47,6 +47,14 @@ const managedAlarmWriteCheckName = "managed-alarm-write"
 // validation on startup load.
 const managedAlarmCorruptCheckName = "managed-alarm-corrupt"
 
+// managedChainDriftCheckName reports managed clients whose SHA-1 configuration
+// hash chain failed to converge after diff resync and full replay.
+const managedChainDriftCheckName = "managed-chain-drift"
+
+// managedChainUnreadableCheckName reports hub-side managed client chain state
+// keys that could not be read, decoded, or written.
+const managedChainUnreadableCheckName = "managed-chain-unreadable"
+
 // checkManagedListenerUnbound answers one error per managed listen address the
 // daemon could not bind, naming the address and the kernel's error. A
 // collision with the plugin acceptor is not among them: the local
@@ -441,4 +449,72 @@ func managedAlarmCorruptRows(health *server.ManagedAlarmHealth) []diagnostic.Dia
 		Message:  message.String(),
 		Fix:      "inspect ze show fleet alarm and ze show warnings; the next alarm state transition replaces the damaged shard",
 	}}
+}
+
+// checkManagedChainDrift reports managed clients whose configuration hash chain
+// failed to converge after diff resync and full replay.
+func checkManagedChainDrift(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedChainDriftRows(record.ChainDrifted)
+}
+
+func managedChainDriftRows(entries []server.ManagedChainDoctorEntry) []diagnostic.Diagnostic {
+	if len(entries) == 0 {
+		return nil
+	}
+	rows := make([]diagnostic.Diagnostic, 0, len(entries))
+	for _, entry := range entries {
+		var message textbuf.Buffer
+		message.Str("managed client ").Quoted(entry.Client).Str(" configuration hash chain did not converge")
+		if !entry.FailedAt.IsZero() {
+			message.Str(" at ").Str(entry.FailedAt.UTC().Format(time.RFC3339))
+		}
+		if entry.ClientChain != "" || entry.ExpectedChain != "" {
+			message.Str(" (client-chain=").Str(entry.ClientChain).Str(" expected-chain=").Str(entry.ExpectedChain).Byte(')')
+		}
+		if entry.Reason != "" {
+			message.Str(": ").Str(entry.Reason)
+		}
+		message.Str("; the device keeps running its previous configuration until resync succeeds")
+		var fix textbuf.Buffer
+		fix.Str("run ze show fleet status on ").Str(entry.Client).
+			Str(" and ze show fleet alarm on the hub, resolve the reported cause, then let the client resync or reconnect")
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedChainDrift,
+			Severity: diagnostic.SeverityWarning,
+			Message:  message.String(),
+			Fix:      fix.String(),
+		})
+	}
+	return rows
+}
+
+// checkManagedChainUnreadable reports hub-side managed client chain state keys
+// that failed read, strict JSON decode, or write.
+func checkManagedChainUnreadable(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedChainUnreadableRows(record.ChainUnreadable)
+}
+
+func managedChainUnreadableRows(entries []server.ManagedChainUnreadableEntry) []diagnostic.Diagnostic {
+	if len(entries) == 0 {
+		return nil
+	}
+	rows := make([]diagnostic.Diagnostic, 0, len(entries))
+	for _, entry := range entries {
+		var message, fix textbuf.Buffer
+		key := server.ManagedClientChainKey(entry.Client)
+		message.Str("managed client ").Quoted(entry.Client).Str(" has unreadable hash chain state at ").
+			Str(key).Str(": ").Str(entry.Err).
+			Str("; the hub does not treat the key as absent and waits for a confirmed full replay to overwrite it")
+		fix.Str("run ze show data check to inspect the state store, then let ").Str(entry.Client).
+			Str(" complete a full configuration replay to rewrite ").Str(key)
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedChainUnreadable,
+			Severity: diagnostic.SeverityWarning,
+			Message:  message.String(),
+			Fix:      fix.String(),
+		})
+	}
+	return rows
 }

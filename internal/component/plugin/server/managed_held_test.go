@@ -326,7 +326,8 @@ func TestAckOKClearsRecord(t *testing.T) {
 	s, mc := heldTestServer(t, store)
 	sendHeld(t, s, mc, heldClientText)
 
-	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: fleet.VersionHash([]byte(heldHubText)), OK: true}, fleet.VersionHash([]byte(heldHubText))))
+	_, err := s.handleConfigAck("edge-01", mc, fleet.ConfigAck{Version: fleet.VersionHash([]byte(heldHubText)), OK: true}, &managedSession{fetched: fleet.VersionHash([]byte(heldHubText))})
+	require.NoError(t, err)
 
 	_, held, err := ReadHeldRecord(store, "edge-01")
 	require.NoError(t, err)
@@ -347,7 +348,8 @@ func TestHoldingAckWithRecordClearsRefusal(t *testing.T) {
 	s.doctor.recordRejected("edge-01", ManagedRejectConfigRejected, "an earlier refusal")
 	sendHeld(t, s, mc, heldClientText)
 
-	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: ..."}, fleet.VersionHash([]byte(heldClientText))))
+	_, err := s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: ..."}, &managedSession{fetched: fleet.VersionHash([]byte(heldClientText))})
+	require.NoError(t, err)
 
 	assert.Empty(t, s.doctor.snapshot().Rejected)
 	got := s.snapshotDevices()[0]
@@ -374,7 +376,8 @@ func TestHoldingAckWithOlderRecordRecordsText(t *testing.T) {
 	sendHeld(t, s, mc, heldClientText)
 	newer := fleet.VersionHash([]byte(heldClientText + "# edited again\n"))
 
-	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: the copy was not sent"}, newer))
+	_, err := s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: the copy was not sent"}, &managedSession{fetched: newer})
+	require.NoError(t, err)
 
 	rejected := s.doctor.snapshot().Rejected
 	require.Len(t, rejected, 1)
@@ -393,7 +396,8 @@ func TestHoldingAckWithoutRecordRecordsText(t *testing.T) {
 	store := heldTestStore(t)
 	s, mc := heldTestServer(t, store)
 
-	require.NoError(t, s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: no copy was sent"}, fleet.VersionHash([]byte(heldClientText))))
+	_, err := s.handleConfigAck("edge-01", mc, fleet.ConfigAck{OK: false, Holding: true, Error: "holding: no copy was sent"}, &managedSession{fetched: fleet.VersionHash([]byte(heldClientText))})
+	require.NoError(t, err)
 
 	rejected := s.doctor.snapshot().Rejected
 	require.Len(t, rejected, 1)

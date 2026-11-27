@@ -240,6 +240,9 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		if _, declared := labels[name]; !declared && d.declared {
 			d.declared, d.labels = false, nil
 			s.doctor.clearRejected(name)
+			if s.chains != nil {
+				s.chains.clearResyncFailure(name)
+			}
 			if d.durable == nil && !d.unreadable && !d.hasSessionHistory() && !s.hasMetricHistory(name) {
 				delete(s.devices, name)
 				continue

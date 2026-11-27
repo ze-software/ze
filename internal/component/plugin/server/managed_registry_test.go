@@ -168,7 +168,8 @@ func TestRegistryAckRefusedBoundsError(t *testing.T) {
 	conn := &rpc.MuxConn{}
 	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.1"), conn))
 	message := strings.Repeat("z", managedDetailMax+2)
-	require.NoError(t, s.handleConfigAck(testClientName, conn, fleet.ConfigAck{Version: "new", Error: message}, ""))
+	_, err := s.handleConfigAck(testClientName, conn, fleet.ConfigAck{Version: "new", Error: message}, nil)
+	require.NoError(t, err)
 	got := s.snapshotDevices()[0]
 	require.False(t, got.LastAck.IsZero())
 	require.Equal(t, ManagedAckRefused, got.AckResult)
@@ -180,8 +181,10 @@ func TestRegistryAckAppliedRecorded(t *testing.T) {
 	s := registryTestServer(t)
 	conn := &rpc.MuxConn{}
 	require.NoError(t, s.admitDevice(testClientName, netip.MustParseAddr("192.0.2.1"), conn))
-	require.NoError(t, s.handleConfigAck(testClientName, conn, fleet.ConfigAck{Error: "prior refusal"}, ""))
-	require.NoError(t, s.handleConfigAck(testClientName, conn, fleet.ConfigAck{OK: true, Version: "applied", Error: "ignored on success"}, ""))
+	_, err := s.handleConfigAck(testClientName, conn, fleet.ConfigAck{Error: "prior refusal"}, nil)
+	require.NoError(t, err)
+	_, err = s.handleConfigAck(testClientName, conn, fleet.ConfigAck{OK: true, Version: "applied", Error: "ignored on success"}, nil)
+	require.NoError(t, err)
 	got := s.snapshotDevices()[0]
 	require.Equal(t, ManagedAckApplied, got.AckResult)
 	require.Equal(t, "applied", got.AckVersion)
@@ -192,7 +195,8 @@ func TestRegistryAckHoldingRecorded(t *testing.T) {
 	s, mc := heldTestServer(t, heldTestStore(t))
 	sendHeld(t, s, mc, heldClientText)
 	hubVersion := fleet.VersionHash([]byte(heldHubText))
-	require.NoError(t, s.handleConfigAck(testClientName, mc, fleet.ConfigAck{Version: hubVersion, Holding: true, Error: "holding local edits"}, fleet.VersionHash([]byte(heldClientText))))
+	_, err := s.handleConfigAck(testClientName, mc, fleet.ConfigAck{Version: hubVersion, Holding: true, Error: "holding local edits"}, &managedSession{fetched: fleet.VersionHash([]byte(heldClientText))})
+	require.NoError(t, err)
 	got := s.snapshotDevices()[0]
 	require.Equal(t, ManagedAckHolding, got.AckResult)
 	require.Equal(t, hubVersion, got.AckVersion)

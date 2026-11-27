@@ -88,7 +88,11 @@ type ManagedListener struct {
 type ManagedServerConfig struct {
 	Listeners  []ManagedListener // One per server block that declares client entries.
 	ReadConfig ConfigReader      // Reads a client's config by name (over the hub blob store).
-	Metrics    metrics.Registry  // Optional; nil installs no-op counters.
+	// ReadBaseVersion optionally resolves historical raw config bytes for
+	// (name, version) so HandleConfigFetch can compute line diffs. When nil
+	// and Store is non-nil, NewManagedServer installs NewStoreBaseVersionReader(Store).
+	ReadBaseVersion func(name, version string) ([]byte, bool, error)
+	Metrics         metrics.Registry // Optional; nil installs no-op counters.
 
 	// Store is the hub's store, which keeps the copy each holding client
 	// sends of its configuration (HeldRecord, under KeyConfigHeld). It is
@@ -169,6 +173,7 @@ type ManagedServer struct {
 	// devices holds one entry across all declarations of a name. Its session
 	// pointer is also the destination for config-changed. Guarded by mu.
 	recordIO             *managedRecordIO
+	chains               *managedChainStore
 	history              *ManagedHistoryStore
 	alarms               *ManagedAlarmStore
 	detachConfigObserver func()
@@ -216,6 +221,8 @@ type ManagedServer struct {
 	mPushed            metrics.Counter    // ze_managed_config_changed_pushed_total
 	mRecordWrites      metrics.CounterVec // ze_managed_device_records_written_total{result}
 	mHeld              metrics.CounterVec // ze_managed_config_held_total{result}
+	mChainMismatches   metrics.Counter    // ze_managed_chain_mismatches_total
+	mChainResyncs      metrics.CounterVec // ze_managed_chain_resyncs_total{method,result}
 
 	lifecycleMu sync.Mutex // Serializes applying socket changes with shutdown.
 	listeners   []*managedBound
@@ -289,13 +296,21 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if err := plugin.ValidateHubAlarmsConfig(alarmsCfg); err != nil {
 		return nil, err
 	}
+	readBaseVersion := cfg.ReadBaseVersion
+	if readBaseVersion == nil && cfg.Store != nil {
+		readBaseVersion = NewStoreBaseVersionReader(cfg.Store)
+	}
+	chains := newManagedChainStore(cfg.Store)
 	svc := newManagedConfigService(cfg.ReadConfig)
+	svc.readBaseVersion = readBaseVersion
+	svc.chainStore = chains
 	svc.records = newHeldRecords(cfg.Store)
 	srv := &ManagedServer{
 		svc:               svc,
 		listens:           listens,
 		devices:           devices,
 		recordIO:          newManagedRecordIO(cfg.Store),
+		chains:            chains,
 		now:               cfg.Clock.Now,
 		source:            source,
 		initialCertErr:    certErr,
@@ -321,6 +336,11 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 			"Managed device history writes, by result (ok|failed).", []string{managedMetricResult}),
 		mHeld: reg.CounterVec("ze_managed_config_held_total",
 			"Copies of a held configuration managed clients sent, by result (stored|refused).", []string{managedMetricResult}),
+		mChainMismatches: reg.Counter("ze_managed_chain_mismatches_total",
+			"Managed configuration SHA-1 hash chain mismatches observed by the hub on client messages and replies."),
+		mChainResyncs: reg.CounterVec("ze_managed_chain_resyncs_total",
+			"Managed configuration hash chain resync outcomes observed by the hub, by method (diff|full|reanchor) and result (ok|failed).",
+			[]string{managedMetricMethod, managedMetricResult}),
 	}
 	srv.alarms = NewManagedAlarmStore(ManagedAlarmStoreConfig{
 		Config: alarmsCfg,
@@ -498,6 +518,9 @@ func (s *ManagedServer) Addrs() []net.Addr {
 func (s *ManagedServer) Start(ctx context.Context) error {
 	if err := s.loadDeviceRecords(); err != nil {
 		return err
+	}
+	if s.chains != nil {
+		s.chains.loadAll()
 	}
 	if s.history != nil {
 		if err := s.history.LoadFromStore(); err != nil {
@@ -747,9 +770,25 @@ type managedSession struct {
 	// this connection, the configuration it runs; empty before its first
 	// fetch.
 	fetched string
+	// pendingVersion, pendingChain, and pendingMode record the target offered
+	// by the most recent non-current config-fetch reply so handleConfigAck can
+	// verify and persist the hub's SHA-1 chain head.
+	pendingVersion string
+	pendingChain   string
+	pendingMode    string
+	// lastDiffReason records why the previous diff attempt was unavailable or
+	// fell back, so a subsequent full-replay failure can report both causes.
+	lastDiffReason string
 	// lastReport records the hub time of the last accepted report per RPC
 	// method on this connection so handleReport can enforce MinInterval.
 	lastReport map[string]time.Time
+}
+
+func (ms *managedSession) clearPending() {
+	ms.pendingVersion = ""
+	ms.pendingChain = ""
+	ms.pendingMode = ""
+	ms.lastDiffReason = ""
 }
 
 // serve reads inbound RPCs from a connected client until disconnect or shutdown.
@@ -788,7 +827,7 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 			return
 		}
 		session.fetched = fr.Version
-		resp, err := s.svc.HandleConfigFetch(name, fr)
+		resp, diffReason, err := s.svc.handleConfigFetchWithReason(name, fr)
 		if fenceErr := s.recordFetch(name, mc, fr.Version, resp, err); fenceErr != nil {
 			s.mFetch.With("error").Inc()
 			_ = mc.SendError(s.ctx, req.ID, fenceErr.Error())
@@ -803,8 +842,27 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 		}
 		if resp.Status == managedFetchStatusCurrent {
 			s.mFetch.With(managedFetchStatusCurrent).Inc()
+			session.clearPending()
+			if !resp.Reanchor {
+				s.clearChainResyncFailure(name)
+			}
 		} else {
 			s.mFetch.With("served").Inc()
+			prevMode := session.pendingMode
+			session.pendingVersion = resp.Version
+			session.pendingChain = resp.ChainHash
+			session.pendingMode = resp.Mode
+			if fr.Resync == fleet.ResyncModeFull {
+				if session.lastDiffReason == "" {
+					if prevMode == fleet.FetchModeDiff {
+						session.lastDiffReason = "diff verification or apply failed on client"
+					} else {
+						session.lastDiffReason = "client requested full replay"
+					}
+				}
+			} else {
+				session.lastDiffReason = diffReason
+			}
 		}
 		if err := mc.SendResult(s.ctx, req.ID, resp); err != nil {
 			managedLogger().Debug("send config-fetch result failed", "name", name, "error", err)
@@ -820,17 +878,43 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 			_ = mc.SendError(s.ctx, req.ID, "bad config-ack payload")
 			return
 		}
-		if err := s.handleConfigAck(name, mc, ack, session.fetched); err != nil {
+		expectedChain, err := s.handleConfigAck(name, mc, ack, session)
+		if err != nil {
 			_ = mc.SendError(s.ctx, req.ID, err.Error())
 			return
 		}
-		_ = mc.SendOK(s.ctx, req.ID)
+		_ = mc.SendResult(s.ctx, req.ID, fleet.ManagedReply{ChainHash: expectedChain})
 
 	case fleet.VerbConfigHeld:
 		s.handleConfigHeld(name, mc, req)
 
 	case fleet.VerbPing:
-		_ = mc.SendOK(s.ctx, req.ID)
+		var pr fleet.PingRequest
+		if len(req.Params) > 0 {
+			if err := json.Unmarshal(req.Params, &pr); err != nil {
+				_ = mc.SendError(s.ctx, req.ID, "bad ping payload")
+				return
+			}
+		}
+		if err := s.checkActiveSession(name, mc, "ping"); err != nil {
+			_ = mc.SendError(s.ctx, req.ID, err.Error())
+			return
+		}
+		expected, hasExpected := s.svc.ExpectedChainHash(name)
+		if pr.ChainHash != "" && hasExpected {
+			// Re-check session fencing after ExpectedChainHash storage I/O before
+			// mutating mismatch counters or clearing open resync failures.
+			if err := s.checkActiveSession(name, mc, "ping"); err != nil {
+				_ = mc.SendError(s.ctx, req.ID, err.Error())
+				return
+			}
+			if pr.ChainHash == expected {
+				s.clearChainResyncFailure(name)
+			} else {
+				s.incChainMismatches()
+			}
+		}
+		_ = mc.SendResult(s.ctx, req.ID, fleet.ManagedReply{ChainHash: expected})
 
 	default:
 		if recv, ok := lookupManagedReportReceiver(req.Method); ok {
@@ -844,56 +928,187 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 	}
 }
 
-// handleConfigAck records what client name's config-ack says. ok:true clears
-// its refusal and its held record: the client runs what the hub holds, so
-// neither shows anything to resolve. A refusal is recorded as the client's
-// last refusal, unless the client says it holds and the hub keeps a copy of
-// what it holds: the hold is then shown from that copy, never as a refused
-// configuration. A holding client whose copy the hub does not keep (too
-// large, refused, or never sent) is recorded as a refusal, so the hold stays
-// visible. fetched is the version the client named in its last config-fetch
-// on this connection, the one it runs.
-func (s *ManagedServer) handleConfigAck(name string, mc *rpc.MuxConn, ack fleet.ConfigAck, fetched string) error {
+// handleConfigAck records what client name's config-ack says and returns the
+// hub's expected SHA-1 chain head for the reply. ok:true clears its refusal
+// and its held record and persists the hub chain head only when ack.ChainHash
+// matches the confirmed pending target (or current anchor after hold/adopt). A
+// holding refusal clears any open resync-failed state because config-diverged
+// owns holding clients. A non-holding refusal splits by ack.RejectKind: verify
+// (or empty) opens config-rejected and clears resync-failed, while commit and
+// resync record a ManagedResyncFailure for config-resync-failed and doctor
+// without opening config-rejected.
+func (s *ManagedServer) handleConfigAck(name string, mc *rpc.MuxConn, ack fleet.ConfigAck, session *managedSession) (string, error) {
 	if err := s.checkActiveSession(name, mc, "config-ack"); err != nil {
-		return err
+		return "", err
+	}
+	if session == nil {
+		session = &managedSession{}
 	}
 	if ack.OK {
 		if err := s.recordAck(name, mc, ack, ManagedAckApplied); err != nil {
-			return err
+			return "", err
 		}
 		s.doctor.clearRejected(name)
 		// Re-check session fencing before clearing held storage outside s.mu.
 		if err := s.checkActiveSession(name, mc, "config-ack"); err != nil {
-			return err
+			return "", err
 		}
 		if err := s.svc.records.clear(name); err != nil {
 			managedLogger().Warn("the hub could not remove the held copy of a managed client that applied its config",
 				"code", diagnostic.CodeDoctorStoreIntegrity, "name", name, "error", err)
 		}
+		s.applyAckChainState(name, ack, session)
 		if err := s.checkActiveSession(name, mc, "config-ack"); err == nil {
 			s.refreshDeviceConfigAlarm(name)
 		}
 		managedLogger().Info("managed client applied config", "name", name, "version", ack.Version)
-		return nil
+		expected, _ := s.svc.ExpectedChainHash(name)
+		return expected, nil
 	}
-	if s.holdShownFromCopy(name, ack, fetched) {
+	if ack.Holding {
+		s.clearChainResyncFailure(name)
+	}
+	if s.holdShownFromCopy(name, ack, session.fetched) {
 		if err := s.recordAck(name, mc, ack, ManagedAckHolding); err != nil {
-			return err
+			return "", err
 		}
 		s.doctor.clearRejected(name)
 		s.refreshDeviceConfigAlarm(name)
 		managedLogger().Info("managed client holds a configuration of its own, and the hub keeps a copy of it",
 			"name", name, "version", ack.Version)
-		return nil
+		expected, _ := s.svc.ExpectedChainHash(name)
+		return expected, nil
 	}
 	if err := s.recordAck(name, mc, ack, ManagedAckRefused); err != nil {
-		return err
+		return "", err
 	}
+	if !ack.Holding && isResyncRejectKind(ack.RejectKind) {
+		s.doctor.clearRejected(name)
+		s.recordAckResyncFailure(name, ack, session, fleet.BoundAckError(ack.Error))
+		s.refreshDeviceConfigAlarm(name)
+		expected, _ := s.svc.ExpectedChainHash(name)
+		return expected, nil
+	}
+	s.clearChainResyncFailure(name)
 	s.recordDeclaredRejection(name, ManagedRejectConfigRejected, ack.Error)
 	s.refreshDeviceConfigAlarm(name)
 	managedLogger().Warn("managed client rejected config", "code", CodeDoctorManagedClientRejected,
 		"name", name, "error", ack.Error)
-	return nil
+	expected, _ := s.svc.ExpectedChainHash(name)
+	return expected, nil
+}
+
+func (s *ManagedServer) applyAckChainState(name string, ack fleet.ConfigAck, session *managedSession) {
+	if ack.ChainHash == "" {
+		session.clearPending()
+		s.clearChainResyncFailure(name)
+		return
+	}
+	if session.pendingVersion != "" {
+		if ack.Version == session.pendingVersion && ack.ChainHash == session.pendingChain && fleet.ValidChainHash(ack.ChainHash) {
+			_ = s.chains.put(name, fleet.ChainState{Version: ack.Version, Chain: ack.ChainHash})
+			s.incChainResync(resyncMetricMethod(session.pendingMode), "ok")
+			session.clearPending()
+			s.clearChainResyncFailure(name)
+			return
+		}
+		s.incChainMismatches()
+		s.recordAckResyncFailure(name, ack, session, "applied chain hash mismatch")
+		return
+	}
+	if !fleet.ValidChainHash(ack.ChainHash) {
+		s.incChainMismatches()
+		return
+	}
+	if s.svc == nil {
+		return
+	}
+	if s.svc.readConfig == nil {
+		return
+	}
+	data, err := s.svc.readConfig(name)
+	if err != nil {
+		return
+	}
+	if fleet.VersionHash(data) != ack.Version {
+		s.incChainMismatches()
+		return
+	}
+	anchor := fleet.FoldFull(data)
+	existing, hasExisting := s.chains.get(name)
+	matchesCurrent := ack.ChainHash == anchor || (hasExisting && existing.Version == ack.Version && ack.ChainHash == existing.Chain)
+	if !matchesCurrent {
+		s.incChainMismatches()
+		return
+	}
+	_ = s.chains.put(name, fleet.ChainState{Version: ack.Version, Chain: ack.ChainHash})
+	s.incChainResync("reanchor", "ok")
+	s.clearChainResyncFailure(name)
+}
+
+func (s *ManagedServer) recordAckResyncFailure(name string, ack fleet.ConfigAck, session *managedSession, fullReason string) {
+	expectedChain := session.pendingChain
+	if expectedChain == "" {
+		expectedChain, _ = s.svc.ExpectedChainHash(name)
+	}
+	diffReason := session.lastDiffReason
+	if diffReason == "" && session.pendingMode == fleet.FetchModeDiff {
+		diffReason = fullReason
+	}
+	failure := ManagedResyncFailure{
+		FailedAt:      s.currentTime().UTC(),
+		DiffReason:    fleet.BoundAckError(diffReason),
+		FullReason:    fleet.BoundAckError(fullReason),
+		ClientChain:   ack.ChainHash,
+		ExpectedChain: expectedChain,
+	}
+	if s.chains != nil {
+		s.chains.recordResyncFailure(name, failure)
+	}
+	if s.alarms != nil {
+		s.alarms.OnChainResyncState(name, &failure)
+	}
+	s.incChainResync(resyncMetricMethod(session.pendingMode), "failed")
+	managedLogger().Warn("managed client configuration hash chain resync failed",
+		"code", CodeDoctorManagedChainDrift, "name", name, "reject-kind", ack.RejectKind,
+		"client-chain", ack.ChainHash, "expected-chain", expectedChain, "error", failure.FullReason,
+		"fix", managedChainDoctorFix)
+}
+
+func (s *ManagedServer) clearChainResyncFailure(name string) {
+	cleared := false
+	if s.chains != nil {
+		cleared = s.chains.clearResyncFailure(name)
+	}
+	if cleared && s.alarms != nil {
+		s.alarms.OnChainResyncState(name, nil)
+	}
+}
+
+func (s *ManagedServer) incChainMismatches() {
+	if s.mChainMismatches != nil {
+		s.mChainMismatches.Inc()
+	}
+}
+
+func (s *ManagedServer) incChainResync(method, result string) {
+	if s.mChainResyncs != nil {
+		s.mChainResyncs.With(method, result).Inc()
+	}
+}
+
+func isResyncRejectKind(kind string) bool {
+	if kind == fleet.RejectKindCommit {
+		return true
+	}
+	return kind == fleet.RejectKindResync
+}
+
+func resyncMetricMethod(mode string) string {
+	if mode == fleet.FetchModeDiff {
+		return fleet.FetchModeDiff
+	}
+	return fleet.FetchModeFull
 }
 
 // holdShownFromCopy reports whether a refusing ack is a hold the hub shows
@@ -1038,9 +1253,14 @@ func (s *ManagedServer) pushConfigChanged(name string) {
 	// deadline). The worker pool means one stalled client does not delay others.
 	pushCtx, cancel := context.WithTimeout(s.ctx, s.pushTimeout)
 	defer cancel()
-	_, err = mc.CallRPC(pushCtx, fleet.VerbConfigChanged, changed)
+	raw, err := mc.CallRPC(pushCtx, fleet.VerbConfigChanged, changed)
 	if err == nil {
 		s.mPushed.Inc()
+		if reply, decErr := fleet.DecodeManagedReply(raw); decErr == nil {
+			if reply.ChainHash != "" && changed.ChainHash != "" && reply.ChainHash != changed.ChainHash {
+				s.incChainMismatches()
+			}
+		}
 		return
 	}
 	if s.ctx.Err() != nil {
@@ -1257,7 +1477,7 @@ func (s *ManagedServer) refreshDeviceConfigAlarm(name string) {
 		s.mu.Unlock()
 		return
 	}
-	rejected := device.declared && device.AckResult == ManagedAckRefused
+	rejected := device.declared && device.AckResult == ManagedAckRefused && !isResyncRejectKind(device.AckRejectKind)
 	rejectErr := ""
 	if rejected {
 		rejectErr = device.AckError
@@ -1414,5 +1634,8 @@ func ClientNameFromConfigKey(key string) (string, bool) {
 	return name, true
 }
 
-// managedMetricResult is the label of the managed counters that count by outcome.
-const managedMetricResult = "result"
+// Metric labels for managed server counters.
+const (
+	managedMetricResult = "result"
+	managedMetricMethod = "method"
+)

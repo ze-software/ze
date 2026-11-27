@@ -155,6 +155,26 @@ func init() {
 		Codes:        []string{server.CodeDoctorManagedAlarmCorrupt},
 		Check:        checkManagedAlarmCorrupt,
 	})
+	registerOrPanic(diagnostic.DoctorCheck{
+		Name:         managedChainDriftCheckName,
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Order:        722,
+		Component:    componentPlugin,
+		Dependencies: []string{doctorDependencyManagedServer},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{server.CodeDoctorManagedChainDrift},
+		Check:        checkManagedChainDrift,
+	})
+	registerOrPanic(diagnostic.DoctorCheck{
+		Name:         managedChainUnreadableCheckName,
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Order:        723,
+		Component:    componentPlugin,
+		Dependencies: []string{doctorDependencyManagedServer},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{server.CodeDoctorManagedChainUnreadable},
+		Check:        checkManagedChainUnreadable,
+	})
 }
 
 // registerOrPanic registers one check and panics on a refusal. Registration

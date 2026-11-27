@@ -82,6 +82,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		ReadConfig: func(name string) ([]byte, error) {
 			return store.ReadFile(pluginserver.ClientConfigKey(name))
 		},
+		ReadBaseVersion: pluginserver.NewStoreBaseVersionReader(store),
 		// The same store keeps the copy each holding client sends of its
 		// configuration, beside that client's configuration.
 		Store:   store,

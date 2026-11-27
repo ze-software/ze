@@ -455,12 +455,19 @@ func (s *ManagedServer) handleConfigHeld(name string, mc *rpc.MuxConn, req *rpc.
 		return
 	}
 	s.mHeld.With("stored").Inc()
+	if s.chains != nil {
+		s.chains.clearResyncFailure(name)
+	}
 	if err := s.checkActiveSession(name, mc, "config-held"); err == nil {
+		if s.alarms != nil {
+			s.alarms.OnChainResyncState(name, nil)
+		}
 		s.refreshDeviceConfigAlarm(name)
 	}
 	managedLogger().Info("managed client holds, and the hub stored a copy of its configuration",
 		"name", name, "version", record.version, "size", len(record.config), "unchecked-plugins", record.unchecked)
-	_ = mc.SendOK(s.ctx, req.ID)
+	expected, _ := s.svc.ExpectedChainHash(name)
+	_ = mc.SendResult(s.ctx, req.ID, fleet.ManagedReply{ChainHash: expected})
 }
 
 // takeHeld decodes and checks a config-held payload, received at receivedAt.

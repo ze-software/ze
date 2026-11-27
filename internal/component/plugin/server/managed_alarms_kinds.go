@@ -112,6 +112,7 @@ type AlarmEvalDevice struct {
 	ConfigDivergedDetail   string
 	ConfigRejected         bool
 	ConfigRejectedError    string
+	ResyncFailure          *ManagedResyncFailure
 	Health                 *ManagedHealthSnapshot
 	Inventory              *ManagedInventorySnapshot
 	LatestSamples          map[string]float64

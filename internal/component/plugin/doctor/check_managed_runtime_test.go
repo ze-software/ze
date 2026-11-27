@@ -229,3 +229,70 @@ func TestCheckManagedAlarmCorrupt(t *testing.T) {
 	require.True(t, registered)
 	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedAlarmCorrupt))
 }
+
+// VALIDATES: fleet-10 AC-12 -- managed-chain-drift reports drifted clients with
+// UTC timestamp, chain hashes, bounded reason, and fix, and is registered in the
+// runtime phase.
+// PREVENTS: persistent resync failures being invisible to hub ze doctor.
+func TestCheckManagedChainDrift(t *testing.T) {
+	require.Empty(t, managedChainDriftRows(nil))
+
+	failAt := time.Date(2026, 11, 27, 9, 15, 0, 0, time.UTC)
+	rows := managedChainDriftRows([]server.ManagedChainDoctorEntry{{
+		Client:        "edge-01",
+		Reason:        "diff: base missing; full: confirmed commit window open",
+		FailedAt:      failAt,
+		ClientChain:   "0123456789abcdef0123456789abcdef01234567",
+		ExpectedChain: "fedcba9876543210fedcba9876543210fedcba98",
+	}})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedChainDrift, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
+	require.Contains(t, rows[0].Message, "edge-01")
+	require.Contains(t, rows[0].Message, failAt.Format(time.RFC3339))
+	require.Contains(t, rows[0].Message, "0123456789abcdef0123456789abcdef01234567")
+	require.Contains(t, rows[0].Message, "fedcba9876543210fedcba9876543210fedcba98")
+	require.Contains(t, rows[0].Message, "confirmed commit window open")
+	require.Contains(t, rows[0].Fix, "ze show fleet status")
+	require.Contains(t, rows[0].Fix, "ze show fleet alarm")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedChainDriftCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedChainDrift))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedChainDrift))
+}
+
+// VALIDATES: fleet-10 AC-12 -- managed-chain-unreadable reports unreadable hub
+// chain keys naming the key, error, and ze show data check fix, and is
+// registered in the runtime phase.
+// PREVENTS: corrupt hub chain keys being silently treated as absent.
+func TestCheckManagedChainUnreadable(t *testing.T) {
+	require.Empty(t, managedChainUnreadableRows(nil))
+
+	rows := managedChainUnreadableRows([]server.ManagedChainUnreadableEntry{{
+		Client: "edge-01",
+		Err:    "decode managed chain key meta/managed/client/edge-01/chain: unexpected EOF",
+	}})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedChainUnreadable, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
+	require.Contains(t, rows[0].Message, "edge-01")
+	require.Contains(t, rows[0].Message, "meta/managed/client/edge-01/chain")
+	require.Contains(t, rows[0].Message, "unexpected EOF")
+	require.Contains(t, rows[0].Fix, "ze show data check")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedChainUnreadableCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedChainUnreadable))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedChainUnreadable))
+}

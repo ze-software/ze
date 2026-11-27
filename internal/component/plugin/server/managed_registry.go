@@ -74,6 +74,7 @@ type ManagedDeviceRecord struct {
 	AckResult       ManagedAckResult          `json:"ack-result,omitzero"`
 	AckVersion      string                    `json:"ack-version,omitempty"`
 	AckError        string                    `json:"ack-error,omitempty"`
+	AckRejectKind   string                    `json:"ack-reject-kind,omitempty"`
 	RemovedAt       time.Time                 `json:"removed-at,omitzero"`
 	Inventory       *ManagedInventorySnapshot `json:"inventory,omitempty"`
 	Health          *ManagedHealthSnapshot    `json:"health,omitempty"`
@@ -296,8 +297,10 @@ func (s *ManagedServer) recordAck(name string, mc *rpc.MuxConn, ack fleet.Config
 	device.AckVersion = ack.Version
 	device.AckResult = result
 	device.AckError = ""
+	device.AckRejectKind = ""
 	if result != ManagedAckApplied {
 		device.AckError = boundedManagedDetail(ack.Error)
+		device.AckRejectKind = ack.RejectKind
 	}
 	s.dirtyDeviceLocked(name)
 	return nil
