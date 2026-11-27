@@ -51,8 +51,10 @@ type loopBackend struct {
 	now     func() time.Duration // the rig's fake-clock offset
 	ops     []loopOp
 	// routeFailures fails that many AddRoute calls before one succeeds.
-	routeFailures int
-	replaceErr    error
+	routeFailures  int
+	replaceErr     error
+	removeAddrErr  error
+	removeRouteErr error
 	// addrsAt answers the device's addresses at a fake-clock offset; nil
 	// reports every installed address as DAD-complete.
 	addrsAt func(at time.Duration) []iface.AddrInfo
@@ -182,9 +184,12 @@ func (b *loopBackend) ReplaceAddressWithLifetime(dev, cidr string, valid, prefer
 func (b *loopBackend) RemoveAddress(dev, cidr string) error {
 	b.record("remove-addr " + dev + " " + cidr)
 	b.mu.Lock()
-	b.installed = slices.DeleteFunc(b.installed, func(c string) bool { return c == cidr })
+	err := b.removeAddrErr
+	if err == nil {
+		b.installed = slices.DeleteFunc(b.installed, func(c string) bool { return c == cidr })
+	}
 	b.mu.Unlock()
-	return nil
+	return err
 }
 
 func (b *loopBackend) AddRoute(dev, dest, gw string, _ int, _ rtproto.Proto) error {
@@ -204,7 +209,10 @@ func (b *loopBackend) AddRoute(dev, dest, gw string, _ int, _ rtproto.Proto) err
 
 func (b *loopBackend) RemoveRoute(dev, dest, gw string, _ int, _ rtproto.Proto) error {
 	b.record("remove-route " + dev + " " + dest + " " + gw)
-	return nil
+	b.mu.Lock()
+	err := b.removeRouteErr
+	b.mu.Unlock()
+	return err
 }
 
 // exchangeCall is one call the worker made on the exchanger.

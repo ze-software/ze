@@ -161,6 +161,18 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceStateUnread}); err != nil {
 		panic("BUG: iface state-unread event code registration refused: " + err.Error())
 	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceAddressAdd}); err != nil {
+		panic("BUG: iface address-add event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceSysctlEmit}); err != nil {
+		panic("BUG: iface sysctl-emit event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceRollbackEmit}); err != nil {
+		panic("BUG: iface rollback-emit event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceStaleRouteCleanup}); err != nil {
+		panic("BUG: iface stale-route-cleanup event code registration refused: " + err.Error())
+	}
 
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
@@ -831,12 +843,7 @@ func runEngine(conn net.Conn) int {
 				// A unit the apply added may number from a delegation already held.
 				delegationQ.wake()
 				// Emit rollback event so downstream plugins react.
-				eb := GetEventBus()
-				if eb != nil {
-					if _, emitErr := eb.Emit(ifaceevents.Namespace, ifaceevents.EventRollback, ""); emitErr != nil {
-						log.Debug("interface rollback emit failed", "error", emitErr)
-					}
-				}
+				emitInterfaceRollback(GetEventBus(), log)
 				return nil
 			},
 		)
@@ -1852,6 +1859,23 @@ func suppressRAForConfig(cfg *ifaceConfig, suppressed map[string]bool, routers m
 	}
 }
 
+// emitInterfaceRollback publishes the interface:rollback event after rolling
+// back a failed reload transaction and reports any emit failure at WARN and on
+// the report bus so operators know downstream plugins may hold stale state.
+func emitInterfaceRollback(eb ze.EventBus, log *slog.Logger) {
+	if eb == nil {
+		return
+	}
+	if _, emitErr := eb.Emit(ifaceevents.Namespace, ifaceevents.EventRollback, ""); emitErr != nil {
+		const fix = "ze show interface; ze request reload"
+		log.Warn("interface: rollback notification could not be published; downstream plugins may hold stale interface state",
+			"event", ifaceevents.EventRollback, "error", emitErr, "fix", fix, "code", codeDoctorIfaceRollbackEmit)
+		report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceRollbackEmit, ifaceevents.EventRollback,
+			report.FitMessage("Failed to publish interface:rollback notification; downstream plugins may hold stale state: "+emitErr.Error()),
+			fix, map[string]any{"event": ifaceevents.EventRollback, reportKeyError: emitErr.Error()})
+	}
+}
+
 // cleanupStaleIPv6DefaultRoutes removes any pre-existing ::/0 routes on the
 // interface that were installed by the kernel before ze suppressed
 // accept_ra_defrtr. Prevents duplicate default routes with different metrics.
@@ -1862,7 +1886,12 @@ func suppressRAForConfig(cfg *ifaceConfig, suppressed map[string]bool, routers m
 func cleanupStaleIPv6DefaultRoutes(ifaceName string, log *slog.Logger) {
 	routes, err := ListRoutes(ifaceName, "::/0")
 	if err != nil {
-		log.Debug("interface: failed to list routes for stale cleanup", "iface", ifaceName, "err", err)
+		fix := "ip -6 route show default dev " + ifaceName
+		log.Warn("interface: could not list pre-existing IPv6 default routes for stale cleanup; kernel default routes may remain beside Ze routes",
+			"iface", ifaceName, "err", err, "fix", fix, "code", codeDoctorIfaceStaleRouteCleanup)
+		report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceStaleRouteCleanup, ifaceName,
+			report.FitMessage("Failed to list pre-existing IPv6 default routes on "+ifaceName+" for stale cleanup: "+err.Error()),
+			fix, map[string]any{reportSourceIface: ifaceName, reportKeyError: err.Error()})
 		return
 	}
 	for _, r := range routes {

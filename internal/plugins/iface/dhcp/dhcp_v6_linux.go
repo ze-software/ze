@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // v6DeviceRetry is the wait before a failed interface lookup or socket open
@@ -216,6 +217,7 @@ func (w *v6Worker) openOnce() (v6Link, error) {
 }
 
 func closeV6Link(link v6Link, ifaceName string) {
+	// refuse-by-default: guards v6Worker -- best-effort close of a per-exchange DHCPv6 link socket after the exchange returns; no caller or operator action remains
 	if err := link.close(); err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: socket close failed", "iface", ifaceName, "err", err)
 	}
@@ -580,6 +582,51 @@ func (w *v6Worker) registerLeased() error {
 	return iface.RegisterLeasedAddresses(w.device, w.owner, addrs)
 }
 
+const (
+	fixDHCPLeaseRegisterFailed = "ze show interface; ze request reload"
+	fixDHCPReleaseFailed       = "ze show interface; ze show doctor"
+)
+
+// removeAddress removes one leased DHCPv6 address from the kernel. An already
+// absent address completes cleanly; any other removal failure logs a WARN and
+// raises an error event on the report bus so stale kernel state is visible.
+func (w *v6Worker) removeAddress(cidr string) {
+	if err := iface.RemoveAddress(w.c.ifaceName, cidr); err != nil {
+		if isKernelObjectAbsent(err) {
+			return
+		}
+		fix := "ip -6 addr show dev " + w.c.ifaceName
+		loggerPtr.Load().Warn("iface dhcp v6: failed to remove leased address from kernel; stale address may remain",
+			"iface", w.c.ifaceName, "addr", cidr, "err", err,
+			"fix", fix, "code", codeDoctorIfaceDHCPRemoveFailed)
+		report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceDHCPRemoveFailed, w.c.ifaceName+" "+cidr,
+			report.FitMessage("Failed to remove DHCPv6 leased address "+cidr+" on "+w.c.ifaceName+": "+err.Error()),
+			fix, map[string]any{reportSourceIface: w.c.ifaceName, "addr": cidr, reportKeyError: err.Error()})
+	}
+}
+
+// reportLeaseRegisterFailed logs a WARN and raises an error event on the report
+// bus when updating the leased-address ownership registry fails.
+func (w *v6Worker) reportLeaseRegisterFailed(err error) {
+	loggerPtr.Load().Warn("iface dhcp v6: failed to update leased-address ownership registry; reconciler ownership view may be stale",
+		"iface", w.c.ifaceName, "err", err,
+		"fix", fixDHCPLeaseRegisterFailed, "code", codeDoctorIfaceDHCPLeaseRegister)
+	report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceDHCPLeaseRegister, w.c.ifaceName,
+		report.FitMessage("Failed to update DHCPv6 leased-address ownership registry on "+w.c.ifaceName+": "+err.Error()),
+		fixDHCPLeaseRegisterFailed, map[string]any{reportSourceIface: w.c.ifaceName, reportKeyError: err.Error()})
+}
+
+// reportReleaseFailed logs a WARN and raises an error event on the report bus
+// when constructing or opening a socket for a shutdown Release fails.
+func (w *v6Worker) reportReleaseFailed(step string, err error) {
+	loggerPtr.Load().Warn("iface dhcp v6: could not send Release at shutdown; server will hold the lease until its valid lifetime expires",
+		"iface", w.c.ifaceName, "step", step, "err", err,
+		"fix", fixDHCPReleaseFailed, "code", codeDoctorIfaceDHCPReleaseFailed)
+	report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceDHCPReleaseFailed, w.c.ifaceName+" "+step,
+		report.FitMessage("DHCPv6 Release at shutdown on "+w.c.ifaceName+" failed ("+step+"); server will hold the lease until expiry: "+err.Error()),
+		fixDHCPReleaseFailed, map[string]any{reportSourceIface: w.c.ifaceName, "step": step, reportKeyError: err.Error()})
+}
+
 // drop removes one binding from the kernel (an address) and publishes its
 // expiry.
 //
@@ -589,10 +636,7 @@ func (w *v6Worker) registerLeased() error {
 func (w *v6Worker) drop(b v6Binding) {
 	delete(w.dadChecked, b.prefix)
 	if b.kind == v6KindAddress {
-		if err := iface.RemoveAddress(w.c.ifaceName, b.prefix.String()); err != nil {
-			loggerPtr.Load().Debug("iface dhcp v6: address removal failed",
-				"iface", w.c.ifaceName, "addr", b.prefix.String(), "err", err)
-		}
+		w.removeAddress(b.prefix.String())
 	}
 	w.c.publishDHCP(iface.TopicDHCPLeaseExpired, w.payload(b, 0))
 }
@@ -607,7 +651,7 @@ func (w *v6Worker) expireDue() {
 		w.drop(b)
 	}
 	if err := w.registerLeased(); err != nil {
-		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
+		w.reportLeaseRegisterFailed(err)
 	}
 }
 
@@ -625,15 +669,12 @@ func (w *v6Worker) shutdown() {
 	lease := w.lease
 	now := w.clock().Now()
 	for _, b := range lease.live(v6KindAddress, now) {
-		if err := iface.RemoveAddress(w.c.ifaceName, b.prefix.String()); err != nil {
-			loggerPtr.Load().Debug("iface dhcp v6: address removal failed",
-				"iface", w.c.ifaceName, "addr", b.prefix.String(), "err", err)
-		}
+		w.removeAddress(b.prefix.String())
 	}
 	w.lease = nil
 	w.c.setV6Resolvers(nil, system.UntilWithdrawn)
 	if err := w.registerLeased(); err != nil {
-		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
+		w.reportLeaseRegisterFailed(err)
 	}
 	// RFC 9915 Section 6.3
 	release := releasableLease(lease, func(prefix netip.Prefix) bool {
@@ -649,12 +690,12 @@ func (w *v6Worker) shutdown() {
 
 	msg, err := w.buildFromLease(dhcpv6.MessageTypeRelease, release, now)
 	if err != nil {
-		loggerPtr.Load().Debug("iface dhcp v6: cannot build Release", "iface", w.c.ifaceName, "err", err)
+		w.reportReleaseFailed("build", err)
 		return
 	}
 	link, err := w.openOnce()
 	if err != nil {
-		loggerPtr.Load().Debug("iface dhcp v6: no socket for Release", "iface", w.c.ifaceName, "err", err)
+		w.reportReleaseFailed("open-socket", err)
 		return
 	}
 	defer closeV6Link(link, w.c.ifaceName)

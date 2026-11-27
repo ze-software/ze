@@ -336,7 +336,7 @@ func (w *v6Worker) dropAddresses() {
 		w.drop(b)
 	}
 	if err := w.registerLeased(); err != nil {
-		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
+		w.reportLeaseRegisterFailed(err)
 	}
 }
 
@@ -579,7 +579,7 @@ func (w *v6Worker) decline(duplicates []netip.Prefix) v6End {
 		w.drop(b)
 	}
 	if err := w.registerLeased(); err != nil {
-		loggerPtr.Load().Debug("iface dhcp v6: leased-address registration failed", "iface", w.c.ifaceName, "err", err)
+		w.reportLeaseRegisterFailed(err)
 	}
 	if len(declined) == 0 {
 		return v6EndAnswered

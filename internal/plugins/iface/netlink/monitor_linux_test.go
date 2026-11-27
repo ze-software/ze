@@ -3,7 +3,12 @@
 package ifacenetlink
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"log/slog"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -11,7 +16,9 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // emittedEvent records a single (namespace, eventType, payload) tuple as
@@ -347,3 +354,105 @@ func TestEmitCreatedPayload(t *testing.T) {
 }
 
 var _ = nl.FAMILY_ALL
+
+type toggleMonitorEmitBus struct {
+	mu  sync.Mutex
+	err error
+}
+
+func (b *toggleMonitorEmitBus) Emit(_, _ string, _ any) (int, error) {
+	b.mu.Lock()
+	err := b.err
+	b.mu.Unlock()
+	if err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
+func (b *toggleMonitorEmitBus) Subscribe(_, _ string, _ func(any)) func() {
+	return func() {}
+}
+
+// TestMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery verifies that
+// monitor.emit logs one WARN carrying what, why, fix, and
+// codeDoctorIfaceNetlinkMonitorEmit and raises once on internal/core/report for
+// both marshal and emit failures, suppresses consecutive duplicates, and resets
+// the latch after a successful emit.
+//
+// VALIDATES: AC-4 -- netlink monitor emit and marshal failure reporting.
+// PREVENTS: silently dropping netlink interface events at Debug or flooding logs
+// during a link flap burst.
+func TestMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery(t *testing.T) {
+	if diagnostic.Lookup(codeDoctorIfaceNetlinkMonitorEmit) == nil {
+		t.Fatalf("doctor metadata for %s must be registered", codeDoctorIfaceNetlinkMonitorEmit)
+	}
+	if !slices.Contains(diagnostic.EventCodes(), codeDoctorIfaceNetlinkMonitorEmit) {
+		t.Fatalf("event code %s must be registered", codeDoctorIfaceNetlinkMonitorEmit)
+	}
+
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	var logs bytes.Buffer
+	prevLogger := logger
+	captured := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	logger = func() *slog.Logger { return captured }
+	t.Cleanup(func() { logger = prevLogger })
+
+	emitErr := errors.New("event bus unavailable")
+	bus := &toggleMonitorEmitBus{err: emitErr}
+	m := newMonitor(bus)
+
+	// Emit failure: warned once, consecutive duplicate suppressed.
+	m.emit(ifaceevents.EventUp, stateEventPayload{Name: "eth0", Index: 1})
+	m.emit(ifaceevents.EventUp, stateEventPayload{Name: "eth0", Index: 1})
+
+	if got := strings.Count(logs.String(), "code="+codeDoctorIfaceNetlinkMonitorEmit); got != 1 {
+		t.Fatalf("emit failure WARN count = %d, want 1:\n%s", got, logs.String())
+	}
+	if !strings.Contains(logs.String(), "ze show doctor") {
+		t.Fatalf("WARN missing operator fix:\n%s", logs.String())
+	}
+
+	var emitIssues int
+	for _, issue := range report.Errors(0) {
+		if issue.Code == codeDoctorIfaceNetlinkMonitorEmit && issue.Subject == ifaceevents.EventUp+":emit" {
+			emitIssues++
+		}
+	}
+	if emitIssues != 1 {
+		t.Fatalf("report-bus emit issues = %d, want 1", emitIssues)
+	}
+
+	// Marshal failure: warned once, consecutive duplicate suppressed.
+	m.emit(ifaceevents.EventDown, make(chan int))
+	m.emit(ifaceevents.EventDown, make(chan int))
+	if got := strings.Count(logs.String(), "code="+codeDoctorIfaceNetlinkMonitorEmit); got != 2 {
+		t.Fatalf("after marshal failure WARN count = %d, want 2:\n%s", got, logs.String())
+	}
+
+	var marshalIssues int
+	for _, issue := range report.Errors(0) {
+		if issue.Code == codeDoctorIfaceNetlinkMonitorEmit && issue.Subject == ifaceevents.EventDown+":marshal" {
+			marshalIssues++
+		}
+	}
+	if marshalIssues != 1 {
+		t.Fatalf("report-bus marshal issues = %d, want 1", marshalIssues)
+	}
+
+	// Successful emit clears the latch so a later failure warns again.
+	bus.mu.Lock()
+	bus.err = nil
+	bus.mu.Unlock()
+	m.emit(ifaceevents.EventUp, stateEventPayload{Name: "eth0", Index: 1})
+
+	bus.mu.Lock()
+	bus.err = emitErr
+	bus.mu.Unlock()
+	m.emit(ifaceevents.EventUp, stateEventPayload{Name: "eth0", Index: 1})
+	if got := strings.Count(logs.String(), "code="+codeDoctorIfaceNetlinkMonitorEmit); got != 3 {
+		t.Fatalf("after recovery WARN count = %d, want 3:\n%s", got, logs.String())
+	}
+}

@@ -11,15 +11,18 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"os"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/clock"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -262,12 +265,49 @@ func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		loggerPtr.Load().Debug("iface dhcp: marshal failed", "event", eventType, "err", err)
+		c.reportEventEmitFailed("marshal", eventType, err)
 		return
 	}
 	if _, err := c.eventBus.Emit(ifaceevents.Namespace, eventType, string(data)); err != nil {
-		loggerPtr.Load().Debug("iface dhcp: emit failed", "event", eventType, "err", err)
+		c.reportEventEmitFailed("emit", eventType, err)
 	}
+}
+
+const (
+	reportSourceIface      = "iface"
+	dhcpEventReportWindow  = time.Minute
+	fixDHCPEventEmitFailed = "ze show interface; ze show doctor"
+)
+
+// reportEventEmitFailed logs a rate-bounded WARN and raises an error event on
+// the report bus when a DHCP lease EventBus notification cannot be marshaled
+// or emitted.
+func (c *DHCPClient) reportEventEmitFailed(stage, eventType string, err error) {
+	subject := eventType
+	if c.ifaceName != "" {
+		subject = c.ifaceName + " " + eventType
+	}
+	msg := report.FitMessage("DHCP " + eventType + " event on " + c.ifaceName + " failed to " + stage + ", so lease consumers missed the update: " + err.Error())
+	if report.RaiseErrorFixOnce(reportSourceIface, codeDoctorIfaceDHCPEventEmit, subject, msg, fixDHCPEventEmitFailed, dhcpEventReportWindow) {
+		loggerPtr.Load().Warn("iface dhcp: lease event could not be published on the EventBus; lease consumers missed the update",
+			"iface", c.ifaceName, "event", eventType, "stage", stage, "err", err,
+			"fix", fixDHCPEventEmitFailed, "code", codeDoctorIfaceDHCPEventEmit)
+	}
+}
+
+// isKernelObjectAbsent reports whether a kernel removal error means the
+// address or route is already gone, which completes removal cleanly.
+func isKernelObjectAbsent(err error) bool {
+	if errors.Is(err, syscall.ENOENT) {
+		return true
+	}
+	if errors.Is(err, syscall.ESRCH) {
+		return true
+	}
+	if errors.Is(err, syscall.EADDRNOTAVAIL) {
+		return true
+	}
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // dhcpTopicToEventType maps the legacy bus topic strings for DHCP lease

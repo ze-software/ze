@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"maps"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -2386,10 +2389,32 @@ func addDesiredAddresses(cfg *ifaceConfig, b Backend, devices map[string]string)
 	for _, osName := range slices.Sorted(maps.Keys(desiredAddrs)) {
 		for _, addr := range desiredAddrs[osName] {
 			if err := b.AddAddress(osName, addr); err != nil {
-				log.Debug("iface config: add address", "iface", osName, "addr", addr, "err", err)
+				if isDeferredAddressAddBenign(err) {
+					continue
+				}
+				fix := "ze show interface name " + osName + " detail; ze request reload"
+				log.Warn("iface config: failed to add configured address during deferred reconcile; address is absent until a later apply succeeds",
+					"iface", osName, "addr", addr, "err", err, "fix", fix, "code", codeDoctorIfaceAddressAdd)
+				report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceAddressAdd, osName+" "+addr,
+					report.FitMessage("Failed to add configured address "+addr+" on interface "+osName+" during deferred reconcile: "+err.Error()),
+					fix, map[string]any{reportSourceIface: osName, "addr": addr, reportKeyError: err.Error()})
 			}
 		}
 	}
+}
+
+// isDeferredAddressAddBenign reports whether an AddAddress error during the
+// additive deferred-reconcile fallback needs no operator warning: either the
+// backend is still not ready (full reconcile will run on EventConnected) or
+// the address is already installed on the device.
+func isDeferredAddressAddBenign(err error) bool {
+	if errors.Is(err, ErrBackendNotReady) {
+		return true
+	}
+	if errors.Is(err, syscall.EEXIST) {
+		return true
+	}
+	return errors.Is(err, os.ErrExist)
 }
 
 // reconcileOnVPPReady is invoked from the register.go worker when

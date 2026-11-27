@@ -5,11 +5,40 @@ package iface
 
 import (
 	"encoding/json"
+	"log/slog"
 	"strconv"
 
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
+	"github.com/ze-software/ze/internal/core/report"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 )
+
+const fixIfaceSysctlEmit = "ze show sysctl; ze request reload"
+
+// reportSysctlEmitFailed logs a WARN and raises an error event on the report
+// bus when publishing a per-interface sysctl event on the EventBus fails.
+func reportSysctlEmitFailed(log *slog.Logger, ifaceName, key, profile, eventType string, err error) {
+	subject := ifaceName + " " + eventType
+	detail := map[string]any{
+		reportSourceIface: ifaceName,
+		"event":           eventType,
+		reportKeyError:    err.Error(),
+	}
+	msg := "Interface sysctl event " + eventType + " on " + ifaceName + " could not be published to sysctl: " + err.Error()
+	if key != "" {
+		subject = ifaceName + " " + key
+		detail["key"] = key
+		msg = "Interface sysctl setting " + key + " on " + ifaceName + " could not be published to sysctl: " + err.Error()
+	}
+	if profile != "" {
+		detail["profile"] = profile
+	}
+	log.Warn("iface: sysctl update could not be published to the sysctl plugin; the kernel tunable may remain at its previous value",
+		"iface", ifaceName, "key", key, "profile", profile, "event", eventType, "err", err,
+		"fix", fixIfaceSysctlEmit, "code", codeDoctorIfaceSysctlEmit)
+	report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceSysctlEmit, subject,
+		report.FitMessage(msg), fixIfaceSysctlEmit, detail)
+}
 
 // applySysctl emits per-interface sysctl defaults on the EventBus.
 // The sysctl plugin receives these and writes them to the kernel.
@@ -28,7 +57,7 @@ func applySysctl(osName string, u unitEntry) {
 			Source string `json:"source"`
 		}{Key: key, Value: value, Source: componentNameInterface})
 		if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
-			log.Debug("iface: sysctl emit failed", "key", key, "err", err)
+			reportSysctlEmitFailed(log, osName, key, "", sysctlevents.EventDefault, err)
 		}
 	}
 
@@ -159,7 +188,7 @@ func applySysctlProfiles(osName string, profiles []string) {
 		Interface string `json:"interface"`
 	}{Interface: osName})
 	if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventClearProfileDefaults, string(clearPayload)); err != nil {
-		log.Debug("iface: clear-profile-defaults emit failed", "iface", osName, "err", err)
+		reportSysctlEmitFailed(log, osName, "", "", sysctlevents.EventClearProfileDefaults, err)
 	}
 
 	for _, name := range profiles {
@@ -176,7 +205,7 @@ func applySysctlProfiles(osName string, profiles []string) {
 				Source string `json:"source"`
 			}{Key: s.Key, Value: s.Value, Source: "profile:" + name})
 			if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
-				log.Debug("iface: profile sysctl emit failed", "key", s.Key, "profile", name, "err", err)
+				reportSysctlEmitFailed(log, osName, s.Key, name, sysctlevents.EventDefault, err)
 			}
 		}
 	}

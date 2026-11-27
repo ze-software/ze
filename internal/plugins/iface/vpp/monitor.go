@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"go.fd.io/govpp/api"
 	interfaces "go.fd.io/govpp/binapi/interface"
@@ -21,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -50,6 +53,13 @@ type monitor struct {
 	// the API and reclaimed on removal or deletion. Zero monitor has no cache.
 	publicationMu sync.Mutex
 	addresses     map[addressKey]addrEventPayload
+	// emitWarnMu guards emitWarned, which rate-limits repeated EventBus marshal
+	// or emit failures to one WARN per (eventType, stage) until a subsequent
+	// emit of that eventType succeeds. Bounded by the closed set of interface
+	// event types times two stages.
+	emitWarnMu    sync.Mutex
+	emitWarned    map[string]bool
+	hasEmitWarned atomic.Bool
 }
 
 type addressKey struct {
@@ -445,21 +455,66 @@ func (m *monitor) replayAddresses() {
 	}
 }
 
+const (
+	reportSourceIface      = "iface"
+	vppMonitorEmitWindow   = time.Minute
+	fixVPPMonitorEmit      = "ze show interface; ze show doctor"
+	vppMonitorStageMarshal = "marshal"
+	vppMonitorStageEmit    = "emit"
+)
+
 // emit marshals payload and publishes it on the EventBus under the iface
-// namespace. Errors are logged at debug: a single marshal failure must not
-// silence the stream.
+// namespace. A marshal or emit failure is warned and raised on the report bus
+// once per (eventType, stage) until a later emit of eventType succeeds so a
+// single failure does not silence the stream or flood the log.
 func (m *monitor) emit(eventType string, payload any) {
 	if m.eventBus == nil {
 		return
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		loggerPtr.Load().Debug("ifacevpp monitor: marshal failed",
-			"event", eventType, "err", err)
+		m.reportEmitFailed(vppMonitorStageMarshal, eventType, err)
 		return
 	}
 	if _, err := m.eventBus.Emit(ifaceevents.Namespace, eventType, string(data)); err != nil {
-		loggerPtr.Load().Debug("ifacevpp monitor: emit failed",
-			"event", eventType, "err", err)
+		m.reportEmitFailed(vppMonitorStageEmit, eventType, err)
+		return
 	}
+	m.clearEmitWarned(eventType)
+}
+
+func (m *monitor) reportEmitFailed(stage, eventType string, err error) {
+	key := eventType + ":" + stage
+	m.emitWarnMu.Lock()
+	if m.emitWarned == nil {
+		m.emitWarned = make(map[string]bool)
+	}
+	already := m.emitWarned[key]
+	if !already {
+		m.emitWarned[key] = true
+		m.hasEmitWarned.Store(true)
+	}
+	m.emitWarnMu.Unlock()
+	if already {
+		return
+	}
+	loggerPtr.Load().Warn("ifacevpp monitor: could not publish VPP interface event on the EventBus; downstream subscribers may have missed the state change",
+		"event", eventType, "stage", stage, "err", err,
+		"fix", fixVPPMonitorEmit, "code", codeDoctorVPPMonitorEmit)
+	report.RaiseErrorFixOnce(reportSourceIface, codeDoctorVPPMonitorEmit, key,
+		report.FitMessage("VPP interface monitor failed to "+stage+" "+eventType+" event: "+err.Error()),
+		fixVPPMonitorEmit, vppMonitorEmitWindow)
+}
+
+func (m *monitor) clearEmitWarned(eventType string) {
+	if !m.hasEmitWarned.Load() {
+		return
+	}
+	m.emitWarnMu.Lock()
+	delete(m.emitWarned, eventType+":"+vppMonitorStageMarshal)
+	delete(m.emitWarned, eventType+":"+vppMonitorStageEmit)
+	if len(m.emitWarned) == 0 {
+		m.hasEmitWarned.Store(false)
+	}
+	m.emitWarnMu.Unlock()
 }

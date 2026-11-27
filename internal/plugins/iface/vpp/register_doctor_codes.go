@@ -5,10 +5,11 @@ package ifacevpp
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
 const (
-	codeDoctorVPPLCPNetns  = "doctor-vpp-lcp-netns"
-	codeDoctorVPPLCPPlugin = "doctor-vpp-lcp-plugin"
-	codeDoctorVPPWireguard = "doctor-vpp-wireguard" //nolint:gosec // G101: a doctor code name; the credential pattern matched "PW" in VPPWireguard
-	exampleDoctorJSON      = "ze doctor --json"
+	codeDoctorVPPLCPNetns    = "doctor-vpp-lcp-netns"
+	codeDoctorVPPLCPPlugin   = "doctor-vpp-lcp-plugin"
+	codeDoctorVPPWireguard   = "doctor-vpp-wireguard" //nolint:gosec // G101: a doctor code name; the credential pattern matched "PW" in VPPWireguard
+	codeDoctorVPPMonitorEmit = "doctor-vpp-monitor-emit"
+	exampleDoctorJSON        = "ze doctor --json"
 
 	// fixShowLCPNetns is the command that prints the long explanation of
 	// codeDoctorVPPLCPNetns: every lcp-netns finding names it as its fix.
@@ -47,6 +48,12 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A wireguard interface is configured under the vpp backend, but the VPP wireguard plugin is not enabled (vpp.plugins.wireguard) or not loaded in the running VPP. VPP cannot program wireguard tunnels without it, so the interface will fail at apply.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-wireguard"},
 	},
+	{
+		Code:        codeDoctorVPPMonitorEmit,
+		Title:       "VPP interface monitor could not publish an EventBus notification",
+		Description: "The VPP interface monitor failed to marshal or emit a link or address notification on the EventBus. Downstream subscribers (such as connected routes, OSPF, or BGP link tracking) may have missed the VPP interface state change. Inspect interface state with `ze show interface` and VPP readiness with `ze show doctor`.",
+		Examples:    []string{"ze show doctor", "ze show errors", "ze show interface", "ze show diagnostic " + codeDoctorVPPMonitorEmit},
+	},
 }
 
 func init() {
@@ -54,5 +61,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: ifacevpp: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorVPPMonitorEmit}); err != nil {
+		panic("BUG: ifacevpp: monitor-emit event code registration refused: " + err.Error())
 	}
 }

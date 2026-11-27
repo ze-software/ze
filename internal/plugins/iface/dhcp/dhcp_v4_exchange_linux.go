@@ -212,6 +212,7 @@ func (u *v4UnicastConn) SetReadDeadline(t time.Time) error { return u.receive.Se
 func (u *v4UnicastConn) SetWriteDeadline(t time.Time) error { return u.send.SetWriteDeadline(t) }
 
 func closeV4Socket(conn net.PacketConn, device string) {
+	// refuse-by-default: guards newV4UnicastClient -- best-effort close of a temporary socket during failed client construction; the caller already returns the setup error
 	if err := conn.Close(); err != nil {
 		loggerPtr.Load().Debug("iface dhcp v4: socket close failed", "device", device, "err", err)
 	}
@@ -227,6 +228,7 @@ func v4ReplyFromError(err error, sent time.Time) v4Reply {
 }
 
 func closeV4Client(client *nclient4.Client, device string) {
+	// refuse-by-default: guards nclient4Exchanger -- best-effort close of a per-exchange DHCPv4 client after the exchange returns; no caller or operator action remains
 	if err := client.Close(); err != nil {
 		loggerPtr.Load().Debug("iface dhcp v4: client close failed", "device", device, "err", err)
 	}

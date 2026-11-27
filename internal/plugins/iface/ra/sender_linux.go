@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/ndp"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/routewatch"
 )
 
@@ -274,6 +275,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 	}
 
 	state := &senderState{scheduled: time.Now()}
+	sendReport := &raSendReporter{ifaceName: s.spec.Interface, log: s.log}
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 
@@ -291,8 +293,7 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			s.logDroppedWithdrawals(adv.abandon())
 			return
 		}
-		if _, err := pc.WriteTo(buf[:n], control, dst); err != nil {
-			s.log.Debug("iface-ra: send failed", "iface", s.spec.Interface, "error", err)
+		if err := s.sendPacket(ctx, pc.WriteTo, buf[:n], control, dst, sendReport); err != nil {
 			return
 		}
 		adv.sent(cfg)
@@ -383,6 +384,66 @@ func (s *Sender) run(ctx context.Context, conn net.PacketConn, pc *ipv6.PacketCo
 			hurry()
 		}
 	}
+}
+
+const (
+	reportSourceIface  = "iface"
+	raSendReportWindow = time.Minute
+)
+
+// raSendReporter rate-limits Router Advertisement send failures on one
+// interface: one WARN and report-bus raise per distinct failure condition until
+// a subsequent send succeeds, preventing log and bus floods on down or flapped
+// links. Not safe for concurrent use; the send loop is its only caller.
+type raSendReporter struct {
+	ifaceName string
+	log       *slog.Logger
+	lastErr   string
+}
+
+func (r *raSendReporter) failed(ctx context.Context, err error) {
+	if ctx.Err() != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return
+		}
+	}
+	reason := err.Error()
+	if r.lastErr == reason {
+		return
+	}
+	r.lastErr = reason
+	fix := "ze show interface name " + r.ifaceName + " detail; ze show doctor"
+	r.log.Warn("iface-ra: could not send Router Advertisement; hosts on the link may miss SLAAC or default-router updates",
+		"iface", r.ifaceName, "error", err, "fix", fix, "code", codeDoctorIfaceRASend)
+	report.RaiseErrorFixOnce(reportSourceIface, codeDoctorIfaceRASend, r.ifaceName,
+		report.FitMessage("Failed to send IPv6 Router Advertisement on "+r.ifaceName+": "+reason),
+		fix, raSendReportWindow)
+}
+
+func (r *raSendReporter) succeeded() {
+	if r.lastErr == "" {
+		return
+	}
+	r.lastErr = ""
+	r.log.Info("iface-ra: Router Advertisement send recovered", "iface", r.ifaceName)
+}
+
+// sendPacket writes one encoded Router Advertisement through write, reporting
+// failures once per condition and resetting on recovery.
+func (s *Sender) sendPacket(
+	ctx context.Context,
+	write func([]byte, *ipv6.ControlMessage, net.Addr) (int, error),
+	pkt []byte,
+	control *ipv6.ControlMessage,
+	dst net.Addr,
+	sendReport *raSendReporter,
+) error {
+	if _, err := write(pkt, control, dst); err != nil {
+		sendReport.failed(ctx, err)
+		return err
+	}
+	sendReport.succeeded()
+	return nil
 }
 
 // logDroppedWithdrawals logs, at WARN, each delegated /64 and each resolver

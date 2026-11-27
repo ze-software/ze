@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | 36 errors in interface config, the DHCP client, router advertisements, the netlink monitor, the VPP monitor, sysctl, and the firewall IRR reader are caught and logged only below WARN: a DHCP lease address or route that fails to be removed stays in the kernel, a sysctl apply event is lost, each with no trace at the default level |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -194,10 +194,10 @@ raises through SDK `RaiseIssue` via `internal/component/plugin/issuequeue`.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Ze ↔ kernel or VPP | netlink sockets, GoVPP, `/proc/sys` | No |
-| Component ↔ subscribers | EventBus emit | No |
-| Forkable `sysctl` ↔ daemon report bus | SDK `RaiseIssue` (`report-issue` RPC) via `internal/component/plugin/issuequeue` | No |
-| Ze ↔ operator | Log at WARN with registered doctor `code`, `show warnings`/`show errors`, `show doctor` (`recent-events`) | No |
+| Ze ↔ kernel or VPP | netlink sockets, GoVPP, `/proc/sys` | Yes |
+| Component ↔ subscribers | EventBus emit | Yes |
+| Forkable `sysctl` ↔ daemon report bus | SDK `RaiseIssue` (`report-issue` RPC) via `internal/component/plugin/issuequeue` | Yes |
+| Ze ↔ operator | Log at WARN with registered doctor `code`, `show warnings`/`show errors`, `show doctor` (`recent-events`) | Yes |
 
 ### Changed-Wire Census
 
@@ -221,8 +221,8 @@ No wire format, RPC payload, EventBus schema, or persisted state key changes: ev
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 36 instances across 14 files are the current population under `ai/doors/forwarding.md`'s base paths | `./le arch refuse-by-default report` run on 2026-11-26 | Work from the fresh report | Report filtered to this child's paths before the first edit | unvalidated |
-| A-2 | A failed DHCP removal leaves the object in the kernel | Netlink error on delete | An ENOENT (already gone) is success/answer 3, not a failure | Each removal branch distinguishes "already gone" from a real failure | unvalidated |
+| A-1 | The 36 instances across 14 files are the current population under `ai/doors/forwarding.md`'s base paths | `./le arch refuse-by-default report` run on 2026-11-26 | Work from the fresh report | Report filtered to this child's paths before the first edit and re-checked after implementation (`findings: 0, annotated: 4`) | confirmed |
+| A-2 | A failed DHCP removal leaves the object in the kernel | Netlink error on delete | An ENOENT (already gone) is success/answer 3, not a failure | `isKernelObjectAbsent` distinguishes `ENOENT`, `ESRCH`, `EADDRNOTAVAIL`, and `os.ErrNotExist` from real removal failures; verified by `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent` and `TestDHCPv6ShutdownReportsFailedRemoval` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -420,6 +420,29 @@ none
 
 ## Design Insights
 
+Resolution of all 36 `error-dropped-below-warn` instances across 14 files (32 answer-2 WARN + report-bus raises across 13 registered doctor event codes; 4 answer-3 guard annotations; 0 answer-1 returns):
+
+| # | File | Symbol (site count) | Answer | Resolution (Doctor Code or Guard) | Proof |
+|---|------|---------------------|--------|-----------------------------------|-------|
+| 1 | `internal/component/firewall/plugins/irr/stored.go` | `storeReader.notice` (1) | 3 | `guards readEvery` (`r.all = true` triggers full reread on next pass) | `./le arch refuse-by-default report` (`annotated: 4`) |
+| 2 | `internal/component/iface/config_apply.go` | `addDesiredAddresses` (1) | 2 | `doctor-iface-address-add` via `internal/core/report` (`isDeferredAddressAddBenign` skips `ErrBackendNotReady`, `EEXIST`, `os.ErrExist`) | `TestAddDesiredAddressesReportsRealFailureAndSkipsBenign` |
+| 3-5 | `internal/component/iface/config_sysctl.go` | `applySysctl` (1), `applySysctlProfiles` (2) | 2 | `doctor-iface-sysctl-emit` via `reportSysctlEmitFailed` -> `internal/core/report` | `TestApplySysctlAndProfilesReportEmitFailure` |
+| 6 | `internal/component/iface/register.go` | `runEngine` rollback via `emitInterfaceRollback` (1) | 2 | `doctor-iface-rollback-emit` via `internal/core/report` | `TestEmitInterfaceRollbackReportsEmitFailure` |
+| 7 | `internal/component/iface/register.go` | `cleanupStaleIPv6DefaultRoutes` (1) | 2 | `doctor-iface-stale-route-cleanup` via `internal/core/report` | `TestCleanupStaleIPv6DefaultRoutesReportsListFailure` |
+| 8-15 | `internal/component/sysctl/register.go` | `runSysctlPlugin` (`EventDefault`, `EventSet`, `EventShowRequest`, `EventListRequest`, `EventDescribeRequest`, `applyFromJSON`, `OnConfigApply`, `OnExecuteCommand`) (8) | 2 | `doctor-sysctl-event-emit` via `reportSysctlEventEmitFailed` -> `issuequeue` -> SDK `RaiseIssue` | `TestSysctlAppliedEmitFailureIsWarned` (wire + bridge), `TestSysctlOriginalUnreadAndQueryEmitFailuresAreReported` |
+| 16 | `internal/component/sysctl/sysctl.go` | `store.saveOriginal` (1) | 2 | `doctor-sysctl-original-unread` via `s.issues.RaiseError` -> SDK `RaiseIssue` | `TestSysctlOriginalUnreadAndQueryEmitFailuresAreReported` |
+| 17-18 | `internal/plugins/iface/dhcp/dhcp_linux.go` | `DHCPClient.publishDHCP` marshal + emit (2) | 2 | `doctor-iface-dhcp-event-emit` rate-limited via `report.RaiseErrorFixOnce` (1m window) | `TestDHCPPublishReportsEmitFailureRateLimited` |
+| 19-20 | `internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go` | `closeV4Socket` (1), `closeV4Client` (1) | 3 | `guards newV4UnicastClient`, `guards nclient4Exchanger` (best-effort teardown closes) | `./le arch refuse-by-default report` (`annotated: 4`) |
+| 21-22 | `internal/plugins/iface/dhcp/dhcp_v4_linux.go` | `removeV4Route` (1), `removeV4Address` (1) | 2 | `doctor-iface-dhcp-remove-failed` via `internal/core/report` (`isKernelObjectAbsent` treats `ENOENT`/`ESRCH`/`EADDRNOTAVAIL`/`os.ErrNotExist` as clean success) | `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent` |
+| 23-24 | `internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go` | `v6Worker.dropAddresses` (1), `v6Worker.decline` (1) | 2 | `doctor-iface-dhcp-lease-register` via `reportLeaseRegisterFailed` -> `internal/core/report` | `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` |
+| 25 | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` | `closeV6Link` (1) | 3 | `guards v6Worker` (best-effort per-exchange socket close) | `./le arch refuse-by-default report` (`annotated: 4`) |
+| 26-27 | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` | `v6Worker.drop` (1), `v6Worker.shutdown` remove (1) | 2 | `doctor-iface-dhcp-remove-failed` via `w.removeAddress` -> `internal/core/report` (`isKernelObjectAbsent` silent) | `TestDHCPv6ShutdownReportsFailedRemoval`, `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` |
+| 28-29 | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` | `v6Worker.expireDue` (1), `v6Worker.shutdown` register (1) | 2 | `doctor-iface-dhcp-lease-register` via `reportLeaseRegisterFailed` -> `internal/core/report` | `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` |
+| 30-31 | `internal/plugins/iface/dhcp/dhcp_v6_linux.go` | `v6Worker.shutdown` Release build (1) + open-socket (1) | 2 | `doctor-iface-dhcp-release-failed` via `reportReleaseFailed` -> `internal/core/report` | `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` |
+| 32-33 | `internal/plugins/iface/netlink/monitor_linux.go` | `monitor.emit` marshal + emit (2) | 2 | `doctor-iface-netlink-monitor-emit` latched per `(eventType, stage)` until recovery + `report.RaiseErrorFixOnce` (1m window) | `TestMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery` |
+| 34 | `internal/plugins/iface/ra/sender_linux.go` | `Sender.run` via `sendPacket` (1) | 2 | `doctor-iface-ra-send` via `raSendReporter` latched per error until recovery + `report.RaiseErrorFixOnce` (1m window; silent on canceled `net.ErrClosed`) | `TestSenderSendPacketReportsFailureRateLimitedAndResetsOnRecovery` |
+| 35-36 | `internal/plugins/iface/vpp/monitor.go` | `monitor.emit` marshal + emit (2) | 2 | `doctor-vpp-monitor-emit` latched per `(eventType, stage)` until recovery + `report.RaiseErrorFixOnce` (1m window) | `TestVPPMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery` |
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
@@ -466,3 +489,165 @@ The class row for the whole population is owned by the umbrella.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/release/fixes/spec-dropped-error-5-forwarding.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Resolved all 36 `error-dropped-below-warn` sites across 14 forwarding files (`findings: 0, annotated: 4` under `ai/doors/forwarding.md` base paths):
+  - **Firewall IRR (`internal/component/firewall/plugins/irr/stored.go`):** annotated `storeReader.notice` (`guards readEvery`) because `r.all = true` already triggers a full store re-read on the next worker pass.
+  - **Interface component (`internal/component/iface/{config_apply,config_sysctl,doctor_codes,register}.go`):** registered 4 doctor event codes (`doctor-iface-address-add`, `doctor-iface-sysctl-emit`, `doctor-iface-rollback-emit`, `doctor-iface-stale-route-cleanup`); promoted deferred `addDesiredAddresses` (skipping benign `ErrBackendNotReady`/`EEXIST`/`os.ErrExist`), `applySysctl`/`applySysctlProfiles`, `emitInterfaceRollback`, and `cleanupStaleIPv6DefaultRoutes` failures to WARN with fix + `internal/core/report` error raises.
+  - **Forkable sysctl plugin (`internal/component/sysctl/{register,register_doctor_codes,sysctl}.go`):** registered 2 doctor event codes (`doctor-sysctl-event-emit`, `doctor-sysctl-original-unread`); wired `issuequeue.Start(p)` with `defer issues.Stop()` ordered after `unsubscribeAll()` and before `p.Close()`, so all 8 EventBus emit failures and `store.saveOriginal` read failures warn and raise via SDK `RaiseIssue` without importing `internal/core/report`.
+  - **DHCPv4/DHCPv6 client (`internal/plugins/iface/dhcp/{dhcp_linux,dhcp_v4_exchange_linux,dhcp_v4_linux,dhcp_v6_attach_linux,dhcp_v6_linux,register_doctor_codes}.go`):** created `register_doctor_codes.go` declaring 4 doctor event codes (`doctor-iface-dhcp-event-emit`, `doctor-iface-dhcp-remove-failed`, `doctor-iface-dhcp-lease-register`, `doctor-iface-dhcp-release-failed`); added `isKernelObjectAbsent` (`ENOENT`, `ESRCH`, `EADDRNOTAVAIL`, `os.ErrNotExist`) so already-removed kernel addresses/routes complete cleanly while real failures warn and raise on `internal/core/report`; rate-limited `publishDHCP` via `report.RaiseErrorFixOnce`; annotated 3 best-effort teardown closes (`closeV4Socket`, `closeV4Client`, `closeV6Link`).
+  - **Netlink monitor, VPP monitor, RA sender (`internal/plugins/iface/{netlink,vpp,ra}/`):** registered 3 doctor event codes (`doctor-iface-netlink-monitor-emit`, `doctor-vpp-monitor-emit`, `doctor-iface-ra-send`); added rate-limited latch + recovery reset + `report.RaiseErrorFixOnce` (1m window) on both monitor `emit` paths and `ra` `sendPacket` (staying silent on canceled `net.ErrClosed`).
+- Added unit tests across all 6 answer-2 packages (`iface`, `sysctl`, `dhcp` v4 + v6, `netlink`, `ra`, `vpp`) covering WARN fields, registered doctor codes, report-bus delivery (including both wire and bridge transports for `sysctl`), ENOENT/benign suppression, and rate-limit + recovery behavior.
+- Wrote operator news fragment `website/changes/fragments/dropped-error-5-forwarding.md`.
+
+### Bugs Found/Fixed
+- None beyond the 36 dropped-error sites resolved by this spec.
+
+### Documentation Updates
+- None required in `docs/`: no config syntax, CLI grammar, wire format, RPC contract, or Prometheus counter changed.
+- Verified with `./le spec citation anchors spec plan/release/fixes/spec-dropped-error-5-forwarding.md` (17 docs mention modified files; none describe dropped-error log levels or doctor codes) and `./le doc check all` (0 broken source anchors or digest anchors on any owned file; the two reported failures belong to unrelated uncommitted files in other sessions: `internal/component/plugin/doctor/register_external.go` and `ze-policy-conf`).
+- Operator-facing change recorded in `website/changes/fragments/dropped-error-5-forwarding.md`.
+
+### Deviations from Plan
+- **No answer-1 return conversions (0 answer-1, 32 answer-2, 4 answer-3):** Every DHCP removal site (`removeV4Route`, `removeV4Address`, `v6Worker.drop`, `v6Worker.shutdown`) executes during lease expiry, decline, or teardown where no higher retry loop keeps the dropped lease; AC-2 explicitly permits answer 2 ("The failure reaches its owner (answer 1) or emits a WARN naming the interface, the kernel object, the fix, and its registered doctor `code` while raising that event on `internal/core/report`; 'already gone' (ENOENT) completes cleanly as success").
+- **No new Prometheus counters added:** Repeating monitor and RA send failure paths prevent log/bus floods via per-condition latches plus `report.RaiseErrorFixOnce` (1-minute window), so `docs/features/interfaces.md` needed no metrics table update.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| none | | | | |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Resolve all 36 `error-dropped-below-warn` instances across 14 forwarding files | Done | See Design Insights table (14 source files, 36 sites) | `./le arch refuse-by-default report`: `findings: 0, annotated: 4`; `./le arch refuse-by-default check`: OK |
+| Every new `Warn` carries a registered doctor `code` and raises on report bus | Done | `iface/doctor_codes.go` + `register.go`, `sysctl/register_doctor_codes.go`, `dhcp/register_doctor_codes.go`, `netlink/register_doctor_codes.go`, `ra/register_doctor_codes.go`, `vpp/register_doctor_codes.go` | `./le arch doctor-coverage check`: OK |
+| Forkable `sysctl` raises via `issuequeue` -> SDK `RaiseIssue`, never `internal/core/report` | Done | `internal/component/sysctl/register.go` (`runSysctlPlugin`, `reportSysctlEventEmitFailed`), `internal/component/sysctl/sysctl.go` (`saveOriginal`) | `./le plugin boundary check`: OK; tested over wire + bridge transports |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `./le arch refuse-by-default report` over `ai/doors/forwarding.md` base paths (`findings: 0, annotated: 4`); `./le arch refuse-by-default check` OK | Main thread verified |
+| AC-2 | Done | `isKernelObjectAbsent` (`dhcp_linux.go`), `removeV4Route`/`removeV4Address` (`dhcp_v4_linux.go`), `v6Worker.removeAddress` (`dhcp_v6_linux.go`); `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent`, `TestDHCPv6ShutdownReportsFailedRemoval`, `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` | Non-absent errors warn + raise `doctor-iface-dhcp-remove-failed`; `ENOENT`/`ESRCH`/`EADDRNOTAVAIL`/`os.ErrNotExist` complete cleanly |
+| AC-3 | Done | N-A (0 answer-1 sites; all 36 resolved by 32 answer-2 + 4 answer-3 per AC-2) | Recorded in Deviations |
+| AC-4 | Done | Unit tests in all 6 answer-2 packages (`iface`, `sysctl`, `dhcp`, `netlink`, `ra`, `vpp`) + `./le arch doctor-coverage check` OK | Every test asserts WARN attributes, registered `CodeMeta` + `EventCode`, and report-bus raise |
+| AC-5 | Done | 4 annotations (`stored.go` `readEvery`, `dhcp_v4_exchange_linux.go` `newV4UnicastClient` & `nclient4Exchanger`, `dhcp_v6_linux.go` `v6Worker`) | All 4 accepted by `./le arch refuse-by-default report` (`annotated: 4`) |
+| AC-6 | Done | Main thread ran `./le test unit pkg` (including Linux `userns` integration tests) across all 7 modified packages + 6-flavor lint (0 issues) + `plugin boundary check` + `weakened check` (0 findings) | All owned tests PASS (1 unrelated pre-existing `synctest` ordering race in untouched `netlink/native_access_linux_test.go:559`) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSysctlAppliedEmitFailureIsWarned` | Done | `internal/component/sysctl/register_test.go` | Runs over both bridge and wire transports |
+| `TestSysctlOriginalUnreadAndQueryEmitFailuresAreReported` | Done | `internal/component/sysctl/register_test.go` | Covers `saveOriginal` + `show-result` emit |
+| `TestDHCPv6ShutdownReportsFailedRemoval` | Done | `internal/plugins/iface/dhcp/dhcp_v6_linux_test.go` | Covers `EPERM` warn+raise and `ENOENT` silence |
+| `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` | Done | `internal/plugins/iface/dhcp/dhcp_v6_linux_test.go` | Covers `drop`, `expireDue` register conflict, shutdown Release socket failure |
+| `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent` | Done | `internal/plugins/iface/dhcp/dhcp_v4_dropped_errors_linux_test.go` | Covers `removeV4Route` + `removeV4Address` (`EPERM`, `ENOENT`, `ESRCH`, `EADDRNOTAVAIL`) |
+| `TestDHCPPublishReportsEmitFailureRateLimited` | Done | `internal/plugins/iface/dhcp/dhcp_v4_dropped_errors_linux_test.go` | Covers `publishDHCP` rate-limited warn+raise |
+| `TestAddDesiredAddressesReportsRealFailureAndSkipsBenign` | Done | `internal/component/iface/dropped_errors_test.go` | Covers `addDesiredAddresses` (`EPERM` vs `ErrBackendNotReady`/`EEXIST`/`os.ErrExist`) |
+| `TestApplySysctlAndProfilesReportEmitFailure` | Done | `internal/component/iface/dropped_errors_test.go` | Covers `applySysctl` + `applySysctlProfiles` |
+| `TestEmitInterfaceRollbackReportsEmitFailure` | Done | `internal/component/iface/dropped_errors_test.go` | Covers `emitInterfaceRollback` |
+| `TestCleanupStaleIPv6DefaultRoutesReportsListFailure` | Done | `internal/component/iface/dropped_errors_test.go` | Covers `cleanupStaleIPv6DefaultRoutes` |
+| `TestMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery` | Done | `internal/plugins/iface/netlink/monitor_linux_test.go` | Covers marshal + emit rate limit + recovery reset |
+| `TestSenderSendPacketReportsFailureRateLimitedAndResetsOnRecovery` | Done | `internal/plugins/iface/ra/sender_linux_test.go` | Covers rate limit + recovery reset + canceled `net.ErrClosed` silence |
+| `TestVPPMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery` | Done | `internal/plugins/iface/vpp/monitor_emit_test.go` | Covers marshal + emit rate limit + recovery reset |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 19 files in Files to Modify | Done | Modified in working tree, plus `dhcp_v4_rig_linux_test.go`, `netlink/monitor_linux_test.go`, `ra/sender_linux_test.go` for unit test coverage |
+| `internal/plugins/iface/dhcp/register_doctor_codes.go` | Done | Created with 4 doctor codes + `RegisterEventCode` |
+| `internal/component/sysctl/register_test.go` | Done | Created |
+| `internal/plugins/iface/dhcp/dhcp_v6_linux_test.go` | Done | Created |
+| `internal/component/iface/dropped_errors_test.go` | Done | Created (additional focused unit tests) |
+| `internal/plugins/iface/dhcp/dhcp_v4_dropped_errors_linux_test.go` | Done | Created (additional focused unit tests) |
+| `internal/plugins/iface/vpp/monitor_emit_test.go` | Done | Created (additional focused unit tests) |
+| `website/changes/fragments/dropped-error-5-forwarding.md` | Done | Created at closure |
+
+### Audit Summary
+- **Total items:** 6 ACs, 36 dropped-error sites across 14 files, 13 new doctor event codes, 28 Go files + 1 news fragment
+- **Done:** All 6 ACs, all 36 sites, all 13 doctor codes, all planned files and tests
+- **Partial:** None
+- **Skipped:** None
+- **Changed:** 2 minor deviations recorded above (0 answer-1 returns per AC-2; no new Prometheus counters)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Zero `error-dropped-below-warn` findings under forwarding base paths | Structural check | `./le arch refuse-by-default report` over `ai/doors/forwarding.md` base paths: `findings: 0, annotated: 4`; `./le arch refuse-by-default check`: OK |
+| Failed DHCP kernel removals distinguish absent objects from real failures and report real failures | Unit + Linux `userns` integration tests | `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent`, `TestDHCPv6ShutdownReportsFailedRemoval`, `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` PASS in `internal/plugins/iface/dhcp` (67.9s) |
+| Operator-actionable failures emit WARN with doctor code and raise on daemon report bus | Unit tests + structural gate | All 13 new codes verified by unit tests across `iface`, `sysctl`, `dhcp`, `netlink`, `ra`, `vpp` + `./le arch doctor-coverage check` OK |
+| Forkable `sysctl` reports issues across process boundary without touching daemon-local `internal/core/report` | Dual-transport unit test + boundary gate | `TestSysctlAppliedEmitFailureIsWarned` PASS on both `bridge` and `wire` transports (1.1s); `./le plugin boundary check` OK |
+| Repeating monitor and RA failure paths do not flood logs or report bus | Unit tests | `TestMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery`, `TestVPPMonitorEmitReportsFailuresRateLimitedAndResetsOnRecovery`, `TestSenderSendPacketReportsFailureRateLimitedAndResetsOnRecovery`, `TestDHCPPublishReportsEmitFailureRateLimited` PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All 36 forwarding dropped-error sites and all 6 ACs are complete | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/dropped-error-5-forwarding-b2c30003-3333-4000-8000-000000000003.md` |
+| `./le spec review check` | `review_gate: OK (28 code files, clean, hashes match tmp/review/dropped-error-5-forwarding-b2c30003-3333-4000-8000-000000000003.md)` |
+| Rounds | 1 |
+| Reviewer lenses used | Lens 1: logic, wiring, concurrency, removed-behavior, and 7-question Go style pass (`ze-go-style.md`); Lens 2: security, error leakage, bounded allocations, rate limiting, and forkable process boundary; Lens 3: spec completeness (`/ze-review-spec`), 36-site census, doctor codes, and `## Design documents` check |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | - | 0 BLOCKER, 0 ISSUE, 0 NOTE | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/iface/dhcp/register_doctor_codes.go` | Yes | `-rw-r--r-- 1 thomas thomas 4410 Nov 27 09:34 internal/plugins/iface/dhcp/register_doctor_codes.go` |
+| `internal/component/sysctl/register_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 9460 Nov 27 09:34 internal/component/sysctl/register_test.go` |
+| `internal/plugins/iface/dhcp/dhcp_v6_linux_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 10535 Nov 27 09:04 internal/plugins/iface/dhcp/dhcp_v6_linux_test.go` |
+| `internal/component/iface/dropped_errors_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 9081 Nov 27 09:10 internal/component/iface/dropped_errors_test.go` |
+| `internal/plugins/iface/dhcp/dhcp_v4_dropped_errors_linux_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 7186 Nov 27 09:10 internal/plugins/iface/dhcp/dhcp_v4_dropped_errors_linux_test.go` |
+| `internal/plugins/iface/vpp/monitor_emit_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 3797 Nov 27 08:58 internal/plugins/iface/vpp/monitor_emit_test.go` |
+| `website/changes/fragments/dropped-error-5-forwarding.md` | Yes | `-rw-r--r-- 1 thomas thomas 2985 Nov 27 10:08 website/changes/fragments/dropped-error-5-forwarding.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 0 unannotated `error-dropped-below-warn` findings under forwarding base paths | `./le arch refuse-by-default report` (`findings: 0, annotated: 4`); `./le arch refuse-by-default check` OK |
+| AC-2 | Non-ENOENT DHCP removals warn + raise; absent kernel objects complete cleanly | `isKernelObjectAbsent` in `dhcp_linux.go` + `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent` + `TestDHCPv6ShutdownReportsFailedRemoval` + `TestDHCPv6DropRegisterAndReleaseFailuresAreReported` PASS |
+| AC-3 | Answer-1 sites tested | 0 answer-1 sites (all 36 resolved by 32 answer-2 + 4 answer-3 per AC-2) |
+| AC-4 | Every answer-2 package warns with doctor code + raises on report bus; `doctor-coverage` passes | Unit tests PASS in all 6 answer-2 packages (`iface`, `sysctl`, `dhcp`, `netlink`, `ra`, `vpp`); `./le arch doctor-coverage check` OK; `./le plugin boundary check` OK |
+| AC-5 | Every answer-3 annotation names a visible guard symbol | `git grep` verified `readEvery` (`stored.go:270`), `newV4UnicastClient` & `nclient4Exchanger` (`dhcp_v4_exchange_linux.go`), `v6Worker` (`dhcp_v6_linux.go`); accepted in `annotated: 4` |
+| AC-6 | Scoped unit + Linux integration tests and 6-flavor lint pass | Main thread verified all 7 packages PASS (`iface` 191.1s, `sysctl` 1.1s, `firewall/plugins/irr` 1.6s, `dhcp` 67.9s, `ra` 31.8s, `vpp` 1.9s, `netlink` `monitor_linux_test.go` + integration PASS), 6-flavor lint 0 issues, `./le test weakened check` 0 findings |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le arch refuse-by-default report` over forwarding base paths | Structural check (`droppedError`) | Yes (`findings: 0, annotated: 4`; `./le arch refuse-by-default check` OK) |
+| `runSysctlPlugin` EventBus applied emit failure -> `issuequeue` -> SDK `RaiseIssue` | `TestSysctlAppliedEmitFailureIsWarned` (wire + bridge transports) | Yes (PASS in `internal/component/sysctl`, 1.1s) |
+| `v6Worker.shutdown` failed address removal -> WARN + `internal/core/report` | `TestDHCPv6ShutdownReportsFailedRemoval` | Yes (PASS in `internal/plugins/iface/dhcp`, 67.9s) |
+| Every new doctor event code registered in owning package `init()` | `./le arch doctor-coverage check` + `./le plugin boundary check` | Yes (both OK) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `./le arch refuse-by-default report` confirmed all 36 instances across 14 files under `ai/doors/forwarding.md` base paths and now reports `findings: 0, annotated: 4` |
+| A-2 | confirmed | `isKernelObjectAbsent` (`dhcp_linux.go`) distinguishes `ENOENT`, `ESRCH`, `EADDRNOTAVAIL`, and `os.ErrNotExist` from real netlink removal failures; verified by `TestDHCPv4RemovalReportsRealErrorAndIgnoresAbsent` and `TestDHCPv6ShutdownReportsFailedRemoval` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `## Design documents` (20 pages, 33 decision rows) | `./le spec design check spec plan/release/fixes/spec-dropped-error-5-forwarding.md` -> `ready to present` | Yes |
+| Existing doc source anchors (`./le spec citation anchors` + `./le doc check all`) | 0 broken source anchors and 0 broken digest anchors on any of the 28 owned files; no config/CLI/wire/metric surface changed | Yes |
+| Operator news fragment | `website/changes/fragments/dropped-error-5-forwarding.md` written with valid `topic: Diagnostics` from `website/data/topics.json` and all 6 fixed headings | Yes |
+| Spec citations (`git grep dropped-error-5-forwarding`) | Only `plan/release/fixes/spec-dropped-error-0-umbrella.md:83` cites this spec (main thread updates that row to bare stem `spec-dropped-error-5-forwarding` right before Commit A after parallel `dropped-error-3` lands) | Yes |

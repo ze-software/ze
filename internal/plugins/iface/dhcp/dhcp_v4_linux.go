@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -638,8 +639,15 @@ func (c *DHCPClient) installV4Route(route *v4Route) {
 func (c *DHCPClient) removeV4Route(route *v4Route) {
 	if route.installed {
 		if err := iface.RemoveRoute(c.ifaceName, "0.0.0.0/0", route.gateway, c.config.RouteMetric, rtproto.Iface); err != nil {
-			loggerPtr.Load().Debug("iface dhcp v4: route removal failed",
-				"iface", c.ifaceName, "gw", route.gateway, "err", err)
+			if !isKernelObjectAbsent(err) {
+				fix := "ip route show dev " + c.ifaceName
+				loggerPtr.Load().Warn("iface dhcp v4: failed to remove leased default route from kernel; stale route may remain",
+					"iface", c.ifaceName, "gw", route.gateway, "err", err,
+					"fix", fix, "code", codeDoctorIfaceDHCPRemoveFailed)
+				report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceDHCPRemoveFailed, c.ifaceName+" 0.0.0.0/0 via "+route.gateway,
+					report.FitMessage("Failed to remove DHCPv4 default route via "+route.gateway+" on "+c.ifaceName+": "+err.Error()),
+					fix, map[string]any{reportSourceIface: c.ifaceName, "gw": route.gateway, reportKeyError: err.Error()})
+			}
 		}
 	}
 	*route = v4Route{}
@@ -697,8 +705,16 @@ func (c *DHCPClient) registerV4Addresses(addrs []string) error {
 // removeV4Address removes one leased address from the kernel.
 func (c *DHCPClient) removeV4Address(cidr string) {
 	if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
-		loggerPtr.Load().Debug("iface dhcp v4: addr removal failed",
-			"iface", c.ifaceName, "cidr", cidr, "err", err)
+		if isKernelObjectAbsent(err) {
+			return
+		}
+		fix := "ip addr show dev " + c.ifaceName
+		loggerPtr.Load().Warn("iface dhcp v4: failed to remove leased address from kernel; stale address may remain",
+			"iface", c.ifaceName, "cidr", cidr, "err", err,
+			"fix", fix, "code", codeDoctorIfaceDHCPRemoveFailed)
+		report.RaiseErrorFix(reportSourceIface, codeDoctorIfaceDHCPRemoveFailed, c.ifaceName+" "+cidr,
+			report.FitMessage("Failed to remove DHCPv4 leased address "+cidr+" on "+c.ifaceName+": "+err.Error()),
+			fix, map[string]any{reportSourceIface: c.ifaceName, "addr": cidr, reportKeyError: err.Error()})
 	}
 }
 

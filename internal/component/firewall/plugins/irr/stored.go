@@ -109,6 +109,7 @@ func (r *storeReader) notice(event string) {
 		r.generations = append(r.generations, decoded.Generation)
 	}
 	r.mu.Unlock()
+	// refuse-by-default: guards readEvery -- a dataset notice that fails to decode already sets r.all so the next pass reads every stored list
 	if err != nil {
 		logger().Debug("irr: a dataset notice could not be read, every stored list is read again", "error", err)
 	}

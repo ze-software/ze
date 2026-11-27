@@ -80,7 +80,7 @@ child owns the instances under its door's base paths and the zero for them:
 | `plan/release/fixes/spec-dropped-error-2-bgp-plugins.md` | `bgp-plugins.md` | `ready` | 63 (was 63) | release fixes |
 | `spec-dropped-error-3-access-security` (closed 2026-11-27) | `access-security.md` | closed | 0 (was 60; excludes 2 `mobike.go` sites moved to `spec-ipsec-11-mobike.md` on 2026-11-23) | release fixes |
 | `plan/release/fixes/spec-dropped-error-4-system-plugins.md` | `system-plugins.md` | `ready` | 50 (was 45) | release fixes |
-| `plan/release/fixes/spec-dropped-error-5-forwarding.md` | `forwarding.md` | `ready` | 36 (was 35) | release fixes |
+| `spec-dropped-error-5-forwarding` (closed 2026-11-27) | `forwarding.md` | closed | 0 (was 36) | release fixes |
 | `spec-dropped-error-6-routing-protocols` (closed 2026-11-15 in `f126ead44e`) | `routing-protocols.md` | closed | 0 (was 28) | release fixes |
 | `plan/release/fixes/spec-dropped-error-7-plugin-infra.md` | `plugin-infra.md` | `ready` | 16 (was 20) | release fixes |
 | `plan/release/fixes/spec-dropped-error-8-core-hub-appliance.md` | `core.md`, `hub-engine.md`, `appliance.md` | `ready` | 11 (was 9: core 7, hub-engine 2, appliance 2) | release fixes |

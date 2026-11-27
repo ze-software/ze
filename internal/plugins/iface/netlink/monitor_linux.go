@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -59,6 +61,13 @@ type monitor struct {
 	// ends (nduseropt_linux.go).
 	ndSock *nl.NetlinkSocket
 	ndDone chan struct{}
+	// emitWarnMu guards emitWarned, which rate-limits repeated EventBus marshal
+	// or emit failures to one WARN per (eventType, stage) until a subsequent
+	// emit of that eventType succeeds. Bounded by the closed set of interface
+	// event types times two stages.
+	emitWarnMu    sync.Mutex
+	emitWarned    map[string]bool
+	hasEmitWarned atomic.Bool
 }
 
 // neighKey identifies a neighbor entry, for NTF_ROUTER tracking here and for
@@ -563,6 +572,13 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 	}
 }
 
+const (
+	monitorEmitReportWindow = time.Minute
+	fixNetlinkMonitorEmit   = "ze show interface; ze show doctor"
+	monitorStageMarshal     = "marshal"
+	monitorStageEmit        = "emit"
+)
+
 // emit marshals the payload and emits it on the interface namespace.
 func (m *monitor) emit(eventType string, payload any) {
 	if m.eventBus == nil {
@@ -570,12 +586,50 @@ func (m *monitor) emit(eventType string, payload any) {
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		logger().Debug("iface monitor: marshal failed", "event", eventType, "err", err)
+		m.reportEmitFailed(monitorStageMarshal, eventType, err)
 		return
 	}
 	if _, err := m.eventBus.Emit(ifaceevents.Namespace, eventType, string(data)); err != nil {
-		logger().Debug("iface monitor: emit failed", "event", eventType, "err", err)
+		m.reportEmitFailed(monitorStageEmit, eventType, err)
+		return
 	}
+	m.clearEmitWarned(eventType)
+}
+
+func (m *monitor) reportEmitFailed(stage, eventType string, err error) {
+	key := eventType + ":" + stage
+	m.emitWarnMu.Lock()
+	if m.emitWarned == nil {
+		m.emitWarned = make(map[string]bool)
+	}
+	already := m.emitWarned[key]
+	if !already {
+		m.emitWarned[key] = true
+		m.hasEmitWarned.Store(true)
+	}
+	m.emitWarnMu.Unlock()
+	if already {
+		return
+	}
+	logger().Warn("iface monitor: could not publish interface event on the EventBus; downstream subscribers may have missed the kernel change",
+		"event", eventType, "stage", stage, "err", err,
+		"fix", fixNetlinkMonitorEmit, "code", codeDoctorIfaceNetlinkMonitorEmit)
+	report.RaiseErrorFixOnce(reportSourceIface, codeDoctorIfaceNetlinkMonitorEmit, key,
+		report.FitMessage("Kernel interface monitor failed to "+stage+" "+eventType+" event: "+err.Error()),
+		fixNetlinkMonitorEmit, monitorEmitReportWindow)
+}
+
+func (m *monitor) clearEmitWarned(eventType string) {
+	if !m.hasEmitWarned.Load() {
+		return
+	}
+	m.emitWarnMu.Lock()
+	delete(m.emitWarned, eventType+":"+monitorStageMarshal)
+	delete(m.emitWarned, eventType+":"+monitorStageEmit)
+	if len(m.emitWarned) == 0 {
+		m.hasEmitWarned.Store(false)
+	}
+	m.emitWarnMu.Unlock()
 }
 
 func addrUpdateToEventType(isNew bool) string {

@@ -4,16 +4,23 @@ package ifacera
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
+	"net"
 	"net/netip"
+	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/ipv6"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/ndp"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 func testAdvertisement() ndp.RAConfig {
@@ -163,5 +170,79 @@ func TestWANResolverWarnsOnceForAnUnresolvableWAN(t *testing.T) {
 		if !strings.Contains(logged, want) {
 			t.Fatalf("the WARN does not carry %q:\n%s", want, logged)
 		}
+	}
+}
+
+// TestSenderSendPacketReportsFailureRateLimitedAndResetsOnRecovery verifies
+// that a Router Advertisement send failure logs one WARN carrying iface, fix,
+// and codeDoctorIfaceRASend and raises on internal/core/report, suppresses
+// repeated identical failures, resets on a successful send, and stays silent
+// on a closed socket after context cancellation.
+//
+// VALIDATES: AC-4 -- RA send failure rate-limited WARN + report-bus raise.
+// PREVENTS: silently dropping ICMPv6 RA write failures at Debug or flooding
+// logs when a link cannot transmit.
+func TestSenderSendPacketReportsFailureRateLimitedAndResetsOnRecovery(t *testing.T) {
+	require.NotNil(t, diagnostic.Lookup(codeDoctorIfaceRASend))
+	require.True(t, slices.Contains(diagnostic.EventCodes(), codeDoctorIfaceRASend))
+
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	var out bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&out, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	s := &Sender{}
+	rep := &raSendReporter{ifaceName: "lan0", log: log}
+	ctx := context.Background()
+
+	failWrite := func([]byte, *ipv6.ControlMessage, net.Addr) (int, error) {
+		return 0, syscall.ENETDOWN
+	}
+	okWrite := func(b []byte, _ *ipv6.ControlMessage, _ net.Addr) (int, error) {
+		return len(b), nil
+	}
+
+	// Repeated identical errors log once and raise once.
+	require.ErrorIs(t, s.sendPacket(ctx, failWrite, []byte{1, 2, 3}, nil, nil, rep), syscall.ENETDOWN)
+	require.ErrorIs(t, s.sendPacket(ctx, failWrite, []byte{1, 2, 3}, nil, nil, rep), syscall.ENETDOWN)
+
+	logged := out.String()
+	require.Equal(t, 1, strings.Count(logged, "code="+codeDoctorIfaceRASend),
+		"repeated RA send failures must log one WARN:\n%s", logged)
+	require.Contains(t, logged, "iface=lan0")
+	require.Contains(t, logged, "ze show interface name lan0 detail")
+
+	var issues int
+	for _, issue := range report.Errors(0) {
+		if issue.Code == codeDoctorIfaceRASend {
+			require.Equal(t, "lan0", issue.Subject)
+			require.Contains(t, issue.Message, syscall.ENETDOWN.Error())
+			require.NotEmpty(t, issue.Fix)
+			issues++
+		}
+	}
+	require.Equal(t, 1, issues, "expected one report-bus event for RA send failure")
+
+	// Recovery clears the latch and logs INFO; a later failure warns again.
+	require.NoError(t, s.sendPacket(ctx, okWrite, []byte{1, 2, 3}, nil, nil, rep))
+	require.Contains(t, out.String(), "Router Advertisement send recovered")
+
+	require.ErrorIs(t, s.sendPacket(ctx, failWrite, []byte{1, 2, 3}, nil, nil, rep), syscall.ENETDOWN)
+	require.Equal(t, 2, strings.Count(out.String(), "code="+codeDoctorIfaceRASend),
+		"failure after recovery must warn again")
+
+	// Shutdown cancel + closed conn emits no WARN.
+	report.ResetForTest()
+	out.Reset()
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	closedRep := &raSendReporter{ifaceName: "lan0", log: log}
+	closedWrite := func([]byte, *ipv6.ControlMessage, net.Addr) (int, error) {
+		return 0, net.ErrClosed
+	}
+	require.ErrorIs(t, s.sendPacket(canceledCtx, closedWrite, []byte{1, 2, 3}, nil, nil, closedRep), net.ErrClosed)
+	require.NotContains(t, out.String(), "level=WARN")
+	for _, issue := range report.Errors(0) {
+		require.NotEqual(t, codeDoctorIfaceRASend, issue.Code)
 	}
 }

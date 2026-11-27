@@ -18,8 +18,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var errSysctlEmptyKey = errors.New("sysctl: empty key")
@@ -156,6 +158,7 @@ type store struct {
 	warnedConflicts map[string]bool // dedup conflict warnings per apply cycle, keyed by "iface:reason"
 	be              backend
 	log             *slog.Logger
+	issues          *issuequeue.Queue
 }
 
 func newStore(be backend, log *slog.Logger) *store {
@@ -186,7 +189,18 @@ func (s *store) saveOriginal(e *entry) {
 	}
 	val, err := s.be.read(e.key)
 	if err != nil {
-		s.log.Debug("sysctl: could not read original value", "key", e.key, "err", err)
+		const fix = "ze show sysctl; ze show doctor"
+		subject := fitUTF8Bound(e.key, rpc.ReportSubjectMax)
+		msg := fitUTF8Bound(
+			"Original kernel value for sysctl key "+e.key+" could not be read before writing; Ze cannot restore it on stop: "+err.Error(),
+			rpc.ReportMessageMax,
+		)
+		reportErr := s.issues.RaiseError(codeDoctorSysctlOriginalUnread, subject, msg, fix, func(rerr error) {
+			s.log.Warn("sysctl: report-issue RPC for unread original value was refused by the daemon",
+				"key", e.key, "err", rerr, "fix", fix, "code", codeDoctorSysctlOriginalUnread)
+		})
+		s.log.Warn("sysctl: could not read original kernel value before writing; Ze cannot restore this tunable on stop",
+			"key", e.key, "err", err, "fix", fix, "code", codeDoctorSysctlOriginalUnread, issuequeue.Outcome(reportErr))
 		return
 	}
 	e.original = val

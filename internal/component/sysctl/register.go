@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	sysctlyang "github.com/ze-software/ze/internal/component/sysctl/yang"
@@ -149,6 +152,10 @@ func verifySysctlConfig(sections []sdk.ConfigSection) error {
 	return nil
 }
 
+// newSysctlBackend constructs the OS sysctl backend for runSysctlPlugin. Tests
+// override this to avoid touching /proc/sys.
+var newSysctlBackend = newBackend
+
 func runSysctlPlugin(conn net.Conn) int {
 	log := logger()
 	log.Debug("sysctl plugin starting")
@@ -156,13 +163,28 @@ func runSysctlPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("sysctl", conn)
 	defer func() { _ = p.Close() }()
 
-	be := newBackend()
+	// sysctl is forkable (CLIHandler + sdk.NewWithConn), so problems reach the
+	// daemon's report bus through SDK RaiseIssue via issuequeue rather than
+	// daemon-local internal/core/report. Stop MUST run after event handlers
+	// unsubscribe and plugin work finishes, and before p.Close().
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
+	be := newSysctlBackend()
 	s := newStore(be, log)
+	s.issues = issues
 
 	eb := getEventBusRef()
 
 	// Subscribe to EventBus events.
 	var unsubscribers []func()
+	unsubscribeAll := func() {
+		for _, unsub := range unsubscribers {
+			unsub()
+		}
+		unsubscribers = nil
+	}
+	defer unsubscribeAll()
 	if eb != nil {
 		unsubscribers = append(unsubscribers,
 			// Default events from other plugins.
@@ -183,7 +205,7 @@ func runSysctlPlugin(conn net.Conn) int {
 				}
 				if applied != "" {
 					if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, applied); emitErr != nil {
-						log.Debug("sysctl: applied emit failed", "err", emitErr)
+						reportSysctlEventEmitFailed(log, issues, sysctlevents.EventApplied, ev.Key, emitErr)
 					}
 				}
 			})),
@@ -204,7 +226,7 @@ func runSysctlPlugin(conn net.Conn) int {
 				}
 				if applied != "" {
 					if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, applied); emitErr != nil {
-						log.Debug("sysctl: applied emit failed", "err", emitErr)
+						reportSysctlEventEmitFailed(log, issues, sysctlevents.EventApplied, ev.Key, emitErr)
 					}
 				}
 			})),
@@ -220,7 +242,7 @@ func runSysctlPlugin(conn net.Conn) int {
 					Entries   string `json:"entries"`
 				}{RequestID: req.RequestID, Entries: string(entriesJSON)})
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventShowResult, string(resp)); err != nil {
-					log.Debug("sysctl: show-result emit failed", "err", err)
+					reportSysctlEventEmitFailed(log, issues, sysctlevents.EventShowResult, req.RequestID, err)
 				}
 			})),
 			// Query: list known keys.
@@ -235,7 +257,7 @@ func runSysctlPlugin(conn net.Conn) int {
 					Entries   string `json:"entries"`
 				}{RequestID: req.RequestID, Entries: string(keysJSON)})
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventListResult, string(resp)); err != nil {
-					log.Debug("sysctl: list-result emit failed", "err", err)
+					reportSysctlEventEmitFailed(log, issues, sysctlevents.EventListResult, req.RequestID, err)
 				}
 			})),
 			// Clear profile defaults for an interface (before re-emission on reload).
@@ -273,7 +295,7 @@ func runSysctlPlugin(conn net.Conn) int {
 					Detail    string `json:"detail"`
 				}{RequestID: req.RequestID, Detail: string(detailJSON)})
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDescribeResult, string(resp)); err != nil {
-					log.Debug("sysctl: describe-result emit failed", "err", err)
+					reportSysctlEventEmitFailed(log, issues, sysctlevents.EventDescribeResult, req.Key, err)
 				}
 			})),
 		)
@@ -292,7 +314,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		if eb != nil {
 			for _, payload := range applied {
 				if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, payload); emitErr != nil {
-					log.Debug("sysctl: applied emit failed", "err", emitErr)
+					reportSysctlEventEmitFailed(log, issues, sysctlevents.EventApplied, appliedPayloadKey(payload), emitErr)
 				}
 			}
 		}
@@ -357,7 +379,7 @@ func runSysctlPlugin(conn net.Conn) int {
 					if eb != nil {
 						for _, payload := range applied {
 							if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, payload); emitErr != nil {
-								log.Debug("sysctl: applied emit failed", "err", emitErr)
+								reportSysctlEventEmitFailed(log, issues, sysctlevents.EventApplied, appliedPayloadKey(payload), emitErr)
 							}
 						}
 					}
@@ -427,7 +449,7 @@ func runSysctlPlugin(conn net.Conn) int {
 			}
 			if eb != nil {
 				if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, string(applied)); emitErr != nil {
-					log.Debug("sysctl: applied emit failed", "err", emitErr)
+					reportSysctlEventEmitFailed(log, issues, sysctlevents.EventApplied, args[0], emitErr)
 				}
 			}
 			return statusDone, applied, nil
@@ -449,15 +471,65 @@ func runSysctlPlugin(conn net.Conn) int {
 		return 1
 	}
 
-	// Unsubscribe event handlers.
-	for _, unsub := range unsubscribers {
-		unsub()
-	}
+	// Unsubscribe event handlers before restoring originals and stopping the
+	// report queue so no late callback queues onto a stopped queue.
+	unsubscribeAll()
 
 	// Restore original values on clean stop.
 	s.restoreAll()
 
 	return 0
+}
+
+const fixSysctlEmitFailed = "ze show sysctl"
+
+// reportSysctlEventEmitFailed logs a WARN carrying what, why, fix, and the
+// registered doctor code, and queues an error event onto the daemon's report
+// bus through issuequeue -> SDK RaiseIssue so both internal and forked runs
+// report the lost EventBus notification.
+func reportSysctlEventEmitFailed(log *slog.Logger, issues *issuequeue.Queue, eventType, subject string, emitErr error) {
+	if subject == "" {
+		subject = eventType
+	}
+	if len(subject) > rpc.ReportSubjectMax {
+		subject = fitUTF8Bound(subject, rpc.ReportSubjectMax)
+	}
+	msg := fitUTF8Bound(
+		"Sysctl event "+eventType+" for "+subject+" could not be emitted on the EventBus; subscribers or query callers missed the update: "+emitErr.Error(),
+		rpc.ReportMessageMax,
+	)
+	reportErr := issues.RaiseError(codeDoctorSysctlEventEmit, subject, msg, fixSysctlEmitFailed, func(err error) {
+		log.Warn("sysctl: report-issue RPC for event emit failure was refused by the daemon",
+			"event", eventType, "key", subject, "err", err, "fix", fixSysctlEmitFailed, "code", codeDoctorSysctlEventEmit)
+	})
+	log.Warn("sysctl: failed to emit event on the EventBus; subscribers or query callers did not receive the update",
+		"event", eventType, "key", subject, "err", emitErr, "fix", fixSysctlEmitFailed,
+		"code", codeDoctorSysctlEventEmit, issuequeue.Outcome(reportErr))
+}
+
+// appliedPayloadKey extracts the sysctl key from an appliedJSON payload so
+// event-emit diagnostics name the tunable that changed.
+func appliedPayloadKey(payload string) string {
+	var parsed struct {
+		Key string `json:"key"`
+	}
+	if err := json.Unmarshal([]byte(payload), &parsed); err == nil && parsed.Key != "" {
+		return parsed.Key
+	}
+	return sysctlevents.EventApplied
+}
+
+// fitUTF8Bound cuts s to at most limit octets at a valid UTF-8 rune boundary
+// so report-issue RPC fields never fail the wire length check.
+func fitUTF8Bound(s string, limit int) string {
+	if len(s) <= limit {
+		return s
+	}
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }
 
 // answerSetSysctl applies `set sysctl <key> <value>` as a transient value and

@@ -4,6 +4,8 @@ package ifacera
 
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
+const codeDoctorIfaceRASend = "doctor-iface-ra-send"
+
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
 var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 	{
@@ -12,6 +14,12 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A unit sends Router Advertisements (interface ... unit ... ipv6 router-advertisement enabled true) while net.ipv6.conf.<device>.forwarding is 0. Hosts on that link autoconfigure and install a default route through Ze, and the kernel then drops the off-link traffic they send, so the link looks configured and carries nothing. Set ipv6 forwarding true on the advertising unit, or set the sysctl through a profile. Ze reports this state and never changes it, because a kernel change outside declared config would hide the real setting. Advertising with forwarding off is deliberate in one case: router-lifetime 0, which says Ze is not a default router and advertises prefixes only.",
 		Examples:    []string{"ze doctor --json", "ze show diagnostic doctor-iface-ra-forwarding"},
 	},
+	{
+		Code:        codeDoctorIfaceRASend,
+		Title:       "Router Advertisement packet could not be sent",
+		Description: "Writing an IPv6 Router Advertisement packet to the ICMPv6 socket on a configured interface failed. Hosts on the link did not receive the periodic or solicited advertisement, which can delay SLAAC addressing, default-router discovery, or RDNSS updates. Check interface link state with `ze show interface name <interface> detail` and inspect errors with `ze show doctor`.",
+		Examples:    []string{"ze show doctor", "ze show errors", "ze show interface", "ze show diagnostic " + codeDoctorIfaceRASend},
+	},
 }
 
 func init() {
@@ -19,5 +27,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: ifacera: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceRASend}); err != nil {
+		panic("BUG: ifacera: ra-send event code registration refused: " + err.Error())
 	}
 }

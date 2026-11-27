@@ -9,6 +9,7 @@ const (
 	codeDoctorWireGuardUnknown         = "doctor-wireguard-unknown"
 	codeDoctorXFRMInterfaceUnavailable = "doctor-xfrm-interface-unavailable"
 	codeDoctorXFRMInterfaceUnknown     = "doctor-xfrm-interface-unknown"
+	codeDoctorIfaceNetlinkMonitorEmit  = "doctor-iface-netlink-monitor-emit"
 	exampleDoctorJSON                  = "ze doctor --json"
 )
 
@@ -56,6 +57,12 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-xfrm-interface-unknown"},
 		RelatedCodes: []string{codeDoctorXFRMInterfaceUnavailable},
 	},
+	{
+		Code:        codeDoctorIfaceNetlinkMonitorEmit,
+		Title:       "Kernel interface monitor could not publish an EventBus notification",
+		Description: "The netlink interface monitor failed to marshal or emit a link, address, or neighbor notification on the EventBus. Downstream subscribers (such as connected routes, OSPF, RSVP-TE, or BGP link tracking) may have missed the kernel interface change. Inspect interface state with `ze show interface` and daemon health with `ze show doctor`.",
+		Examples:    []string{"ze show doctor", "ze show errors", "ze show interface", "ze show diagnostic " + codeDoctorIfaceNetlinkMonitorEmit},
+	},
 }
 
 func init() {
@@ -63,5 +70,8 @@ func init() {
 		if err := diagnostic.Register(meta); err != nil {
 			panic("BUG: ifacenetlink: doctor code registration refused: " + err.Error())
 		}
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIfaceNetlinkMonitorEmit}); err != nil {
+		panic("BUG: ifacenetlink: monitor-emit event code registration refused: " + err.Error())
 	}
 }
