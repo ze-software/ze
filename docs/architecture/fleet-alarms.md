@@ -1,6 +1,6 @@
 # Fleet alarm conditions
 
-The first-release alarm design covers the conditions a fleet hub derives from device declarations, managed sessions, health reports, configuration state, inventory versions, metric samples, and history capacity. The hub alarm list, durable episode history, same-device alarm cause hierarchy, and read-only commands (`show fleet alarm`, `show fleet alarm history device <name>`) are implemented (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27; refined by `spec-fleet-ui-8-alarm-causes`).
+The first-release alarm design covers the conditions a fleet hub derives from device declarations, managed sessions, health reports, configuration state, inventory versions, metric samples, and history capacity. The hub alarm list, durable episode history, same-device alarm cause hierarchy, and read-only commands (`show fleet alarm`, `show fleet alarm history device <name>`) are implemented (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27; `spec-fleet-ui-8-alarm-causes`, closed 2026-11-27).
 
 ## Design decisions
 

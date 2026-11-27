@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | fleet, cli |
 | Priority | P2 |
 | Release reason | Thomas put this fleet capability (alarm causes: an alarm hidden while the alarm that causes it is open) in the first release, reached through `show fleet alarm` on every command surface (`ai/META-DECISIONS.md`, "Goal and scope"); existing supported behavior and its obligations remain required. How the pages show a hidden alarm comes after the first release, in `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`. |
@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -268,7 +268,7 @@ stay here are unchanged.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Hub alarm model ↔ Command surfaces | `show fleet alarm` through the command dispatcher, with the `hidden` filter and `hidden-behind` field | No |
+| Hub alarm model ↔ Command surfaces | `show fleet alarm` through the command dispatcher, with the `hidden` filter and `hidden-behind` field | Yes (`TestAlarmShowHiddenFilter`, `test/managed/alarm-hidden-behind-offline.ci`) |
 
 ### Changed-Wire Census
 
@@ -300,7 +300,7 @@ stay here are unchanged.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The hub keeps the last health report and the last sample of a device that is offline | Fleet-4 retains the timestamped health report and Fleet-8 retains the latest observation separately from missing time-series buckets | If either drops them when the device disconnects, the alarms read from them clear at that moment and the matching cause row has nothing to hide | Settled with `fleet-4` and `fleet-8` at their design; a unit test in each that a disconnect keeps the last report and sample | unvalidated |
+| A-1 | The hub keeps the last health report and the last sample of a device that is offline | Fleet-4 retains the timestamped health report and Fleet-8 retains the latest observation separately from missing time-series buckets | If either drops them when the device disconnects, the alarms read from them clear at that moment and the matching cause row has nothing to hide | Settled with `fleet-4` (`TestReportDisconnectRestart` in `internal/component/plugin/server/fleet_report_test.go`), `fleet-8` (`TestManagedHistoryOfflineGapAndReconnect` in `internal/component/plugin/server/managed_history_test.go`), and `fleet-ui-5` (`TestAlarmResourceHighDisconnectReconnect` in `internal/component/plugin/server/managed_alarms_test.go`) | confirmed |
 | A-2 | `fleet-ui-5` builds the alarm kinds as registered entries, as it plans | `docs/architecture/fleet-alarms.md`, "Alarm kinds" (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27): `AlarmKindSpec` and `RegisterAlarmKind` in `internal/component/plugin/server/managed_alarms_kinds.go` | Causes have no entry to live on | `fleet-ui-5`'s implementation, read before this spec's design | confirmed |
 
 ### Risks
@@ -363,12 +363,12 @@ moved to `fleet-ui-9`.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAlarmHiddenBehindOpenCause` | `internal/component/plugin/server/managed_alarm_causes_test.go`, over the function that computes hiding from the open alarms and the registry | AC-1, AC-4, AC-6 and AC-13: table cases of open sets and the alarms each one shows and hides, including an offline target with an absent relay grant that remains shown, with the nearest open cause named | |
-| `TestAlarmShownWhenCauseClears` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-2, AC-3: `Since` is kept, and an alarm that clears while hidden was never shown | |
-| `TestAlarmSettlesAfterCauseClears` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-5: observe closure at reconnect, absence one sample short, a new identifier and an opening time equal to the first qualifying observation at the exact threshold boundary, and no opening if the figure drops | |
-| `TestAlarmKindRegistryRefusesBadCauses` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-7: an unknown cause, a cycle of two and of three kinds, a warning that would hide a critical | |
-| `TestAlarmKindRegisteredElsewhereIsHidden` | `internal/component/plugin/server/managed_alarm_causes_test.go`, with a kind registered from the test | AC-8 | |
-| `TestAlarmShowHiddenFilter` | `internal/component/managed/cmd_alarms_test.go` | AC-10, AC-11: the `hidden` filter and the `hidden-behind` field on hidden and shown alarms | |
+| `TestAlarmHiddenBehindOpenCause` | `internal/component/plugin/server/managed_alarm_causes_test.go`, over the function that computes hiding from the open alarms and the registry | AC-1, AC-4, AC-6 and AC-13: table cases of open sets and the alarms each one shows and hides, including an offline target with an absent relay grant that remains shown, with the nearest open cause named | PASS |
+| `TestAlarmShownWhenCauseClears` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-2, AC-3: `Since` is kept, and an alarm that clears while hidden was never shown | PASS |
+| `TestAlarmSettlesAfterCauseClears` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-5: observe closure at reconnect, absence one sample short, a new identifier and an opening time equal to the first qualifying observation at the exact threshold boundary, and no opening if the figure drops | PASS |
+| `TestAlarmKindRegistryRefusesBadCauses` | `internal/component/plugin/server/managed_alarm_causes_test.go` | AC-7: an unknown cause, a cycle of two and of three kinds, a warning that would hide a critical | PASS |
+| `TestAlarmKindRegisteredElsewhereIsHidden` | `internal/component/plugin/server/managed_alarm_causes_test.go`, with a kind registered from the test | AC-8 | PASS |
+| `TestAlarmShowHiddenFilter` | `internal/component/managed/cmd_alarms_test.go` | AC-10, AC-11: the `hidden` filter and the `hidden-behind` field on hidden and shown alarms | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -378,7 +378,7 @@ moved to `fleet-ui-9`.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `alarm-hidden-behind-offline` | `test/managed/alarm-hidden-behind-offline.ci` | A real hub and a real managed client that reports a component down and is then stopped and started. AC-1, AC-2, AC-11 through the hub's own path: `show fleet alarm` on the hub answers `hidden-behind` while the client is stopped and not after it is back. Red when the hiding is computed only in the page | |
+| `alarm-hidden-behind-offline` | `test/managed/alarm-hidden-behind-offline.ci` | A real hub and a real managed client that reports a component down and is then stopped and started. AC-1, AC-2, AC-11 through the hub's own path: `show fleet alarm` on the hub answers `hidden-behind` while the client is stopped and not after it is back. Red when the hiding is computed only in the page | PASS (15.4s) |
 
 The browser test `fleet-alarm-cause` (`test/web/fleet-alarm-cause.wb`) moved to `fleet-ui-9`.
 
@@ -574,3 +574,190 @@ reaches neither a count nor a side panel) moved to `fleet-ui-9`.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **Alarm kind cause declarations & graph validation (`internal/component/plugin/server/managed_alarms_kinds.go`, `managed_serve.go`):**
+  - Declared `Causes: []string{AlarmKindDeviceOffline}` on `component-down`, `component-degraded`, and `resource-high` (with `Settles: true`) inside `registerBuiltinAlarmKinds()`; kept `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and future `relay-not-granted` uncaused.
+  - Added `AlarmKindRegistry.ValidateCauses()`, `validateKindCauseEdges`, and `detectAlarmCauseCycle` refusing unknown causes, cycles of any length (self, 2-hop, 3-hop+), causes less severe than the kind they hide (`causeSpec.Severity.Rank() > spec.Severity.Rank()`), and hub-scoped kinds declaring or named as a cause, naming both kinds and the defect via `opererr.New`.
+  - Wired `ManagedAlarmStore.ValidateRegistry()` into `NewManagedServer` (`managed_serve.go:331`) so invalid cause graphs prevent hub alarm startup before serving.
+  - Added `AlarmKindRegistry.CauseDepths(kind)` computing BFS minimum hop distances over declared causes.
+- **Query-time same-device hiding, settling reconnect scoping, and history overlap projection (`internal/component/plugin/server/managed_alarms.go`, `managed_alarms_store.go`):**
+  - Added `applyAlarmCauses` computing `HiddenBehind` per query over authorized open alarms on each device (breadth-first minimum depth, ties broken by smallest occurrence ID in byte order via `isBetterAlarmCause`, independent of slice order), running in `QueryOpen` after caller device authorization (`scope.AllowsDevice`) and before query filtering (`matchesOpenFilters`) so `| kind`/`| severity` queries preserve `hidden-behind` and unauthorized devices never leak cause IDs.
+  - Added `AlarmListQuery.Hidden *bool`, `alarmHiddenFilter` (`Any`/`False`/`True`), `encodeAlarmHiddenFilter`, and continuation cursor binding (`alarmOpenSnapshot.filterHidden` checked in `queryOpenContinuationLocked`).
+  - Narrowed `closeSettlingOccurrencesLocked` so reconnect closes only `resource-high` and settling kinds transitively caused by `device-offline` (`CauseDepths(k.kind)[AlarmKindDeviceOffline] > 0`).
+  - Added `AlarmHistoryEvent` derived fields (`Hidden`, `HiddenBehind`, `HiddenUnknown`), `alarmIntervalsOverlap`, and `applyAlarmHistoryCauses` called in `QueryHistory` to derive cause-overlap markers from retained same-device episodes without persisting hidden state, marking older rows with `HiddenUnknown: true` when `ev.Opened.Before(retainedSince)` prevents proving overlap.
+  - Stripped any stale derived fields on disk load in `installLoadedHubShard` and `installLoadedDeviceShard` (`managed_alarms_store.go`).
+- **Command surface pipe filter & columns (`internal/component/managed/cmd_alarms.go`):**
+  - Registered `hidden` (`command.ArgText`) on `show fleet alarm` via `command.RegisterPipeFilters`, added `hidden`, `hidden-behind`, and `hidden-unknown` columns on `show fleet alarm history device`, and parsed/validated `| hidden true|false` in `parseAlarmListPipeQuery` (refusing missing, unsupported, and conflicting values with `opererr.New`).
+- **Unit and live functional tests:**
+  - Added 8 unit test suites in `internal/component/plugin/server/managed_alarm_causes_test.go` (`TestAlarmHiddenBehindOpenCause`, `TestAlarmShownWhenCauseClears`, `TestAlarmSettlesAfterCauseClears`, `TestAlarmKindRegistryRefusesBadCauses`, `TestAlarmKindRegisteredElsewhereIsHidden`, `TestAlarmHistoryIntervalBoundaries`, `TestAlarmHistoryPersistenceStripsStaleHidden`, `TestAlarmReconnectClosesOnlyOfflineSettlingKinds`), added `TestAlarmShowHiddenFilter` and extended registration/completion assertions in `internal/component/managed/cmd_alarms_test.go`, and added live end-to-end fixture + functional test `internal/test/fixture/misc_fixture_managed_fleet_alarm_causes.go`, `register_managed_fleet_alarm_causes.go`, and `test/managed/alarm-hidden-behind-offline.ci`.
+- **Implementation commit on `main`:** `7ae25509b6` (`fleet: add alarm cause graph, hiding, history overlap, and hidden pipe`).
+
+### Bugs Found/Fixed
+- Round 1 review found 3 issues fixed before `7ae25509b6`: (1) `closeSettlingOccurrencesLocked` previously closed all settling kinds on device reconnect regardless of whether `device-offline` was a cause — fixed to require `AlarmKindResourceHigh` or `CauseDepths(k.kind)[AlarmKindDeviceOffline] > 0` (covered by `TestAlarmReconnectClosesOnlyOfflineSettlingKinds`); (2) persisted shards could carry stale derived hidden fields if present on disk — fixed by clearing `HiddenBehind`/`Hidden`/`HiddenUnknown` in `installLoadedHubShard` and `installLoadedDeviceShard` (covered by `TestAlarmHistoryPersistenceStripsStaleHidden`); (3) history overlap boundary edge cases (zero-duration point events, half-open touching intervals, retention-horizon `HiddenUnknown`) hardened and pinned by `TestAlarmHistoryIntervalBoundaries`.
+- Round 2 review fixed a vacuous assertion in `TestAlarmReconnectClosesOnlyOfflineSettlingKinds` (verifying reconnect through `OnDeviceConnected` actually closes the prior offline-settling ID and reopens a distinct ID while preserving the unrelated settling ID) and tightened wording in `docs/architecture/fleet-alarms.md`.
+
+### Documentation Updates
+- Updated in `7ae25509b6`:
+  - `docs/architecture/fleet-alarms.md` (added `## Alarm causes`, updated `## Alarm kinds` and `## Operator commands` tables with `<!-- source: ... -->` anchors to `managed_alarms_kinds.go`, `managed_alarms.go`, `cmd_alarms.go`).
+  - `docs/architecture/fleet-config.md` (`bus/hub/alarms` row noting same-device cause hiding and `| hidden true|false`).
+  - `docs/architecture/api/commands.md` (`show fleet alarm` and `show fleet alarm history device <name>` rows with `hidden <true|false>`, `hidden-behind`, and history overlap fields).
+  - `docs/guide/command-reference.md` (`show fleet alarm` and `show fleet alarm history device <name>` entries).
+  - `docs/guide/fleet-config.md` (`show fleet alarm | hidden false` / `| hidden true` examples and behavior prose).
+  - `features/fleet-management.md` (added `test/managed/alarm-hidden-behind-offline.ci` to `Real-path tests` and updated Description).
+- Updated in closure Commit A:
+  - `docs/architecture/fleet-alarms.md` (marked `spec-fleet-ui-8-alarm-causes, closed 2026-11-27`).
+  - `docs/features/fleet-management.md` (added same-device cause hiding, `hidden-behind`, `| hidden true|false`, history overlap markers, and `ValidateCauses` source anchor).
+  - `docs/features/cli-commands.md` (added `hidden` pipe, `hidden-behind`, and history overlap markers on `show fleet alarm` / `show fleet alarm history device`).
+  - `website/changes/fragments/fleet-ui-8-alarm-causes.md` (operator news fragment).
+  - Repointed all sibling spec citations in `plan/post-release/features/spec-fleet-0-umbrella.md`, `plan/post-release/features/spec-fleet-ui-0-umbrella.md`, `plan/post-release/features/spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`, and `plan/release/features/spec-fleet-10-drift-hash-chain.md` to `docs/architecture/fleet-alarms.md` ("Alarm causes") and bare stem.
+- `./le doc check all`: 0 fleet/alarm documentation, link, or source-anchor errors (the only reported failures are unrelated in-progress `request system trace snapshot` catalog/summary changes from another session).
+
+### Deviations from Plan
+- `internal/component/managed/register.go` did not need direct edits because `fleet-ui-5` already factored alarm command, column, and pipe registration into `registerAlarmCommands()` in `internal/component/managed/cmd_alarms.go` (called from `register.go` `init()`).
+- Alarm history exposes `hidden-unknown: true` when retention expiry or episode-cap truncation (`retained-since`) prevents proving whether a cause overlapped an older row, following fail-closed semantics rather than silently claiming unhidden.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Implementation commit `7ae25509b6` updated `docs/architecture/fleet-alarms.md`, `docs/guide/*`, and `features/fleet-management.md`, leaving `docs/features/fleet-management.md` and `docs/features/cli-commands.md` without the new `hidden` pipe and cause-hiding text | Both feature summary pages carry source anchors pointing at `internal/component/managed/cmd_alarms.go` and `internal/component/plugin/server/managed_alarms*.go` | Step 4 documentation review (`git grep "source: .*cmd_alarms\|managed_alarms" docs/`) | Updated both `docs/features/fleet-management.md` and `docs/features/cli-commands.md` in closure Commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Per-kind `Causes` and `Settles` declaration on `AlarmKindSpec`, no central list | Done | `internal/component/plugin/server/managed_alarms_kinds.go:136-144, 740-772` | `component-down`, `component-degraded`, `resource-high` declare `device-offline`; `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and future `relay-not-granted` declare none |
+| Startup validation refusing unknown cause, cycles, weaker-severity cause, hub-scoped cause naming both kinds | Done | `internal/component/plugin/server/managed_alarms_kinds.go:623-727`, `managed_serve.go:331` | `AlarmKindRegistry.ValidateCauses`, `validateKindCauseEdges`, `detectAlarmCauseCycle`, wired via `ManagedAlarmStore.ValidateRegistry()` |
+| Query-time BFS nearest same-device cause with smallest-ID byte-order tie-break, recomputed on cause changes | Done | `internal/component/plugin/server/managed_alarms_kinds.go:732-779`, `managed_alarms.go:2105-2176` | `CauseDepths`, `isBetterAlarmCause`, `applyAlarmCauses`, called in `QueryOpen` after authorization and before query filters |
+| Settling reconnect rule: close old occurrence on reconnect, require fresh sustained samples for new ID/opening time | Done | `internal/component/plugin/server/managed_alarms.go:1477-1505` | `closeSettlingOccurrencesLocked` closes `resource-high` and offline-caused settling kinds on reconnect; `OnSampleReport` qualifies fresh post-reconnect samples |
+| Alarm history overlap projection without storing hidden state | Done | `internal/component/plugin/server/managed_alarms.go:2178-2291`, `managed_alarms_store.go:211-265` | `alarmIntervalsOverlap`, `applyAlarmHistoryCauses`, called in `QueryHistory`; stale derived fields stripped on load |
+| `show fleet alarm` `hidden-behind` field and command-owned `\| hidden true\|false` pipe filter | Done | `internal/component/managed/cmd_alarms.go:70-108, 226-254`, `managed_alarms.go:1613-1736, 2293-2319` | Registered via `command.RegisterPipeFilters`, validated in `parseAlarmListPipeQuery`, bound to continuation cursor |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAlarmHiddenBehindOpenCause` (`managed_alarm_causes_test.go:55`), `test/managed/alarm-hidden-behind-offline.ci` | `device-offline` shown with empty `hidden-behind`; `component-down` hidden with `hidden-behind` naming offline ID; `\| hidden true` selects it |
+| AC-2 | Done | `TestAlarmShownWhenCauseClears` (`managed_alarm_causes_test.go:329`), `TestAlarmShowHiddenFilter` (`cmd_alarms_test.go:708`), `test/managed/alarm-hidden-behind-offline.ci` | Reconnect clears `device-offline`; `component-down` loses `hidden-behind` and preserves original ID and `Since` |
+| AC-3 | Done | `TestAlarmShownWhenCauseClears` (`managed_alarm_causes_test.go:329`) | Component alarm opening and clearing while offline is listed only with `hidden-behind` while open and remains in history marked `hidden: true` |
+| AC-4 | Done | `TestAlarmHiddenBehindOpenCause` (`managed_alarm_causes_test.go:55`) | Shown `resource-high` gains `hidden-behind` when `device-offline` opens later, preserves its `Since`, and writes no clearing in history |
+| AC-5 | Done | `TestAlarmSettlesAfterCauseClears` (`managed_alarm_causes_test.go:750`), `TestAlarmReconnectClosesOnlyOfflineSettlingKinds` (`managed_alarm_causes_test.go:1481`) | Reconnect closes prior `resource-high` in history, omits it during qualification and one sample short, opens new occurrence with new ID/opening time at threshold duration, and opens nothing if figure drops |
+| AC-6 | Done | `TestAlarmHiddenBehindOpenCause` (`managed_alarm_causes_test.go:55`) | `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and external `relay-not-granted` stay shown beside `device-offline` |
+| AC-7 | Done | `TestAlarmKindRegistryRefusesBadCauses` (`managed_alarm_causes_test.go:889`) | Unknown cause, self/2-hop/3-hop cycles, weaker-severity cause, and hub-scoped causes refused at startup naming both kinds and the defect |
+| AC-8 | Done | `TestAlarmKindRegisteredElsewhereIsHidden` (`managed_alarm_causes_test.go:1132`) | External kind registered from test naming `device-offline` is hidden behind it without editing hub engine code |
+| AC-10 | Done | `TestAlarmShowHiddenFilter` (`cmd_alarms_test.go:708`), `TestAlarmShownWhenCauseClears` (`managed_alarm_causes_test.go:329`) | Alarm opening while cause is open carries `hidden-behind`, disappears from `show fleet alarm` once condition clears, and keeps history row marked `hidden: true` |
+| AC-11 | Done | `TestAlarmShowHiddenFilter` (`cmd_alarms_test.go:708`), `TestFleetAlarmCommandRegistrationAndCompletion` (`cmd_alarms_test.go:88`), `test/managed/alarm-hidden-behind-offline.ci` | Unfiltered returns all authorized alarms with `hidden-behind` on hidden rows only; `\| hidden true`/`false` filters cleanly; missing/invalid/conflicting arguments refused; cursor bound to `hidden` |
+| AC-13 | Done | `TestAlarmHiddenBehindOpenCause` (`managed_alarm_causes_test.go:55`) | Equal-depth causes tie-broken by smallest byte-order ID across insertion orders; clearing nearest causes exposes remaining nearest then farther cause with original `Since`; cross-device causes ignored |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestAlarmHiddenBehindOpenCause` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:55` | PASS (`-race`) |
+| `TestAlarmShownWhenCauseClears` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:329` | PASS (`-race`) |
+| `TestAlarmSettlesAfterCauseClears` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:750` | PASS (`-race`) |
+| `TestAlarmKindRegistryRefusesBadCauses` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:889` | PASS (`-race`) |
+| `TestAlarmKindRegisteredElsewhereIsHidden` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:1132` | PASS (`-race`) |
+| `TestAlarmShowHiddenFilter` | Done | `internal/component/managed/cmd_alarms_test.go:708` | PASS (`-race`) |
+| `TestAlarmHistoryIntervalBoundaries` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:1236` | Extra coverage for half-open, zero-duration, and `HiddenUnknown` retention boundaries; PASS (`-race`) |
+| `TestAlarmHistoryPersistenceStripsStaleHidden` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:1341` | Extra coverage for stripping persisted derived fields; PASS (`-race`) |
+| `TestAlarmReconnectClosesOnlyOfflineSettlingKinds` | Done | `internal/component/plugin/server/managed_alarm_causes_test.go:1481` | Extra coverage for reconnect settling scope; PASS (`-race`) |
+| `alarm-hidden-behind-offline` | Done | `test/managed/alarm-hidden-behind-offline.ci` | Live `ze hub` + disk ZeFS + SSH CLI; PASS (15.4s) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/server/managed_alarms.go` | Done | Modified in `7ae25509b6` (`applyAlarmCauses`, `applyAlarmHistoryCauses`, `QueryOpen`, `QueryHistory`, `closeSettlingOccurrencesLocked`) |
+| `internal/component/plugin/server/managed_alarms_kinds.go` | Done | Modified in `7ae25509b6` (`ValidateCauses`, `CauseDepths`, built-in `Causes`) |
+| `internal/component/plugin/server/managed_alarms_store.go` | Done | Modified in `7ae25509b6` (strip stale derived fields on load) |
+| `internal/component/plugin/server/managed_serve.go` | Done | Modified in `7ae25509b6` (`srv.alarms.ValidateRegistry()` at startup) |
+| `internal/component/managed/cmd_alarms.go` | Done | Modified in `7ae25509b6` (`hidden` pipe filter, history columns) |
+| `internal/component/managed/register.go` | Changed | Already calls `registerAlarmCommands()` from `cmd_alarms.go`; no edit needed |
+| `internal/component/plugin/server/managed_alarm_causes_test.go` | Done | Created in `7ae25509b6` (1,555 lines, 8 test functions) |
+| `internal/component/managed/cmd_alarms_test.go` | Done | Extended in `7ae25509b6` (`TestAlarmShowHiddenFilter`, registration/completion tests) |
+| `internal/test/fixture/misc_fixture_managed_fleet_alarm_causes.go` | Done | Created in `7ae25509b6` (live fixture driver) |
+| `internal/test/fixture/register_managed_fleet_alarm_causes.go` | Done | Created in `7ae25509b6` (fixture registration) |
+| `test/managed/alarm-hidden-behind-offline.ci` | Done | Created in `7ae25509b6` |
+| `docs/architecture/fleet-alarms.md`, `fleet-config.md`, `api/commands.md`, `docs/guide/*`, `docs/features/*`, `features/fleet-management.md` | Done | Updated in `7ae25509b6` and closure Commit A |
+
+### Audit Summary
+- **Total items:** 34 (6 task requirements + 11 ACs + 10 tests + 7 code/test/doc file groups)
+- **Done:** 33
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`register.go` already delegates to `cmd_alarms.go:registerAlarmCommands`)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Hide stale downstream alarms behind same-device open causes (`device-offline`) without storing silencing state | Live `.ci` functional test + unit tests | `test/managed/alarm-hidden-behind-offline.ci` PASS (15.4s): real `ze hub` + managed client reports `component-down`, disconnects -> `show fleet alarm` returns `device-offline` (shown) and `component-down` with `hidden-behind` naming `device-offline` ID; `TestAlarmHiddenBehindOpenCause` & `TestAlarmHistoryPersistenceStripsStaleHidden` PASS (`-race`) |
+| Restore visibility with original `Since` when cause clears (and close/re-qualify settling `resource-high` on reconnect) | Live `.ci` functional test + unit tests | `test/managed/alarm-hidden-behind-offline.ci` PASS (15.4s): reconnect restores `component-down` without `hidden-behind` keeping original ID & `Since`; `TestAlarmShownWhenCauseClears`, `TestAlarmSettlesAfterCauseClears`, and `TestAlarmReconnectClosesOnlyOfflineSettlingKinds` PASS (`-race`) |
+| Open registration seam (`Causes` + `Settles` on `AlarmKindSpec`) with startup graph refusals | Unit tests + hub startup wiring | `NewManagedServer` calls `srv.alarms.ValidateRegistry()`; `TestAlarmKindRegistryRefusesBadCauses` (unknown cause, 1/2/3-hop cycles, weaker severity, hub scope) & `TestAlarmKindRegisteredElsewhereIsHidden` PASS (`-race`) |
+| Expose `hidden-behind`, `\| hidden true\|false` pipe, and derived history overlap across command surfaces | Live `.ci` functional test + CLI/command tests + contract gates | `TestAlarmShowHiddenFilter`, `TestFleetAlarmCommandRegistrationAndCompletion` PASS (`-race`); `test/managed/alarm-hidden-behind-offline.ci` PASS (15.4s); `./le --name fleetui8 cli grammar` OK (549 cmds); `./le --name fleetui8 doc yang-contract command-contract` OK (581/581) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-ui-8-alarm-causes-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md` |
+| `./le spec review check` | `review_gate: OK (10 code files, clean, hashes match tmp/review/fleet-ui-8-alarm-causes-0d4a383c-79d8-4d26-887f-bf4fda8abb1c.md)` |
+| Rounds | 2 (Round 1 found 3 ISSUEs; Round 2 verified all 3 fixed + tightened test/doc wording; closure independent review confirmed 0 BLOCKER, 0 ISSUE, 7-point `ze-go-style.md` pass clean, design-documents lens clean) |
+| Reviewer lenses used | logic+wiring, security+authorization+edge-cases, spec-completeness+docs+ze-go-style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `closeSettlingOccurrencesLocked` closed all settling kinds on device reconnect even when not caused by `device-offline` | `internal/component/plugin/server/managed_alarms.go:1488-1495` | Scoped reconnect closure to `AlarmKindResourceHigh` or `s.registry.CauseDepths(k.kind)[AlarmKindDeviceOffline] > 0`; pinned by `TestAlarmReconnectClosesOnlyOfflineSettlingKinds` |
+| 2 | ISSUE | Persisted open/closed shard records could retain stale `HiddenBehind`/`Hidden`/`HiddenUnknown` values across load | `internal/component/plugin/server/managed_alarms_store.go:211-265` | Cleared derived fields in `installLoadedHubShard` and `installLoadedDeviceShard`; pinned by `TestAlarmHistoryPersistenceStripsStaleHidden` |
+| 3 | ISSUE | History overlap needed explicit boundary handling for zero-duration events, half-open touching intervals, and retention-horizon uncertainty (`hidden-unknown`) | `internal/component/plugin/server/managed_alarms.go:2178-2291` | Implemented `isZeroDurationAlarmEvent`, `alarmPointInInterval`, `alarmIntervalsOverlap`, and `retainedSince` fail-closed `HiddenUnknown`; pinned by `TestAlarmHistoryIntervalBoundaries` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/server/managed_alarm_causes_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 63441 Nov 27 08:47 internal/component/plugin/server/managed_alarm_causes_test.go` |
+| `internal/component/managed/cmd_alarms_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 42374 Nov 27 08:09 internal/component/managed/cmd_alarms_test.go` |
+| `internal/test/fixture/misc_fixture_managed_fleet_alarm_causes.go` | Yes | `-rw-r--r-- 1 thomas thomas 17431 Nov 27 08:05 internal/test/fixture/misc_fixture_managed_fleet_alarm_causes.go` |
+| `internal/test/fixture/register_managed_fleet_alarm_causes.go` | Yes | `-rw-r--r-- 1 thomas thomas   294 Nov 27 08:05 internal/test/fixture/register_managed_fleet_alarm_causes.go` |
+| `test/managed/alarm-hidden-behind-offline.ci` | Yes | `-rw-r--r-- 1 thomas thomas  1016 Nov 27 08:05 test/managed/alarm-hidden-behind-offline.ci` |
+| `website/changes/fragments/fleet-ui-8-alarm-causes.md` | Yes | Created in Commit A following `website/changes/fragments/README.md` (`spec: fleet-ui-8-alarm-causes`, `topic: Fleet`, `feature: fleet-management`) |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Component down hidden behind `device-offline` with `hidden-behind` and selectable via `\| hidden true` | `applyAlarmCauses` (`managed_alarms.go:2124`), `TestAlarmHiddenBehindOpenCause` PASS (`-race`), `test/managed/alarm-hidden-behind-offline.ci` PASS (15.4s) |
+| AC-2 | Component down loses `hidden-behind` on reconnect keeping original `Since` | `applyAlarmCauses` (`managed_alarms.go:2124`), `TestAlarmShownWhenCauseClears` PASS (`-race`), `test/managed/alarm-hidden-behind-offline.ci` PASS (15.4s) |
+| AC-3 | Alarm opening & clearing while offline only shown with `hidden-behind` while open; history row marked `hidden: true` | `applyAlarmHistoryCauses` (`managed_alarms.go:2226`), `TestAlarmShownWhenCauseClears` PASS (`-race`) |
+| AC-4 | Shown `resource-high` becomes hidden when `device-offline` opens, keeping `Since` and no clearing in history | `applyAlarmCauses` (`managed_alarms.go:2124`), `TestAlarmHiddenBehindOpenCause` PASS (`-race`) |
+| AC-5 | `resource-high` closes at reconnect and opens new ID/time only after fresh sustained samples span `resource-duration` | `closeSettlingOccurrencesLocked` (`managed_alarms.go:1488`), `TestAlarmSettlesAfterCauseClears` & `TestAlarmReconnectClosesOnlyOfflineSettlingKinds` PASS (`-race`) |
+| AC-6 | `config-diverged`, `config-rejected`, `software-behind`, `history-full`, and absent `relay-not-granted` stay visible while offline | `registerBuiltinAlarmKinds` (`managed_alarms_kinds.go:740-772`), `TestAlarmHiddenBehindOpenCause` PASS (`-race`) |
+| AC-7 | Unknown cause, cycles, weaker-severity cause, and hub-scoped cause refused at startup naming both kinds | `ValidateCauses` (`managed_alarms_kinds.go:623`), `NewManagedServer` (`managed_serve.go:331`), `TestAlarmKindRegistryRefusesBadCauses` PASS (`-race`) |
+| AC-8 | External kind naming `device-offline` is hidden with no edit to hub engine | `CauseDepths` (`managed_alarms_kinds.go:732`), `TestAlarmKindRegisteredElsewhereIsHidden` PASS (`-race`) |
+| AC-10 | Hidden alarm clears from `show fleet alarm` when condition stops; history row remains marked `hidden: true` | `QueryOpen`/`QueryHistory` (`managed_alarms.go:1647, 1848`), `TestAlarmShowHiddenFilter` PASS (`-race`) |
+| AC-11 | Unfiltered returns all authorized alarms with optional `hidden-behind`; `\| hidden true\|false` filters; invalid args refused | `registerAlarmCommands` & `parseAlarmListPipeQuery` (`cmd_alarms.go:105, 226`), `TestAlarmShowHiddenFilter` PASS (`-race`), `test/managed/alarm-hidden-behind-offline.ci` PASS (15.4s) |
+| AC-13 | Equal-depth tie-break by smallest byte-order ID across insertion orders; cascading reveal on cause clear; same-device only | `isBetterAlarmCause` & `applyAlarmCauses` (`managed_alarms.go:2105-2176`), `TestAlarmHiddenBehindOpenCause` PASS (`-race`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Real `ze hub` daemon + disk ZeFS + TLS managed client + SSH CLI (`show fleet alarm`, `\| hidden true`, `\| hidden false`, `\| kind component-down`, `\| hidden invalid`, reconnect, `show fleet alarm history device edge-01`) | `test/managed/alarm-hidden-behind-offline.ci` | Read `.ci` (lines 1-15) and `internal/test/fixture/misc_fixture_managed_fleet_alarm_causes.go` (lines 1-416) + `register_managed_fleet_alarm_causes.go`; executed PASS (15.4s); regression `test/managed/fleet-alarm-lifecycle.ci` PASS (23.0s) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `fleet-4` retains latest health report across disconnect (`TestReportDisconnectRestart` in `internal/component/plugin/server/fleet_report_test.go:230`), `fleet-8` retains latest sample across disconnect (`TestManagedHistoryOfflineGapAndReconnect` in `internal/component/plugin/server/managed_history_test.go:418`), and `fleet-ui-5` preserves open occurrences on disconnect (`TestAlarmResourceHighDisconnectReconnect` in `internal/component/plugin/server/managed_alarms_test.go:284`) |
+| A-2 | confirmed | `spec-fleet-ui-5-alarm-list` closed 2026-11-27 (`docs/architecture/fleet-alarms.md`); `AlarmKindSpec` and `RegisterAlarmKind` live in `internal/component/plugin/server/managed_alarms_kinds.go` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Architecture (`docs/architecture/fleet-alarms.md`, `fleet-config.md`, `api/commands.md`) | Anchors to `managed_alarms_kinds.go`, `managed_alarms.go`, `managed_alarms_store.go`, `cmd_alarms.go`, `ze-managed-cmd.yang` | Yes (`./le doc check all`: 0 fleet/alarm anchor or link errors) |
+| Guides & feature pages (`docs/guide/command-reference.md`, `docs/guide/fleet-config.md`, `docs/features/fleet-management.md`, `docs/features/cli-commands.md`, `features/fleet-management.md`, `ai/INDEX.md`) | Updated with `hidden-behind`, `\| hidden true\|false`, history overlap markers, `ValidateCauses` anchor, and `test/managed/alarm-hidden-behind-offline.ci`; `ai/INDEX.md:550, 625` already indexes `docs/architecture/fleet-alarms.md` | Yes (`./le doc check all`: 0 fleet/alarm errors) |
+| Operator news fragment (`website/changes/fragments/fleet-ui-8-alarm-causes.md`) | Verified against `website/changes/fragments/README.md` and `website/data/topics.json` (`spec: fleet-ui-8-alarm-causes`, `topic: Fleet`, `feature: fleet-management`, six required headings) | Yes |
+| Citation clearance (`git grep -n "spec-fleet-ui-8-alarm-causes"`) | All citations in `docs/architecture/fleet-alarms.md`, `spec-fleet-0-umbrella.md`, `spec-fleet-ui-0-umbrella.md`, `spec-fleet-ui-9-tasks-notifications-and-alarm-pages.md`, `spec-fleet-10-drift-hash-chain.md` repointed to `docs/architecture/fleet-alarms.md` and bare stem; only protected `docs/architecture/fleet-interface.md:16-17` `## Design decisions` rows retain historical spec path | Yes |

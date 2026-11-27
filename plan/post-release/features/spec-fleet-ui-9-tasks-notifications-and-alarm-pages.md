@@ -5,9 +5,9 @@
 | Status | ready |
 | Scope | web, fleet, cli |
 | Priority | P3 |
-| Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `spec-fleet-ui-5-alarm-list` (closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`) and `plan/release/features/spec-fleet-ui-8-alarm-causes.md`, which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
+| Release reason | Thomas ruled on 2026-11-23 that the fleet features of the first release are reached through commands on every command surface, and that their web pages, the hub's task model and panel, notifications and live page updates come after the first release (`ai/META-DECISIONS.md`, "Goal and scope"). Split out of `spec-fleet-ui-5-alarm-list` (closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`) and `spec-fleet-ui-8-alarm-causes` (closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`, "Alarm causes"), which keep the alarm model and its commands; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-ui-5-alarm-list (closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`), plan/release/features/spec-fleet-ui-8-alarm-causes.md, plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-1-device-registry (closed 2026-11-25), spec-fleet-4-inventory-health (closed 2026-11-26), spec-fleet-8-metric-history (closed 2026-11-27) |
+| Depends | spec-fleet-ui-5-alarm-list (closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`), spec-fleet-ui-8-alarm-causes (closed 2026-11-27; documented in `docs/architecture/fleet-alarms.md`, "Alarm causes"), plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-1-device-registry (closed 2026-11-25), spec-fleet-4-inventory-health (closed 2026-11-26), spec-fleet-8-metric-history (closed 2026-11-27) |
 | Phase | 9/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |
@@ -15,8 +15,7 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Re-read after compaction:** this file, `plan/post-release/features/spec-fleet-ui-0-umbrella.md`,
-`docs/architecture/fleet-alarms.md`,
-`plan/release/features/spec-fleet-ui-8-alarm-causes.md`,
+`docs/architecture/fleet-alarms.md` (`spec-fleet-ui-5-alarm-list` and `spec-fleet-ui-8-alarm-causes`, closed 2026-11-27),
 `docs/architecture/fleet-interface.md`, `internal/component/web/sse.go`.
 
 ## Task
@@ -122,7 +121,7 @@ and links to the device tab where the condition can be examined.
 ### Alarm causes on the pages
 
 Which alarm is hidden behind which cause is `fleet-ui-8`'s
-(`plan/release/features/spec-fleet-ui-8-alarm-causes.md`, "Alarm causes"):
+(`docs/architecture/fleet-alarms.md`, "Alarm causes"; `spec-fleet-ui-8-alarm-causes`, closed 2026-11-27):
 the hub answers it as `hidden-behind` in `show fleet alarm`, and the pages read
 that fact.
 
@@ -221,7 +220,7 @@ command first and a page second.
   → Constraint: every page reads through the command dispatcher; the browser holds no model of the estate
 - [ ] `docs/architecture/fleet-alarms.md` (`spec-fleet-ui-5-alarm-list`, closed 2026-11-27) - the alarm model and its commands
   → Decision: alarms are derived from what the hub holds, never stored events; no acknowledgement
-- [ ] `plan/release/features/spec-fleet-ui-8-alarm-causes.md` - which alarm is hidden behind which cause
+- [ ] `docs/architecture/fleet-alarms.md`, "Alarm causes" (`spec-fleet-ui-8-alarm-causes`, closed 2026-11-27) - which alarm is hidden behind which cause
   → Constraint: the hiding is computed on the hub and answered as `hidden-behind`; the pages compute none
 - [ ] `docs/architecture/fleet-interface.md` - "The data source seam", "Live events", "The live event stream", "Activity"
   → Constraint: "A source answers facts only"; every count is derived in the package from the rows its link opens
