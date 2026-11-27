@@ -97,3 +97,8 @@ CONFIG_NF_NAT_SNMP_BASIC
 # (internal/appliance/permformat). A =m answer must fail the build.
 CONFIG_QUOTA
 CONFIG_QFMT_V2
+
+# Extended attributes on squashfs (security.capability, MAC labels, ACLs) so
+# file capabilities inside squashfs images (e.g. snapd 2.77+ on a Linux host)
+# are honored rather than silently ignored.
+CONFIG_SQUASHFS_XATTR
