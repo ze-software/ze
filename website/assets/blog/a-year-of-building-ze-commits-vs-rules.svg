@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 540">
+  <title id="title">Monthly commits compared with share touching AI rules and le tooling</title>
+  <desc id="desc">Combined bar and line chart across 19,193 commits from December 2025 to 27 November 2026. Commits touching AI rules or development tooling peak at 47.5 per cent in July 2026 (43.2 per cent AI rules alone), then AI rule commits fall to 5.8 to 9.0 per cent in autumn while total monthly commits climb to 5,157 in October and 4,599 through 27 November.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1524"/>
+      <stop offset="0.55" stop-color="#111d30"/>
+      <stop offset="1" stop-color="#0e2228"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" x2="1">
+      <stop offset="0" stop-color="#b990ff"/>
+      <stop offset="0.5" stop-color="#5bc4f0"/>
+      <stop offset="1" stop-color="#42d8bd"/>
+    </linearGradient>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #edf4fc; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.6px; fill: #8fa9c4; }
+      .title { font-family: Poppins, Avenir, sans-serif; font-size: 27px; font-weight: 800; letter-spacing: -0.5px; }
+      .subhead { font-family: Poppins, Avenir, sans-serif; font-size: 16px; font-weight: 800; }
+      .kicker { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1.3px; }
+      .axis { font-size: 13px; font-weight: 700; fill: #8fa3ba; }
+      .legend { font-size: 13.5px; font-weight: 700; fill: #c6d5e6; }
+      .anno { font-size: 12.5px; font-weight: 700; fill: #e6f0fa; }
+      .foot { font-size: 12.5px; font-weight: 600; fill: #8fa3ba; }
+    </style>
+</defs>
+  <rect width="1200" height="540" rx="22" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="6" rx="3" fill="url(#rail)"/>
+
+  <text x="44" y="46" class="eyebrow">19,193 COMMITS · METHODOLOGY INVESTMENT VS PRODUCT OUTPUT</text>
+  <text x="44" y="82" class="title">AI rules and tooling peaked at 47.5% of commits before output surged</text>
+
+  <!-- Legend -->
+  <rect x="44" y="98" width="14" height="14" rx="3" fill="#4390cf"/>
+  <text x="64" y="110" class="legend">Total commits / month (right axis)</text>
+  <line x1="322" y1="105" x2="346" y2="105" stroke="#f5a623" stroke-width="3.2"/>
+  <text x="354" y="110" class="legend">Either rules or tooling (%)</text>
+  <line x1="566" y1="105" x2="590" y2="105" stroke="#c084fc" stroke-width="2.8" stroke-dasharray="6 4"/>
+  <text x="598" y="110" class="legend">AI rules (%)</text>
+  <line x1="712" y1="105" x2="736" y2="105" stroke="#42d8bd" stroke-width="2.8" stroke-dasharray="6 4"/>
+  <text x="744" y="110" class="legend">Scripts / le tooling (%)</text>
+
+  <g>
+    <rect x="432.0" y="138.0" width="336.0" height="306.0" rx="8" fill="#f5a623" opacity="0.07"/>
+    <line x1="84" y1="388.4" x2="1116" y2="388.4" stroke="#1f3045" stroke-width="1"/><text x="72" y="393.4" text-anchor="end" class="axis">10%</text><text x="1128" y="393.4" text-anchor="start" class="axis">1k</text><line x1="84" y1="332.7" x2="1116" y2="332.7" stroke="#1f3045" stroke-width="1"/><text x="72" y="337.7" text-anchor="end" class="axis">20%</text><text x="1128" y="337.7" text-anchor="start" class="axis">2k</text><line x1="84" y1="277.1" x2="1116" y2="277.1" stroke="#1f3045" stroke-width="1"/><text x="72" y="282.1" text-anchor="end" class="axis">30%</text><text x="1128" y="282.1" text-anchor="start" class="axis">3k</text><line x1="84" y1="221.5" x2="1116" y2="221.5" stroke="#1f3045" stroke-width="1"/><text x="72" y="226.5" text-anchor="end" class="axis">40%</text><text x="1128" y="226.5" text-anchor="start" class="axis">4k</text><line x1="84" y1="165.8" x2="1116" y2="165.8" stroke="#1f3045" stroke-width="1"/><text x="72" y="170.8" text-anchor="end" class="axis">50%</text><text x="1128" y="170.8" text-anchor="start" class="axis">5k</text><line x1="84" y1="444.0" x2="1116" y2="444.0" stroke="#334a66" stroke-width="1.5"/><text x="72" y="449.0" text-anchor="end" class="axis">0%</text><text x="1128" y="449.0" text-anchor="start" class="axis">0</text>
+    <rect x="102.9" y="428.9" width="48.2" height="15.1" rx="5" fill="#26537a" opacity="0.72"/><rect x="188.9" y="419.0" width="48.2" height="25.0" rx="5" fill="#26537a" opacity="0.72"/><rect x="274.9" y="423.1" width="48.2" height="20.9" rx="5" fill="#26537a" opacity="0.72"/><rect x="360.9" y="396.2" width="48.2" height="47.8" rx="5" fill="#26537a" opacity="0.72"/><rect x="446.9" y="386.3" width="48.2" height="57.7" rx="5" fill="#26537a" opacity="0.72"/><rect x="532.9" y="408.1" width="48.2" height="35.9" rx="5" fill="#26537a" opacity="0.72"/><rect x="618.9" y="405.3" width="48.2" height="38.7" rx="5" fill="#26537a" opacity="0.72"/><rect x="704.9" y="376.6" width="48.2" height="67.4" rx="5" fill="#26537a" opacity="0.72"/><rect x="790.9" y="348.5" width="48.2" height="95.5" rx="5" fill="#26537a" opacity="0.72"/><rect x="876.9" y="323.0" width="48.2" height="121.0" rx="5" fill="#4390cf" opacity="0.72"/><rect x="962.9" y="157.1" width="48.2" height="286.9" rx="5" fill="#4390cf" opacity="0.72"/><rect x="1048.9" y="188.1" width="48.2" height="255.9" rx="5" fill="#4390cf" opacity="0.72"/>
+    <text x="127.0" y="468.0" text-anchor="middle" class="axis">Dec 25</text><text x="213.0" y="468.0" text-anchor="middle" class="axis">Jan</text><text x="299.0" y="468.0" text-anchor="middle" class="axis">Feb</text><text x="385.0" y="468.0" text-anchor="middle" class="axis">Mar</text><text x="471.0" y="468.0" text-anchor="middle" class="axis">Apr</text><text x="557.0" y="468.0" text-anchor="middle" class="axis">May</text><text x="643.0" y="468.0" text-anchor="middle" class="axis">Jun</text><text x="729.0" y="468.0" text-anchor="middle" class="axis">Jul</text><text x="815.0" y="468.0" text-anchor="middle" class="axis">Aug</text><text x="901.0" y="468.0" text-anchor="middle" class="axis">Sep</text><text x="987.0" y="468.0" text-anchor="middle" class="axis">Oct</text><text x="1073.0" y="468.0" text-anchor="middle" class="axis">Nov*</text>
+    <polyline points="127.0,333.3 213.0,290.4 299.0,324.4 385.0,288.8 471.0,250.4 557.0,207.0 643.0,212.0 729.0,179.7 815.0,228.7 901.0,313.8 987.0,317.1 1073.0,304.4" fill="none" stroke="#f5a623" stroke-width="3.2" stroke-linejoin="round"/>
+    <polyline points="127.0,339.4 213.0,295.5 299.0,352.2 385.0,318.3 471.0,268.7 557.0,245.4 643.0,261.5 729.0,203.7 815.0,304.4 901.0,393.9 987.0,411.7 1073.0,397.3" fill="none" stroke="#c084fc" stroke-width="2.6" stroke-dasharray="7 4" stroke-linejoin="round"/>
+    <polyline points="127.0,429.5 213.0,429.0 299.0,401.2 385.0,403.4 471.0,413.4 557.0,400.0 643.0,332.7 729.0,360.5 815.0,312.7 901.0,338.8 987.0,337.7 1073.0,335.5" fill="none" stroke="#42d8bd" stroke-width="2.6" stroke-dasharray="7 4" stroke-linejoin="round"/>
+    <circle cx="127.0" cy="333.3" r="4.5" fill="#f5a623"/><circle cx="213.0" cy="290.4" r="4.5" fill="#f5a623"/><circle cx="299.0" cy="324.4" r="4.5" fill="#f5a623"/><circle cx="385.0" cy="288.8" r="4.5" fill="#f5a623"/><circle cx="471.0" cy="250.4" r="4.5" fill="#f5a623"/><circle cx="557.0" cy="207.0" r="4.5" fill="#f5a623"/><circle cx="643.0" cy="212.0" r="4.5" fill="#f5a623"/><circle cx="729.0" cy="179.7" r="4.5" fill="#f5a623"/><circle cx="815.0" cy="228.7" r="4.5" fill="#f5a623"/><circle cx="901.0" cy="313.8" r="4.5" fill="#f5a623"/><circle cx="987.0" cy="317.1" r="4.5" fill="#f5a623"/><circle cx="1073.0" cy="304.4" r="4.5" fill="#f5a623"/><circle cx="127.0" cy="339.4" r="3.8" fill="#c084fc"/><circle cx="213.0" cy="295.5" r="3.8" fill="#c084fc"/><circle cx="299.0" cy="352.2" r="3.8" fill="#c084fc"/><circle cx="385.0" cy="318.3" r="3.8" fill="#c084fc"/><circle cx="471.0" cy="268.7" r="3.8" fill="#c084fc"/><circle cx="557.0" cy="245.4" r="3.8" fill="#c084fc"/><circle cx="643.0" cy="261.5" r="3.8" fill="#c084fc"/><circle cx="729.0" cy="203.7" r="3.8" fill="#c084fc"/><circle cx="815.0" cy="304.4" r="3.8" fill="#c084fc"/><circle cx="901.0" cy="393.9" r="3.8" fill="#c084fc"/><circle cx="987.0" cy="411.7" r="3.8" fill="#c084fc"/><circle cx="1073.0" cy="397.3" r="3.8" fill="#c084fc"/><circle cx="127.0" cy="429.5" r="3.8" fill="#42d8bd"/><circle cx="213.0" cy="429.0" r="3.8" fill="#42d8bd"/><circle cx="299.0" cy="401.2" r="3.8" fill="#42d8bd"/><circle cx="385.0" cy="403.4" r="3.8" fill="#42d8bd"/><circle cx="471.0" cy="413.4" r="3.8" fill="#42d8bd"/><circle cx="557.0" cy="400.0" r="3.8" fill="#42d8bd"/><circle cx="643.0" cy="332.7" r="3.8" fill="#42d8bd"/><circle cx="729.0" cy="360.5" r="3.8" fill="#42d8bd"/><circle cx="815.0" cy="312.7" r="3.8" fill="#42d8bd"/><circle cx="901.0" cy="338.8" r="3.8" fill="#42d8bd"/><circle cx="987.0" cy="337.7" r="3.8" fill="#42d8bd"/><circle cx="1073.0" cy="335.5" r="3.8" fill="#42d8bd"/>
+
+    <rect x="446.0" y="146" width="188" height="24" rx="8" fill="#1b2636" stroke="#f5a623" stroke-width="1" opacity="0.92"/>
+    <text x="540.0" y="162" text-anchor="middle" class="anno" fill="#ffd480">Apr–Jul methodology build-out</text>
+
+    <rect x="643.0" y="141.7" width="214" height="26" rx="8" fill="#132236" stroke="#f5a623" stroke-width="1.3"/>
+    <text x="750.0" y="158.7" text-anchor="middle" class="anno">Jul peak: 47.5% (43.2% rules)</text>
+
+    <rect x="911.0" y="123.1" width="152" height="26" rx="8" fill="#132236" stroke="#4390cf" stroke-width="1.3"/>
+    <text x="987.0" y="140.1" text-anchor="middle" class="anno">Oct: 5,157 commits</text>
+
+    <rect x="855.0" y="377.7" width="156" height="25" rx="8" fill="#132236" stroke="#c084fc" stroke-width="1.2"/>
+    <text x="933.0" y="394.7" text-anchor="middle" class="anno">AI rules down to 5.8%</text>
+  </g>
+
+  <text x="44" y="512" class="foot">*Nov covers 1–27 November 2026 (4,599 commits). A single commit can touch both rules and tooling, so the amber curve counts either.</text>
+</svg>
