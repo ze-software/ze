@@ -146,14 +146,15 @@ type ribMetrics struct {
 	routesOutVec metrics.GaugeVec // per-peer
 
 	// Route churn counters
-	routeInserts         metrics.CounterVec // labels: peer, family
-	routeWithdrawals     metrics.CounterVec // labels: peer, family
-	selectedCurrent      metrics.Gauge
-	selectedDestinations metrics.Gauge
-	selectedPending      metrics.Gauge
-	selectedInFlight     metrics.Gauge
-	selectedFailures     metrics.Gauge
-	selectedBatches      metrics.CounterVec // labels: outcome
+	routeInserts                  metrics.CounterVec // labels: peer, family
+	routeWithdrawals              metrics.CounterVec // labels: peer, family
+	srv6SIDUnresolvableExclusions metrics.CounterVec // labels: family
+	selectedCurrent               metrics.Gauge
+	selectedDestinations          metrics.Gauge
+	selectedPending               metrics.Gauge
+	selectedInFlight              metrics.Gauge
+	selectedFailures              metrics.Gauge
+	selectedBatches               metrics.CounterVec // labels: outcome
 
 	// Attribute pool metrics (polled from pool.AllPools())
 	poolInternTotal metrics.GaugeVec // labels: pool -- monotonic, use rate()
@@ -184,14 +185,15 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		routesInVec:  reg.GaugeVec("ze_rib_routes_in", "Adj-RIB-In route count per peer.", []string{metricLabelPeer}),
 		routesOutVec: reg.GaugeVec("ze_rib_routes_out", "Adj-RIB-Out route count per peer.", []string{metricLabelPeer}),
 
-		routeInserts:         reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
-		routeWithdrawals:     reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
-		selectedCurrent:      reg.Gauge("ze_rib_selected_current_keys", "Current selected native route keys."),
-		selectedDestinations: reg.Gauge("ze_rib_selected_destinations", "Admitted selected-output destination Sessions."),
-		selectedPending:      reg.Gauge("ze_rib_selected_pending_keys", "Current selected-output reconciliation obligations across destinations."),
-		selectedInFlight:     reg.Gauge("ze_rib_selected_inflight_keys", "Selected keys in final-writer batches currently in flight."),
-		selectedFailures:     reg.Gauge("ze_rib_selected_failed_destinations", "Current destinations with unresolved selected-output failures."),
-		selectedBatches:      reg.CounterVec("ze_rib_selected_batches_total", "Selected final-writer batches by completed or failed outcome.", []string{"outcome"}),
+		routeInserts:                  reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
+		routeWithdrawals:              reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
+		srv6SIDUnresolvableExclusions: reg.CounterVec("ze_rib_srv6_sid_unresolvable_exclusions_total", "BGP candidate paths excluded before best-path selection due to an unresolvable SRv6 Service SID.", []string{metricLabelFamily}),
+		selectedCurrent:               reg.Gauge("ze_rib_selected_current_keys", "Current selected native route keys."),
+		selectedDestinations:          reg.Gauge("ze_rib_selected_destinations", "Admitted selected-output destination Sessions."),
+		selectedPending:               reg.Gauge("ze_rib_selected_pending_keys", "Current selected-output reconciliation obligations across destinations."),
+		selectedInFlight:              reg.Gauge("ze_rib_selected_inflight_keys", "Selected keys in final-writer batches currently in flight."),
+		selectedFailures:              reg.Gauge("ze_rib_selected_failed_destinations", "Current destinations with unresolved selected-output failures."),
+		selectedBatches:               reg.CounterVec("ze_rib_selected_batches_total", "Selected final-writer batches by completed or failed outcome.", []string{"outcome"}),
 
 		poolInternTotal: reg.GaugeVec("ze_attr_pool_intern_total", "Total Intern() calls per pool.", []string{metricLabelPool}),
 		poolDedupHits:   reg.GaugeVec("ze_attr_pool_dedup_hits_total", "Intern() dedup hits per pool.", []string{metricLabelPool}),
@@ -452,6 +454,11 @@ type RIBManager struct {
 	// without taking peerMu or issuing engine RPCs (rib_next_hop_doctor.go).
 	unresolvedNextHops unresolvedNextHopTracker
 
+	// unresolvedSRv6SIDs records routes currently excluded from Phase 2 by an
+	// unresolvable SRv6 Service SID (RFC 9252 Sections 5 and 6) with the same
+	// 4096-entry bound and lock discipline (rib_next_hop_doctor.go).
+	unresolvedSRv6SIDs unresolvedNextHopTracker
+
 	// flowSpec is the immutable authorization and winning-action snapshot.
 	// flowSpecMu serializes recomputation; events run after it is released.
 	flowSpec              atomic.Pointer[flowSpecState]
@@ -535,6 +542,11 @@ type RIBManager struct {
 	// across the bgp, group and peer levels. nil, before any config, runs the
 	// check everywhere, the draft's default.
 	flowSpecRedirectCfg atomic.Pointer[flowSpecRedirectConfig]
+
+	// srv6ResolvabilityCfg holds the RFC 9252 Section 5/6 local-policy bypass
+	// rules for SRv6 Service SID resolvability across bgp, group, and peer
+	// scopes. nil, before any config, enforces strict resolvability everywhere.
+	srv6ResolvabilityCfg atomic.Pointer[srv6ResolvabilityConfig]
 
 	// aggregateCfg holds the configured RFC 4271 Section 9.2.2.2 / RFC 9774
 	// Section 5.2 route aggregation rules and local speaker identity. nil when
@@ -946,6 +958,7 @@ func runRIBPlugin(conn net.Conn) int {
 		DoctorChecks: []rpc.DoctorCheckDecl{
 			advertiseDoctorDeclaration(),
 			unresolvedNextHopDoctorDeclaration(),
+			unresolvedSRv6SIDDoctorDeclaration(),
 			nextHopMetricsDoctorDeclaration(),
 		},
 		// ApplyBudget bounds a reload's apply: a selection-rule edit

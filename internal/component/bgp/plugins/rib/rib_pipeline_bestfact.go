@@ -25,8 +25,10 @@ const (
 const (
 	rowKeyBest                = "best"
 	rowKeyNextHopResolvable   = "next-hop-resolvable"
+	rowKeySRv6SIDResolvable   = "srv6-sid-resolvable"
 	rowKeyIneligibleReason    = "ineligible-reason"
 	reasonNextHopUnresolvable = "next-hop-unresolvable"
+	reasonSRv6SIDUnresolvable = "srv6-sid-unresolvable"
 )
 
 // markBestFacts sets Best on each buffered received CIDR row from the
@@ -48,16 +50,18 @@ func (r *RIBManager) markBestFacts(items []RouteItem) {
 }
 
 // markNextHopFacts marks buffered received rows whose address next hop
-// currently fails forwarding admission (RFC 4271 Section 9.1.2).
+// (RFC 4271 Section 9.1.2) or reconstructed SRv6 Service SID (RFC 9252
+// Sections 5 and 6) currently fails forwarding admission.
 //
-// Caller MUST hold no lock: ownerIsEBGP reads peerMeta once under peerMu.RLock
-// and entryNextHopResolvedForShow may consult the Loc-RIB or forked metric
-// cache/RPC. Best rows already passed admission and are skipped.
+// Caller MUST hold no lock: ownerClassAndGroup reads peerMeta once under
+// peerMu.RLock and entryNextHopResolvedForShow / entrySRv6SIDResolvedForShow
+// may consult the Loc-RIB or forked metric cache/RPC. Best rows already passed
+// admission and are skipped.
 func (r *RIBManager) markNextHopFacts(owner uint64, items []RouteItem) {
 	if len(items) == 0 {
 		return
 	}
-	isEBGP := r.ownerIsEBGP(owner)
+	isEBGP, groupName := r.ownerClassAndGroup(owner)
 	for i := range items {
 		item := &items[i]
 		if !item.HasInEntry {
@@ -68,6 +72,10 @@ func (r *RIBManager) markNextHopFacts(owner uint64, items []RouteItem) {
 		}
 		if !r.entryNextHopResolvedForShow(item.Family, item.route, isEBGP, item.InEntry) {
 			item.nextHopUnresolvable = true
+			continue
+		}
+		if !r.entrySRv6SIDResolvedForShow(item.Family, item.route, item.rawNLRI, item.addPath, item.Peer, groupName, isEBGP, item.InEntry) {
+			item.srv6SIDUnresolvable = true
 		}
 	}
 }
@@ -84,6 +92,19 @@ func (r *RIBManager) entryNextHopResolvedForShow(fam family.Family, prefix netip
 		}
 	}
 	return r.entryNextHopResolvedWithClass(fam, prefix, isEBGP, entry)
+}
+
+// entrySRv6SIDResolvedForShow evaluates forwarding SRv6 Service SID admission
+// for one retained Adj-RIB-In row during show bgp rib. When forked
+// route-metrics lookups are actively failing, it reads only cached results
+// (fail-closed on miss) without issuing blocking per-row RPCs.
+func (r *RIBManager) entrySRv6SIDResolvedForShow(fam family.Family, prefix netip.Prefix, nlri []byte, addPath bool, peerAddr, groupName string, isEBGP bool, entry storage.RouteEntry) bool {
+	if r.forkRIB != nil {
+		if r.forkRIB.metricFailureActive() {
+			return r.entrySRv6SIDResolvedCached(fam, prefix, nlri, addPath, peerAddr, groupName, isEBGP, entry)
+		}
+	}
+	return r.entrySRv6SIDResolvedWithClass(fam, prefix, nlri, addPath, peerAddr, groupName, isEBGP, entry)
 }
 
 // bestFactOf answers whether peer's path (pathID under addPath) is the
@@ -151,4 +172,16 @@ func writeNextHopIneligible(row map[string]any, unresolvable bool) {
 	}
 	row[rowKeyNextHopResolvable] = false
 	row[rowKeyIneligibleReason] = reasonNextHopUnresolvable
+}
+
+// writeSRv6SIDIneligible attaches SRv6 Service SID exclusion fields onto a
+// received row whose reconstructed Service SID failed forwarding admission.
+// Resolvable, bypassed, and non-SRv6 rows omit both keys so ordinary
+// show bgp rib output stays unchanged.
+func writeSRv6SIDIneligible(row map[string]any, unresolvable bool) {
+	if !unresolvable {
+		return
+	}
+	row[rowKeySRv6SIDResolvable] = false
+	row[rowKeyIneligibleReason] = reasonSRv6SIDUnresolvable
 }

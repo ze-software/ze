@@ -18,12 +18,15 @@ rather than unified into one `uint8` field on `storage.RouteEntry`:
 
 - **Phase 2 ranking losses** are reported by `show bgp rib best | reason` through
   `BestStep` (`SelectBestExplain`).
-- **Pre-ranking unresolved next-hop exclusions** are annotated on `show bgp rib`
-  received rows (`"next-hop-resolvable": false`,
-  `"ineligible-reason": "next-hop-unresolvable"`) and tracked in memory by
-  `unresolvedNextHopTracker` for runtime doctor reporting.
+- **Pre-ranking unresolved forwarding exclusions** are annotated on `show bgp rib`
+  received rows (`"next-hop-resolvable": false` with
+  `"ineligible-reason": "next-hop-unresolvable"` for RFC 4271 Section 9.1.2
+  next-hop failures, and `"srv6-sid-resolvable": false` with
+  `"ineligible-reason": "srv6-sid-unresolvable"` for RFC 9252 Sections 5 and 6
+  SRv6 Service SID reachability failures) and tracked in memory by
+  `unresolvedNextHopTracker` instances for runtime doctor reporting.
 <!-- source: internal/component/bgp/plugins/rib/bestpath.go -- BestStep, SelectBestExplain -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markNextHopFacts, writeNextHopIneligible -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markNextHopFacts, writeNextHopIneligible, writeSRv6SIDIneligible -->
 <!-- source: internal/component/bgp/plugins/rib/rib_next_hop_doctor.go -- unresolvedNextHopTracker -->
 
 ## Phase 1: Validation
@@ -117,7 +120,26 @@ administrative distance and selection rules without storing a path or publishing
 an event. A more-specific interior route and a preferred same-prefix connected
 or static route remain available; a candidate that would capture its own
 resolution chain is excluded.
-<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateNextHopResolved -->
+
+Beside next-hop admission, `candidateSRv6SIDResolved` enforces RFC 9252 Section
+5 (and Section 6 for EVPN) SRv6 Service SID resolvability on every forwarding
+candidate carrying a valid SRv6 Service SID across IPv4/IPv6 unicast,
+IPv4/IPv6 VPN, and EVPN. It reconstructs the merged 128-bit Service SID via
+`entrySRv6SID` (applying VPN transposition bits before lookup so overlapping
+locator bits resolve the actual Service SID) and evaluates reachability through
+the same `nextHopResolved` path (`igpcost.ResolveProspective` for CIDR routes,
+`igpcost.Lookup` for non-CIDR routes, and the engine `route-metrics` RPC in
+forked placement). Paths carrying no Prefix-SID attribute skip the check on the
+`!HasOtherAttrs()` fast path. Operators may bypass SRv6 Service SID reachability
+checking per peer or per family via `srv6-sid-resolvability { ignore true|false;
+family <name> { ignore true|false; } }` at `bgp`, `group`, `peer`, or
+`group/peer` scope (most-specific wins; absent everywhere enforces strict
+resolvability). The bypass never skips RFC 9252 Section 7 semantic SID validity
+(`isSRv6Ineligible`) or RFC 4271 Section 9.1.2 `NEXT_HOP` resolvability. Each
+pre-ranking SRv6 Service SID exclusion increments
+`ze_rib_srv6_sid_unresolvable_exclusions_total`.
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateNextHopResolved, candidateSRv6SIDResolved, nextHopResolved, incSRv6UnresolvableExclusions -->
+<!-- source: internal/component/bgp/plugins/rib/rib_srv6_resolvability_config.go -- parseSRv6ResolvabilityConfig, srv6SIDResolvabilityIgnoredLocked -->
 <!-- source: internal/core/rib/locrib/prospective.go -- PreviewSelected -->
 <!-- source: internal/core/rib/igpcost/prospective.go -- ResolveProspective, prospectiveReader.LPM -->
 
@@ -159,16 +181,20 @@ Excluded routes remain visible to operators rather than disappearing silently:
 
 - **`show bgp rib` received rows:** When serializing stored received routes
   without holding write locks, `markNextHopFacts`, `entryNextHopResolvedForShow`,
-  and `writeNextHopIneligible` annotate non-best rows whose address next hop
-  fails forwarding admission (unresolved or prospectively self-capturing) with
+  `entrySRv6SIDResolvedForShow`, `writeNextHopIneligible`, and
+  `writeSRv6SIDIneligible` annotate non-best rows whose address next hop fails
+  forwarding admission (unresolved or prospectively self-capturing) with
   `"next-hop-resolvable": false` and
-  `"ineligible-reason": "next-hop-unresolvable"`. Resolvable rows and routes
-  with no address next hop omit both keys. During an active forked
-  `route-metrics` outage (`metricFailureActive`), `entryNextHopResolvedForShow`
-  reads cached results fail-closed (`prospectiveDistanceCached`,
-  `igpDistanceCached`) without issuing blocking per-row RPCs. Operators filter
-  excluded routes through existing pipes
-  (`show bgp rib | match next-hop-unresolvable`).
+  `"ineligible-reason": "next-hop-unresolvable"`, and annotate non-best rows
+  whose reconstructed SRv6 Service SID fails forwarding admission with
+  `"srv6-sid-resolvable": false` and
+  `"ineligible-reason": "srv6-sid-unresolvable"`. Resolvable, bypassed, and
+  non-SRv6 rows omit those keys. During an active forked `route-metrics` outage
+  (`metricFailureActive`), both show helpers read cached results fail-closed
+  (`prospectiveDistanceCached`, `igpDistanceCached`) without issuing blocking
+  per-row RPCs. Operators filter excluded routes through existing pipes
+  (`show bgp rib | match next-hop-unresolvable`,
+  `show bgp rib | match srv6-sid-unresolvable`).
 - **`request bgp rib inject`:** An inject naming an unresolvable next hop
   retains the route in Adj-RIB-In so later interior reachability selects it
   automatically, returns `"next-hop-resolvable": false` alongside `"warning"`
@@ -176,19 +202,23 @@ Excluded routes remain visible to operators rather than disappearing silently:
   `ze show bgp rib | match next-hop-unresolvable`), and writes one `WARN` log
   carrying `doctor-bgp-next-hop-unresolvable`.
 - **Runtime doctor checks:** `bgp-rib` tracks unresolved forwarding exclusions
-  in a bounded per-RIB `unresolvedNextHopTracker`
+  in bounded per-RIB `unresolvedNextHopTracker` instances
   (`maxTrackedUnresolvedNextHops = 4096`, cleared on resolution, withdrawal, or
-  peer teardown) and declares two `runtime`-phase checks in Stage 1
+  peer teardown) and declares three `runtime`-phase checks in Stage 1
   `sdk.Registration.DoctorChecks` answered by `OnDoctorCheck` in both internal
   and forked placements: `bgp-rib-unresolved-next-hop`
-  (`doctor-bgp-next-hop-unresolvable`, warning) and `bgp-rib-next-hop-metrics`
-  (`doctor-bgp-next-hop-metrics`, warning over live `metricFailureActive`).
+  (`doctor-bgp-next-hop-unresolvable`, warning),
+  `bgp-rib-unresolved-srv6-sid` (`doctor-bgp-srv6-sid-unresolvable`, warning,
+  fix `ze show bgp rib | match srv6-sid-unresolvable`), and
+  `bgp-rib-next-hop-metrics` (`doctor-bgp-next-hop-metrics`, warning over live
+  `metricFailureActive`).
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- inboundSource.Next, showRow, serializeRouteItem -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markNextHopFacts, entryNextHopResolvedForShow, writeNextHopIneligible -->
-<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistanceCached, entryNextHopResolvedCached -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markNextHopFacts, entryNextHopResolvedForShow, entrySRv6SIDResolvedForShow, writeNextHopIneligible, writeSRv6SIDIneligible -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistanceCached, entryNextHopResolvedCached, entrySRv6SIDResolvedCached -->
 <!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- igpDistanceCached -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute -->
-<!-- source: internal/component/bgp/plugins/rib/rib_next_hop_doctor.go -- maxTrackedUnresolvedNextHops, unresolvedNextHopTracker, unresolvedNextHopDoctorDeclaration, nextHopMetricsDoctorDeclaration, doctorCheck, unresolvedNextHopDoctorCheck, nextHopMetricsDoctorCheck -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop_doctor.go -- maxTrackedUnresolvedNextHops, unresolvedNextHopTracker, unresolvedNextHopDoctorDeclaration, unresolvedSRv6SIDDoctorDeclaration, nextHopMetricsDoctorDeclaration, doctorCheck, unresolvedNextHopDoctorCheck, unresolvedSRv6SIDDoctorCheck, nextHopMetricsDoctorCheck -->
+<!-- source: internal/component/bgp/plugins/rib/doctor_codes.go -- codeDoctorBGPSRv6SIDUnresolvable, doctorDiagnosticCodes -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
 
 The promoted internal and forked Linux tests (`rfc4271-next-hop-kernel*.ci` and
@@ -401,7 +431,8 @@ scan. A change of interior cost alone, with no BGP UPDATE, therefore moves the
 best path, whether or not the candidates carry AIGP.
 
 The same walk runs when a config reload changes a selection rule
-(`maximum-paths`, `relax-as-path`, or the blackhole honoring rules). The RIB
+(`maximum-paths`, `relax-as-path`, `srv6-sid-resolvability`, or the blackhole
+honoring rules). The RIB
 installs the new rules in the commit's apply phase and reselects there, so a
 prefix that receives no further UPDATE still answers under the new rule. A
 rollback installs the previous rules the same way and reselects again. The walk

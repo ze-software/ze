@@ -167,8 +167,9 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 	for _, rk := range seen {
 		// bestPipeline holds r.peerMu.RLock across this call; use the
 		// Locked variant to avoid a recursive RLock that would deadlock
-		// against a pending writer (Go sync.RWMutex docs).
-		candidates := r.gatherCandidatesLocked(rk.fam, []byte(rk.nlriKey), rk.addPath)
+		// against a pending writer (Go sync.RWMutex docs). Inspection
+		// enforces forwarding resolvability without recording side effects.
+		candidates := r.gatherCandidatesForLocked(rk.fam, []byte(rk.nlriKey), rk.addPath, candidateAdmissionInspect)
 		best, siblings := SelectMultipath(candidates, multipathMax, relaxASPath)
 		// Selection's AS_PATH identity comparisons are the last pooled read.
 		// Items and the reason stash keep extracted values only; Next obtains

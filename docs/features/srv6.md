@@ -2,7 +2,9 @@
 
 <!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- SRv6 SID extraction and transposition -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SID lookup at best-path emission -->
-<!-- source: internal/component/sysrib/sysrib.go -- SID resolvability check and FIB emission -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateSRv6SIDResolved pre-selection resolvability -->
+<!-- source: internal/component/bgp/plugins/rib/rib_srv6_resolvability_config.go -- srv6-sid-resolvability local-policy bypass -->
+<!-- source: internal/component/sysrib/sysrib.go -- defense-in-depth SID resolvability guard and FIB emission -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- Linux SEG6 encap -->
 <!-- source: internal/plugins/fib/vpp/srv6.go -- VPP SR steer -->
 <!-- source: internal/component/bgp/message/rfc7606.go -- PrefixSID attribute validation -->
@@ -25,7 +27,7 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.
 | SID extraction | First SRv6 SID Information Sub-TLV (type 1) within the first L3 (type 5) and the first L2 (type 6) Service TLV; a later instance of a type is ignored even when the first holds no valid SID |
 | Transposition | SID Structure Sub-Sub-TLV reconstructs full SID from NLRI label bits (VPN/EVPN) |
 | Path ineligibility | Excludes a path whose Service TLVs leave it no SID valid for its family: no SID, an invalid SID Structure, a transposition wider than the label field, or any transposition on a family without one |
-| SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
+| SID resolvability | Reconstructed SRv6 Service SID must have a resolving route in Loc-RIB before BGP best-path selection (RFC 9252 Sections 5 and 6), with optional per-peer/per-family `srv6-sid-resolvability` local-policy bypass; `sysrib` keeps a FIB-time guard as defense-in-depth |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
 | EBGP propagation | PrefixSID removed on every rail that writes an UPDATE unless `propagate-srv6-prefix-sid` is set: the two forward rails, the two origination rails, and the API/readvertise announce rail |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
@@ -105,6 +107,58 @@ replace those owned entries.
 <!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback, srv6Fallback -->
 <!-- source: internal/plugins/fib/vpp/srv6.go -- restoreSRv6 -->
 <!-- source: pkg/plugin/rpc/state.go -- StateListMax -->
+
+### SRv6 Service SID resolvability policy (`srv6-sid-resolvability`)
+
+By default Ze enforces RFC 9252 Section 5 (and Section 6 for EVPN) strictly:
+every received path carrying a valid SRv6 Service SID must resolve its
+reconstructed 128-bit Service SID in the Loc-RIB before competing in BGP
+best-path selection. Unresolvable paths stay retained in Adj-RIB-In, appear in
+`show bgp rib | match srv6-sid-unresolvable` with `"srv6-sid-resolvable": false`
+and `"ineligible-reason": "srv6-sid-unresolvable"`, raise the
+`doctor-bgp-srv6-sid-unresolvable` warning in `show doctor`, and automatically
+re-enter selection when a covering IPv6 locator route appears.
+
+Per the RFC 9252 Section 5 local-policy clause, operators can bypass BGP
+pre-selection Service SID reachability checking at `bgp`, `group`, `peer`, or
+`group/peer` scope (globally or per address family):
+
+```
+bgp {
+    router-id 192.0.2.1
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group rr-clients {
+        srv6-sid-resolvability {
+            ignore true;
+            family ipv4/mpls-vpn {
+                ignore false;
+            }
+        }
+        peer pe1 {
+            srv6-sid-resolvability {
+                family ipv4/mpls-vpn {
+                    ignore true;
+                }
+            }
+        }
+    }
+}
+```
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- srv6-sid-resolvability-fields -->
+<!-- source: internal/component/bgp/plugins/rib/rib_srv6_resolvability_config.go -- parseSRv6ResolvabilityConfig, srv6SIDResolvabilityIgnoredLocked -->
+
+Precedence is strictly most-specific wins: peer family > peer > group family >
+group > global `bgp` family > global `bgp` > strict default (`false`). Reload
+and rollback re-evaluate retained routes immediately without waiting for a new
+BGP UPDATE. Enabling `ignore true` bypasses only the BGP pre-selection Service
+SID reachability check (for example on a route reflector or when an alternate
+steering mechanism reaches the egress PE): `sysrib` still guards single-SID
+SEG6/VPP FIB installation as defense-in-depth, and neither RFC 9252 Section 7
+semantic SID validity nor RFC 4271 `NEXT_HOP` resolvability is bypassed.
 
 ### Explicit Service SID advertisement
 
@@ -194,15 +248,19 @@ RFC 7606 validator: checks TLV structure, rejects malformed
 EBGP filter: discards attr 40 unless accept-srv6-prefix-sid is set
   |
   v
-RIB best-path: isSRv6Ineligible(fam, entry) excludes SRv6 paths with no SID valid for the family
+RIB pre-selection admission:
+  |  isSRv6Ineligible(fam, entry) excludes SRv6 paths with no SID valid for the family (RFC 9252 S7)
+  |  candidateSRv6SIDResolved checks merged Service SID reachability in Loc-RIB / route-metrics (RFC 9252 S5/S6)
+  |    unresolvable paths stay in Adj-RIB-In (show bgp rib, show doctor) and re-elect on Loc-RIB / config changes
+  |    srv6-sid-resolvability { ignore true; } may bypass reachability per peer or per family
   |
   v
-Best-path emission: storedPathSRv6SID() extracts SID from the winner's OtherAttrs
+Best-path selection & emission: entrySRv6SID() extracts SID from the winner's OtherAttrs
   |  For VPN/EVPN: applies transposition (label bits -> SID function)
   |
   v
-sysrib: stores srv6SID on protocolRoute, tracks SID for resolution
-  |  Suppresses FIB emission if SID has no covering route in Loc-RIB
+sysrib (defense-in-depth): stores srv6SID on protocolRoute, tracks SID for resolution
+  |  Still withholds single-SID FIB emission if SID has no covering route in Loc-RIB
   |  Cascade re-evaluates when SID reachability changes
   |
   v
@@ -389,18 +447,22 @@ the VPP dispatch logic.
 | NH changed: SRv6 Service TLVs removed, other TLVs kept | 2 | Implemented removal after policy and configured rewrites, including policy-only changes under `auto` or `unchanged`. Local SID allocation/rebuilding remains unimplemented |
 | Malformed Service TLV: treat-as-withdraw | 7 | Implemented: on every family, including a Service TLV whose length overruns the attribute and stray octets inside a SID Information Sub-TLV; off labeled unicast a framing error met after a Service TLV is that TLV's length disagreeing with the attribute, so treat-as-withdraw too |
 | Path ineligibility (no valid SID) | 7 | Implemented: `candidateAdmitted` excludes a path whose only SID is invalid, or whose transposition is wider than its family's label field; an unreadable attribute set is excluded too, logged once |
-| SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
+| SID resolvability before best-path selection | 5, 6 | Implemented: `candidateSRv6SIDResolved` verifies merged Service SID reachability via `nextHopResolved` (`igpcost` / forked `route-metrics`) before Phase 2 ranking across unicast, VPN, and EVPN, with optional `srv6-sid-resolvability` local-policy bypass, `show bgp rib` (`srv6-sid-unresolvable`), `show doctor` (`doctor-bgp-srv6-sid-unresolvable`), and `sysrib` defense-in-depth |
 
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- isSRv6Ineligible, srv6SIDFromResult -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateSRv6SIDResolved -->
 <!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- ExtractSRv6SIDFull, parseSIDStructure -->
 <!-- source: internal/core/bgp/nlri/nlrisplit/transposition.go -- TranspositionLabelWidth -->
 
 ## Limitations
 
-- **SID reachability is a FIB guard, not a BGP selection filter.** Losing the
-  covering route withdraws the installed service route; restoring reachability
-  permits installation again. The guard runs after BGP selects a path, so it
-  cannot choose a reachable alternative over an unreachable selected SID.
+- **Single Loc-RIB and FIB defense-in-depth under `ignore true`.** RFC 9252
+  Section 5's multi-table selection rule ("if the SRv6 SID is reachable via more
+  than one forwarding table") awaits VRF forwarding-table plumbing. When an
+  operator configures `srv6-sid-resolvability { ignore true; }` without an
+  underlay route covering the Service SID, BGP selects and propagates the route
+  while `sysrib` continues withholding single-SID SEG6/VPP FIB installation
+  until SR Policy steering exists.
 
 - **No local SID allocation or endpoint installation.** Ze can advertise an
   explicitly configured SID but does not provision its egress behavior. When

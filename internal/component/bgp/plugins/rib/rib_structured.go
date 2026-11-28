@@ -405,9 +405,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	if withdrew {
-		if r.unresolvedNextHops.total.Load() != 0 {
+		if r.hasAnyUnresolved() {
 			if peerRIB.Len() == 0 {
-				r.unresolvedNextHops.purgeByOwner(bestPeer{owner: se.PeerOwner, address: peerRIB.PeerAddr()})
+				r.purgeUnresolvedByOwner(bestPeer{owner: se.PeerOwner, address: peerRIB.PeerAddr()})
 			}
 		}
 	}

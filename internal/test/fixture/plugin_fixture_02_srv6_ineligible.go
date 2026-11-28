@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -29,11 +30,24 @@ func srv6InvalidSIDIneligible02(ctx context.Context, plugin *sdk.Plugin) error {
 	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
 		return fmt.Errorf("ze never sent its End-of-RIB to peer1")
 	}
-	// All three VPN paths carry MP_REACH next hop 10.0.0.1; install a real
-	// terminal /32 cover so P3 (the valid SRv6 SID control) resolves while P1
-	// and P2 stay excluded solely for their invalid SRv6 SIDs (RFC 9252 §7).
+	// All three VPN paths carry MP_REACH next hop 10.0.0.1 and SRv6 SID
+	// 2001:db8:1::; install real terminal covers for both the BGP next hop
+	// (RFC 4271 §9.1.2) and the SRv6 locator (RFC 9252 §5) so P3 (the valid
+	// SRv6 SID control) resolves while P1 and P2 stay excluded solely for
+	// their invalid SRv6 SIDs (RFC 9252 §7).
 	if err := bestNextHopCover.install(ctx, plugin); err != nil {
 		return err
+	}
+	if err := sysribInstall(ctx, plugin, rpc.RouteInstallEntry{
+		Protocol:  protocolStatic,
+		Instance:  9252,
+		AFI:       2,
+		SAFI:      1,
+		Prefix:    "2001:db8:1::/48",
+		Interface: "best-fixture0",
+		RouteType: 1,
+	}); err != nil {
+		return fmt.Errorf("install IPv6 SRv6 locator cover: %w", err)
 	}
 	const vpn = `"family":"ipv4/mpls-vpn"`
 	stored := ""

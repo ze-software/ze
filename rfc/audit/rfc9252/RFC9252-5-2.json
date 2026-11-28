@@ -1,10 +1,29 @@
 {
-  "code": {
-    "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible": "99b9a0bb611fc860",
-    "internal/component/sysrib/sysrib.go::fibEntry": "21e578c647aa251f",
-    "internal/component/sysrib/sysrib.go::resolvedFibEntry": "bd3fcdd7f1961030"
-  },
-  "note": "{gap} independently re-confirmed against the complete RFC 9252 Section 5 and the current selection and forwarding producers. The clause remains: \"Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation.\" isSRv6Ineligible in internal/component/bgp/plugins/rib/rib_bestchange.go still checks Service SID extraction and family validity, not locator reachability before best-path selection. The existing late SID lookup moved unchanged from sysRIB.fibEntry into sysRIB.resolvedFibEntry in internal/component/sysrib/sysrib.go. The selected-route consumer reaches it only after the BGP winner has been mirrored into the Loc-RIB and the authority has selected its system route. An unreachable Service SID therefore still permits the route to win before the FIB write is declined; the next-best BGP route is not chosen by this late refusal. fibEntry now wraps that existing resolution result and classifies only an otherwise valid targetless unicast output as nonprogrammable, using the complete output validator and its private typed missing-target result. That classification changes neither the ordering nor the scope of the Service SID check and is not RFC 9252 Section 5 conformance. The same unimplemented verdict, MUST clause, gap annotation and absent tagged coverage remain; no credit is added. The wrapper and extracted helper are both cited so this judgment remains bound to the actual call and late check, alongside the unchanged BGP eligibility producer. The pre-selection resolvability work remains owed by plan/release/fixes/spec-srv6-bestpath-resolvability.md.",
+  "note": "Re-judged 2026-11-28 by an independent auditor (af3b441a): Unit and FRR interop tests enforce both polarities of RFC 9252 Section 5 pre-best-path SRv6 Service SID resolvability across CIDR (gatherPrefixCandidatesForLocked) and non-CIDR VPN (gatherKeyCandidatesForLocked), including merged transposed SID reconstruction (entrySRv6SID), RFC 4271 prospective self-capture (nextHopResolved), and 8-hop/discard/loop bounds.",
   "requirement_sha": "0ca22049adacc6ff",
-  "verdict": "unimplemented"
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestGatherCandidatesAdmitsResolvableSRv6SID": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestGatherCandidatesSkipsUnresolvableSRv6SID": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestResolvabilityUsesMergedTransposedSID": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestResolvabilityUsesMergedTransposedSID#2": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily#2": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityRecursionDepthAndDiscard": "72a2a6f271acfb2b",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityRecursionDepthAndDiscard#2": "72a2a6f271acfb2b",
+    "internal/le/interoplab/bgp/check_srv6_resolvability.go::checkSRv6ResolvabilityFRR": "1bcca49157d90f99",
+    "internal/le/interoplab/bgp/check_srv6_resolvability.go::checkSRv6ResolvabilityFRR#2": "1bcca49157d90f99"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestGatherCandidatesAdmitsResolvableSRv6SID": "f2f9812a4f647de9",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestGatherCandidatesSkipsUnresolvableSRv6SID": "59245c35517adc37",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestResolvabilityUsesMergedTransposedSID": "b50376b952411433",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestResolvabilityUsesMergedTransposedSID#2": "b50376b952411433",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily": "9ab7a4e51b5b4896",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily#2": "9ab7a4e51b5b4896",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityRecursionDepthAndDiscard": "d305d3fb4a331095",
+    "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityRecursionDepthAndDiscard#2": "d305d3fb4a331095",
+    "internal/le/interoplab/bgp/check_srv6_resolvability.go::checkSRv6ResolvabilityFRR": "bc8b2ccdef0dde3b",
+    "internal/le/interoplab/bgp/check_srv6_resolvability.go::checkSRv6ResolvabilityFRR#2": "bc8b2ccdef0dde3b"
+  },
+  "verdict": "enforced"
 }

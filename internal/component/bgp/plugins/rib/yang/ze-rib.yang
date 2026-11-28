@@ -3,12 +3,24 @@ module ze-rib {
     prefix rib;
 
     import ze-bgp-conf { prefix bgp; }
+    import ze-types { prefix zt; }
     import ze-extensions { prefix ze; }
 
     description
         "RIB (Routing Information Base) plugin for Ze.
          Tracks Adj-RIB-In (routes from peers) and Adj-RIB-Out (routes to peers).
          Supports ADD-PATH (RFC 7911) with per-path-id storage.";
+
+    revision 2026-11-28 {
+        description
+          "srv6-sid-resolvability, per BGP scope and address family: the local
+           policy switch for RFC 9252 Sections 5 and 6 SRv6 Service SID
+           resolvability before BGP best-path selection. Strict resolvability is
+           the default when omitted at every level. Augmented at bgp, group, peer
+           and group/peer with no YANG default on ignore so peer inherits group
+           and group inherits bgp, plus a family list keyed by address-family for
+           per-family overrides.";
+    }
 
     revision 2026-10-21 {
         description
@@ -192,24 +204,84 @@ module ze-rib {
         }
     }
 
+    // RFC 9252 Sections 5 and 6 local-policy bypass for SRv6 Service SID
+    // resolvability before best-path selection, augmented at bgp, group and
+    // peer levels like flowspec-redirect-check-fields.
+    grouping srv6-sid-resolvability-fields {
+        container srv6-sid-resolvability {
+            description "Local policy for RFC 9252 Section 5 and Section 6 SRv6 Service SID
+                         resolvability before BGP best-path selection. By default Ze requires
+                         every received path carrying an SRv6 Service SID to resolve that SID
+                         in the Loc-RIB before competing for best-path, excluding unreachable
+                         paths while keeping them retained in Adj-RIB-In. Enabling ignore admits
+                         paths into BGP best-path without a covering Loc-RIB route (for example
+                         when an alternate steering policy reaches the egress PE or on a transit
+                         route reflector); sysrib still guards single-SID FIB installation.
+                         This never bypasses RFC 9252 Section 7 SID validity or RFC 4271
+                         NEXT_HOP resolvability.";
+            ze:help "RFC 9252 SRv6 Service SID resolvability policy before BGP best-path.";
+
+            leaf ignore {
+                type boolean;
+                description "true bypasses SRv6 Service SID reachability checking before BGP
+                             best-path selection at this scope; false enforces strict
+                             resolvability. The leaf carries no YANG default so that a peer
+                             inherits its group's setting and a group inherits the bgp level's.
+                             When omitted at every level, strict resolvability is enforced.";
+                ze:help "Bypass SRv6 Service SID reachability check before best-path.";
+            }
+
+            list family {
+                key "name";
+                description "Per-address-family overrides for SRv6 Service SID resolvability at
+                             this scope. Most-specific scope wins: peer family beats peer, which
+                             beats group family, which beats group, which beats bgp family, which
+                             beats bgp, defaulting to strict resolvability (false).";
+                ze:help "Per-address-family SRv6 Service SID resolvability overrides.";
+
+                leaf name {
+                    type zt:address-family;
+                    ze:validate "registered-address-family";
+                    description "Registered BGP address family (for example ipv4/mpls-vpn,
+                                 ipv6/mpls-vpn, ipv4/unicast, ipv6/unicast, or l2vpn/evpn)
+                                 whose SRv6 Service SID resolvability policy this entry sets.";
+                    ze:help "Address family name (e.g. ipv4/mpls-vpn, l2vpn/evpn).";
+                }
+
+                leaf ignore {
+                    type boolean;
+                    mandatory true;
+                    description "true bypasses SRv6 Service SID reachability checking for this
+                                 address family at this scope; false enforces strict
+                                 resolvability even when an enclosing scope enables ignore.";
+                    ze:help "Bypass SRv6 Service SID reachability check for this family.";
+                }
+            }
+        }
+    }
+
     augment "/bgp:bgp/bgp:peer" {
         uses blackhole-honor-fields;
         uses flowspec-redirect-check-fields;
+        uses srv6-sid-resolvability-fields;
     }
 
     augment "/bgp:bgp/bgp:group/bgp:peer" {
         uses blackhole-honor-fields;
         uses flowspec-redirect-check-fields;
+        uses srv6-sid-resolvability-fields;
     }
 
     augment "/bgp:bgp/bgp:group" {
         uses blackhole-honor-fields;
         uses flowspec-redirect-check-fields;
+        uses srv6-sid-resolvability-fields;
     }
 
     augment "/bgp:bgp" {
         uses blackhole-honor-fields;
         uses flowspec-redirect-check-fields;
+        uses srv6-sid-resolvability-fields;
     }
 
     augment "/bgp:bgp" {

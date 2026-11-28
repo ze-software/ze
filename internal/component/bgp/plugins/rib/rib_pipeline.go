@@ -65,9 +65,18 @@ type RouteItem struct {
 	// unchanged.
 	nextHopUnresolvable bool
 
-	// route, pathID and addPath name a received CIDR path for markBestFacts:
-	// the prefix, and the path identifier when addPath says one was read.
+	// srv6SIDUnresolvable marks a received row whose reconstructed SRv6 Service
+	// SID currently fails forwarding admission (RFC 9252 Sections 5 and 6). Set
+	// by markNextHopFacts; false omits the exclusion keys so resolvable,
+	// bypassed, and non-SRv6 rows stay unchanged.
+	srv6SIDUnresolvable bool
+
+	// route, rawNLRI, pathID and addPath name a received path for markBestFacts
+	// and markNextHopFacts: the prefix for CIDR families, or cloned raw wire
+	// NLRI bytes for non-CIDR entries carrying OtherAttrs (such as transposed
+	// VPN SRv6 Service SIDs).
 	route      netip.Prefix
+	rawNLRI    []byte
 	pathID     uint32
 	addPath    bool
 	storeOwner uint64 // containing observation only, never source authority
@@ -243,6 +252,12 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 				// An invalid prefix is what markBestFacts skips: no best fact.
 				route = netip.Prefix{}
 			}
+			var rawNLRI []byte
+			if !identified {
+				if entry.GetBundle().HasOtherAttrs() {
+					rawNLRI = slices.Clone(nlriBytes)
+				}
+			}
 			s.items = append(s.items, RouteItem{
 				Peer:       ref.peer,
 				Family:     fam,
@@ -251,6 +266,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 				HasInEntry: true,
 				InEntry:    entry,
 				route:      route,
+				rawNLRI:    rawNLRI,
 				pathID:     pathID,
 				addPath:    addPath[fam],
 				storeOwner: ref.owner,
@@ -1258,6 +1274,7 @@ func serializeRouteItem(item RouteItem) map[string]any {
 		enrichRouteMapFromEntry(routeMap, item.InEntry)
 		writeBestFact(routeMap, item.Best)
 		writeNextHopIneligible(routeMap, item.nextHopUnresolvable)
+		writeSRv6SIDIneligible(routeMap, item.srv6SIDUnresolvable)
 		writeRouteAge(routeMap, item.InEntry.ChangedAt, item.readAt)
 	} else if item.OutRoute != nil {
 		if item.OutRoute.NextHop != "" {

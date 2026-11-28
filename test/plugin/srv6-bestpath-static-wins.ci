@@ -1,0 +1,108 @@
+# Test: static backup at worse AD wins Loc-RIB and programs Linux kernel FIB over unresolvable SRv6 BGP path
+#
+# Question: when Ze runs with fib-kernel and holds a static backup route at a
+# worse administrative distance (210 vs iBGP 200) for a prefix also advertised
+# by an iBGP peer with an unreachable SRv6 Service SID, does excluding the SRv6
+# path before BGP best-path let the static backup win Loc-RIB arbitration and
+# remain programmed in the real Linux kernel FIB (while a reachable non-SRv6
+# BGP control route installs into the kernel FIB)?
+#
+# Why a unit test cannot decide it: unit tests check bgp-rib and sysrib in
+# isolation; only a real daemon with bgp-rib, rib, static, and fib-kernel
+# writing netlink routes into Linux proves the prefix is reachable in the
+# kernel FIB rather than dark under a shadowed Loc-RIB entry.
+#
+# VALIDATES: spec-srv6-bestpath-resolvability AC-7 (RFC9252-5-2).
+# PREVENTS: unresolvable SRv6 BGP winner entering Loc-RIB at AD 200, shadowing
+#           a static backup at AD 210, and leaving the Linux kernel FIB dark
+#           when sysrib declines SEG6 installation.
+option=needs-linux:caps=net-admin
+option=netns-link:name=zesrv6st:address=198.18.231.254/24
+option=timeout:value=150s
+
+stdin=ze-conf:terminator=EOF_CONF
+bus {
+  endpoint sysrib-owner {
+    internal rib;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint static {
+    internal static;
+  }
+  endpoint fib-kernel {
+    internal fib-kernel;
+  }
+  endpoint srv6-static-test {
+    external {
+      run "le test fixture plugin/srv6-bestpath-static-wins 127.0.0.1:$PORT";
+    }
+    encoding json;
+  }
+}
+
+interface {
+  backend kernel;
+}
+
+connected {
+}
+
+fib {
+  kernel {
+    flush-on-stop true;
+  }
+}
+
+rib {
+  distance {
+    ibgp 200;
+    static 210;
+  }
+}
+
+static {
+  table default {
+    route 198.19.163.0/24 {
+      distance 210;
+      next {
+        hop 198.18.231.1 {
+          interface zesrv6st;
+        }
+      }
+    }
+  }
+}
+
+bgp {
+  router-id 1.1.1.1;
+  peer sr-source {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.2; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65001; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final accept; } export { final reject; } }
+  }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/srv6-bestpath-static-wins-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=150s
+expect=exit:code=0
+expect=stderr:contains=OK: srv6-bestpath-static-wins: static backup at worse AD won Loc-RIB and remained programmed in Linux kernel FIB
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/srv6-bestpath-static-wins-empty:exit=0
+expect=stderr:contains=OK: srv6-bestpath-static-wins prefixes are absent from every kernel table
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

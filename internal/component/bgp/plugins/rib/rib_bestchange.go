@@ -571,7 +571,7 @@ func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) {
 func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]bestChangeEntry {
 	// Clear unresolved next-hop tracking first: a peer whose routes never won
 	// best-path has no slot in bestPathInterner and would otherwise be skipped.
-	r.unresolvedNextHops.purgeByPeerAddr(peerAddr)
+	r.purgeUnresolvedByPeerAddr(peerAddr)
 	// This deliberate address-wide operation is used by operator selectors.
 	// Snapshot and pin every matching owner before releasing the interner lock.
 	r.bestPathInterner.peersMu.Lock()
@@ -601,7 +601,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 func (r *RIBManager) purgeBestPrevForOwner(peer bestPeer) map[family.Family][]bestChangeEntry {
 	// Clear unresolved next-hop tracking first: a peer whose routes never won
 	// best-path has no slot in bestPathInterner and would otherwise be skipped.
-	r.unresolvedNextHops.purgeByOwner(peer)
+	r.purgeUnresolvedByOwner(peer)
 	peerIdx, ok := r.bestPathInterner.retainPeer(peer)
 	if !ok {
 		// No stored record or admitted publication can reference this peer:
@@ -923,7 +923,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		havePeers := len(r.bgpPeers) != 0 || len(r.ribInPool[bgpProtocolID]) != 0
 		r.peerMu.RUnlock()
 		if !havePeers {
-			r.unresolvedNextHops.clearAll()
+			r.clearAllUnresolved()
 			return bestChangeEntry{}, false
 		}
 		fs = r.bestPrev.familyShards(fam, true)

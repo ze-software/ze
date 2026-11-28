@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Priority | P1 |
 | Release reason | Unresolvable SRv6 Service SIDs must be excluded before BGP best-path selection, not declined after winning and losing the fallback. |
 | Scope | protocol |
 | RFC gaps | RFC9252-5-2 |
 | Depends | - |
-| Phase | - |
+| Phase | closure |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -219,6 +219,15 @@ and fails `candidateSRv6SIDResolved` (`RFC9252-5-2`).
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Inserts no automatic filter-chain member and leaves the implied-filter seam untouched. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Adds no startup exit condition; an invalid `srv6-sid-resolvability` edit is refused at config verify/reload while running sessions keep their current selection, and runtime SRv6 SID exclusions report non-fatal warnings under `doctor-bgp-srv6-sid-unresolvable`. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Control-plane SRv6 Service SID resolvability works on both Linux kernel and VPP setups and does not alter kernel-on-VPP start or validation rules. |
+| `docs/architecture/plugin/plugin-relationships.md` | 6. Bus Topic Map | anchored to `internal/component/bgp/plugins/rib/register.go` | "" | silent | Covers inter-plugin bus topic wiring; `bgp-rib` adds `InProcessConfigVerifier` (`verifyRIBConfig`) with zero new bus topics or startup dependencies. |
+| `docs/architecture/buffer-architecture.md` | Executive Summary | anchored to `internal/component/bgp/plugins/rib/rib_bestchange.go` | "One representation (bytes). Everything else is views/iterators." | agrees | `entrySRv6SID` reads the pooled `OtherAttrs` bytes zero-copy without re-serializing attributes, preserving buffer-first storage. |
+| `docs/architecture/edge-cases/extended-message.md` | TL;DR | anchored to `internal/component/bgp/plugins/rib/rib_bestchange.go` | "" | silent | Covers RFC 8654 65,535-octet Extended Message framing; untouched by `bgp-rib` SRv6 Service SID resolvability candidacy. |
+| `docs/guide/graceful-restart.md` | Configuration | the `// Design:` page of `internal/component/bgp/plugins/rib/rib_source_mutation.go` | "" | silent | Covers RFC 4724 / RFC 9494 Graceful Restart stale-route retention; `rib_source_mutation.go` clears stale `unresolvedSRv6SIDs` entries when peer routes are purged without altering GR timers or stale retention. |
+| `docs/architecture/bgp/replay-cursor.md` | The decisions | anchored to `internal/component/bgp/plugins/rib/rib_structured.go` | "" | silent | Covers Adj-RIB-Out replay cursor batching; untouched by `unresolvedSRv6SIDs` cleanup on structured withdrawals. |
+| `docs/architecture/testing/ci-format.md` | Syntax Overview | the `// Design:` page of `internal/test/fixture/plugin_fixture_02_srv6_ineligible.go` | "" | silent | Covers `.ci` test file syntax and discovery; the four new `srv6-bestpath-*.ci` tests and `srv6_bestpath_fixture.go` follow standard state-based `.ci` conventions with zero sleeps. |
+| `docs/architecture/testing/interop.md` | The suites, one per protocol area | the `// Design:` page and anchor of `internal/le/interoplab/bgp/check_special.go`, `check_srv6_resolvability.go`, `check_srv6_resolvability_test.go` | "A scenario directory is NAMED and carries no numeric prefix." | agrees | The new FRR scenario is named `bgp-srv6-resolvability-frr` under `test/interop/scenarios/`, carries declarative configs only, binds `checkSRv6ResolvabilityFRR` in `specialCheckers`, and passes both green and revert-red proofs. |
+| `docs/guide/graceful-restart.md` | Design decisions | decision of 2026-11-22 | "Graceful Restart and Long-Lived Graceful Restart use symmetric `short-lived` and `long-lived` containers inside `graceful-restart`, both carrying keyed `list family` (`restart-time` inside `short-lived`; mandatory `stale-time` per family inside `long-lived`), with legacy `long-lived-stale-time`, top-level `restart-time`, and `family { name [...] }` removed" | agrees | `srv6-sid-resolvability` touches no `graceful-restart` schema or behavior and mirrors the same keyed `list family` pattern with mandatory per-entry leaf (`ignore`). |
+| `docs/architecture/testing/interop.md` | Design decisions | decision of 2026-11-23 | "Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (`Suite.KernelCapabilities` unioned with selected `ScenarioPlan.KernelCapabilities`); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)" | agrees | `bgp-srv6-resolvability-frr` is a pure BGP control-plane scenario requiring no SRv6 kernel data-plane capability and inherits the BGP suite's scoped capability checks. |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -244,11 +253,11 @@ and fails `candidateSRv6SIDResolved` (`RFC9252-5-2`).
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| BGP RIB (in-process) ↔ Loc-RIB | Reads via `igpcost.ResolveProspective` / `igpcost.Lookup`; change notifications via existing `loc.OnChange` in `runAIGPSelection` | No |
-| BGP RIB (forked) ↔ Engine | Reachability via existing `route-metrics` RPC (`opRouteMetrics`); revision invalidation via existing `runRemoteMetrics` | No |
-| Config transaction ↔ BGP RIB | `ConfigTx` verify/apply/rollback over `bgp` config section (`config_tx.go`) | No |
-| BGP RIB ↔ Operator (`show bgp rib`, `show doctor`, Prometheus) | JSON row annotations (`srv6-sid-resolvable`, `ineligible-reason`), Stage 1 runtime doctor check `bgp-rib-unresolved-srv6-sid`, counter `ze_rib_srv6_sid_unresolvable_exclusions_total` | No |
-| BGP RIB → Peers / Loc-RIB / sysrib | Winning selection only (`checkRouteBestChange` -> `mirrorToLocRIB` / `commitReceivedAdvertise` / `publishBestChanges`) | No |
+| BGP RIB (in-process) ↔ Loc-RIB | Reads via `igpcost.ResolveProspective` / `igpcost.Lookup`; change notifications via existing `loc.OnChange` in `runAIGPSelection` | Yes (`TestLocRIBChangeReevaluatesSRv6Prefix`, `TestLocRIBRemovalReevaluatesSRv6Prefix`, `srv6-bestpath-resolvable.ci`) |
+| BGP RIB (forked) ↔ Engine | Reachability via existing `route-metrics` RPC (`opRouteMetrics`); revision invalidation via existing `runRemoteMetrics` | Yes (`TestForkedRIBSRv6SIDResolvability`) |
+| Config transaction ↔ BGP RIB | `ConfigTx` verify/apply/rollback over `bgp` config section (`config_tx.go`) and offline `InProcessConfigVerifier` (`register.go`) | Yes (`TestSRv6ResolvabilityBypassConfigAndReload`, `srv6-bestpath-bypass-config.ci`, `config/cli` `TestValidate`) |
+| BGP RIB ↔ Operator (`show bgp rib`, `show doctor`, Prometheus) | JSON row annotations (`srv6-sid-resolvable`, `ineligible-reason`), Stage 1 runtime doctor check `bgp-rib-unresolved-srv6-sid`, counter `ze_rib_srv6_sid_unresolvable_exclusions_total` | Yes (`TestSRv6UnresolvableVisibilityShowAndDoctor`, `srv6-bestpath-unresolvable.ci`, `bgp-srv6-resolvability-frr`) |
+| BGP RIB → Peers / Loc-RIB / sysrib | Winning selection only (`checkRouteBestChange` -> `mirrorToLocRIB` / `commitReceivedAdvertise` / `publishBestChanges`) | Yes (`TestUnresolvableSRv6LosesToNonSRv6Path`, `srv6-bestpath-static-wins.ci` QEMU, `bgp-srv6-resolvability-frr`) |
 
 ### Changed-Wire Census
 
@@ -276,24 +285,24 @@ No BGP protocol wire format, plugin RPC wire schema (`pkg/plugin/rpc`), or inter
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | Pending implementation |
-| No unintended coupling (components stay isolated) | No | Pending implementation (`./le arch tier check`, `./le plugin boundary check`) |
-| No duplicated functionality (extends existing, does not recreate) | No | Pending implementation (reuses `igpcost`, `nextHopResolved`, `runAIGPSelection`, `runRemoteMetrics`, `entrySRv6SID`, `ConfigTx`) |
-| Zero-copy preserved where applicable (refs, not copies) | No | Pending implementation (fast-path skips `!HasOtherAttrs()`; non-CIDR reuses stack-backed `nlriBuf`) |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | Pending implementation (YANG augments via `ze-rib.yang`, doctor check via Stage 1 `DoctorChecks`, code via `diagnostic.Register`, family names validated via registered `parseFamily`) |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | Pending implementation (`./le arch enumeration check`, `./le config claims`, `./le yang glue check`) |
+| No bypassed layers (data flows through the intended path) | Yes | `candidateSRv6SIDResolved` runs inside `gatherPrefixCandidatesForLocked`, `gatherKeyCandidatesForLocked`, and `appendManualCandidatesLocked` beside `candidateNextHopResolved`; `sysrib` keeps its FIB-time guard intact |
+| No unintended coupling (components stay isolated) | Yes | `./le arch tier check` OK, `./le plugin boundary check` OK, `./le plugin declarations check` OK |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Reuses `igpcost`, `nextHopResolved`, `nextHopResolvedCached`, `runAIGPSelection`, `runRemoteMetrics`, `entrySRv6SID`, and `ConfigTx` |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | Fast-path returns immediately when `!bundle.HasOtherAttrs()`; non-CIDR path reuses stack-backed `nlriBuf` |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | YANG augments via `ze-rib.yang`, doctor check via Stage 1 `DoctorChecks` (`rib.go`), code via `diagnostic.Register` (`doctor_codes.go`), offline verification via `InProcessConfigVerifier` (`register.go`), family names validated via `parseFamily` and `ze:validate "registered-address-family"` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | `./le yang glue check` (170 dirs current), `./le config claims` OK, `./le config coercion check` OK; searched `internal/` for `ineligible-reason`, `next-hop-resolvable`, and `flowspec-redirect-check` and confirmed zero closed enum tables |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `igpcost.Resolve` / `igpcost.ResolveProspective` (and engine `opRouteMetrics` in forked mode) enforce the exact reachability semantics RFC 9252 Section 5 ("evaluated as per [RFC4271]") requires for IPv6 Service SIDs and agree with `sysrib`'s `nhResolver.Resolve` on missing covers, discard routes, connected/IGP/recursive-static/BGP chains, self-loops, and 8-hop depth limit | `internal/core/rib/igpcost/igpcost.go` (`resolve`), `prospective.go` (`ResolveProspective`), `internal/component/sysrib/nhresolver.go` (`Resolve`), `internal/component/plugin/server/dispatch_route_metrics.go` (`opRouteMetrics`) | `bgp-rib` and `sysrib` could disagree on whether a Service SID resolves, either admitting a route the FIB refuses or excluding a valid route | Unit test comparing `candidateSRv6SIDResolved` and `sysrib.srv6SIDResolvable` over the same Loc-RIB cases (direct, recursive, discard, loop, depth 8 vs 9, missing) | unvalidated |
-| A-2 | The locator bits of a partial SID can differ from the merged SID, so the check must run on `entrySRv6SID` (`srv6SIDFromResult`) output rather than `pool.ExtractSRv6SIDFull` | `rfc/full/rfc9252.txt` Section 3.2.1 bounds transposition offset+length only against LBL+LNL+FL+AL, so the window can overlap locator bits | Checking the partial SID would resolve the wrong IPv6 prefix for a transposed VPN route and admit or reject the wrong path | Unit test `TestResolvabilityUsesMergedTransposedSID` with a transposition window overlapping the locator | unvalidated |
-| A-3 | `runAIGPSelection` (internal `loc.OnChange`) and `runRemoteMetrics` (forked 1s revision poll) re-evaluate EVERY retained Adj-RIB-In route -- including non-CIDR VPN/EVPN routes and routes currently excluded from `bestPrev` -- whenever an IPv6 locator route is added, modified, or removed in the Loc-RIB | `internal/component/bgp/plugins/rib/rib_aigp.go:60-98` (`reselectAIGPRoutes` iterates `r.bgpPeers` and `r.ribInPool[bgpProtocolID]` directly, not `bestPrev`) and `rib_remote.go:130-146` | An excluded SRv6 route would fail to recover when its locator route appears | Unit tests `TestLocRIBChangeReevaluatesSRv6Prefix` and `TestLocRIBRemovalReevaluatesSRv6Prefix`, plus forked `route-metrics` recovery test | unvalidated |
-| A-4 | For an IPv4 unicast route carrying an IPv6 SRv6 Service SID, `igpcost.ResolveProspective` checks the IPv6 SID against the unmodified IPv6 Loc-RIB without interference from the IPv4 overlay, while for an IPv6 unicast route carrying an IPv6 SRv6 Service SID it also catches prospective self-capture | `internal/core/rib/igpcost/prospective.go:42-49` (`if fam != view.fam { return path, prefix, found }`) | IPv4-over-SRv6 routes could be mishandled by the prospective overlay | Unit tests covering both IPv4 unicast over SRv6 and IPv6 unicast self-capturing SRv6 SID | unvalidated |
-| A-5 | Existing `RFC9252-5-1` tests (`rfc9252_srv6_ineligible_test.go`, `rfc9252_srv6_admission_test.go`, `rfc9252_srv6_transposition_test.go`) continue passing untouched because they test `isSRv6Ineligible`, `candidateAdmitted`, and `entrySRv6SID` directly, which remain unchanged | Read all three test files on HEAD | The 5-1 proofs would break or need rewording | Run scoped `go test -race -tags ze_bgp ./internal/component/bgp/plugins/rib/` before and after | unvalidated |
-| A-6 | Non-transposed EVPN SRv6 Service SIDs (`TransposLen == 0`) reconstruct cleanly via `entrySRv6SID` -> `srv6SIDFromResult`, so Section 6 EVPN resolvability works immediately while EVPN label transposition remains separately owned by `plan/release/fixes/spec-srv6-evpn-label-width.md` | `internal/component/bgp/plugins/rib/rib_bestchange.go:1542-1555` (`if !result.HasTranspos { return result.SID }`) and `internal/core/bgp/nlri/nlrisplit/transposition.go:35-73` | EVPN paths would bypass `RFC9252-5-2` | Unit test `TestEVPNUnresolvableSRv6SIDIneligible` | unvalidated |
+| A-1 | `igpcost.Resolve` / `igpcost.ResolveProspective` (and engine `opRouteMetrics` in forked mode) enforce the exact reachability semantics RFC 9252 Section 5 ("evaluated as per [RFC4271]") requires for IPv6 Service SIDs and agree with `sysrib`'s `nhResolver.Resolve` on missing covers, discard routes, connected/IGP/recursive-static/BGP chains, self-loops, and 8-hop depth limit | `internal/core/rib/igpcost/igpcost.go` (`resolve`), `prospective.go` (`ResolveProspective`), `internal/component/sysrib/nhresolver.go` (`Resolve`), `internal/component/plugin/server/dispatch_route_metrics.go` (`opRouteMetrics`) | `bgp-rib` and `sysrib` could disagree on whether a Service SID resolves, either admitting a route the FIB refuses or excluding a valid route | `TestSRv6ResolvabilityRecursionDepthAndDiscard` + `internal/component/sysrib/` SRv6 tests | confirmed |
+| A-2 | The locator bits of a partial SID can differ from the merged SID, so the check must run on `entrySRv6SID` (`srv6SIDFromResult`) output rather than `pool.ExtractSRv6SIDFull` | `rfc/full/rfc9252.txt` Section 3.2.1 bounds transposition offset+length only against LBL+LNL+FL+AL, so the window can overlap locator bits | Checking the partial SID would resolve the wrong IPv6 prefix for a transposed VPN route and admit or reject the wrong path | `TestResolvabilityUsesMergedTransposedSID` | confirmed |
+| A-3 | `runAIGPSelection` (internal `loc.OnChange`) and `runRemoteMetrics` (forked 1s revision poll) re-evaluate EVERY retained Adj-RIB-In route -- including non-CIDR VPN/EVPN routes and routes currently excluded from `bestPrev` -- whenever an IPv6 locator route is added, modified, or removed in the Loc-RIB | `internal/component/bgp/plugins/rib/rib_aigp.go:60-98` (`reselectAIGPRoutes` iterates `r.bgpPeers` and `r.ribInPool[bgpProtocolID]` directly, not `bestPrev`) and `rib_remote.go:130-146` | An excluded SRv6 route would fail to recover when its locator route appears | `TestLocRIBChangeReevaluatesSRv6Prefix`, `TestLocRIBRemovalReevaluatesSRv6Prefix`, `TestForkedRIBSRv6SIDResolvability`, `srv6-bestpath-resolvable.ci` | confirmed |
+| A-4 | For an IPv4 unicast route carrying an IPv6 SRv6 Service SID, `igpcost.ResolveProspective` checks the IPv6 SID against the unmodified IPv6 Loc-RIB without interference from the IPv4 overlay, while for an IPv6 unicast route carrying an IPv6 SRv6 Service SID it also catches prospective self-capture | `internal/core/rib/igpcost/prospective.go:42-49` (`if fam != view.fam { return path, prefix, found }`) | IPv4-over-SRv6 routes could be mishandled by the prospective overlay | `TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily` | confirmed |
+| A-5 | Existing `RFC9252-5-1` tests (`rfc9252_srv6_ineligible_test.go`, `rfc9252_srv6_admission_test.go`, `rfc9252_srv6_transposition_test.go`) continue passing untouched because they test `isSRv6Ineligible`, `candidateAdmitted`, and `entrySRv6SID` directly, which remain unchanged | Read all three test files on HEAD | The 5-1 proofs would break or need rewording | `git diff --stat` empty on all three files; `./le test unit pkg path ./internal/component/bgp/plugins/rib/ run "SRv6|RFC9252"` PASS (1.790s) | confirmed |
+| A-6 | Non-transposed EVPN SRv6 Service SIDs (`TransposLen == 0`) reconstruct cleanly via `entrySRv6SID` -> `srv6SIDFromResult`, so Section 6 EVPN resolvability works immediately while EVPN label transposition remains separately owned by `plan/release/fixes/spec-srv6-evpn-label-width.md` | `internal/component/bgp/plugins/rib/rib_bestchange.go:1542-1555` (`if !result.HasTranspos { return result.SID }`) and `internal/core/bgp/nlri/nlrisplit/transposition.go:35-73` | EVPN paths would bypass `RFC9252-5-2` | `TestEVPNUnresolvableSRv6SIDIneligible` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -391,13 +400,19 @@ No BGP protocol wire format, plugin RPC wire schema (`pkg/plugin/rpc`), or inter
 - `internal/component/bgp/plugins/rib/rib_next_hop.go` - add `candidateSRv6SIDResolved`, `entrySRv6SIDResolvedWithClass`, and `entrySRv6SIDResolvedCached` delegating merged-SID reachability to `nextHopResolved` / `nextHopResolvedCached` and honoring `srv6SIDResolvabilityIgnored`
 - `internal/component/bgp/plugins/rib/rib_manual.go` - call `candidateSRv6SIDResolved` in `appendManualCandidatesLocked` beside `candidateNextHopResolved`
 - `internal/component/bgp/plugins/rib/rib_pipeline.go` - carry raw NLRI bytes on received items for non-CIDR SRv6 transposition reconstruction in `markNextHopFacts` and emit SRv6 ineligibility keys in `serializeRouteItem`
+- `internal/component/bgp/plugins/rib/rib_pipeline_best.go` - call `gatherCandidatesForLocked` with `candidateAdmissionInspect` in `newBestSource` so read-only `show bgp rib best` enforces resolvability without mutating exclusion metrics or doctor tracking
 - `internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go` - extend `markNextHopFacts` with `entrySRv6SIDResolvedForShow` and add `writeSRv6SIDIneligible` (`"srv6-sid-resolvable": false`, `"ineligible-reason": "srv6-sid-unresolvable"`)
 - `internal/component/bgp/plugins/rib/rib_next_hop_doctor.go` - track SRv6 Service SID exclusions in a bounded tracker and answer Stage 1 runtime doctor check `bgp-rib-unresolved-srv6-sid`
 - `internal/component/bgp/plugins/rib/doctor_codes.go` - register `doctor-bgp-srv6-sid-unresolvable` diagnostic code metadata
 - `internal/component/bgp/plugins/rib/rib.go` - add `srv6ResolvabilityCfg` atomic pointer and `unresolvedSRv6SIDs` tracker on `RIBManager`, declare `bgp-rib-unresolved-srv6-sid` in Stage 1 `DoctorChecks`, and register `ze_rib_srv6_sid_unresolvable_exclusions_total` in `SetMetricsRegistry`
-- `internal/component/bgp/plugins/rib/config_tx.go` - parse `srv6-sid-resolvability` in `parseRIBConfigSections` and detect rule changes in `installConfig` to call `reselectAIGPRoutes` on commit and rollback
-- `internal/component/bgp/plugins/rib/yang/ze-rib.yang` - add `srv6-sid-resolvability-fields` grouping (`ignore` leaf and `family` list keyed by `zt:address-family`) augmented onto `/bgp:bgp`, `/bgp:bgp/bgp:group`, `/bgp:bgp/bgp:peer`, and `/bgp:bgp/bgp:group/bgp:peer` (regenerate `embed.go` and `register.go` via `./le yang glue update`)
+- `internal/component/bgp/plugins/rib/register.go` - wire `InProcessConfigVerifier: verifyRIBConfig` onto `bgp-rib` so offline `ze config validate` and daemon reload share one verifier
+- `internal/component/bgp/plugins/rib/config_tx.go` - parse `srv6-sid-resolvability` in `parseRIBConfigSections`, export `verifyRIBConfig` for offline validation, and detect rule changes in `installConfig` to call `reselectAIGPRoutes` on commit and rollback
+- `internal/component/bgp/plugins/rib/rib_aigp.go`, `rib_bestchange.go`, `rib_inject.go`, `rib_source_mutation.go`, `rib_structured.go` - clear/reconcile `unresolvedSRv6SIDs` on withdrawals, peer down/cleanup, manual removal, and Loc-RIB reselection
+- `internal/component/bgp/plugins/rib/yang/ze-rib.yang` - add `srv6-sid-resolvability-fields` grouping (`ignore` leaf and `family` list keyed by `zt:address-family` with `ze:validate "registered-address-family"`) augmented onto `/bgp:bgp`, `/bgp:bgp/bgp:group`, `/bgp:bgp/bgp:peer`, and `/bgp:bgp/bgp:group/bgp:peer` (regenerate `embed.go` and `register.go` via `./le yang glue update`)
 - `internal/component/sysrib/sysrib.go` - update the stale `resolvedFibEntry` comment referencing this spec's old path to describe the FIB-time check as defense-in-depth (guard behavior unchanged)
+- `internal/test/fixture/plugin_fixture_02_srv6_ineligible.go` - install IPv6 SRv6 locator cover `2001:db8:1::/48` alongside `bestNextHopCover` so `srv6-invalid-sid-ineligible.ci` isolates RFC 9252 §7 under strict §5 resolvability (`ze-test-judge` approved)
+- `test/interop/scenarios/bgp-srv6-invalid-sid-ineligible-frr/ze.conf` - add static IPv6 locator covers `fc00:0:1::/48` and `2001:db8:1::/48` so both FRR and the injector resolve under RFC 9252 §5 and the scenario isolates §7 (`ze-test-judge` approved)
+- `internal/le/interoplab/bgp/check_special.go` - register `srv6ResolvabilityScenario: checkSRv6ResolvabilityFRR`
 - `docs/architecture/route-selection.md` - document SRv6 Service SID pre-selection resolvability, local-policy bypass, `show bgp rib` visibility, and runtime doctor reporting beside RFC 4271 next-hop admission
 - `docs/architecture/plugin/rib-storage-design.md` - document `srv6-sid-resolvability` config extraction, reload reselection, and the SRv6 exclusion counter
 - `docs/features/srv6.md` - update the Section 5 compliance row, data flow, and configuration reference for pre-best-path SRv6 Service SID resolvability and `srv6-sid-resolvability`
@@ -407,12 +422,15 @@ No BGP protocol wire format, plugin RPC wire schema (`pkg/plugin/rpc`), or inter
 ## Files to Create
 - `internal/component/bgp/plugins/rib/rib_srv6_resolvability_config.go` - parser, precedence resolver (`peer family` > `peer` > `group family` > `group` > `bgp family` > `bgp` > strict default), and dynamic-group lookup for `srv6-sid-resolvability`
 - `internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go` - unit tests for AC-1..AC-11 carrying the `RFC9252-5-2` positive and negative tags
+- `internal/test/fixture/register_srv6_bestpath.go`, `internal/test/fixture/srv6_bestpath_fixture.go`, `internal/test/fixture/srv6_bestpath_fixture_test.go` - compiled functional test fixtures and unit tests for the four SRv6 best-path `.ci` scenarios
 - `test/plugin/srv6-bestpath-unresolvable.ci` - functional test for AC-1, AC-2, and operator visibility
 - `test/plugin/srv6-bestpath-resolvable.ci` - functional test for AC-3 and AC-4 (locator add/remove recovery without UPDATE)
 - `test/plugin/srv6-bestpath-static-wins.ci` - Linux kernel FIB functional test (`option=needs-linux:caps=net-admin`) for AC-7
 - `test/plugin/srv6-bestpath-bypass-config.ci` - functional test for AC-11 (per-peer/per-family bypass, reload, and rollback)
-- `test/interop/scenarios/bgp-srv6-resolvability-frr/ze.conf` - FRR interop scenario config (alongside `frr.conf` and registration in `internal/le/interoplab/bgp/`)
+- `test/interop/scenarios/bgp-srv6-resolvability-frr/ze.conf`, `frr.conf`, `frr-sink.conf`, `README.md` - FRR interop scenario files
+- `internal/le/interoplab/bgp/check_srv6_resolvability.go`, `internal/le/interoplab/bgp/check_srv6_resolvability_test.go` - FRR interop checker and pure predicate unit tests
 - `rfc/discrimination/rfc9252/RFC9252-5-2.json` - discrimination record written by `./le rfc record` (not by hand)
+- `website/changes/fragments/srv6-bestpath-resolvability.md` - operator-facing release changelog fragment
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -611,9 +629,170 @@ The filter in `candidateSRv6SIDResolved` carries a comment naming RFC 9252 Secti
 
 Both `RFC9252-5-2` tags are new, so implementation owes a discrimination record written by `./le rfc record` at `rfc/discrimination/rfc9252/RFC9252-5-2.json` in the same commit.
 
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Pre-best-path SRv6 Service SID resolvability enforcement (`RFC9252-5-2`) in `internal/component/bgp/plugins/rib/rib_next_hop.go` (`candidateSRv6SIDResolved`, `entrySRv6SIDResolvedWithClass`, `entrySRv6SIDResolvedCached`), wired into `gatherPrefixCandidatesForLocked` and `gatherKeyCandidatesForLocked` (`rib_commands.go`) and `appendManualCandidatesLocked` (`rib_manual.go`), reusing `entrySRv6SID` (merged transposed SIDs) and `nextHopResolved` (`igpcost.ResolveProspective` / `igpcost.Lookup` in-process and `route-metrics` RPC in forked mode).
+- Read-only inspection admission mode (`candidateAdmissionInspect`) in `rib_commands.go` and `rib_pipeline_best.go` so `show bgp rib best` enforces resolvability without mutating Prometheus metrics or doctor trackers.
+- Local-policy bypass YANG schema (`srv6-sid-resolvability { ignore; family <name> { ignore; } }` augmented at `/bgp:bgp`, `/bgp:bgp/bgp:group`, `/bgp:bgp/bgp:peer`, `/bgp:bgp/bgp:group/bgp:peer` with `ze:validate "registered-address-family"`) in `yang/ze-rib.yang`, parsed in `rib_srv6_resolvability_config.go`, validated via both `ConfigTx` (`config_tx.go`) and offline `InProcessConfigVerifier: verifyRIBConfig` (`register.go`), and triggering `reselectAIGPRoutes` on reload/rollback.
+- Operator visibility: `show bgp rib` JSON fields (`"srv6-sid-resolvable": false`, `"ineligible-reason": "srv6-sid-unresolvable"`) in `rib_pipeline.go` / `rib_pipeline_bestfact.go`, bounded runtime doctor check `bgp-rib-unresolved-srv6-sid` (`doctor-bgp-srv6-sid-unresolvable`) in `rib_next_hop_doctor.go` / `doctor_codes.go` / `rib.go`, Prometheus counter `ze_rib_srv6_sid_unresolvable_exclusions_total`, and cleanup on withdrawal/peer-down (`rib_aigp.go`, `rib_bestchange.go`, `rib_inject.go`, `rib_source_mutation.go`, `rib_structured.go`).
+- Defense-in-depth comment update in `internal/component/sysrib/sysrib.go` (behavior unchanged).
+- Twelve unit tests in `rfc9252_srv6_resolvability_test.go`, four functional `.ci` tests (`srv6-bestpath-{unresolvable,resolvable,static-wins,bypass-config}.ci`) + compiled fixtures (`register_srv6_bestpath.go`, `srv6_bestpath_fixture.go`, `srv6_bestpath_fixture_test.go`), FRR interop scenario `bgp-srv6-resolvability-frr` + checker (`check_srv6_resolvability.go`, `check_srv6_resolvability_test.go`, `check_special.go`), RFC ledger + audit (`enforced`) + 8 unit discrimination proofs (`rfc/discrimination/rfc9252/RFC9252-5-2.json`), and operator/architecture docs + release fragment.
+
+### Bugs Found/Fixed
+- `show bgp rib best` (`newBestSource`) initially passed `candidateAdmissionForwarding`, causing read-only show queries to increment `ze_rib_srv6_sid_unresolvable_exclusions_total` and mutate doctor tracking; fixed with `candidateAdmissionInspect` (`recordsSideEffects() == false`) and covered by metric-invariance assertions in `TestSRv6UnresolvableVisibilityShowAndDoctor`.
+- Offline `ze config validate` did not invoke `bgp-rib`'s `parseSRv6ResolvabilityConfig` for unregistered family names; fixed by adding `ze:validate "registered-address-family"` in `ze-rib.yang` and wiring `InProcessConfigVerifier: verifyRIBConfig` in `register.go`, covered by `srv6-bestpath-bypass-config.ci` and `internal/component/config/cli/` `TestValidate`.
+- Two pre-existing `RFC9252-5-1` fixtures (`plugin_fixture_02_srv6_ineligible.go` and `bgp-srv6-invalid-sid-ineligible-frr/ze.conf`) lacked IPv6 locator covers and failed under strict `RFC9252-5-2`; updated with static covers (`2001:db8:1::/48` and `fc00:0:1::/48`) and approved by independent `ze-test-judge` (`cef1f85d`).
+- `bgp-srv6-resolvability-frr` initially used `::ffff:172.30.0.3` (rejected by `sysrib`) and matched human-readable prefix text against Ze's 16-byte CIDR VPN rendering (`1:100:fd:e900:0:120:10d:b892/152`); switched to native IPv6 `fd00:1e:0::/64` / `fd00:1e:0::3` and added `srv6ResolvabilityMatchesVPNPrefix` + negative predicate tests in `check_srv6_resolvability_test.go`.
+
+### Documentation Updates
+- Updated `docs/architecture/route-selection.md` (anchored to `rib_next_hop.go`, `rib_commands.go`, `rib_pipeline_bestfact.go`, `rib_next_hop_doctor.go`), `docs/architecture/plugin/rib-storage-design.md` (anchored to `rib_srv6_resolvability_config.go`, `config_tx.go`, `rib.go`), `docs/features/srv6.md`, `docs/guide/configuration.md`, `rfc/short/rfc9252.md`, and `website/changes/fragments/srv6-bestpath-resolvability.md`.
+- `./le doc check all`: 0 findings across all SRv6 files (all `ze-rib` YANG summaries, source anchors, and 3177 digest anchors pass; only unrelated sibling/pre-existing hits in `catalog.go`, `ze-policy-conf`, and `lgAddrs`).
+
+### Deviations from Plan
+- Added `InProcessConfigVerifier: verifyRIBConfig` (`register.go`) and `ze:validate "registered-address-family"` (`ze-rib.yang`) so offline `ze config validate` matches daemon reload validation.
+- Added `candidateAdmissionInspect` in `rib_commands.go` / `rib_pipeline_best.go` so read-only `show bgp rib best` does not mutate counters or doctor trackers.
+- Added static IPv6 locator covers to two pre-existing `RFC9252-5-1` fixtures (`plugin_fixture_02_srv6_ineligible.go` and `bgp-srv6-invalid-sid-ineligible-frr/ze.conf`) under `ze-test-judge` approval (`cef1f85d`) while leaving all three `RFC9252-5-1` Go test files and `srv6-invalid-sid-ineligible.ci` untouched.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Bare `r.peerMu.RLock(); ...; r.peerMu.RUnlock()` in `rfc9252_srv6_resolvability_test.go` deadlocked `t.Cleanup` during `./le rfc record route revert` panic injection | `./le rfc record route revert` panics inside `candidateSRv6SIDResolved`; without `defer r.peerMu.RUnlock()`, `t.Cleanup` blocked on `peerMu.Lock` | First `./le rfc record` run hung >9m | Extracted panic-safe `gatherPrefixCandidatesWithLock` / `gatherKeyCandidatesWithLock` using `defer r.peerMu.RUnlock()`; all 8 discrimination proofs then completed in ~60s total |
+| approach | First `bgp-srv6-invalid-sid-ineligible-frr/ze.conf` edit added a cover only for FRR's `fc00:0:1::/48` and omitted the injector's `2001:db8:1::/48` | Omitting `2001:db8:1::/48` would let RFC 9252 §5 mask RFC 9252 §7 `parseSIDStructure` regressions | `ze-test-judge` (`cef1f85d`) REFUSE | Added both `fc00:0:1::/48` and `2001:db8:1::/48` covers; re-submitted and APPROVED by `cef1f85d` |
+| assumption | Issue 4 initially checked `strings.Contains(row.Prefix, "2001:db8:9252:1::/64")` in `check_srv6_resolvability.go` | Ze's `show bgp rib` renders `ipv6/mpls-vpn` NLRIs as 16-byte CIDRs (`1:100:fd:e900:0:120:10d:b892/152`, documented in `checkers.go:391-393`) | Post-fix live Docker interop run failed on assertion 4 despite Ze emitting `"srv6-sid-resolvable": false` | Added `srv6ResolvabilityMatchesVPNPrefix` accepting both the label-invariant RD+prefix tail `:fd:e900:0:120:10d:b892/152` and human-readable `2001:db8:9252:1::/64` while rejecting unrelated VPN prefixes; re-run passed in 3m51s |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Pre-best-path SRv6 Service SID resolvability across CIDR, VPN, EVPN, manual paths (`RFC9252-5-2`) | Done | `internal/component/bgp/plugins/rib/rib_next_hop.go:49`, `rib_commands.go:1684,1804`, `rib_manual.go:64` | Reuses `entrySRv6SID` + `nextHopResolved` |
+| Automatic Loc-RIB / forked revision reselection without new UPDATE | Done | `internal/component/bgp/plugins/rib/rib_aigp.go`, `rib_remote.go` | Verified in unit, `.ci`, and FRR interop |
+| Explicit YANG local-policy bypass (`srv6-sid-resolvability { ignore; family { ignore; } }`) across `bgp`/`group`/`peer`/`group/peer` | Done | `internal/component/bgp/plugins/rib/yang/ze-rib.yang`, `rib_srv6_resolvability_config.go`, `config_tx.go`, `register.go` | Strict default `false`; most-specific precedence; reload/rollback reselects |
+| Operator visibility (`show bgp rib`, runtime doctor, Prometheus) | Done | `rib_pipeline.go`, `rib_pipeline_bestfact.go`, `rib_next_hop_doctor.go`, `doctor_codes.go`, `rib.go` | Read-only `show bgp rib best` uses `candidateAdmissionInspect` |
+| Defense-in-depth `sysrib` FIB guard preserved | Done | `internal/component/sysrib/sysrib.go` | Comment-only cleanup; 6 `sysrib` SRv6 tests pass |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestGatherCandidatesSkipsUnresolvableSRv6SID`, `TestSRv6UnresolvableVisibilityShowAndDoctor`, `srv6-bestpath-unresolvable.ci` | Counter, `show bgp rib`, and `doctor-bgp-srv6-sid-unresolvable` verified |
+| AC-2 | Done | `TestUnresolvableSRv6LosesToNonSRv6Path`, `srv6-bestpath-unresolvable.ci` | Reachable runner-up wins Loc-RIB and peer advertisement |
+| AC-3 | Done | `TestLocRIBChangeReevaluatesSRv6Prefix`, `srv6-bestpath-resolvable.ci`, `bgp-srv6-resolvability-frr` | Retained path recovers with no BGP UPDATE |
+| AC-4 | Done | `TestLocRIBRemovalReevaluatesSRv6Prefix`, `srv6-bestpath-resolvable.ci` | Locator removal withdraws winner and retains Adj-RIB-In entry |
+| AC-5 | Done | `TestGatherCandidatesAdmitsResolvableSRv6SID`, `srv6-bestpath-resolvable.ci` | Resolvable SID wins and omits ineligibility keys |
+| AC-6 | Done | `TestForkedRIBSRv6SIDResolvability` | Forked `route-metrics` RPC resolve, fail-closed, revision recovery, cached show |
+| AC-7 | Done | `test/plugin/srv6-bestpath-static-wins.ci` (QEMU Linux 7.3.0-ze) | Static backup programmed in Linux kernel FIB |
+| AC-8 | Done | `TestResolvabilityUsesMergedTransposedSID` | Merged transposed SID checked, not partial wire SID |
+| AC-9 | Done | `TestSRv6ResolvabilityBypassConfigAndReload`, `rfc9252_srv6_{ineligible,admission,transposition}_test.go`, `srv6-invalid-sid-ineligible.ci`, `bgp-srv6-invalid-sid-ineligible-frr` | `RFC9252-5-1` and `NEXT_HOP` never bypassed |
+| AC-10 | Done | `TestEVPNUnresolvableSRv6SIDIneligible` | Non-transposed EVPN SID excluded and recovers on locator install |
+| AC-11 | Done | `TestSRv6ResolvabilityBypassConfigAndReload`, `srv6-bestpath-bypass-config.ci`, `config/cli` `TestValidate` | Precedence, dynamic groups, coercion, invalid refusal, reload & rollback |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 12 unit tests (`TestGatherCandidatesSkipsUnresolvableSRv6SID` .. `TestSRv6UnresolvableVisibilityShowAndDoctor`) | Done | `internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go` | PASS (1.790s under `-race`) |
+| 4 functional `.ci` tests (`srv6-bestpath-{unresolvable,resolvable,bypass-config,static-wins}.ci`) | Done | `test/plugin/srv6-bestpath-*.ci` | 3 live tests 80/80 stress-repro + 4/4 live pass (3.2s); `static-wins` QEMU PASS (6.8s) |
+| FRR interop scenario `bgp-srv6-resolvability-frr` + predicate tests | Done | `test/interop/scenarios/bgp-srv6-resolvability-frr/`, `internal/le/interoplab/bgp/check_srv6_resolvability{,_test}.go` | PASS (3m51s); revert-red walk confirmed failure on assertion 4; predicates PASS (1.168s) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 22 modified files in `Files to Modify` | Done | Verified via `git status --short` |
+| All 17 created files in `Files to Create` | Done | Verified via `ls -la` |
+
+### Audit Summary
+- **Total items:** 49 (5 task requirements, 11 ACs, 14 test suites/scenarios, 39 files)
+- **Done:** 49
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations from Plan; none reduce scope)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Exclude unresolvable SRv6 Service SIDs before best-path so reachable runner-up wins and dark path is not re-advertised | Functional + Unit + FRR Interop | `srv6-bestpath-unresolvable.ci` (PASS + 80/80 stress-repro); `TestGatherCandidatesSkipsUnresolvableSRv6SID` & `TestUnresolvableSRv6LosesToNonSRv6Path` (PASS); `bgp-srv6-resolvability-frr` PASS (3m51s) and revert-red walk failed on assertion 4 (`doctor-bgp-srv6-sid-unresolvable` missing) |
+| Automatic recovery/failover on locator add/remove without BGP UPDATE (internal and forked) | Functional + Unit + FRR Interop | `srv6-bestpath-resolvable.ci` (PASS + 80/80 stress-repro); `TestLocRIBChangeReevaluatesSRv6Prefix`, `TestLocRIBRemovalReevaluatesSRv6Prefix`, `TestForkedRIBSRv6SIDResolvability` (PASS); `bgp-srv6-resolvability-frr` assertion 5 PASS |
+| Static backup wins Loc-RIB and is programmed in real Linux kernel FIB | Functional (QEMU Linux 7.3.0-ze) | `test/plugin/srv6-bestpath-static-wins.ci` (`option=needs-linux:caps=net-admin`) PASS in QEMU guest (6.8s) |
+| Per-peer / per-family `srv6-sid-resolvability` local-policy bypass with strict default and reload/rollback reselection | Functional + Unit | `srv6-bestpath-bypass-config.ci` (PASS + 80/80 stress-repro); `TestSRv6ResolvabilityBypassConfigAndReload` (PASS); `config/cli` `TestValidate` (PASS) |
+| `RFC9252-5-2` conformance enforced with discrimination proofs | RFC Gate + Audit | Independent `ze-rfc-audit` (`af3b441a`) verdict `enforced`; 8 `route: revert` unit proofs in `rfc/discrimination/rfc9252/RFC9252-5-2.json`; `./le rfc check` clean on `RFC9252-5-2` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| EVPN label-field transposition (`TransposLen > 0` on `l2vpn/evpn`) | Explicitly out of scope per Known Limitations (non-transposed EVPN SIDs are enforced here; EVPN 24-bit label transposition is already tracked separately) | `plan/release/fixes/spec-srv6-evpn-label-width.md` |
+
 ## Review Gate
 
-Pending implementation; populated by `/ze-review` and `/ze-close`.
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/srv6-bestpath-resolvability-c6c90009-9999-4000-8000-000000000009.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | Independent Review Gate (`b10e65a6`: logic+wiring, security+edge-cases, interop/docs/RFC conformance) + `ze-design-judge` (`712cbaf0`) + `ze-rfc-audit` (`af3b441a`) + `ze-test-judge` (`cef1f85d`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `rfc/discrimination/rfc9252/RFC9252-5-2.json` not yet recorded | `rfc/discrimination/rfc9252/` | Recorded all 8 unit discrimination proofs via `./le rfc record` and verified `./le rfc check` clean on `RFC9252-5-2` |
+| 2 | ISSUE | Read-only `show bgp rib best` incremented exclusion metric and mutated doctor trackers | `internal/component/bgp/plugins/rib/rib_pipeline_best.go`, `rib_commands.go`, `rib_manual.go` | Added `candidateAdmissionInspect` (`recordsSideEffects() == false`) + metric-invariance test in `TestSRv6UnresolvableVisibilityShowAndDoctor` |
+| 3 | ISSUE | `bgp-srv6-resolvability-frr` used IPv6 prefix incompatible with lab subnet rewrites and omitted `route-map VPN-NH out` on `ipv6 unicast` | `test/interop/scenarios/bgp-srv6-resolvability-frr/{ze.conf,frr.conf}` | Switched to `fd00:1e:0::/64` & `fd00:1e:0::3`, moved `route-map VPN-NH` above `router bgp`, attached on both `ipv6 unicast` and `ipv6 vpn`; re-run PASS (3m51s) |
+| 4 | ISSUE | `srv6ResolvabilityRequireRowExcluded` and `srv6ResolvabilityRequireBestVPN` did not filter by target VPN prefix | `internal/le/interoplab/bgp/check_srv6_resolvability.go`, `check_srv6_resolvability_test.go` | Added `srv6ResolvabilityMatchesVPNPrefix` matching rendered `:fd:e900:0:120:10d:b892/152` or human-readable `2001:db8:9252:1::/64` + negative prefix unit tests |
+| 5 | ISSUE | Stale symbol name `storedPathSRv6SID()` in `docs/features/srv6.md:258` | `docs/features/srv6.md` | Updated to `entrySRv6SID()` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/rib/rib_srv6_resolvability_config.go` | Yes | `-rw-r--r-- 1 thomas thomas 15419 Nov 28 11:30` |
+| `internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 56157 Nov 28 10:55` |
+| `internal/test/fixture/{register_srv6_bestpath,srv6_bestpath_fixture,srv6_bestpath_fixture_test}.go` | Yes | `755 / 39522 / 3599 bytes` (`Nov 28 08:22-08:23`) |
+| `test/plugin/srv6-bestpath-{unresolvable,resolvable,static-wins,bypass-config}.ci` | Yes | `3397 / 3165 / 3199 / 2929 bytes` (`Nov 28 08:24`) |
+| `test/interop/scenarios/bgp-srv6-resolvability-frr/{ze.conf,frr.conf,frr-sink.conf,README.md}` | Yes | `1676 / 1620 / 781 / 1332 bytes` (`Nov 28 08:25-11:42`) |
+| `internal/le/interoplab/bgp/check_srv6_resolvability{,_test}.go` | Yes | `16569 / 5430 bytes` (`Nov 28 11:42`) |
+| `rfc/discrimination/rfc9252/RFC9252-5-2.json` | Yes | `-rw-r--r-- 1 thomas thomas 4678 Nov 28 11:20` |
+| `website/changes/fragments/srv6-bestpath-resolvability.md` | Yes | `-rw-r--r-- 1 thomas thomas 1970 Nov 28 08:30` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-6, AC-8..AC-11 | Unit suite for `RFC9252-5-2` + bypass + forked + visibility + `RFC9252-5-1` untouched | `./le test unit pkg path ./internal/component/bgp/plugins/rib/ run "SRv6|RFC9252"` -> `exit 0, 1 package ok, test time 1.790s`; `git diff --stat` on `rfc9252_srv6_{ineligible,admission,transposition}_test.go` empty |
+| AC-1..AC-5, AC-11 | Live plugin `.ci` suite (incl. `srv6-invalid-sid-ineligible`) | `./le --name srv6-work test bgp plugin srv6-bestpath-unresolvable srv6-bestpath-resolvable srv6-bestpath-bypass-config srv6-invalid-sid-ineligible` -> `pass 4/4 100.0% 3.2s` (+ 80/80 stress-repro on all 3 new non-Linux `.ci` tests) |
+| AC-7 | Real Linux kernel FIB static backup takeover | `test/plugin/srv6-bestpath-static-wins.ci` (`option=needs-linux:caps=net-admin`) -> PASS in QEMU Linux 7.3.0-ze (6.8s); `./le test unit pkg path ./internal/component/sysrib/ run SRv6` -> `exit 0, 1.492s` |
+| AC-11 | Offline `ze config validate` parity & YANG/config gates | `./le test unit pkg path ./internal/component/config/cli/ run TestValidate` -> `exit 0, 43.622s`; `./le yang glue check` (170 dirs current), `./le config claims` OK, `./le config coercion check` OK |
+| RFC9252-5-2 | FRR interop + discrimination + audit + wiring grep | `INTEROP_SCENARIO=bgp-srv6-resolvability-frr ./le --name srv6-work test integration interop` -> `1 passed, 0 failed (3m51s)`; `TestSRv6ResolvabilityPredicates` PASS (1.168s); `./le rfc check` clean on `RFC9252-5-2`; `grep -rn candidateSRv6SIDResolved` hits `rib_commands.go:1684,1804`, `rib_manual.go:64`, `rib_next_hop.go:49` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Unresolvable SRv6 BGP route excluded; runner-up wins & advertised; `show bgp rib` & `show doctor` report exclusion | `test/plugin/srv6-bestpath-unresolvable.ci` | Yes (read & executed: PASS 1.5s, 80/80 stress-repro) |
+| Covering IPv6 locator added/removed triggers reselection without BGP UPDATE | `test/plugin/srv6-bestpath-resolvable.ci` | Yes (read & executed: PASS 1.4s, 80/80 stress-repro) |
+| Unresolvable SRv6 BGP route loses to static backup in real Linux kernel FIB | `test/plugin/srv6-bestpath-static-wins.ci` | Yes (read & executed in QEMU Linux 7.3.0-ze: PASS 6.8s) |
+| Per-peer/per-family `srv6-sid-resolvability { ignore true; }` bypass, invalid refusal, reload & rollback | `test/plugin/srv6-bestpath-bypass-config.ci` | Yes (read & executed: PASS 3.0s, 80/80 stress-repro) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestSRv6ResolvabilityRecursionDepthAndDiscard` + `internal/component/sysrib/` SRv6 tests PASS |
+| A-2 | confirmed | `TestResolvabilityUsesMergedTransposedSID` PASS (and `RFC9252-5-2` discrimination proven) |
+| A-3 | confirmed | `TestLocRIBChangeReevaluatesSRv6Prefix`, `TestLocRIBRemovalReevaluatesSRv6Prefix`, `TestForkedRIBSRv6SIDResolvability`, `srv6-bestpath-resolvable.ci` PASS |
+| A-4 | confirmed | `TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily` PASS (and `RFC9252-5-2` discrimination proven) |
+| A-5 | confirmed | `git diff --stat` empty on all three `RFC9252-5-1` Go test files; all pass in `rib` unit run (1.790s) |
+| A-6 | confirmed | `TestEVPNUnresolvableSRv6SIDIneligible` PASS |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/route-selection.md` | Checked against `rib_next_hop.go`, `rib_commands.go`, `rib_pipeline_bestfact.go`, `rib_next_hop_doctor.go` + `./le doc check all` (0 findings) | Yes |
+| `docs/architecture/plugin/rib-storage-design.md` | Checked against `rib_srv6_resolvability_config.go`, `config_tx.go`, `rib.go` + `./le doc check all` (0 findings) | Yes |
+| `docs/features/srv6.md` & `docs/guide/configuration.md` | Checked against `ze-rib.yang` & `entrySRv6SID()` (`rib_bestchange.go`) + `./le doc check all` (0 SRv6 findings) | Yes |
+| `rfc/short/rfc9252.md` | `grep -n RFC9252-5-2 rfc/short/rfc9252.md rfc/requirements/rfc9252.md` shows no `{gap}` and both polarities; `./le rfc check` clean on `RFC9252-5-2` | Yes |
+| `docs/comparison.md` (Category 11: No) | `grep -i srv6 docs/comparison.md` shows only general capability summary lines, zero SRv6 Service SID resolvability rows | Yes |
 
 ## Checklist
 

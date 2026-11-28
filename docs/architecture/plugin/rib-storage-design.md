@@ -1961,6 +1961,38 @@ the leaf, the check runs.
 <!-- test: test/plugin/flowspec-redirect-check-refused.ci -->
 <!-- test: test/plugin/flowspec-redirect-check-disabled.ci -->
 
+### SRv6 Service SID resolvability policy and metrics
+
+`srv6-sid-resolvability { ignore true|false; family <name> { ignore true|false; } }`
+is augmented onto `/bgp:bgp`, `/bgp:bgp/bgp:group`, `/bgp:bgp/bgp:peer`, and
+`/bgp:bgp/bgp:group/bgp:peer` in `ze-rib.yang` with no YANG default on `ignore`
+so inheritance works across scopes and omitting it everywhere enforces strict
+RFC 9252 Sections 5 and 6 resolvability. `parseSRv6ResolvabilityConfig`
+validates every scope (including empty groups, boolean coercion, and registered
+address-family names via `parseFamily`) during `ConfigTx` verify without
+mutating live RIB state, and resolves dynamic peer-group rules through
+`configjson.LookupPeerConfig`. Effective precedence is strictly most-specific
+wins: peer family > peer > group family > group > global `bgp` family > global
+`bgp` > strict default (`false`).
+
+`installConfig` publishes the parsed `srv6ResolvabilityConfig` through an
+`atomic.Pointer` (`RIBManager.srv6ResolvabilityCfg`) so candidate gathering
+(`candidateSRv6SIDResolved`) and `show bgp rib` (`entrySRv6SIDResolvedForShow`)
+read rules lock-free. Whenever a commit or rollback changes the effective rules,
+`installConfig` invokes `reselectAIGPRoutes` so retained Adj-RIB-In SRv6 routes
+re-enter or leave best-path selection immediately without waiting for another
+BGP UPDATE.
+
+`SetMetricsRegistry` registers `ze_rib_srv6_sid_unresolvable_exclusions_total`
+(CounterVec labeled by `family`), incremented via `incSRv6UnresolvableExclusions`
+whenever `candidateSRv6SIDResolved` excludes a forwarding candidate for an
+unresolvable SRv6 Service SID.
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib.yang -- srv6-sid-resolvability-fields -->
+<!-- source: internal/component/bgp/plugins/rib/rib_srv6_resolvability_config.go -- srv6ResolvabilityConfig, parseSRv6ResolvabilityConfig, srv6SIDResolvabilityIgnoredLocked, srv6SIDResolvabilityIgnoredWithGroup -->
+<!-- source: internal/component/bgp/plugins/rib/config_tx.go -- parseRIBConfigSections, installConfig -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateSRv6SIDResolved, incSRv6UnresolvableExclusions -->
+
 `reconcileFlowSpecs` recomputes authorization after received-route changes,
 unicast best-path changes, validation changes, withdrawals and session removal.
 It selects one eligible path per native FlowSpec NLRI with the ordinary BGP

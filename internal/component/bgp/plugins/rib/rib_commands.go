@@ -649,7 +649,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 			if len(manual) == 0 {
 				delete(r.ribInPool, bgpProtocolID)
 			}
-			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: key})
+			r.purgeUnresolvedByOwner(bestPeer{owner: 0, address: key})
 		}
 	}
 	r.peerMu.Unlock()
@@ -816,7 +816,7 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 		sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(peerRIB)...)
 		peerRIB.Release()
 		delete(r.bgpPeers, peer)
-		r.unresolvedNextHops.purgeByOwner(bestPeer{owner: peer, address: peerAddr})
+		r.purgeUnresolvedByOwner(bestPeer{owner: peer, address: peerAddr})
 		r.clearPeerRouteMetadataLocked(peer)
 		purgedPeers = append(purgedPeers, peer)
 	}
@@ -835,7 +835,7 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 		}
 		routes.Release()
 		delete(r.ribInPool[bgpProtocolID], address)
-		r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: address})
+		r.purgeUnresolvedByOwner(bestPeer{owner: 0, address: address})
 	}
 	r.peerMu.Unlock()
 
@@ -1244,7 +1244,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 			sourceKeys = append(sourceKeys, r.captureScopedSourceKeysLocked(peerRIB)...)
 			peerRIB.Release()
 			delete(r.bgpPeers, peer)
-			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: peer, address: peerAddr})
+			r.purgeUnresolvedByOwner(bestPeer{owner: peer, address: peerAddr})
 			purgedPeers = append(purgedPeers, peer)
 		}
 		r.clearPeerRouteMetadataLocked(peer)
@@ -1528,19 +1528,26 @@ func (r *RIBManager) bestPathStatus() any {
 // key, the NLRI without its path identifier, over every path of every peer in
 // either case, so the path identifier never partitions the election.
 func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte, addPath bool) []*Candidate {
+	return r.gatherCandidatesForLocked(fam, nlriBytes, addPath, candidateAdmissionForwarding)
+}
+
+// gatherCandidatesForLocked collects best-path candidates for nlriBytes under
+// the named admission purpose. Caller MUST hold peerMu.RLock and later call
+// releaseCandidates.
+func (r *RIBManager) gatherCandidatesForLocked(fam family.Family, nlriBytes []byte, addPath bool, admission candidateAdmission) []*Candidate {
 	if !storage.IsCIDRFamily(fam) {
 		var scratch [nlrisplit.PrefixKeyScratchSize]byte
 		routeKey, ok := routeIdentity(fam, nlriBytes, addPath, false, scratch[:])
 		if !ok {
 			return nil
 		}
-		return r.gatherKeyCandidatesLocked(fam, routeKey)
+		return r.gatherKeyCandidatesForLocked(fam, routeKey, admission)
 	}
 	_, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
 	if !ok {
 		return nil
 	}
-	return r.gatherPrefixCandidatesLocked(fam, pfx)
+	return r.gatherPrefixCandidatesForLocked(fam, pfx, admission)
 }
 
 // candidateAdmission names the local operation requesting candidate snapshots.
@@ -1552,16 +1559,34 @@ const (
 	candidateAdmissionUnspecified candidateAdmission = iota
 	candidateAdmissionForwarding
 	candidateAdmissionRecovery
+	candidateAdmissionInspect
 )
 
-// requiresResolution distinguishes a prospective forwarding install from the
-// existing source-owned wire-recovery query. Its callers MUST pass one of the
-// two named purposes, rather than infer a purpose from peer or transport flags.
+// requiresResolution distinguishes forwarding-eligible selection (both live
+// elections and read-only best-path inspection) from the existing source-owned
+// wire-recovery query. Its callers MUST pass a named purpose, rather than infer
+// a purpose from peer or transport flags.
 func (admission candidateAdmission) requiresResolution() bool {
+	switch admission {
+	case candidateAdmissionForwarding, candidateAdmissionInspect:
+		return true
+	case candidateAdmissionRecovery:
+		return false
+	case candidateAdmissionUnspecified:
+		panic("BUG: candidate gather admission is unspecified")
+	default:
+		panic("BUG: invalid candidate gather admission")
+	}
+}
+
+// recordsSideEffects reports whether gathering candidates mutates exclusion
+// metrics and runtime doctor tracking. Only live forwarding elections record
+// side effects; read-only inspection and wire recovery do not.
+func (admission candidateAdmission) recordsSideEffects() bool {
 	switch admission {
 	case candidateAdmissionForwarding:
 		return true
-	case candidateAdmissionRecovery:
+	case candidateAdmissionRecovery, candidateAdmissionInspect:
 		return false
 	case candidateAdmissionUnspecified:
 		panic("BUG: candidate gather admission is unspecified")
@@ -1594,8 +1619,10 @@ func (r *RIBManager) gatherPrefixCandidatesLocked(fam family.Family, pfx netip.P
 // framed for ADD-PATH reads as a different prefix in a peer stored without it.
 func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx netip.Prefix, admission candidateAdmission) []*Candidate {
 	requiresResolution := admission.requiresResolution()
+	recordSideEffects := admission.recordsSideEffects()
 	var candidates []*Candidate
 	var unresolved []unresolvedCandidate
+	var unresolvedSRv6 []unresolvedCandidate
 	// Loaded ONCE, so every candidate for this prefix is judged against the same
 	// set of this speaker's own addresses (rib_self_nexthop.go). A per-candidate
 	// load could straddle a session change and admit one route while excluding
@@ -1618,10 +1645,10 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 		}
 		paths, peerAddPath := peerRIB.AppendPrefixPathsRetained(fam, pfx, pathsArray[:0])
 		if len(paths) == 0 {
-			if admission == candidateAdmissionForwarding {
-				if r.unresolvedNextHops.hasOverflow() {
+			if recordSideEffects {
+				if r.hasAnyUnresolvedOverflow() {
 					if peerRIB.Len() == 0 {
-						r.unresolvedNextHops.purgeByOwner(bestPeer{owner: owner, address: peerRIB.PeerAddr()})
+						r.purgeUnresolvedByOwner(bestPeer{owner: owner, address: peerRIB.PeerAddr()})
 					}
 				}
 			}
@@ -1640,14 +1667,32 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 			if requiresResolution {
 				// RFC 4271 Section 9.1.2: forwarding feasibility precedes ranking.
 				if !r.candidateNextHopResolved(fam, pfx, c) {
-					unresolved = append(unresolved, unresolvedCandidate{
-						owner:         owner,
-						peerAddr:      peerRIB.PeerAddr(),
-						pathID:        path.PathID,
-						addPath:       peerAddPath,
-						displayPrefix: pfx.String(),
-						nextHop:       entryNextHopAddr(fam, path.Entry),
-					})
+					if recordSideEffects {
+						unresolved = append(unresolved, unresolvedCandidate{
+							owner:         owner,
+							peerAddr:      peerRIB.PeerAddr(),
+							pathID:        path.PathID,
+							addPath:       peerAddPath,
+							displayPrefix: pfx.String(),
+							nextHop:       entryNextHopAddr(fam, path.Entry),
+						})
+					}
+					path.Release()
+					continue
+				}
+				// RFC 9252 Sections 5 and 6: SRv6 Service SID resolvability precedes ranking.
+				if sid, ok := r.candidateSRv6SIDResolved(fam, pfx, nil, c); !ok {
+					if recordSideEffects {
+						r.incSRv6UnresolvableExclusions(fam)
+						unresolvedSRv6 = append(unresolvedSRv6, unresolvedCandidate{
+							owner:         owner,
+							peerAddr:      peerRIB.PeerAddr(),
+							pathID:        path.PathID,
+							addPath:       peerAddPath,
+							displayPrefix: pfx.String(),
+							nextHop:       sid,
+						})
+					}
 					path.Release()
 					continue
 				}
@@ -1664,9 +1709,12 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 	if gate != nil {
 		candidates = gate.filter(candidates)
 	}
-	if admission == candidateAdmissionForwarding {
-		candidates, unresolved = r.appendManualCandidatesLocked(candidates, unresolved, fam, pfx, selfNextHops)
+	if requiresResolution {
+		candidates, unresolved, unresolvedSRv6 = r.appendManualCandidatesLocked(candidates, unresolved, unresolvedSRv6, fam, pfx, selfNextHops, admission)
+	}
+	if recordSideEffects {
 		r.unresolvedNextHops.reconcilePrefixRoute(fam, pfx, unresolved)
+		r.unresolvedSRv6SIDs.reconcilePrefixRoute(fam, pfx, unresolvedSRv6)
 	}
 	return candidates
 }
@@ -1694,8 +1742,10 @@ func (r *RIBManager) gatherKeyCandidatesLocked(fam family.Family, routeKey []byt
 // session's wire NLRI, whose four path-id octets no other framing matches.
 func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []byte, admission candidateAdmission) []*Candidate {
 	requiresResolution := admission.requiresResolution()
+	recordSideEffects := admission.recordsSideEffects()
 	var candidates []*Candidate
 	var unresolved []unresolvedCandidate
+	var unresolvedSRv6 []unresolvedCandidate
 	selfNextHops := r.selfNextHops.Load()
 	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
 	var pathsArray [4]storage.PrefixPath
@@ -1707,10 +1757,10 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 		}
 		paths, peerAddPath := peerRIB.AppendKeyPathsRetained(fam, routeKey, pathsArray[:0])
 		if len(paths) == 0 {
-			if admission == candidateAdmissionForwarding {
-				if r.unresolvedNextHops.hasOverflow() {
+			if recordSideEffects {
+				if r.hasAnyUnresolvedOverflow() {
 					if peerRIB.Len() == 0 {
-						r.unresolvedNextHops.purgeByOwner(bestPeer{owner: owner, address: peerRIB.PeerAddr()})
+						r.purgeUnresolvedByOwner(bestPeer{owner: owner, address: peerRIB.PeerAddr()})
 					}
 				}
 			}
@@ -1737,14 +1787,32 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 			if requiresResolution {
 				// RFC 4271 Section 9.1.2: forwarding feasibility precedes ranking.
 				if !r.candidateNextHopResolved(fam, netip.Prefix{}, c) {
-					unresolved = append(unresolved, unresolvedCandidate{
-						owner:         owner,
-						peerAddr:      peerRIB.PeerAddr(),
-						pathID:        path.PathID,
-						addPath:       peerAddPath,
-						displayPrefix: path.Route,
-						nextHop:       entryNextHopAddr(fam, path.Entry),
-					})
+					if recordSideEffects {
+						unresolved = append(unresolved, unresolvedCandidate{
+							owner:         owner,
+							peerAddr:      peerRIB.PeerAddr(),
+							pathID:        path.PathID,
+							addPath:       peerAddPath,
+							displayPrefix: path.Route,
+							nextHop:       entryNextHopAddr(fam, path.Entry),
+						})
+					}
+					path.Release()
+					continue
+				}
+				// RFC 9252 Sections 5 and 6: SRv6 Service SID resolvability precedes ranking.
+				if sid, ok := r.candidateSRv6SIDResolved(fam, netip.Prefix{}, nlri, c); !ok {
+					if recordSideEffects {
+						r.incSRv6UnresolvableExclusions(fam)
+						unresolvedSRv6 = append(unresolvedSRv6, unresolvedCandidate{
+							owner:         owner,
+							peerAddr:      peerRIB.PeerAddr(),
+							pathID:        path.PathID,
+							addPath:       peerAddPath,
+							displayPrefix: formatNLRIAsPrefix(fam, nlri, peerAddPath),
+							nextHop:       sid,
+						})
+					}
 					path.Release()
 					continue
 				}
@@ -1752,8 +1820,9 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 			candidates = append(candidates, c)
 		}
 	}
-	if admission == candidateAdmissionForwarding {
+	if recordSideEffects {
 		r.unresolvedNextHops.reconcileOpaqueRoute(fam, routeKey, unresolved)
+		r.unresolvedSRv6SIDs.reconcileOpaqueRoute(fam, routeKey, unresolvedSRv6)
 	}
 	return candidates
 }

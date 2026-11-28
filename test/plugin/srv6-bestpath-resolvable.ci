@@ -1,0 +1,90 @@
+# Test: adding and removing an IPv6 locator cover promotes and demotes retained SRv6 paths
+#
+# Question: when retained SRv6 BGP paths (both one with a reachable runner-up
+# and a solo excluded path with no prior bestPrev entry) sit excluded in
+# Adj-RIB-In, does adding a covering IPv6 locator route in the daemon Loc-RIB
+# automatically elect and advertise both SRv6 paths (clearing show bgp rib and
+# show doctor warnings) with zero new BGP UPDATEs, and does removing that cover
+# automatically fail back / withdraw them while keeping them retained?
+#
+# Why a unit test cannot decide it: unit tests invoke runAIGPSelection on an
+# in-memory locrib.RIB; only a running daemon with real BGP sockets, the engine
+# route-install/route-remove RPC, bgp-rib's Loc-RIB OnChange worker, and wire
+# selected-output proves full end-to-end promotion and demotion without UPDATEs.
+#
+# VALIDATES: spec-srv6-bestpath-resolvability AC-3, AC-4 (RFC9252-5-2).
+# PREVENTS: retained excluded SRv6 paths failing to recover when locator
+#           reachability appears, or failing to withdraw / fail over when the
+#           locator disappears.
+option=timeout:value=60s
+
+stdin=ze-conf:terminator=EOF_CONF
+bus {
+  endpoint rib {
+    internal rib;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint srv6-bestpath-test {
+    external {
+      run "le test fixture plugin/srv6-bestpath-resolvable 127.0.0.1:$PORT";
+    }
+    encoding json;
+  }
+}
+
+bgp {
+  router-id 1.1.1.1;
+  peer sr-source {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.2; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65001; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final accept; } export { final reject; } }
+  }
+  peer fallback {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.3; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65001; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final accept; } export { final reject; } }
+  }
+  peer receiver {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.4; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65002; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final reject; } export { final accept; } }
+  }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: srv6-bestpath-resolvable: locator add and remove promoted and demoted retained SRv6 paths with zero new BGP UPDATEs
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ze-conf:exit=0

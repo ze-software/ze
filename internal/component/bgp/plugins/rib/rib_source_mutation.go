@@ -271,7 +271,7 @@ func (r *RIBManager) removePhysicalSource(source ribPhysicalSource, selected *fa
 			peerAddr := routes.PeerAddr()
 			routes.Release()
 			delete(r.bgpPeers, source.owner)
-			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: source.owner, address: peerAddr})
+			r.purgeUnresolvedByOwner(bestPeer{owner: source.owner, address: peerAddr})
 		}
 	}
 	r.peerMu.Unlock()

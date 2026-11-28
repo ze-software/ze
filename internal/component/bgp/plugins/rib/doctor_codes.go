@@ -7,6 +7,7 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 const (
 	codeDoctorBGPSelectedOutput      = "doctor-bgp-selected-output"
 	codeDoctorBGPNextHopUnresolvable = "doctor-bgp-next-hop-unresolvable"
+	codeDoctorBGPSRv6SIDUnresolvable = "doctor-bgp-srv6-sid-unresolvable"
 	// codeDoctorBGPNextHopMetrics aliases the doctor-bgp-next-hop-metrics code
 	// already registered alongside its event code in register.go so it is never
 	// registered twice at init.
@@ -37,6 +38,21 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"ze show diagnostic doctor-bgp-next-hop-unresolvable",
 		},
 		RelatedCodes: []string{codeDoctorBGPNextHopMetrics},
+	},
+	{
+		Code:  codeDoctorBGPSRv6SIDUnresolvable,
+		Title: "BGP routes excluded by unresolvable SRv6 Service SID",
+		Description: "One or more BGP routes in Adj-RIB-In carry an SRv6 Service SID that cannot be resolved in the Loc-RIB " +
+			"(or would become unresolvable if installed). Per RFC 9252 Sections 5 and 6, these routes are excluded from " +
+			"Phase 2 best-path selection while remaining retained in Adj-RIB-In so they enter selection automatically " +
+			"once a covering IPv6 locator route resolves the Service SID. Inspect excluded routes with " +
+			"ze show bgp rib | match srv6-sid-unresolvable and check IPv6 locator reachability with ze show rib.",
+		Examples: []string{
+			unresolvedSRv6SIDDoctorFix,
+			"ze show rib",
+			"ze show diagnostic doctor-bgp-srv6-sid-unresolvable",
+		},
+		RelatedCodes: []string{codeDoctorBGPNextHopUnresolvable, codeDoctorBGPNextHopMetrics},
 	},
 }
 

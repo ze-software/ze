@@ -1,0 +1,102 @@
+# Test: unresolvable SRv6 Service SID path is excluded before best-path selection
+#
+# Question: when Ze receives a higher-LOCAL_PREF iBGP path carrying an SRv6
+# Service SID whose IPv6 locator has no covering route in the Loc-RIB alongside
+# a reachable lower-LOCAL_PREF runner-up, does bgp-rib exclude the SRv6 path
+# before best-path selection, advertise the reachable runner-up to a downstream
+# peer, annotate the retained SRv6 row in `show bgp rib`, report
+# `doctor-bgp-srv6-sid-unresolvable` in `show doctor`, and increment the
+# exclusion Prometheus counter?
+#
+# Why a unit test cannot decide it: unit tests call gatherPrefixCandidatesLocked
+# and doctorCheck directly; only a running daemon with real TCP BGP peers,
+# bgp-rib, rib, selected output, Stage 1 doctor dispatch, CLI pipe matching,
+# and Prometheus exposition proves the whole exclusion, failover advertisement,
+# and operator-visibility chain end to end.
+#
+# VALIDATES: spec-srv6-bestpath-resolvability AC-1, AC-2 (RFC9252-5-2).
+# PREVENTS: unresolvable SRv6 Service SID winning best-path, shadowing a
+#           reachable runner-up, advertising a dark SRv6 path to peers, or
+#           omitting show bgp rib / show doctor / metric exclusion visibility.
+option=timeout:value=60s
+
+stdin=ze-conf:terminator=EOF_CONF
+bus {
+  endpoint rib {
+    internal rib;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint srv6-bestpath-test {
+    external {
+      run "le test fixture plugin/srv6-bestpath-unresolvable 127.0.0.1:$PORT";
+    }
+    encoding json;
+  }
+}
+
+telemetry {
+  prometheus {
+    enabled true;
+    server main {
+      ip 127.0.0.1;
+      port $PORT2;
+    }
+  }
+}
+
+bgp {
+  router-id 1.1.1.1;
+  peer sr-source {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.2; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65001; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final accept; } export { final reject; } }
+  }
+  peer fallback {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.3; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65001; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final accept; } export { final reject; } }
+  }
+  peer receiver {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.4; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65002; }
+      aigp { enabled false; }
+      family { ipv4/unicast { prefix { maximum 100; } } }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final reject; } export { final accept; } }
+  }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: srv6-bestpath-unresolvable: unresolvable SRv6 path excluded, runner-up advertised, show bgp rib and show doctor reported exclusion
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ze-conf:exit=0

@@ -562,8 +562,9 @@ func (s *sysRIB) recordOSInstalledWinner(key prefixKey, prev, winner *protocolRo
 }
 
 // srv6SIDResolvable answers whether an SRv6 SID has a covering route in the
-// Loc-RIB. That is the reachability question RFC 9252 Section 5 asks, and
-// fibEntry says why asking it there does not meet the section's requirement.
+// Loc-RIB. BGP pre-selection enforces RFC 9252 Sections 5 and 6 before
+// best-path (candidateSRv6SIDResolved in bgp-rib); resolvedFibEntry keeps this
+// FIB-time check as defense-in-depth before single-SID SEG6 installs.
 func (s *sysRIB) srv6SIDResolvable(sid netip.Addr) bool {
 	r := s.nextHopResolver()
 	if r == nil {
@@ -663,22 +664,14 @@ func (s *sysRIB) fibEntry(key prefixKey, best *protocolRoute) (outgoingChange, f
 // resolvedFibEntry renders the selected forwarding path before classifying
 // targetless origin-only output. The caller holds s.mu as for fibEntry.
 func (s *sysRIB) resolvedFibEntry(key prefixKey, best *protocolRoute) (outgoingChange, fibVerdict) {
-	// A resolvability check, and NOT the one RFC 9252 Section 5 requires. That
-	// section binds the ingress PE to check the SRv6 Service SID BEFORE the
-	// received prefix is considered for the BGP best path computation. Both
-	// selections have already run when this function is reached, so a route
-	// whose SID reaches nothing has already WON the prefix, and the refusal
-	// below declines the FIB WRITE for it. The next-best route does not get the
-	// prefix, so traffic for it is dropped where a conformant implementation
-	// forwards it.
-	//
-	// The ledger carries that as the gap RFC9252-5-2 (rfc/short/rfc9252.md),
-	// and plan/immediate/spec-srv6-bestpath-resolvability.md is where the check
-	// moves in front of selection. This refusal MUST NOT be read as the MUST
-	// met.
-	//
-	// It does cover the promotion below: a prefix whose SID is unreachable is
-	// not programmed over an equal-cost member either.
+	// Defense-in-depth FIB-time SRv6 Service SID resolvability guard.
+	// RFC 9252 Sections 5 and 6 pre-selection resolvability is enforced before
+	// BGP best-path computation in bgp-rib (candidateSRv6SIDResolved). Keeping
+	// this guard here prevents programming a broken single-SID SEG6 encap route
+	// (including over a promoted equal-cost member) when a non-BGP producer
+	// supplies an unreachable SID or when an operator enables
+	// srv6-sid-resolvability { ignore true; } for BGP propagation without a
+	// local covering route.
 	if best.srv6SID.IsValid() && !s.srv6SIDResolvable(best.srv6SID) {
 		return outgoingChange{}, fibForbidden
 	}

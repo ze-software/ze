@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestGatherCandidatesAdmitsResolvableSRv6SID",
+    "unit-sha": "ccefb9eba41d3c4b",
+    "claim-sha": "2f75b086dca261f4",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestGatherCandidatesSkipsUnresolvableSRv6SID",
+    "unit-sha": "627bb5f50f71ab1b",
+    "claim-sha": "c7eeba3916b3de01",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestResolvabilityUsesMergedTransposedSID",
+    "unit-sha": "1448a7980fffed83",
+    "claim-sha": "d48219a53effbe97",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestResolvabilityUsesMergedTransposedSID",
+    "unit-sha": "1448a7980fffed83",
+    "claim-sha": "27029cc990911c3f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily",
+    "unit-sha": "2a56ae4abca4a3c9",
+    "claim-sha": "47a2afe6523b22a2",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityProspectiveSelfCaptureAndCrossFamily",
+    "unit-sha": "2a56ae4abca4a3c9",
+    "claim-sha": "691ae7b7b47d4c69",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityRecursionDepthAndDiscard",
+    "unit-sha": "f3e86da66ecd8165",
+    "claim-sha": "8fd3120aa84d1303",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_resolvability_test.go::TestSRv6ResolvabilityRecursionDepthAndDiscard",
+    "unit-sha": "f3e86da66ecd8165",
+    "claim-sha": "2abfc7ced2058201",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::RIBManager.candidateSRv6SIDResolved",
+    "producer-sha": "e6a79213f9b7fab5",
+    "break": "body of RIBManager.candidateSRv6SIDResolved replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

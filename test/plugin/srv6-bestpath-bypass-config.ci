@@ -1,0 +1,88 @@
+# Test: per-peer and per-family srv6-sid-resolvability local-policy bypass, live reload, invalid refusal, and rollback
+#
+# Question: does configuring `srv6-sid-resolvability { ignore true|false;
+# family <name> { ignore true|false; } }` on a peer bypass BGP pre-selection
+# exclusion per family and per peer, do live reloads and rollback re-evaluate
+# retained Adj-RIB-In routes immediately with zero new BGP UPDATEs, and are
+# invalid booleans and unregistered family names refused both at reload and at
+# `ze config validate`?
+#
+# Why a unit test cannot decide it: unit tests invoke parseSRv6ResolvabilityConfig
+# and ConfigTx callbacks directly; only a running daemon executing real YANG
+# validation, `request reload` transactions, rollback restoration, and live
+# `reselectAIGPRoutes` over retained IPv4 and IPv6 wire routes proves the full
+# operator configuration and reload pipeline.
+#
+# VALIDATES: spec-srv6-bestpath-resolvability AC-11 (RFC 9252 Section 5 MAY clause).
+# PREVENTS: YANG schema drift, ignored srv6-sid-resolvability reload changes,
+#           stale best-path after rollback, or silent acceptance of invalid
+#           ignore booleans / unregistered address families.
+option=timeout:value=90s
+
+tmpfs=srv6-bypass.conf:terminator=EOF_CONF
+bus {
+  endpoint rib {
+    internal rib;
+  }
+  endpoint bgp-rib {
+    internal bgp-rib;
+  }
+  endpoint srv6-bypass-test {
+    external {
+      run "le test fixture plugin/srv6-bestpath-bypass-config 127.0.0.1:$PORT srv6-bypass.conf";
+    }
+    encoding json;
+  }
+}
+
+bgp {
+  router-id 1.1.1.1;
+  peer sr-peer {
+    connection {
+      local { ip 127.0.0.1; port $PORT; }
+      remote { ip 127.0.0.2; connect false; }
+    }
+    session {
+      asn { local 65001; remote 65001; }
+      aigp { enabled false; }
+      family {
+        ipv4/unicast { prefix { maximum 100; } }
+        ipv6/unicast { prefix { maximum 100; } }
+      }
+      capability { graceful-restart disable; }
+    }
+    behavior { group-updates disable; }
+    filter { import { final accept; } export { final reject; } }
+  }
+}
+EOF_CONF
+
+tmpfs=bad-bool.conf:terminator=EOF_BAD_BOOL
+bgp {
+  router-id 1.1.1.1;
+  srv6-sid-resolvability {
+    ignore maybe;
+  }
+}
+EOF_BAD_BOOL
+
+tmpfs=bad-family.conf:terminator=EOF_BAD_FAM
+bgp {
+  router-id 1.1.1.1;
+  srv6-sid-resolvability {
+    family ipv4/bogus {
+      ignore true;
+    }
+  }
+}
+EOF_BAD_FAM
+
+cmd=foreground:seq=1:exec=ze config validate bad-bool.conf:timeout=15s:exit=1
+cmd=foreground:seq=2:exec=ze config validate bad-family.conf:timeout=15s:exit=1
+cmd=foreground:seq=3:exec=ze start srv6-bypass.conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: srv6-bestpath-bypass-config: per-peer and per-family bypass, invalid refusal, and rollback reselection verified
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=4:exec=ze config validate srv6-bypass.conf:timeout=15s:exit=0

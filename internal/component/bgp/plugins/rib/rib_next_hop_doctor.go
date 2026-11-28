@@ -18,8 +18,10 @@ import (
 
 const (
 	unresolvedNextHopDoctorName         = "bgp-rib-unresolved-next-hop"
+	unresolvedSRv6SIDDoctorName         = "bgp-rib-unresolved-srv6-sid"
 	nextHopMetricsDoctorName            = "bgp-rib-next-hop-metrics"
 	unresolvedNextHopDoctorFix          = "ze show bgp rib | match next-hop-unresolvable"
+	unresolvedSRv6SIDDoctorFix          = "ze show bgp rib | match srv6-sid-unresolvable"
 	doctorSeverityWarning               = "warning"
 	maxTrackedUnresolvedNextHops        = 4096
 	maxUnresolvedDoctorSamples          = 5
@@ -492,6 +494,17 @@ func unresolvedNextHopDoctorDeclaration() rpc.DoctorCheckDecl {
 	}
 }
 
+// unresolvedSRv6SIDDoctorDeclaration declares the runtime doctor check that
+// reports BGP routes currently excluded from Phase 2 by an unresolvable SRv6
+// Service SID (RFC 9252 Sections 5 and 6).
+func unresolvedSRv6SIDDoctorDeclaration() rpc.DoctorCheckDecl {
+	return rpc.DoctorCheckDecl{
+		Name:  unresolvedSRv6SIDDoctorName,
+		Phase: rpc.DoctorPhaseRuntime,
+		Codes: []string{codeDoctorBGPSRv6SIDUnresolvable},
+	}
+}
+
 // nextHopMetricsDoctorDeclaration declares the runtime doctor check that
 // reports an active engine route-metrics lookup failure in forked placement.
 func nextHopMetricsDoctorDeclaration() rpc.DoctorCheckDecl {
@@ -502,6 +515,50 @@ func nextHopMetricsDoctorDeclaration() rpc.DoctorCheckDecl {
 	}
 }
 
+// purgeUnresolvedByOwner purges tracked and overflow entries for peer across
+// both the next-hop and SRv6 Service SID trackers.
+func (r *RIBManager) purgeUnresolvedByOwner(peer bestPeer) {
+	r.unresolvedNextHops.purgeByOwner(peer)
+	r.unresolvedSRv6SIDs.purgeByOwner(peer)
+}
+
+// purgeUnresolvedByPeerAddr purges tracked and overflow entries matching
+// peerAddr across both the next-hop and SRv6 Service SID trackers.
+func (r *RIBManager) purgeUnresolvedByPeerAddr(peerAddr string) {
+	r.unresolvedNextHops.purgeByPeerAddr(peerAddr)
+	r.unresolvedSRv6SIDs.purgeByPeerAddr(peerAddr)
+}
+
+// clearAllUnresolved clears both unresolved trackers when no BGP routes remain.
+func (r *RIBManager) clearAllUnresolved() {
+	r.unresolvedNextHops.clearAll()
+	r.unresolvedSRv6SIDs.clearAll()
+}
+
+// clearUnresolvedOverflow resets overflow counters on both unresolved trackers
+// before a full-table reselection scan.
+func (r *RIBManager) clearUnresolvedOverflow() {
+	r.unresolvedNextHops.clearOverflow()
+	r.unresolvedSRv6SIDs.clearOverflow()
+}
+
+// hasAnyUnresolved reports whether either unresolved tracker holds entries.
+func (r *RIBManager) hasAnyUnresolved() bool {
+	if r.unresolvedNextHops.total.Load() != 0 {
+		return true
+	}
+	return r.unresolvedSRv6SIDs.total.Load() != 0
+}
+
+// hasAnyUnresolvedOverflow reports whether either unresolved tracker currently
+// has overflow beyond maxTrackedUnresolvedNextHops.
+func (r *RIBManager) hasAnyUnresolvedOverflow() bool {
+	if r.unresolvedNextHops.hasOverflow() {
+		return true
+	}
+	return r.unresolvedSRv6SIDs.hasOverflow()
+}
+
 // doctorCheck dispatches Stage 1 declared runtime doctor checks for this RIB.
 // Safe for concurrent use; checks read in-memory state and make no engine RPCs.
 func (r *RIBManager) doctorCheck(name string) ([]rpc.DoctorCheckDiagnostic, error) {
@@ -510,6 +567,8 @@ func (r *RIBManager) doctorCheck(name string) ([]rpc.DoctorCheckDiagnostic, erro
 		return r.advertiseDoctorCheck(name)
 	case unresolvedNextHopDoctorName:
 		return r.unresolvedNextHopDoctorCheck(), nil
+	case unresolvedSRv6SIDDoctorName:
+		return r.unresolvedSRv6SIDDoctorCheck(), nil
 	case nextHopMetricsDoctorName:
 		return r.nextHopMetricsDoctorCheck(), nil
 	default:
@@ -521,7 +580,31 @@ func (r *RIBManager) doctorCheck(name string) ([]rpc.DoctorCheckDiagnostic, erro
 // unresolvedNextHopDoctorCheck reports BGP routes currently excluded from
 // Phase 2 best-path selection by an unresolved next hop.
 func (r *RIBManager) unresolvedNextHopDoctorCheck() []rpc.DoctorCheckDiagnostic {
-	samples, overflow := r.unresolvedNextHops.snapshot()
+	return formatUnresolvedDoctorCheck(
+		&r.unresolvedNextHops,
+		codeDoctorBGPNextHopUnresolvable,
+		unresolvedNextHopDoctorFix,
+		" BGP route is excluded from best-path selection because its next hop is unresolvable",
+		" BGP routes are excluded from best-path selection because their next hops are unresolvable",
+		" via ",
+	)
+}
+
+// unresolvedSRv6SIDDoctorCheck reports BGP routes currently excluded from
+// Phase 2 best-path selection by an unresolvable SRv6 Service SID.
+func (r *RIBManager) unresolvedSRv6SIDDoctorCheck() []rpc.DoctorCheckDiagnostic {
+	return formatUnresolvedDoctorCheck(
+		&r.unresolvedSRv6SIDs,
+		codeDoctorBGPSRv6SIDUnresolvable,
+		unresolvedSRv6SIDDoctorFix,
+		" BGP route is excluded from best-path selection because its SRv6 Service SID is unresolvable",
+		" BGP routes are excluded from best-path selection because their SRv6 Service SIDs are unresolvable",
+		" via SRv6 SID ",
+	)
+}
+
+func formatUnresolvedDoctorCheck(tracker *unresolvedNextHopTracker, code, fix, singular, plural, viaLabel string) []rpc.DoctorCheckDiagnostic {
+	samples, overflow := tracker.snapshot()
 	total := len(samples) + overflow
 	if total == 0 {
 		return nil
@@ -532,9 +615,9 @@ func (r *RIBManager) unresolvedNextHopDoctorCheck() []rpc.DoctorCheckDiagnostic 
 	var tb textbuf.Buffer
 	tb.Int(int64(total))
 	if total == 1 {
-		tb.Str(" BGP route is excluded from best-path selection because its next hop is unresolvable")
+		tb.Str(singular)
 	} else {
-		tb.Str(" BGP routes are excluded from best-path selection because their next hops are unresolvable")
+		tb.Str(plural)
 	}
 	sampleCount := min(len(samples), maxUnresolvedDoctorSamples)
 	if sampleCount > 0 {
@@ -546,7 +629,7 @@ func (r *RIBManager) unresolvedNextHopDoctorCheck() []rpc.DoctorCheckDiagnostic 
 			if i > 0 {
 				tb.Str(", ")
 			}
-			tb.Str(samples[i].displayPrefix).Str(" via ").Str(samples[i].nextHop.String())
+			tb.Str(samples[i].displayPrefix).Str(viaLabel).Str(samples[i].nextHop.String())
 		}
 		remaining := total - sampleCount
 		if remaining > 0 {
@@ -558,10 +641,10 @@ func (r *RIBManager) unresolvedNextHopDoctorCheck() []rpc.DoctorCheckDiagnostic 
 	}
 
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     codeDoctorBGPNextHopUnresolvable,
+		Code:     code,
 		Severity: doctorSeverityWarning,
 		Message:  tb.String(),
-		Fix:      unresolvedNextHopDoctorFix,
+		Fix:      fix,
 	}}
 }
 

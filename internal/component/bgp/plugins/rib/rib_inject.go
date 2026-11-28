@@ -154,9 +154,9 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 
 	if withdrew {
 		if protoID == bgpProtocolID {
-			if r.unresolvedNextHops.total.Load() != 0 {
+			if r.hasAnyUnresolved() {
 				if peerRIB.Len() == 0 {
-					r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: peerKey})
+					r.purgeUnresolvedByOwner(bestPeer{owner: 0, address: peerKey})
 				}
 			}
 		}
@@ -331,7 +331,7 @@ func (r *RIBManager) withdrawAllForPeer(protocol, peerKey string) {
 		peerRIB.Release()
 		delete(protoPeers, peerKey)
 		if protoID == bgpProtocolID {
-			r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: peerKey})
+			r.purgeUnresolvedByOwner(bestPeer{owner: 0, address: peerKey})
 		}
 	}
 }
@@ -359,7 +359,7 @@ func (r *RIBManager) withdrawAllForRouter(protocol, routerPrefix string) {
 			peerRIB.Release()
 			delete(protoPeers, key)
 			if protoID == bgpProtocolID {
-				r.unresolvedNextHops.purgeByOwner(bestPeer{owner: 0, address: key})
+				r.purgeUnresolvedByOwner(bestPeer{owner: 0, address: key})
 			}
 		}
 	}

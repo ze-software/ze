@@ -2,6 +2,7 @@
 // RFC: rfc/short/rfc7999.md -- the honoring rules a reload reselects under
 // Related: rib_multipath_config.go -- maximum-paths and relax-as-path
 // Related: rib_blackhole_config.go -- the RFC 7999 honoring rules
+// Related: rib_srv6_resolvability_config.go -- RFC 9252 SRv6 Service SID resolvability bypass rules
 // Related: rib_asn_notation.go -- the AS notation, recorded only by an external rib
 // Related: rib_aigp.go -- reselectAIGPRoutes, the walk a selection-rule change runs
 
@@ -24,6 +25,7 @@ type ribConfig struct {
 	relaxASPath       bool
 	acceptOwn         bool
 	blackhole         map[configjson.PeerConfigKey]blackholeConfig
+	srv6Resolvability srv6ResolvabilityConfig
 	notation          asn.Notation
 	redirect          flowSpecRedirectConfig
 	distances         map[string]uint8
@@ -78,6 +80,14 @@ func parseRIBConfig(sections []sdk.ConfigSection) (ribConfig, bool, error) {
 	return parseRIBConfigSections(unconfiguredRIB(), sections)
 }
 
+// verifyRIBConfig runs the side-effect-free RIB parser for offline config
+// validation (`ze config validate`) and commit verification so offline and
+// daemon reload verdicts agree on every RIB-owned BGP setting.
+func verifyRIBConfig(sections []sdk.ConfigSection) error {
+	_, _, err := parseRIBConfig(sections)
+	return err
+}
+
 // parseRIBConfigSections applies each delivered root to the installed base.
 // Omitted roots keep their settings. An empty delivered root resets its settings.
 func parseRIBConfigSections(cfg ribConfig, sections []sdk.ConfigSection) (ribConfig, bool, error) {
@@ -107,6 +117,11 @@ func parseRIBConfigSections(cfg ribConfig, sections []sdk.ConfigSection) (ribCon
 			return ribConfig{}, false, err
 		}
 		cfg.blackhole, err = parseBlackholeConfig(bgpCfg)
+		if err != nil {
+			return ribConfig{}, false, err
+		}
+		// RFC 9252 Sections 5 and 6: SRv6 Service SID resolvability policy.
+		cfg.srv6Resolvability, err = parseSRv6ResolvabilityConfig(bgpCfg)
 		if err != nil {
 			return ribConfig{}, false, err
 		}
@@ -147,13 +162,16 @@ func (r *RIBManager) installConfig(cfg ribConfig, recordsNotation bool) error {
 	rulesChanged := r.maximumPaths.Load() != cfg.maximumPaths ||
 		r.relaxASPath.Load() != cfg.relaxASPath ||
 		r.acceptOwn.Load() != cfg.acceptOwn ||
-		!r.sameBlackholeRules(cfg.blackhole)
+		!r.sameBlackholeRules(cfg.blackhole) ||
+		!r.sameSRv6ResolvabilityRules(cfg.srv6Resolvability)
 
 	r.maximumPaths.Store(cfg.maximumPaths)
 	r.relaxASPath.Store(cfg.relaxASPath)
 	r.acceptOwn.Store(cfg.acceptOwn)
 	blackhole := cfg.blackhole
 	r.blackholeCfg.Store(&blackhole)
+	srv6Resolvability := cfg.srv6Resolvability
+	r.srv6ResolvabilityCfg.Store(&srv6Resolvability)
 	previousRedirect := r.flowSpecRedirectCfg.Load()
 	redirect := cfg.redirect
 	r.flowSpecRedirectCfg.Store(&redirect)
@@ -203,4 +221,15 @@ func (r *RIBManager) sameBlackholeRules(candidate map[configjson.PeerConfigKey]b
 		return len(candidate) == 0
 	}
 	return reflect.DeepEqual(*installed, candidate)
+}
+
+// sameSRv6ResolvabilityRules reports whether the installed SRv6 Service SID
+// resolvability rules equal the candidate ones. No installed rules and an empty
+// candidate are the same: both enforce strict resolvability everywhere.
+func (r *RIBManager) sameSRv6ResolvabilityRules(candidate srv6ResolvabilityConfig) bool {
+	installed := r.srv6ResolvabilityCfg.Load()
+	if installed == nil {
+		return candidate.isEmpty()
+	}
+	return installed.equal(candidate)
 }

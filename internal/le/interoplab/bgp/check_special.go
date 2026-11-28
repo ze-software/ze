@@ -75,6 +75,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-route-server-frr":             checkRouteServerASPath,
 	routeServerFilteredScenario:        checkRouteServerFilteredAdjRIBIn,
 	"bgp-self-nexthop-withheld-frr":    checkSelfNextHopWithheld,
+	srv6ResolvabilityScenario:          checkSRv6ResolvabilityFRR,
 	"bgp-wellknown-noexport-frr":       checkNoExportBoundary,
 	"bgp-holdtime-deadpeer-frr":        checkHoldtimeDeadPeer,
 	"isis-max-metric-frr":              checkISISMaxLinkMetric,
