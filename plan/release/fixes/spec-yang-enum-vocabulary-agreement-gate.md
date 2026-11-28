@@ -409,7 +409,7 @@ none
 
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
-| C-1 | Remaining `// enumeration: gated by TestX` annotations (82 in tree today; 76 outside this spec after migrating `capture_raw.go:21`) | (a) (Recommended) Keep `gated by TestX` accepted during transition, migrate `capture_raw.go:21` now since this spec edits `capture_raw.go`, and home the remaining 76 sites in `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md`; (b) Leave `capture_raw.go:21` on `gated by` too (77 remaining); (c) Expand this spec to migrate all 82 sites and remove `gated by TestX` now | Pending Thomas's confirmation (drafted per option (a)) |
+| C-1 | Remaining `// enumeration: gated by TestX` annotations (82 in tree today; 76 outside this spec after migrating `capture_raw.go:21`) | (a) (Recommended) Keep `gated by TestX` accepted during transition, migrate `capture_raw.go:21` now since this spec edits `capture_raw.go`, and home the remaining 76 sites in `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md`; (b) Leave `capture_raw.go:21` on `gated by` too (77 remaining); (c) Expand this spec to migrate all 82 sites and remove `gated by TestX` now | Option (a) (Thomas, 2026-11-28) |
 
 ## Implementation Steps
 
