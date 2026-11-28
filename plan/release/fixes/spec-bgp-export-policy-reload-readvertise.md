@@ -2,178 +2,608 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Priority | P1 |
-| Release reason | Committed export policy must reconcile previously advertised routes, not only future updates. |
+| Status | design |
 | Scope | protocol |
-| Depends | `spec-plugin-reload-applies-or-refuses` (live egress-filter apply delivered; see `docs/guide/config-reload.md`); `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md` (re-running the chain needs the pre-policy attributes that spec stores) |
+| Priority | P1 |
+| Release reason | Committed export policy changes must reconcile previously advertised routes, not only future updates. |
+| RFC gaps | rfc4271 |
+| Depends | `plan/release/fixes/spec-bgp-refresh-reapplies-export-policy.md` (provides pre-policy Adj-RIB-Out storage, ordinary refresh denial withdrawal, and the `bgp:filter-definition-changed` event contract) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-14 |
+| Updated | 2026-11-26 |
 
-Bucket: immediate. An operator who edits an egress rule and reloads sees the
-new rule only on routes sent after the reload: every route already advertised
-keeps the attributes, or the acceptance, of the old rule until its next UPDATE.
+Scope is protocol: the wire change is the BGP UPDATEs and withdrawals a peer receives after a committed export-policy reload (outbound soft reconfiguration). No YANG config syntax or user-facing CLI command changes.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Created by design review round 1 of `spec-plugin-reload-applies-or-refuses`
-(finding I4), 2026-10-14, as the named owner of export re-advertisement. That
-spec makes an egress filter or policy edit take effect on reload for
-subsequent UPDATEs only: `filter_community` tag, strip and scrub,
-`filter_modify`, `filter_remove_private_as`, role `export`, and every egress
-filter definition. Nothing re-sends the routes already advertised to a peer,
-so the peer holds state the running config no longer produces.
+Created by design review round 1 of `spec-plugin-reload-applies-or-refuses` (finding I4), 2026-10-14, as the named owner of export re-advertisement. On HEAD (verified 2026-11-26), two parts of live export reload already exist:
 
-To be designed: on a committed reload that changes an egress rule, re-run the
-egress chain over the routes advertised to each affected peer and send the
-UPDATE or withdrawal the difference requires (the effect an operator expects
-from outbound soft reconfiguration). Import re-evaluation is not this spec's:
-it is `plan/post-release/features/spec-bgp-filtered-route-storage.md` AC-3.
+1. **Export `final` transition reconciliation** (`policy_reload.go::reconcileExportFinalKinds`, `policy_final_kinds.go::reconcileSelectedExport`, `policy_selected_retire.go::retireOrdinaryLearned`, `server/export_policy_event.go::OnPeerExportPolicy`, `rib/rib_selected_policy.go::reofferExportPolicy`): changing `export { final accept|reject }` or adding/removing an explicit export policy reconciles ordinary selected destinations (`bgp-rib`), explicit RS/RR destinations (`bgp-adj-rib-in` + FlowSpec), and configured static/default/plugin routes.
+2. **In-place filter-chain swap and live plugin config apply** (`peer_settings_apply.go::applyHotSwappableSettingsWithGraphDiff` and every `filter_*` / `role` plugin `ConfigTx`): editing an export filter chain or a filter plugin's definition applies live without restarting the session, and `applyHotSwappableSettingsWithGraphDiff` bumps `peer.noteExportPolicyChangeLocked()` when `ExportPolicy.SameDecisions` reports a change.
+
+What remains broken on HEAD:
+
+1. **Non-`final` export chain edits never reconcile previously advertised routes:** `peer_settings_apply.go` invokes `reconcileExportFinalKinds` only when `finalChanged.local || finalChanged.learned` is true. Editing `export { filters [...] }` (adding, removing, or reordering filters), editing a built-in `next-hop:*` step, editing an in-process compiled condition (`prefix-list`, `as-path-list`, `as-path-length`, `community-match`, `reject-asn`, `match`), or editing `bgp { defaults { attribute } }` changes `ExportPolicy` without flipping `final`, so previously advertised routes keep their old attributes or acceptance until the source sends a new UPDATE or the session resets.
+2. **External filter plugin definition edits never reconcile previously advertised routes:** editing `filter_community` (`community` definitions, per-peer `egress` tag/strip/scrub, or RFC 7999 `blackhole` agreement), `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr`, `role` (`export` or `transit-asns`), or a third-party external filter plugin's config leaves the peer's `ExportPolicy` reference list unchanged (`SameDecisions` returns true; edits under `policy { ... }` alone do not even run BGP's `OnConfigApply`), so previously advertised routes stay stale.
+3. **Commit-boundary safety and full route-class coverage:** re-advertisement must run only after a reload **commits** (never during tentative `OnConfigApply`, where a later participant can still roll back the transaction or has not yet applied its own filter definitions), and must cover every route class an established peer holds: ordinary selected routes (`bgp-rib`), RS/RR received routes (`bgp-adj-rib-in` + FlowSpec), peer-configured local routes (`static`, `default-originate`, registered plugin routes), and non-selected local/API routes in `bgp-rib` `ribOut` (using the pre-policy attributes stored by `spec-bgp-refresh-reapplies-export-policy`).
+
+Goal: on a committed reload that changes an egress rule (whether in the peer's compiled `ExportPolicy`, an in-process filter definition, an in-tree external filter plugin including `bgp-role`, or a third-party external filter plugin emitting `bgp:filter-definition-changed`), re-evaluate the egress chain over the routes eligible for or advertised to each affected established peer on a single long-lived reactor worker and send the UPDATEs and withdrawals the difference requires (RFC 4271 Sections 3.1, 9.1.3, and 9.2), with zero session flap, zero emission on rolled-back reloads, and zero traffic to unaffected peers. Import re-evaluation is out of scope and belongs to `plan/post-release/features/spec-bgp-filtered-route-storage.md` AC-3.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/guide/config-reload.md` - what a reload does today
-  → Constraint: to be filled at design
-- [ ] `docs/guide/config-reload.md` "Plugin config changed"
-  → Decision: live egress edits affect subsequent UPDATEs; this spec owns re-advertisement of previously advertised routes
+- [ ] `docs/guide/config-reload.md` - "What Can Change Live" ("Plugin config changed") and export-final reconciliation
+  → Decision: live egress edits previously affected subsequent UPDATEs only; this spec delivers re-advertisement of previously advertised routes on committed reloads and updates `docs/guide/config-reload.md` in the same change.
+  → Constraint: export `final` transition reconciliation (including refusal when an RS/RR ordinary-family final restoration lacks `bgp-adj-rib-in`) remains intact.
+- [ ] `docs/architecture/core-design.md` - Section 18a ("BGP Peer Reload: Swap or Restart"), "Policy Filter Chain", and `## Design decisions`
+  → Decision: the engine holds no Loc-RIB and reaches plugin features only by registration; every egress step runs through the peer's export filter chain (including built-in `next-hop:*` steps).
+  → Constraint: "Ze always starts" (2026-11-26): no startup or config refusal is added; commit/reload refusal semantics stay unchanged.
+- [ ] `docs/architecture/api/process-protocol.md` - `emit-event`, `config-committed`, `config-complete`, and selected policy settlement
+  → Constraint: every cross-boundary path (`EmitEvent` with declared `Sends`, `OnPeerExportPolicy`, hidden plugin commands) works identically when plugins run internal or forked over TLS RPC.
+- [ ] `docs/architecture/config/transaction-protocol.md` - verify, apply, rollback, `config-committed`, `config-complete`
+  → Constraint: re-advertisement runs only after commit (`OnConfigCommitted` / `config-complete(accepted=true)`), never during tentative `OnConfigApply`, so a rolled-back transaction emits nothing.
+- [ ] `docs/architecture/plugin/rib-storage-design.md` - `selectedDispatch` reoffer and `ribOut` pre-policy storage
+  → Constraint: ordinary selected destinations reconcile through `selectedDispatch.reofferExportPolicy(..., all=true)` (`ReasonExportPolicyAll`); non-selected local `ribOut` routes replay from `PrePolicyAttrHandle` via a hidden command without duplicating `bgp-adj-rib-in` received routes or `ConfigStatic` routes.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc4271.md` - UPDATE and Adj-RIB-Out
-  → Constraint: to be filled at design
+- [ ] `rfc/short/rfc4271.md` - Sections 3.1, 3.2, 4.3, 9.1.3, and 9.2 (Adj-RIB-Out, replacement UPDATEs, exclusion withdrawals, and duplicate suppression)
+  → Constraint: RFC 4271 Section 9.1.3 requires withdrawing a previously advertised route that is now excluded from Adj-RIB-Out; Section 3.1/4.3 forbids withdrawing a route never advertised on the connection and makes a replacement UPDATE update attributes in place; Section 9.2 suppresses unchanged local re-advertisements.
+- [ ] `rfc/short/rfc7911.md` - ADD-PATH per-path identification
+  → Constraint: each advertised `(prefix, egress path id)` is re-evaluated and updated or withdrawn independently on ADD-PATH destinations.
+- [ ] `rfc/short/rfc7947.md` - Route Server selective forwarding and multi-source Decision Process
+  → Constraint: contested prefixes on an RS destination without ADD-PATH route through `oweAnnouncement` / `owesWithdrawal` recovery election so a losing source never overwrites the winner.
+- [ ] `rfc/short/rfc9234.md` - BGP Roles and OTC egress procedures
+  → Constraint: `bgp-role` participates in `bgp:filter-definition-changed` so a committed edit to `role { export ... }` or `transit-asns` reconciles destination peers carrying `bgp-role:otc-egress` / `bgp-role:upstream`.
+
+**Key insights:**
+- Export `final` reconciliation (`policy_reload.go`, `policy_final_kinds.go`, `server/export_policy_event.go`, `rib/rib_selected_policy.go`) ALREADY solves ordinary selected reoffer (`ReasonExportPolicyAll`), RS/RR stored-route replay (`RelayStoredRoute` using `authority = adjOutForwarded` with `InitialUpdate: true` passing `policyReplayHolds`), and `policy_reload.go`'s `beginPolicyReplay` / `flushPolicyReplay` live-update fence.
+- `RelayStoredRoute` sets `authority = adjOutForwarded` (not `adjOutInitial`), so replaying stored routes from `bgp-adj-rib-in` with `InitialUpdate: true` ALREADY updates modified attributes, withdraws newly rejected routes ONLY when currently held by that source in `adjOut`, stays silent on never-advertised rejections, suppresses unchanged initial-replay digests, and delegates contested multi-source keys to recovery election.
+- `configCommittedTimeout` is 5 seconds (`config_tx_bridge.go:816`), so full-table re-advertisement MUST NOT block `OnConfigCommitted`; it runs asynchronously on one long-lived coalescing worker on `Reactor` (stopped cleanly in `Reactor.Stop`/`Wait`).
+- Emitting `bgp:filter-definition-changed` in `OnConfigCommitted` (instead of tentative `OnConfigApply`) guarantees all plugins have installed their candidate configs and a rolled-back reload emits zero re-advertisements.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugins/filter_community/filter_community.go` - egress tag/strip/scrub; read at design
-- [ ] `internal/component/bgp/plugins/filter_modify/filter_modify.go` - egress attribute modifiers; read at design
+- [ ] `internal/component/bgp/reactor/policy_reload.go` - `reconcileExportFinalKinds` reconciles `final` flips only (`final reject` withdraws; `final accept` resets `staticWire`, re-sends static/default/plugin routes, reoffers ordinary selected destinations via `reconcileSelectedExport`, or replays `bgp-adj-rib-in` + FlowSpec via `RelayStoredRoute`).
+- [ ] `internal/component/bgp/reactor/policy_final_kinds.go` - `reconcileSelectedExport` delivers `OnPeerExportPolicy(ctx, &peer, owner, includeLocal)` to the exact live selecting process.
+- [ ] `internal/component/bgp/reactor/peer_settings_apply.go` - `applyHotSwappableSettingsWithGraphDiff` swaps `ExportPolicy` in place for static and dynamic peers, calls `noteExportPolicyChangeLocked()` when `!exportBefore.SameDecisions(p.settings.ExportPolicy)`, and calls `reconcileExportFinalKinds(finalChanged)` only when `finalChanged.local || finalChanged.learned`.
+- [ ] `internal/component/bgp/reactor/peer_static_wire.go` - `deliverStaticRouteDelta`, `sendStaticRoutes`, `withdrawStaticRoutes` track and deliver static-route config diffs under `p.staticMu`, but have no export-policy re-evaluation helper.
+- [ ] `internal/component/bgp/reactor/session_write.go` - `writeUpdateGated` runs `s.egressRouteFilter(body)` and returns `nil` on `suppress` without withdrawing a held configured route; `writeUpdateBody` records signatures in `adjOut`.
+- [ ] `internal/component/bgp/reactor/session_ownership.go` - `adjOutForwarded` (`:315-350`) allows attribute-replacement announcements, filters withdrawals strictly to currently owned slots (triggering recovery via `owesWithdrawal` when another source exists), and delegates contested multi-source announcements via `oweAnnouncement`; line `:533` suppresses unchanged local routes only when `!replay`.
+- [ ] `internal/component/bgp/reactor/selected_flush.go` - `writeSelected` writes replacement bodies through `stageSelected` and automatically withdraws any previously advertised slot via `retireSelected` when the new policy suppresses the route.
+- [ ] `internal/component/bgp/reactor/reactor_api_relay.go` - `RelayStoredRoute` sets `authority = adjOutForwarded` and `initialUpdate = route.InitialUpdate` on `forwardUpdateCore`.
+- [ ] `internal/component/bgp/reactor/egress_inject_filter.go` - `exportFilterFromFacts` runs the export chain for originated/configured routes, distinguishing `res.failed` (fail-closed) from genuine policy reject (`!res.accept && !res.failed`).
+- [ ] `internal/component/bgp/plugin/register.go`, `internal/component/bgp/plugin/operation.go` - BGP handles `OnConfigApply`/`OnConfigRollback` for section reloads and `OnConfigOperationApply`/`OnConfigComplete` for operation transactions; registers no `OnConfigCommitted` yet.
+- [ ] `internal/component/bgp/plugins/filter_community/filter_community.go`, `community_filter.go`, `register.go` - installs community definitions, per-peer egress rules, and RFC 7999 blackhole agreements in `ConfigTx` without commit-time notification or peer scoping.
+- [ ] `internal/component/bgp/plugins/filter_modify/filter_modify.go`, `config_tx.go`, `register.go` - installs modify definitions atomically in `ConfigTx`.
+- [ ] `internal/component/bgp/plugins/filter_remove_private_as/config_tx.go` - installs remove-private-as definitions atomically in `ConfigTx`.
+- [ ] `internal/component/bgp/plugins/role/register.go`, `role.go`, `config_tx.go`, `otc_filter.go`, `upstream.go` - already registers `OnConfigCommitted` for `pruneLearnedRoles()`, declares `Receives` only (no `Sends` yet), and does not emit `bgp:filter-definition-changed`.
+- [ ] `internal/component/bgp/plugins/rib/rib_selected_policy.go`, `rib_selected_dispatch.go`, `rib_selected_refresh_configured.go`, `rib_commands.go` - `selectedDispatch` already handles `ReasonExportPolicyAll` by reoffering every key in `d.current` and `d.scoped`; `rib_commands.go` registers hidden commands via `registerCommand` + `commandDecls()`.
+- [ ] `internal/component/plugin/server/config_tx_bridge.go`, `reload_tx.go` - `dispatchCommitted` runs `SendConfigCommitted` with a 5-second timeout per participant; `sendTransactionReceipt` sends `config-complete(accepted)`.
+- [ ] `test/reload/bgp-filter-export-reload-next-update-only.ci`, `bgp-filter-community-reload.ci`, `bgp-role-export-reload.ci` - currently document and assert the old next-update-only boundary.
+- [ ] `internal/test/peer/reject.go` - `ParseRejectRule` supports `pattern=` and `scope=announced|withdrawn`, with no `attribute=` or `after_seq=` qualifier.
 
 **Behavior to preserve:**
-- to be filled at design
+- Export `final` transition reconciliation (`reconcileExportFinalKinds`, including rollback on apply failure and refusal when RS/RR final restoration lacks `bgp-adj-rib-in`) stays intact.
+- Sessions never restart for export policy or filter-definition edits.
+- A rolled-back or refused reload transaction sends zero re-advertisements and zero withdrawals.
+- An unaffected peer (whose `ExportPolicy` did not change and does not match any changed external filter ref/scope) receives zero UPDATEs and zero withdrawals.
+- A fail-closed filter error (`res.failed == true`) during reconciliation never withdraws a currently advertised route.
+- Existing `bgp:filter-definition-changed` payloads without `"peers"`/`"groups"` continue to match all peers referencing the named `<plugin>:<filter>`.
 
 **Behavior to change:**
-- Routes already advertised are re-evaluated under a changed egress rule
+- Committed reloads that change any egress rule (peer `ExportPolicy` chain/condition/next-hop/defaults change, or external filter plugin definition change including `bgp-role`) reconcile previously advertised and eligible routes for each affected established peer without waiting for a new source UPDATE.
+- Configured local routes (`static`, `default-originate`, registered plugin routes) re-evaluate under the new export policy: modified routes re-advertise, unchanged routes are suppressed by `adjOut` signature equality, and newly denied routes are withdrawn under `ownRouteWithdrawal`.
+- Non-selected local/API `ribOut` routes (`LocalOrigin && !ConfigStatic`) reconcile via hidden command `request bgp rib reconcile-export-local` using pre-policy attributes (`spec-bgp-refresh-reapplies-export-policy`) with duplicate suppression for unchanged routes and withdrawal on denial.
+- Filter plugins emit `bgp:filter-definition-changed` on `OnConfigCommitted` (discarding pending changes on `OnConfigRollback`), `bgp-role` joins the emitters (declaring `Sends` in both `registry.Registration` and Stage 1 `sdk.Registration`), and `bgp-filter-community` populates optional `"peers"`/`"groups"` scoping when edits affect specific peers/groups.
+- `test/reload/bgp-filter-export-reload-next-update-only.ci` flips (under `ze-test-judge`) to expect U1 re-advertised with `65000:2` on reload.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Export `final` reconciliation | `internal/component/bgp/reactor/policy_reload.go` `reconcileExportFinalKinds`, `policyReplayOwners`, `drainReceiveStore`, `beginPolicyReplay`, `flushPolicyReplay` | Reconciles `final` flips for ordinary selected destinations, RS/RR stored routes (`bgp-adj-rib-in` + FlowSpec), and configured local routes | Extends: reuses the exact same ordinary-selected reoffer, RS/RR `RelayReplay`/`FlowSpecRoutes`/`RelayStoredRoute` + `beginPolicyReplay`/`flushPolicyReplay` fence, and configured-route paths for non-`final` committed export-policy changes; retires `final`-only reconciliation as already landed |
+| Ordinary selected policy reoffer | `internal/component/bgp/reactor/policy_final_kinds.go` `reconcileSelectedExport`, `server/export_policy_event.go` `OnPeerExportPolicy`, `plugins/rib/rib_selected_policy.go` `reofferExportPolicy`, `rib_selected_dispatch.go` `reofferAll`, `reactor/selected_flush.go` `writeSelected` / `retireSelected` | Reoffers every elected received and local-origin route through `SelectRoutes`, transmitting attribute changes and retiring newly suppressed slots | Extends (reuses unchanged): invoked by the export-reconcile worker with `includeLocal=true` (`ReasonExportPolicyAll`) whenever an ordinary selected destination's export policy changes |
+| Forwarded route `adjOut` ownership & election | `internal/component/bgp/reactor/session_ownership.go` `adjOutWrite.allow` (`adjOutForwarded`, `oweAnnouncement`, `owesWithdrawal`, `holdsInitialRelay`) | Overwrites updated announcements, withdraws only currently owned slots on egress reject, suppresses unchanged initial-replay digests, and triggers recovery election on contested multi-source keys | Extends: `RelayStoredRoute` already uses `adjOutForwarded`; `allow` gains `metaKeyReconcile` duplicate suppression for local `ribOut` replays |
+| Export policy comparison & watermark | `internal/component/bgp/reactor/peer_settings_apply.go` `applyHotSwappableSettingsWithGraphDiff`, `filterapi/policy.go` `Policy.SameDecisions`, `stale_readvertise_chain.go` `noteExportPolicyChangeLocked` | Compares compiled `ExportPolicy` semantically on reload and bumps `exportGeneration` / `exportPolicyFrom` | Extends: records affected peers in a transaction-scoped pending set alongside `noteExportPolicyChangeLocked()`, drained into the export-reconcile worker on commit and discarded on rollback |
+| External filter definition-changed event | `spec-bgp-refresh-reapplies-export-policy.md` D-3 (`bgpevents.EventFilterDefinitionChanged`, `reactor_filter_events.go`, `Policy.NamesExternalFilter`, `filter_*` `Sends` + `EmitEvent`) | Notifies reactor when an external filter plugin changes a definition so peer watermarks advance | Extends: adds optional `"peers"`/`"groups"` scoping fields, moves reload emissions to `OnConfigCommitted` (discarding on rollback), adds `bgp-role` as an emitter with dual `Sends` registration, and enqueues matching peers on the export-reconcile worker |
+| Pre-policy Adj-RIB-Out storage & refresh denial withdrawal | `spec-bgp-refresh-reapplies-export-policy.md` D-1 & D-2 (`ribOutEntry.PrePolicyAttrHandle`, `reconstructRefreshRoute`, `session_write.go::writeUpdateGated` withdrawal on replay deny) | Stores pre-policy attributes for sent routes and withdraws held routes denied on ordinary refresh | Extends: `reconcile-export-local` replays non-selected, non-config-static local `ribOut` entries from `PrePolicyAttrHandle`, and `writeUpdateGated` applies the same ownership-fenced withdrawal synthesis to configured local routes during export reconciliation |
+| Config transaction commit/complete callbacks | `pkg/plugin/sdk/sdk_callbacks.go` `OnConfigCommitted`, `OnConfigComplete`, `internal/component/bgp/plugin/operation.go` `completeBGPTransaction`, `plugins/role/config_tx.go` `roleConfigTx.committed` | Delivers commit confirmation after all participants applied (and never on rollback) | Extends: filter plugins emit `bgp:filter-definition-changed` from `OnConfigCommitted`, and BGP flushes pending export-policy reconciles from `OnConfigCommitted` (section reloads) and `completeBGPTransaction(..., accepted=true)` (operation transactions) |
+| Hidden RIB internal plugin commands | `internal/component/bgp/plugins/rib/rib.go` `commandDecls` (`Hidden: true`), `rib_commands.go` `registerCommand`, `internal/core/bgp/ribevents/replay.go` | Exposes cross-boundary plugin commands identically internal and forked without polluting operator CLI | Extends: adds hidden `ribevents.ReconcileExportLocalCommand` (`request bgp rib reconcile-export-local`) in `bgp-rib` |
+| Static route wire tracking | `internal/component/bgp/reactor/peer_static_wire.go` `Peer.staticMu`, `Peer.staticWire`, `sendStaticRoutes` | Serializes static route delivery and records routes that reached the wire | Extends: adds `reconcileStaticRoutes` under `p.staticMu` to re-evaluate configured static routes through `writeUpdateGated` in reconcile mode and update `staticWire.routes` |
+| Long-lived coalescing worker pattern | `internal/component/bgp/plugins/rib/rib_selected_dispatch.go`, `internal/component/bgp/reactor/aigp_readvertise.go` | One goroutine per component with mutex-guarded pending map and buffered wake channel, cancelled and joined on stop | Extends (mirrors pattern): one `exportReconcileWorker` on `Reactor` started in `StartWithContext` and joined in `Stop`/`Wait` |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | A plugin can run in another process | the door every change reads | "Reach another unit through the boundary that survives a process split:" | agrees | Filter plugins notify the reactor via `EmitEvent` (`bgp:filter-definition-changed`), `bgp-rib` receives `OnPeerExportPolicy` and hidden `reconcile-export-local` over the plugin protocol, and `bgp-adj-rib-in` answers `ReplayRoutesCommand` identically internal and forked |
+| `docs/architecture/core-design.md` | 18a. BGP Peer Reload: Swap or Restart | `// Design:` and anchors of `reactor/*`, `plugin/register.go`, `filter_*`, `role/role.go`; modified by this spec | "Arbitrary filter-definition changes do not generally re-evaluate existing routes." | departs | This spec delivers live re-evaluation and re-advertisement of previously advertised routes on committed export-policy and external filter-definition changes (across ordinary selected, RS/RR, configured local, and non-selected local `ribOut` routes) without restarting sessions; `docs/architecture/core-design.md` Section 18a is updated in `Files to Modify` |
+| `docs/guide/config-reload.md` | What Can Change Live | guide page modified by this spec | "This does not re-evaluate existing routes for arbitrary filter-definition changes." | departs | This spec replaces the next-update-only boundary for egress filters with committed export-policy re-advertisement to affected peers while preserving `final`-transition handling and import next-update-only behavior; `docs/guide/config-reload.md` is updated in `Files to Modify` |
+| `docs/architecture/api/architecture.md` | RIB Ownership | `// Design:` of `internal/core/bgp/ribevents/replay.go` and anchors of `reactor/*`, `plugin/register.go` | "**API programs own all RIB data and logic.** The engine is a minimal BGP speaker." | agrees | The engine holds no RIB or received-route store; reconciliation queries `bgp-rib` (`OnPeerExportPolicy` and hidden `reconcile-export-local`) and `bgp-adj-rib-in` (`ReplayRoutesCommand`) across the plugin boundary |
+| `docs/architecture/api/process-protocol.md` | Engine to Plugin (Callbacks) | anchors of `reactor/*`, `plugin/register.go`, `ribevents/replay.go`, `rib.go`; modified by this spec | "The transaction committed: its applies are permanent, and a later rollback must not undo them." | agrees | Filter plugins emit `bgp:filter-definition-changed` and BGP flushes section-reload reconciles strictly from `config-committed` (`OnConfigCommitted`) and `config-complete(accepted=true)`; `docs/architecture/api/process-protocol.md` is updated in `Files to Modify` for optional `"peers"`/`"groups"` scoping fields |
+| `ai/doors/bgp-engine.md` | Boundaries | door covering `reactor/*`, `plugin/*`, `ribevents/replay.go` | "The engine reaches plugin features only through what they register:" | agrees | Reactor names no BGP plugin package; it discovers `bgp-adj-rib-in` via `ribevents.ReplayRoutesCommand`, `bgp-rib` via `ribevents.ReconcileExportLocalCommand` and `selectedOwnerSnapshot()`, and filter plugins via `ExportPolicy.NamesExternalFilter` |
+| `docs/architecture/api/commands.md` | Overview | anchors of `peer_settings_apply.go`, `reactor.go`, `reactor_api.go`, `rib_commands.go` | "Ze uses verb-first command paths with JSON or text encoding." | agrees | The hidden internal command `request bgp rib reconcile-export-local` follows verb-first naming and registers via `registerCommand`/`commandDecls` with `Hidden: true` |
+| `docs/architecture/behavior/peer-lifecycle.md` | TL;DR | anchors of `peer_settings_apply.go`, `reactor.go`, `reactor_api.go`, `session_write.go`, `operation.go`, `role.go` | "A peer outlives its sessions, so the `Peer` also carries the two counters that fence its forwarded routes across them." | agrees | Reconciliation captures the live `session`, cancels on session teardown, and checks `session == p.currentSession()` and `adjOut` session tokens before writing |
+| `docs/architecture/config/apply-ordering.md` | The design | `// Design:` of `internal/component/bgp/plugin/operation.go` and anchors of `peer_settings_apply.go`, `reactor.go`, `plugin/register.go` | "A BINDER is a component that binds a local IP address." | agrees | Operation decomposition and binder/provider apply ordering are unchanged; export-policy reconciliation runs asynchronously after `config-complete(accepted=true)` |
+| `docs/architecture/api/capability-contract.md` | TL;DR | anchored to `internal/component/bgp/reactor/reactor.go` | | silent | Covers OPEN capability negotiation and injection; export-policy reload changes no capability negotiation |
+| `docs/architecture/api/ipc_protocol.md` | Overview | anchored to `internal/component/bgp/reactor/reactor.go` | | silent | Covers IPC message framing and transport envelopes; no framing or transport envelope changes |
+| `docs/architecture/behavior/fsm.md` | TL;DR (Read This First) | anchored to `reactor.go`, `reactor_api.go`, `session_write.go` | | silent | Covers BGP FSM state transitions; export-policy reload keeps Established sessions up with no FSM transition |
+| `docs/architecture/behavior/signals.md` | Supported Signals | anchored to `internal/component/bgp/reactor/reactor.go` | | silent | Covers OS signal handling; SIGHUP already reaches the existing reload path unchanged |
+| `docs/architecture/bgp/interface-event-reactions.md` | The decisions | anchored to `internal/component/bgp/reactor/reactor.go` | | silent | Covers interface/neighbor link event reactions; export-policy reload uses the same coalesced trailing-pass principle on its own reactor worker |
+| `docs/architecture/config/environment.md` | Overview | anchored to `internal/component/bgp/reactor/reactor.go` | | silent | Covers environment variable precedence and registration; no env vars are added or changed |
+| `docs/architecture/config/syntax.md` | TL;DR (Read This First) | anchored to `reactor.go`, `plugin/register.go` | | silent | Covers YANG configuration block grammar; no configuration syntax changes |
+| `docs/architecture/congestion-industry.md` | Sources | anchored to `reactor.go`, `session_write.go` | | silent | Surveys industry congestion handling; unaffected by export-policy reload reconciliation |
+| `docs/architecture/forward-congestion-pool.md` | Invariant | anchored to `reactor.go`, `session_write.go` | | silent | Covers per-peer overflow queue admission and backpressure; `RelayStoredRoute` reuses the existing forward pool and `policyReplayHolds` unchanged |
+| `docs/architecture/overview.md` | 2. System Architecture | anchored to `internal/component/bgp/reactor/reactor.go` | | silent | High-level system architecture overview; component roles remain unchanged |
+| `docs/architecture/plugin/plugin-system.md` | Startup phases and callbacks | anchored to `reactor.go`, `plugin/register.go` | | silent | Covers plugin registration, startup phases, and claims; `bgp-role` and `bgp-rib` stay within existing registration and command contracts |
+| `docs/architecture/rib-transition.md` | Executive Summary | anchored to `reactor.go`, `rib.go` | | silent | Historical overview of moving RIB storage into `bgp-rib`; this spec preserves that split |
+| `docs/architecture/api/text-format.md` | Current Format | anchored to `internal/component/bgp/reactor/reactor_api.go` | | silent | Documents human-readable text event formatting; unaffected |
+| `docs/architecture/config/transaction-protocol.md` | Completion | `// Design:` of `internal/component/bgp/plugins/role/config_tx.go` and anchors of `reactor_api.go`, `plugin/register.go`, `plugin/operation.go` | "All plugins applied" | agrees | Export-policy reconciliation triggers strictly after all participants apply and commit (`OnConfigCommitted` / `config-complete(accepted=true)`), and discards pending state on rollback |
+| `docs/architecture/wire/nlri-bgpls.md` | MP_REACH next hop | anchored to `reactor_api.go`, `session_write.go` | | silent | Covers BGP-LS NLRI wire encoding; reconciliation is family-agnostic |
+| `docs/architecture/api/update-syntax.md` | Overview | anchored to `session_write.go`, `session_ownership.go` | | silent | Covers `update text`/`hex` command grammar; `metaKeyReconcile` travels in `CommandContext.Meta` without altering text syntax |
+| `docs/architecture/behavior/fsm-established.md` | TL;DR | anchored to `session_write.go`, `rib.go` | | silent | Covers Established-state FSM event handling; no FSM transitions change |
+| `docs/architecture/bgp/structural-forwarding.md` | Four costs, and what replaced them | anchored to `session_write.go`, `session_ownership.go` | | silent | Covers forward-rail body reuse and structural optimizations; preserved unchanged |
+| `docs/architecture/buffer-architecture.md` | When a copy is deliberate | anchored to `session_write.go`, `session_ownership.go` | | silent | Covers wire-path buffer pooling and deliberate copies; no new hot-path wire copy is added |
+| `docs/architecture/edge-cases/extended-message.md` | TL;DR | anchored to `internal/component/bgp/reactor/session_write.go` | | silent | Covers RFC 8654 65535-octet message limits; existing UPDATE splitters are reused unchanged |
+| `docs/architecture/plugin/rib-storage-design.md` | Bounded selected output | `// Design:` of `rib.go`, `rib_commands.go` and anchors of `session_write.go`, `session_ownership.go`, `ribevents/replay.go` | "Each explicitly admitted destination Session has one long-lived worker and at most one final-writer batch in flight." | agrees | Ordinary selected destinations reconcile through `selectedDispatch`'s existing long-lived destination worker via `ReasonExportPolicyAll`; non-selected local `ribOut` entries replay via hidden `reconcile-export-local` without duplicating selected output |
+| `docs/architecture/route-selection.md` | Overview | anchored to `session_write.go`, `rib.go`, `rib_commands.go` | | silent | Covers Loc-RIB best-path selection; export-policy reload changes outbound advertisement, not best-path selection |
+| `docs/architecture/testing/interop.md` | The suites, one per protocol area | `// Design:` of `internal/le/interoplab/bgp/checkers.go` and anchors of `session_write.go`, `session_ownership.go` | "A scenario directory carries only declarative inputs its runner reads: `ze.conf` plus the peer configuration and argument files that topology needs. Assertions never live there. They are typed Go checkers under `internal/le/interoplab/`: BGP builds its registry from `scenarioOperations` in `internal/le/interoplab/bgp/checkers.go`" | agrees | `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/` carries only declarative Ze and FRR configs, and assertions live in a typed Go checker registered in `internal/le/interoplab/bgp/checkers.go` |
+| `docs/architecture/update-building.md` | One final ownership and duplicate boundary | `// Design:` of `session_ownership.go` and anchors of `session_write.go`, `peer_static_wire.go`, `rib_commands.go` | "The writer checks the captured session and source-policy admission under its socket lock; a retained source uses its captured facts, never a replacement session's OPEN or encoding context." | agrees | Reconciled selected, forwarded, configured, and local `ribOut` writes all pass through the existing `adjOut` ownership boundary and captured session checks |
+| `docs/architecture/wire/messages.md` | TL;DR (Read This First) | anchored to `internal/component/bgp/reactor/session_write.go` | | silent | Documents BGP message headers and framing; no wire format changes |
+| `docs/architecture/wire/mp-nlri-ordering.md` | Key Insight | anchored to `internal/component/bgp/reactor/session_write.go` | | silent | Covers RFC 7606 Section 5.1 MP attribute ordering; preserved unchanged |
+| `docs/architecture/bgp/egress-attribute-rules.md` | How provenance is established | anchored to `session_ownership.go`, `filter_modify.go` | | silent | Covers egress attribute prohibition order; re-evaluation runs the exact same egress pipeline unchanged |
+| `docs/architecture/bgp/on-demand-origination.md` | The decisions | anchored to `internal/component/bgp/reactor/session_ownership.go` | | silent | Covers on-demand route origination; unchanged |
+| `docs/architecture/bgp/replay-cursor.md` | What it buys | anchored to `internal/component/bgp/reactor/session_ownership.go` | | silent | Covers cursor batching for `ribOut` replay; unchanged |
+| `docs/architecture/rib/unified-locrib.md` | The decisions | anchored to `internal/component/bgp/reactor/session_ownership.go` | | silent | Covers cross-source Loc-RIB election; unaffected by export-policy reload reconciliation |
+| `docs/architecture/plugin/plugin-relationships.md` | 2. BGP Sub-Plugins | anchored to `internal/component/bgp/plugin/register.go` | | silent | Summarizes BGP plugin dependencies and roles; unchanged |
+| `docs/architecture/meta/filter-community.md` | Keys Set | anchored to `internal/component/bgp/plugins/filter_community/filter_community.go` | | silent | Documents community filter route metadata keys; adding commit-time `bgp:filter-definition-changed` scoping adds no route metadata key |
+| `ai/doors/bgp-plugins.md` | Boundaries | door covering `filter_*`, `role/*`, `rib/*` | "A plugin declares its commands twice, and both must agree." | agrees | `bgp-rib` registers hidden `reconcile-export-local` through `commandDecls()` feeding both `registry.Registration.Commands` and Stage 1 `sdk.Registration.Commands`; `bgp-role` declares `{Message: "bgp:filter-definition-changed"}` in both `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends` |
+| `docs/architecture/bgp/filter-irr.md` | The decisions | `// Design:` and anchors of `filter_irr/filter_irr.go`, `filter_irr/config_tx.go` | "A commit reaches the filter through the reload pair, not through `OnConfigure`." | agrees | `filter_irr` emits `bgp:filter-definition-changed` on `OnConfigCommitted` for config reloads (discarding on rollback) and immediately on async stored-dataset refreshes |
+| `docs/architecture/meta/role.md` | Keys Set | anchored to `role/register.go`, `role/role.go` | | silent | Documents RFC 9234 `src-role` / `src-peer-role` route metadata keys; unchanged |
+| `docs/architecture/decisions/001-pull-model-metrics.md` | The Question | anchored to `internal/component/bgp/plugins/rib/rib.go` | | silent | Covers Prometheus pull-model metrics; no new metrics architecture introduced |
+| `docs/architecture/doctor-and-health-checks.md` | BGP policy absences in the supplied configuration | anchored to `internal/component/bgp/plugins/rib/rib.go` | | silent | Covers `ze doctor` check registration; no new doctor check or code added |
+| `docs/architecture/rib/forward-handle.md` | The decisions | anchored to `internal/component/bgp/plugins/rib/rib.go` | | silent | Covers lazy-copy `ribForwardHandle` for received state trackers; unaffected |
+| `docs/architecture/ospf/ospf-ext-16-ipsec-auth.md` | Decisions | anchored to `internal/le/interoplab/bgp/checkers.go` | | silent | Covers OSPFv3 IPsec authentication; anchored only via the interop harness and unrelated to BGP export-policy reload |
+| `ai/doors/le-tooling.md` | Where it sits | door covering `interoplab/bgp/checkers.go`, `test/reload/*.ci` | "Functional `.ci` files live under `test/<suite>/` and run through `./le test <suite>` on the functional runner" | agrees | New reload `.ci` tests live in `test/reload/`, the flipped boundary test goes through `ze-test-judge`, and the FRR interop scenario lives in `test/interop/scenarios/` |
+| `docs/plugin-development/handlers.md` | EmitEvent | modified by this spec | "Pushes an event into the engine's delivery pipeline for plugin-to-plugin communication." | agrees | Documents commit-scoped `bgp:filter-definition-changed` emission in `OnConfigCommitted` and optional `"peers"`/`"groups"` scoping fields for third-party filter plugins |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | No kernel/VPP data-plane configuration or commit validation rule is altered |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | No backend mismatch verdict is altered |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | No VPP firewall verifier or YANG backend annotation is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | No data-plane selector or backend registration name is touched |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | Editing a peer's export chain next-hop step (`next-hop:self`, `next-hop:unchanged`, `next-hop:auto`, or `modify`) changes `Policy.SameDecisions` and triggers export reconciliation without introducing any session-level knob |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Both next-hop authoring forms remain unchanged and reconcile live on committed reloads (built-in via `SameDecisions`, `modify` via `bgp:filter-definition-changed`) |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | Built-in `next-hop:*` steps remain compiled in `policychain.Chain` and trigger reconciliation when edited via `Policy.SameDecisions` |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | Reconciled routes re-evaluate from pre-policy input, preserving exact raw-override next-hop provenance folding |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | IPv4 and IPv6/MP_REACH next-hop handling and import-chain refusals are preserved unchanged |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Forwarded routes reconcile via `SelectRoutes`/`RelayStoredRoute` and locally originated routes via `reconcileStaticRoutes`/`reconcile-export-local`, keeping trailing `next-hop:auto` scoped to forwarded routes |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | No change to implied-filter insertion or `| implied` display |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | No daemon startup refusal is introduced; reload transaction refusal semantics stay intact and rolled-back reloads emit zero re-advertisements |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | No kernel/VPP startup or commit gate behavior is altered |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | No change to `| implied` config rendering |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | `bgp-role` registers `{Message: "bgp:filter-definition-changed"}` in both `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends`, and `bgp-rib` registers hidden `request bgp rib reconcile-export-local` in both `Commands` lists |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | No change to `send > to` bus routing semantics |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | No change to `receive > from` bus filtering |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | No change to bus allow-list enforcement |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | No change to bus filter compilation or disagreement refusal |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | No exclusive-role arbitration added on the bus; `reconcile-export-local` limits itself to non-selected, non-config-static `LocalOrigin` entries |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | No change to bus defaults display |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-23 | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | `bgp-role` and all in-tree `filter-update` plugins declare `{Message: "bgp:filter-definition-changed"}` in both `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends` so `bus_op_gate.go` authorizes `emit-event` |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-25 | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | `OnPeerExportPolicy` and `bgp:filter-definition-changed` travel over existing lossless delivery; coalescing happens on `exportReconcileWorker` without dropping notifications |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | No operator CLI command path or pipe grammar is added or changed |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | No command pipe overrides are added or changed |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | No pipe operations are altered |
+| `docs/architecture/bgp/interface-event-reactions.md` | Design decisions | decision of 2026-11-22 | "Interface and neighbor change re-advertisement runs the first flip immediately, then coalesces bursts behind a per-peer cooldown with at most one queued trailing re-pass; BGP route flap dampening (RFC 2439) is a separate concept and, if ever implemented, must be an option off by default ("flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine.")" | agrees | `exportReconcileWorker` follows the same coalescing principle: the first committed reload reconciles immediately and overlapping reloads coalesce into at most one trailing re-pass per peer, with no flap dampening |
+| `docs/architecture/plugin/plugin-system.md` | Design decisions | decision of 2026-11-23 | "With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration" | agrees | External filter plugins declare `Sends: [{Message: "bgp:filter-definition-changed"}]` purely in Stage 1 declaration mode without starting their run loop |
+| `docs/architecture/testing/interop.md` | Design decisions | decision of 2026-11-23 | "Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (`Suite.KernelCapabilities` unioned with selected `ScenarioPlan.KernelCapabilities`); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)" | agrees | New `bgp-export-policy-reload-readvertise-frr` scenario declares no unrelated kernel capabilities |
+| `docs/architecture/update-building.md` | Design decisions | decision of 2026-11-23 | "Gate draft-simpson 0x0800 FlowSpec MP_REACH next-hop emission behind an explicit per-session opt-in (`session { flowspec-redirect-next-hop true; }`, default `false`), written automatically by `ze exabgp migrate` when a migrated neighbor uses Simpson actions or serves an API process on a FlowSpec family" | agrees | Preserves `flowspec-redirect-next-hop` opt-in gating unchanged during FlowSpec reconciliation |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- SIGHUP or CLI commit that changes an egress rule
+- **Config reload changing a peer's compiled `ExportPolicy`:** SIGHUP or CLI/API `commit` -> `bgp` plugin `OnConfigOperationApply` (`applyHotSwappableSettingsWithGraphDiff` for static and dynamic peers) -> `OnConfigComplete(accepted=true)`, or `OnConfigApply` -> `OnConfigCommitted` for section reloads.
+- **Config reload (or IRR store refresh) changing an external filter plugin's definition:** `filter_community`, `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr`, `role`, or a third-party external filter plugin -> `OnConfigCommitted` -> `sdk.Plugin.EmitEvent("bgp", "filter-definition-changed", payload)` with `{"refs":["<plugin>:<filter>", ...], "peers":[...], "groups":[...]}`.
 
 ### Transformation Path
-1. to be filled at design
+1. **Tentative apply (no wire re-advertisement yet):**
+   - In `bgp`: `applyHotSwappableSettingsWithGraphDiff` swaps `ExportPolicy`, bumps `noteExportPolicyChangeLocked()`, refreshes forward facts, and runs existing `reconcileExportFinalKinds` if `final` flipped. When `!exportBefore.SameDecisions(p.settings.ExportPolicy)` and at least one route kind remains eligible (or non-`final` rules changed), BGP records `p` in `r.pendingExportReconcile[txID]` (or the section-reload bucket). If the transaction rolls back, the pending set is discarded.
+   - In each in-tree external filter plugin (`filter_community`, `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr`, `role`): `ConfigTx` apply installs the new snapshot and diffs it against the replaced snapshot to record pending changed `<plugin>:<filter>` refs (and for `filter_community`, optional affected peer/group names). If `OnConfigRollback` runs, the previous snapshot is restored and pending refs are discarded.
+2. **Commit notification (all participants now hold the new config):**
+   - For operation transactions, `completeBGPTransaction(..., accepted=true)` calls `CompleteSourcePolicyTx` -> drains `r.pendingExportReconcile[txID]` and calls `r.enqueueExportReconcile(peers)`. For section reloads, `bgp`'s `OnConfigCommitted` drains the section bucket and calls `r.enqueueExportReconcile(peers)`.
+   - Each filter plugin's `OnConfigCommitted` drains its pending changed refs and emits `bgp:filter-definition-changed` via `EmitEvent` (authorized by `{Message: "bgp:filter-definition-changed"}` in both `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends`). `filter_irr` also emits immediately on async stored-dataset refresh outside a config transaction.
+   - The reactor's `bgp:filter-definition-changed` subscriber validates each `<plugin>:<filter>` ref, matches every established peer where `ExportPolicy.NamesExternalFilter(plugin, filter)` holds (narrowed by optional `"peers"` / `"groups"` when non-empty), calls `peer.noteExportPolicyChangeLocked()`, and calls `r.enqueueExportReconcile(matchingPeers)`.
+3. **Coalesced asynchronous execution (`exportReconcileWorker`):**
+   - `enqueueExportReconcile` inserts each peer into `r.exportReconcile.pending` under `r.exportReconcile.mu` and performs a non-blocking send on `r.exportReconcile.wake` (buffered 1). Neither `OnConfigCommitted` nor `OnConfigComplete` blocks waiting for full-table wire I/O.
+   - The single long-lived worker goroutine dequeues one peer at a time with a bounded context derived from `r.ctx` and cancelled if the peer's session closes. If another commit arrives for the same peer while it reconciles, the peer stays marked in `pending` and runs once more after the current pass.
+4. **Per-peer route reconciliation (`reconcilePeerExportPolicy`):**
+   - Verifies `p.State() == PeerStateEstablished` and captures `session := p.currentSession()`.
+   - **(a) Peer-configured local routes:** under `p.staticMu`, runs `reconcileStaticRoutes`, `sendDefaultOriginateRoutes`, and `sendPluginRoutesVia` with reconcile mode active in `writeUpdateGated`: modified attributes emit replacement UPDATEs, unchanged routes are suppressed by `adjOut` signature equality, genuine policy denials (`!res.failed`) synthesize bare withdrawals under `ownRouteWithdrawal` (withdrawing only locally owned held slots), and fail-closed filter errors (`res.failed`) leave existing advertisements untouched. `p.staticWire.routes` updates to the surviving set.
+   - **(b) Ordinary selected destinations (`p.ordinarySelectedExport() == true`):** calls `p.reconcileSelectedExport(ctx, session, true)` -> delivers `ReasonExportPolicyAll` to the exact live selecting process (`bgp-rib`) -> `selectedDispatch` reoffers every elected received and local-origin key via `SelectRoutes` -> `stageSelected` runs the new export chain over original pre-policy routes -> `writeSelected` writes updated UPDATEs and `retireSelected` withdraws newly rejected slots.
+   - **(c) Explicit RS / RR / non-selected destinations (`!p.ordinarySelectedExport()`):** resolves `owners := p.policyReplayOwners()`. If `receiveStore` (`ribevents.ReplayRoutesCommand`) is registered, drains it (`drainReceiveStore`), raises `beginPolicyReplay(session)`, replays ordinary routes via `ribevents.RelayReplay` -> `RelayStoredRoute` (`InitialUpdate: true`, `authority: adjOutForwarded`) and FlowSpec routes via `ribevents.FlowSpecRoutes()` -> `RelayStoredRoute`, then runs `flushPolicyReplay(ctx, session)` and `endPolicyReplay()`. If `receiveStore == nil` for negotiated ordinary families, reconciles FlowSpec routes and logs a structured WARN naming the peer and exact fix if `p.adjOut` holds source-owned ordinary routes.
+   - **(d) Non-selected local/API routes in `bgp-rib` `ribOut`:** if `ribevents.ReconcileExportLocalCommand` is registered, dispatches it via `Dispatcher().ForwardToPlugin` for `(p.addrString, p.sourceOwner, session.initialReplay.Load())`. `bgp-rib` replays ONLY `entry.LocalOrigin && !entry.ConfigStatic && entry.DestinationSession == session` entries not owned by `selectedDispatch`, reading pre-policy attributes (`reconstructRefreshRoute` from `spec-bgp-refresh-reapplies-export-policy`) with `metaKeyReconcile: true` and `SentOwnerMessageMeta`. `writeUpdateGated` evaluates the new export chain once, suppresses unchanged signatures (`adjOutWrite.allow`), writes changed attributes, and withdraws denied held routes under `adjOutExpected`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | to be filled at design | No |
+| Filter plugin ↔ Engine (`bgp:filter-definition-changed`) | `sdk.Plugin.EmitEvent` (DirectBridge internal, `emit-event` RPC forked), authorized by dual `Sends` declaration in `registry.Registration` and Stage 1 `sdk.Registration` | No: proven by `TestRoleFilterDefinitionEventCommitAndRollback` and `test/reload/bgp-filter-export-reload-readvertise.ci` |
+| Engine ↔ Selecting RIB (`OnPeerExportPolicy`) | Existing `ReasonExportPolicyAll` delivery over structured / JSON transport + `SelectRoutes` RPC | No: proven by `TestExportPolicyReloadReconcilesSelectedDestination` and `test/reload/bgp-rib-export-policy-reload-readvertise.ci` |
+| Engine ↔ Receive store (`bgp-adj-rib-in`) | Existing `ribevents.ReplayRoutesCommand` via `ForwardToPlugin` + `RelayStoredRoute` | No: proven by `TestExportPolicyReloadReconcilesRSRoutes` and `test/reload/bgp-filter-export-reload-readvertise.ci` |
+| Engine ↔ RIB (non-selected local `ribOut`) | Hidden plugin command `ribevents.ReconcileExportLocalCommand` via `ForwardToPlugin` + `update-route` with `metaKeyReconcile` and `SentOwnerMessageMeta` | No: proven by `TestReconcileExportLocalReplaysOnlyNonSelectedLocal` |
+
+### Changed-Wire Census
+
+**Search evidence:** scope `internal`, `pkg`, `test`. Terms: `EventFilterDefinitionChanged`, `filter-definition-changed`, `ReasonExportPolicyAll`, `ReplayRoutesCommand`, `ReconcileExportLocalCommand`, `metaKeyReplay`, `reconcileExportFinalKinds`, `flowSpecGateCommand`, `bgp-filter-export-reload-next-update-only`. Controls: `internal/component/bgp/server/export_policy_event.go::OnPeerExportPolicy` (selected policy event writer), `internal/component/bgp/plugins/rib/rib_selected_policy.go::consumeExportPolicy` (selected policy event reader), `internal/component/bgp/plugins/rib/rib.go::commandDecls` (hidden RIB command registry), `internal/component/bgp/reactor/policy_reload.go::reconcileExportFinalKinds` (RS/RR replay caller), `internal/component/bgp/reactor/session_write.go::writeUpdateGated` (originated UPDATE writer).
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Filter definition-changed event (`bgp:filter-definition-changed`) | writer | `internal/component/bgp/plugins/filter_community/filter_community.go`, `filter_modify/{filter_modify.go,config_tx.go}`, `filter_remove_private_as/{filter_remove_private_as.go,config_tx.go}`, `filter_family/{filter_family.go,config_tx.go}`, `filter_irr/{filter_irr.go,config_tx.go}`, `role/{register.go,role.go,config_tx.go}`; third-party external filter plugins via Stage 1 `Sends` + `sdk.Plugin.EmitEvent` | Extends `spec-bgp-refresh-reapplies-export-policy` D-3 payload `{"refs":[...]}` with optional additive `"peers"` and `"groups"` arrays and moves reload emission to `OnConfigCommitted` | Additive backwards-compatible extension; omitted/empty `"peers"` and `"groups"` keep all-matching-peers semantics; `bgp-role` declares `Sends` in both `registry.Registration` and Stage 1 `sdk.Registration` |
+| Filter definition-changed event (`bgp:filter-definition-changed`) | reader | `internal/component/bgp/reactor/policy_reload_reconcile.go` (extending `reactor_filter_events.go` subscriber) | Subscribes to `bgpevents.Namespace` / `bgpevents.EventFilterDefinitionChanged` | Change: parses optional `"peers"` and `"groups"` beside `"refs"`, bumps `noteExportPolicyChangeLocked()`, and enqueues matching established peers on `exportReconcileWorker` |
+| Hidden RIB command `request bgp rib reconcile-export-local` | writer | `internal/component/bgp/reactor/policy_reload_reconcile.go`: `reconcilePeerExportPolicy` via `Dispatcher().ForwardToPlugin` | New hidden internal command constant in `internal/core/bgp/ribevents/replay.go::ReconcileExportLocalCommand` | New: passes destination address, peer owner ID, and session ID; skipped cleanly when `bgp-rib` is not loaded |
+| Hidden RIB command `request bgp rib reconcile-export-local` | reader | `internal/component/bgp/plugins/rib/rib_reconcile_local.go`: `reconcileExportLocalCommand` (registered in `rib_commands.go` and `rib.go::commandDecls` with `Hidden: true`) | Same dual-declared hidden-command contract as `flowSpecGateCommand` | New: replays only `LocalOrigin && !ConfigStatic` non-selected `ribOut` entries using `reconstructRefreshRoute` with `metaKeyReconcile` and `SentOwnerMessageMeta` |
+| Replay `update-route` metadata `reconcile` (`metaKeyReconcile`) | writer | `internal/component/bgp/plugins/rib/rib_reconcile_local.go`: `reconcileExportLocalCommand` | Travels in existing `rpc.UpdateRouteInput.Meta` map beside `SentOwnerMessageMeta` and `PrePolicyRailMeta` | New additive metadata key; absent on normal RFC 2918 refreshes so normal refreshes continue forcing re-send |
+| Replay `update-route` metadata `reconcile` (`metaKeyReconcile`) | reader | `internal/component/bgp/reactor/session_ownership.go`: `adjOutWrite.allow`; `session_write.go`: `writeUpdateGated` | Reads `w.session.sentMeta` under `writeMu` | New: allows `adjOut` signature duplicate suppression for unchanged local routes while synthesizing withdrawal on policy denial |
+| BGP UPDATE to a peer | writer | `internal/component/bgp/reactor/session_write.go`: `writeUpdateGated`; `selected_flush.go`: `writeSelected`, `retireSelected`; `reactor_api_forward.go`: `forwardUpdateCore` (via `RelayStoredRoute`) | Existing egress writers previously never ran on non-`final` export-policy reloads | Change: committed export-policy reload emits replacement UPDATEs (modified or newly accepted routes) and withdrawals (newly rejected held routes) without session restart |
+| BGP UPDATE to a peer | reader | External BGP peer UPDATE receivers, including FRR in `bgp-export-policy-reload-readvertise-frr` and `ze-peer` in `test/reload/bgp-filter-export-reload-readvertise.ci` / `bgp-filter-export-reload-next-update-only.ci` / `bgp-rib-export-policy-reload-readvertise.ci` | Receives BGP UPDATE announcements and withdrawals over TCP | Preserve RFC 4271/7911/7947/9234 wire framing; peer observes updated attributes and withdrawals on reload |
 
 ### Integration Points
-- to be filled at design
+- `internal/component/bgp/reactor/peer_settings_apply.go::applyHotSwappableSettingsWithGraphDiff` - captures peers with changed `ExportPolicy` into the transaction's pending export-reconcile set without altering `final` transition handling.
+- `internal/component/bgp/reactor/reactor.go` (`StartWithContext`, `Stop`, `Wait`) - owns the single long-lived `exportReconcileWorker` lifecycle.
+- `internal/component/bgp/plugin/register.go` (`OnConfigCommitted`, `OnConfigRollback`) and `operation.go` (`completeBGPTransaction`) - flushes pending export reconciles on commit and discards on rollback.
+- `internal/component/bgp/reactor/policy_reload.go` - shares `reconcileSelectedExport`, `policyReplayOwners`, `drainReceiveStore`, `beginPolicyReplay`, `flushPolicyReplay`, `RelayReplay`, `FlowSpecRoutes`, and `RelayStoredRoute` between `final` transitions and general export-policy reconciliation.
+- `internal/component/bgp/plugins/role/{register.go,role.go,config_tx.go}` - registers `bgp:filter-definition-changed` in both `Sends` lists and emits from `OnConfigCommitted`.
+- `internal/component/bgp/plugins/rib/{rib.go,rib_commands.go,rib_reconcile_local.go}` - serves hidden `ribevents.ReconcileExportLocalCommand` over both DirectBridge and external RPC.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | No | to be filled at design |
+| No bypassed layers (data flows through the intended path) | Yes | Every reconciled route passes through the existing export chain (`SelectRoutes` -> `forwardUpdateSelected`, `RelayStoredRoute` -> `forwardUpdateCore`, or `writeUpdateGated`) and final `adjOut` ownership fence |
+| No unintended coupling (components stay isolated) | Yes | Reactor never imports any BGP plugin package; it reaches `bgp-rib` via `OnPeerExportPolicy` / `ribevents.ReconcileExportLocalCommand`, `bgp-adj-rib-in` via `ribevents.ReplayRoutesCommand`, and filter plugins via `bgp:filter-definition-changed` |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Reuses `reconcileSelectedExport`, `RelayReplay`/`RelayStoredRoute`/`beginPolicyReplay`/`flushPolicyReplay`, `writeUpdateGated` withdrawal synthesis, `bgp:filter-definition-changed`, and `Policy.SameDecisions` |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | Unchanged local routes allocate no wire UPDATE via `adjOut` signature comparison; `selectedDispatch` borrows immutable captures; `RelayStoredRoute` reuses the recent-update cache and pooled buffers; unaffected peers run zero work |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `ReconcileExportLocalCommand` registers via `registerCommand`/`commandDecls`; `bgp-role` and every filter plugin opt in via `Sends` + `EmitEvent("bgp", "filter-definition-changed", ...)` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Searched `internal/component/bgp/reactor/`, `internal/component/bgp/plugin/`, and `internal/component/bgp/plugins/rib/` for hardcoded plugin or filter names: zero added; reactor matches peers strictly via `Policy.NamesExternalFilter` and `policyReplayOwners()` / `selectedOwnerSnapshot()` |
 
 ## Risks & Assumptions
 
 ### Assumptions
-| ID | Assumption | Basis | If wrong | Validated by | Status |
-|----|-----------|-------|----------|--------------|--------|
-| A-1 | to be filled at design | - | - | - | unvalidated |
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | `spec-bgp-refresh-reapplies-export-policy.md` lands before this spec and delivers `PrePolicyAttrHandle`, `reconstructRefreshRoute`, `bgp:filter-definition-changed`, `Policy.NamesExternalFilter`, and `writeUpdateGated` replay withdrawal | `Depends` metadata row; `spec-bgp-refresh-reapplies-export-policy.md` is `Status: ready` | Reconciling non-selected local `ribOut` routes would lack pre-policy attributes and filter plugins would lack the base event contract | Verify dependency landed before Phase 1 | unvalidated |
+| A-2 | `RelayStoredRoute` with `InitialUpdate: true` runs under `authority = adjOutForwarded`, so it updates modified attributes, withdraws newly denied held routes, and stays silent on never-advertised denials | Verified on HEAD at `reactor_api_forward.go:1379`, `reactor_api_relay.go:333`, and `session_ownership.go:315-350` | Would silently drop updates/withdrawals if routed to `adjOutInitial` | `TestExportPolicyReloadReconcilesRSRoutes` | unvalidated |
+| A-3 | `OnConfigCommitted` runs synchronously in `dispatchCommitted` with a 5-second timeout (`config_tx_bridge.go:816`), so enqueuing onto `exportReconcileWorker` must be non-blocking | `internal/component/plugin/server/config_tx_bridge.go:816-882` | Blocking `OnConfigCommitted` on full-table replay would time out at 5 seconds and trip `CodeDoctorPluginConfigUnapplied` | `TestExportReconcileWorkerDoesNotBlockCommit` | unvalidated |
+| A-4 | Every `filter-update` plugin that holds reloadable egress state (`filter_community`, `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr`, `role`) receives `OnConfigCommitted` on committed reloads and `OnConfigRollback` on aborted reloads | `pkg/plugin/sdk/sdk_callbacks.go:654-672`, `internal/component/bgp/plugins/role/config_tx.go:73` | A plugin not receiving `OnConfigCommitted` would never emit; covered by SDK `configTxGate` | `TestRoleFilterDefinitionEventCommitAndRollback`, `TestFilterCommunityEmitsOnlyOnCommit` | unvalidated |
+| A-5 | Re-advertising unchanged forwarded routes on an affected RS/RR or selected peer (for which `adjOut` deliberately holds no forwarded attribute signature) is RFC-compliant and acceptable; unaffected peers receive zero traffic | RFC 4271 Section 3.1 (idempotent replacement) and `adj_rib_out.go:410` (deliberate memory invariant); RFC 4271 Section 9.2 is `SHOULD NOT` | Full-table re-send on affected peer only; mitigated by scoping `"peers"`/`"groups"` on `bgp:filter-definition-changed` and matching only affected peers | `TestExportPolicyReloadUnaffectedPeerSilent` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | to be filled at design | - | - |
+| R-1 | Reload rolls back after `OnConfigApply`, leaking re-advertisements from uncommitted candidate rules | `TestExportPolicyReloadRollbackEmitsNothing` red | Defer both BGP's pending peer enqueue and every filter plugin's `bgp:filter-definition-changed` emission until `OnConfigCommitted` / `config-complete(accepted=true)`; clear pending sets on rollback |
+| R-2 | Two overlapping reloads or simultaneous BGP chain edit + filter-plugin edit race or duplicate work on one peer | `go test -race` or duplicate/out-of-order frames | Single long-lived `exportReconcileWorker` coalesces pending peers in a mutex-guarded set; if a peer is re-enqueued while active, it re-runs cleanly after the active pass finishes |
+| R-3 | Peer session drops or restarts while `exportReconcileWorker` is mid-reconciliation | Deadlock, hang on shutdown, or writes leaking to a replacement session | Per-peer reconcile context cancels on `r.ctx.Done()` and session close; every write checks captured `session == p.currentSession()` and `adjOut` session token |
+| R-4 | A fail-closed filter error (`res.failed == true`) during reconciliation withdraws valid routes held by the peer | Route disappears on simulated plugin error | `writeUpdateGated` and `forwardUpdateCore` both treat `res.failed == true` as drop/suppress without withdrawal; only genuine policy rejects (`!res.failed`) synthesize withdrawals |
+| R-5 | Existing `test/reload/bgp-filter-*-reload.ci` and `test/reload/bgp-role-export-reload.ci` fail because U1 is now re-advertised before U2 | Reload functional suite red | Flip `test/reload/bgp-filter-export-reload-next-update-only.ci` (under `ze-test-judge`) and re-validate every sibling `test/reload/bgp-filter-*-reload.ci` and `test/reload/bgp-role-export-reload.ci` in the same change (`ai/META-DECISIONS.md`) |
+| R-6 | An explicit RS/RR deployment runs without `bgp-adj-rib-in`, so received ordinary routes have no stored pre-policy copy | Operator sees no re-advertisement of received RS routes | Reconcile configured local and FlowSpec routes anyway, and log a structured WARN naming the peer, why ordinary received routes could not be re-evaluated, and the exact `bgp-adj-rib-in` config fix |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | to be filled at design |
-| How is it reverted? | to be filled at design |
-| Who else touches this path? | `spec-plugin-reload-applies-or-refuses`, `spec-bgp-withdraw-only-exported-routes` |
+| What breaks if this is wrong? | Peers could receive stale or spurious withdrawals on export-policy reload, rolled-back reloads could leak wire updates, or a reload could stall if reconciliation ran synchronously inside `OnConfigCommitted` |
+| How is it reverted? | Single commit revert restores next-update-only behavior for non-`final` export edits; no YANG schema or persistent state changes |
+| Who else touches this path? | `spec-bgp-refresh-reapplies-export-policy.md` (upstream dependency), `spec-bgp-withdraw-only-exported-routes.md` (forward withhold tracking), `spec-bgp-filtered-route-storage.md` (import side, separate) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| SIGHUP after an egress community tag edit | → | to be filled at design | `test/reload/bgp-filter-export-reload-readvertise.ci` |
+| Committed reload editing `community` tag on an RS peer | → | `filter_community` `OnConfigCommitted` -> `bgp:filter-definition-changed` -> `exportReconcileWorker` -> `reconcilePeerExportPolicy` -> `RelayStoredRoute` | `test/reload/bgp-filter-export-reload-readvertise.ci` |
+| Committed reload editing export filter chain on an ordinary selected `bgp-rib` peer | → | `applyHotSwappableSettingsWithGraphDiff` -> `completeBGPTransaction` -> `exportReconcileWorker` -> `reconcileSelectedExport` -> `SelectRoutes` | `test/reload/bgp-rib-export-policy-reload-readvertise.ci` |
+| Committed reload editing `role { export ... }` on a source peer | → | `role` `OnConfigCommitted` -> `bgp:filter-definition-changed` (`bgp-role:otc-egress`) -> `exportReconcileWorker` -> destination peer reconciliation | `TestRoleFilterDefinitionEventCommitAndRollback` |
+| Committed reload editing export filter on a peer with configured static routes | → | `exportReconcileWorker` -> `reconcileStaticRoutes` -> `writeUpdateGated` reconcile mode | `TestExportPolicyReloadReconcilesConfiguredStatic` |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | A committed reload changes an egress rule for a peer with routes already advertised | The peer receives the UPDATEs and withdrawals that make its view match the new rule |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A committed reload edits an external egress filter definition (`filter_community` tag/strip/scrub/blackhole, `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr`, or `role` export/upstream) for an established RS/RR peer with routes already advertised (and `bgp-adj-rib-in` attached) | The affected peer receives updated UPDATEs carrying the new post-policy attributes and withdrawals for routes now rejected by the new rule, without any new UPDATE from the source and without restarting the session | Unchanged received routes on the affected RS/RR peer may be re-advertised idempotently (RFC 4271 §3.1) because `adjOut` intentionally holds no forwarded attribute signatures (`adj_rib_out.go:410`); routes never advertised to the peer produce zero withdrawals |
+| AC-2 | A committed reload edits a peer's `ExportPolicy` chain (adding/removing/reordering filters, changing a built-in `next-hop:*` step, or editing an in-process compiled `prefix-list`/`as-path-list`/`as-path-length`/`community-match`/`reject-asn`/`match` or `defaults attribute`) on an established ordinary selected `bgp-rib` peer | The affected peer receives updated UPDATEs for modified or newly accepted routes and withdrawals for newly rejected routes (RFC 4271 §9.1.3) without restarting the session or receiving a new source UPDATE | Unchanged elected routes on the affected peer may be re-advertised idempotently through `SelectRoutes` |
+| AC-3 | A committed reload edits an egress rule on a peer holding configured static routes, default-originate routes, or registered plugin routes | Modified configured routes emit replacement UPDATEs, unchanged configured routes are suppressed by `adjOut` signature equality (zero wire frames), newly accepted configured routes are announced, newly rejected held configured routes are withdrawn under `ownRouteWithdrawal`, and `p.staticWire.routes` reflects the surviving advertised set | Fail-closed filter errors (`res.failed == true`) preserve existing advertisements rather than withdrawing them |
+| AC-4 | A committed reload edits an egress rule on a peer holding non-selected, non-config-static `LocalOrigin` routes in `bgp-rib` `ribOut` (internal or forked `bgp-rib`) | `reconcile-export-local` replays only those `LocalOrigin && !ConfigStatic` routes from `PrePolicyAttrHandle` with `metaKeyReconcile`, emitting updated UPDATEs when attributes change, suppressing unchanged signatures, and withdrawing denied held routes under `adjOutExpected` | Routes whose `PrePolicyAttrHandle` is invalid fall back to `AttrHandle` (identical pre/post bytes per `spec-bgp-refresh-reapplies-export-policy` AC-3); one-shot API routes sent without `bgp-rib` loaded have no stored copy |
+| AC-5 | A reload transaction that modifies an egress rule fails verification or apply and rolls back | Neither BGP nor any filter plugin enqueues reconciliation or emits `bgp:filter-definition-changed`, and the peer receives zero UPDATEs and zero withdrawals | None |
+| AC-6 | A committed reload changes an egress rule that affects peer B (via peer-scoped `filter_community` edit or a named filter referenced only by peer B) while peer C is established and does not reference the changed rule or peer scope | Peer B reconciles its advertised routes while peer C receives zero UPDATEs and zero withdrawals | A global filter change affecting a shared un-scoped filter ref (such as `bgp-role:otc-egress` or global `bgp`-level community config) reconciles all peers naming that ref |
+| AC-7 | A committed reload edits an egress filter on a dynamic group template with running dynamic peers | Each running dynamic peer whose resolved `ExportPolicy` changed (or matches the changed external filter ref/group) reconciles in place, emitting updated UPDATEs for modified or newly accepted routes and withdrawals for newly rejected routes without session restart | Dynamic peers not yet Established take the new policy on next establishment |
+| AC-8 | Two overlapping committed reloads (or a combined BGP chain edit + external filter edit in one commit) target the same peer, or the peer/reactor stops mid-reconciliation | `exportReconcileWorker` coalesces pending work per peer, re-runs once if re-marked while active, cancels cleanly on session close or `Reactor.Stop`, and never blocks `OnConfigCommitted` beyond enqueue | None |
+| AC-9 | A committed reload edits an egress rule on an explicit RS/RR peer with negotiated ordinary families and source-owned ordinary routes in `adjOut`, when `bgp-adj-rib-in` is not loaded | Configured local and FlowSpec routes still reconcile, the daemon stays up and healthy, and a structured WARN is logged naming the peer and the exact `bgp-adj-rib-in` configuration fix | Ordinary received routes on that peer cannot be re-evaluated without `bgp-adj-rib-in` and remain until their next source UPDATE or session reset |
+| AC-10 | A third-party external filter plugin running forked over TLS RPC declares `{Message: "bgp:filter-definition-changed"}` in Stage 1 `sdk.Registration.Sends` and emits `bgp:filter-definition-changed` on `OnConfigCommitted` | The reactor reconciles every established peer whose `ExportPolicy` names that external `<plugin>:<filter>` identically to an in-tree filter plugin | None |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Edits a peer's export community tag and reloads | to be filled at design | `test/reload/bgp-filter-export-reload-readvertise.ci` |
+| 1 | Edits a community tag on an RS peer and reloads | `config2.conf` -> `ConfigTx` -> `filter_community` `OnConfigCommitted` -> `bgp:filter-definition-changed` -> `exportReconcileWorker` -> `RelayStoredRoute` -> Peer B receives U1 with new tag before any new source UPDATE | `test/reload/bgp-filter-export-reload-readvertise.ci`, `test/reload/bgp-filter-export-reload-next-update-only.ci` |
+| 2 | Tightens an export prefix-list or modify rule on a `bgp-rib` peer and reloads | `config2.conf` -> `bgp` `applyHotSwappableSettingsWithGraphDiff` -> `completeBGPTransaction` -> `exportReconcileWorker` -> `reconcileSelectedExport` -> `SelectRoutes` -> peer receives updated attributes and withdrawals of newly denied prefixes without session flap | `test/reload/bgp-rib-export-policy-reload-readvertise.ci`, `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/` |
+| 3 | Edits `role { export ... }` on a source peer and reloads | `config2.conf` -> `role` `OnConfigCommitted` -> `bgp:filter-definition-changed` (`bgp-role:otc-egress`) -> `exportReconcileWorker` -> destination peer receives newly permitted routes and withdrawals of newly denied routes | `TestRoleFilterDefinitionEventCommitAndRollback`, `test/reload/bgp-role-export-reload.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| to be filled at design | - | AC-1 | |
+| `TestExportPolicyReloadCommitEnqueuesAndRollbackDiscards` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-2, AC-5: operation and section commits enqueue affected peers; rollbacks discard pending set and emit nothing | |
+| `TestExportPolicyReloadReconcilesSelectedDestination` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-2: ordinary selected peer receives `ReasonExportPolicyAll`, emits updated attributes, and withdraws newly rejected routes | |
+| `TestExportPolicyReloadReconcilesRSRoutes` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-1, AC-9: RS/RR peer updates modified routes, withdraws held newly rejected routes, stays silent on never-advertised rejections, triggers recovery on contested keys, and logs WARN when `bgp-adj-rib-in` is absent | |
+| `TestExportPolicyReloadReconcilesConfiguredStatic` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-3: static/default/plugin routes update on change, suppress when unchanged, withdraw held routes on policy reject, preserve on fail-closed error, and update `staticWire.routes` | |
+| `TestExportPolicyReloadUnaffectedPeerSilent` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-6: peer-scoped/group-scoped `bgp:filter-definition-changed` and single-peer chain edits leave unrelated peers untouched | |
+| `TestExportPolicyReloadDynamicGroupTemplate` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-7: dynamic group template export edit reconciles running dynamic peers in place | |
+| `TestExportReconcileWorkerCoalesceCancelAndNonBlocking` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-8: single worker coalesces overlapping triggers, re-runs on re-mark, cancels cleanly on session close or `Reactor.Stop`, and never blocks `OnConfigCommitted` | |
+| `TestExportPolicyReloadExternalFilterEvent` | `internal/component/bgp/reactor/policy_reload_reconcile_test.go` | AC-10: external `<plugin>:<filter>` event triggers reconciliation for matching peers identically to in-tree filters | |
+| `TestReconcileExportLocalReplaysOnlyNonSelectedLocal` | `internal/component/bgp/plugins/rib/rib_reconcile_local_test.go` | AC-4: hidden `reconcile-export-local` replays only `LocalOrigin && !ConfigStatic` non-selected entries from `PrePolicyAttrHandle` with `metaKeyReconcile`, suppressing unchanged and withdrawing denied | |
+| `TestRoleFilterDefinitionEventCommitAndRollback` | `internal/component/bgp/plugins/role/filter_event_test.go` | AC-1, AC-5: `bgp-role` declares `bgp:filter-definition-changed` in both `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends`, emits on `OnConfigCommitted`, and discards on rollback | |
+| `TestFilterCommunityEmitsScopedOnCommitOnly` | `internal/component/bgp/plugins/filter_community/config_tx_test.go` | AC-1, AC-5, AC-6: `filter_community` computes affected refs and peer/group scopes, emits on `OnConfigCommitted`, and emits nothing on rollback or unchanged config | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| N-A | - | - | - | - |
+| N-A (no new numeric config or CLI inputs) | - | - | - | - |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-filter-export-reload-readvertise` | `test/reload/` | AC-1 | |
+| `bgp-filter-export-reload-readvertise` | `test/reload/bgp-filter-export-reload-readvertise.ci` | AC-1, AC-6: RS peer B receives re-advertised U1 with edited community `65000:2` and withdrawal when prefix-list rejects, with zero new UPDATE from source A; unaffected peer C receives nothing | |
+| `bgp-filter-export-reload-next-update-only` | `test/reload/bgp-filter-export-reload-next-update-only.ci` | AC-1 (flipped under `ze-test-judge`): confirms U1 re-advertises with `65000:2` on reload and U2/U3 also carry `65000:2` | |
+| `bgp-rib-export-policy-reload-readvertise` | `test/reload/bgp-rib-export-policy-reload-readvertise.ci` | AC-2, AC-3: ordinary selected `bgp-rib` peer receives updated attributes for learned and static routes and withdraws newly rejected routes on committed reload without session reset | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| to be named at design | `test/interop/scenarios/` | FRR | the peer's received attributes follow the reload | |
+| `bgp-export-policy-reload-readvertise-frr` | `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/` | FRR | FRR's `show bgp ipv4 unicast json` observes updated community/MED attributes on an already-advertised route AND route removal when an export filter tightens after a committed Ze reload, while the BGP session uptime stays continuous (no reset) | |
 
 ## Files to Modify
-- to be filled at design
+- `internal/component/bgp/reactor/policy_reload.go` - share and extend reconciliation helpers for non-`final` committed export-policy changes across ordinary selected, RS/RR (`bgp-adj-rib-in` + FlowSpec), and configured local routes
+- `internal/component/bgp/reactor/peer_settings_apply.go` - record static and dynamic peers whose `ExportPolicy` changed in the transaction's pending export-reconcile set
+- `internal/component/bgp/reactor/reactor.go` - add `exportReconcile` worker state (started in `StartWithContext`, stopped and joined in `Stop`/`Wait`) and `pendingExportReconcile` map
+- `internal/component/bgp/reactor/reactor_api.go` - flush or discard `pendingExportReconcile` on `CompleteSourcePolicyTx` and section-reload commit/rollback hooks
+- `internal/component/bgp/reactor/session_write.go` - support reconcile mode in `writeUpdateGated` so genuine export-policy denial (`!res.failed`) of a locally originated configured route withdraws the held slot under `ownRouteWithdrawal`
+- `internal/component/bgp/reactor/peer_static_wire.go` - add `reconcileStaticRoutes` under `p.staticMu` to re-evaluate static routes in reconcile mode and update `p.staticWire.routes`
+- `internal/component/bgp/reactor/session_ownership.go` - allow `metaKeyReconcile` local `ribOut` replays to suppress unchanged wire signatures in `adjOutWrite.allow`
+- `internal/component/bgp/plugin/register.go` - wire `p.OnConfigCommitted` and `OnConfigRollback` to flush/discard section-reload pending export reconciles
+- `internal/component/bgp/plugin/operation.go` - ensure `completeBGPTransaction` flushes/discards operation-transaction pending export reconciles on `config-complete`
+- `internal/component/bgp/plugins/filter_community/filter_community.go` - record pending changed refs and optional peer/group scopes across `ConfigTx` apply/rollback and emit `bgp:filter-definition-changed` in `OnConfigCommitted`
+- `internal/component/bgp/plugins/filter_community/config_tx_test.go` - add unit test for commit-only scoped emission
+- `internal/component/bgp/plugins/filter_modify/filter_modify.go`, `internal/component/bgp/plugins/filter_modify/config_tx.go` - emit `bgp:filter-definition-changed` in `OnConfigCommitted` (discard on rollback)
+- `internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go`, `internal/component/bgp/plugins/filter_remove_private_as/config_tx.go` - emit `bgp:filter-definition-changed` in `OnConfigCommitted` (discard on rollback)
+- `internal/component/bgp/plugins/filter_family/filter_family.go`, `internal/component/bgp/plugins/filter_family/config_tx.go` - emit `bgp:filter-definition-changed` in `OnConfigCommitted` (discard on rollback)
+- `internal/component/bgp/plugins/filter_irr/filter_irr.go`, `internal/component/bgp/plugins/filter_irr/config_tx.go` - emit `bgp:filter-definition-changed` in `OnConfigCommitted` for config reloads (discard on rollback) while keeping immediate emission on async stored-dataset refresh
+- `internal/component/bgp/plugins/role/register.go`, `internal/component/bgp/plugins/role/role.go`, `internal/component/bgp/plugins/role/config_tx.go` - declare `{Message: "bgp:filter-definition-changed"}` in both `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends`, and emit changed export/upstream refs in `OnConfigCommitted`
+- `internal/core/bgp/ribevents/replay.go` - add `ReconcileExportLocalCommand = "request bgp rib reconcile-export-local"`
+- `internal/component/bgp/plugins/rib/rib.go`, `internal/component/bgp/plugins/rib/rib_commands.go` - register hidden `ReconcileExportLocalCommand` in both `registry.Registration.Commands` and Stage 1 `sdk.Registration.Commands` via `commandDecls()`
+- `internal/le/interoplab/bgp/checkers.go` - register typed Go checker for `bgp-export-policy-reload-readvertise-frr`
+- `test/reload/bgp-filter-export-reload-next-update-only.ci` - flip under `ze-test-judge` to assert U1 re-advertises with `65000:2` on reload (and re-validate sibling `test/reload/bgp-filter-*-reload.ci` and `test/reload/bgp-role-export-reload.ci`)
+- `docs/guide/config-reload.md` - document live export-policy re-advertisement of previously advertised routes
+- `docs/architecture/core-design.md` - update Section 18a ("BGP Peer Reload: Swap or Restart") for committed export-policy reconciliation
+- `docs/architecture/api/process-protocol.md` - document optional `"peers"`/`"groups"` scoping fields and commit-scoped timing on `bgp:filter-definition-changed`
+- `docs/plugin-development/handlers.md` - document commit-scoped `bgp:filter-definition-changed` emission and optional `"peers"`/`"groups"` scoping
 
 ## Files to Create
-- `test/reload/bgp-filter-export-reload-readvertise.ci`
+- `internal/component/bgp/reactor/policy_reload_reconcile.go` - long-lived `exportReconcileWorker`, `enqueueExportReconcile`, `reconcilePeerExportPolicy`, and `bgp:filter-definition-changed` peer-scoped enqueue integration (extending `reactor_filter_events.go` from `spec-bgp-refresh-reapplies-export-policy`)
+- `internal/component/bgp/reactor/policy_reload_reconcile_test.go` - unit tests covering commit/rollback gating, ordinary selected, RS/RR, configured local, dynamic group, unaffected peer silence, worker coalescing/cancellation, and external filter events
+- `internal/component/bgp/plugins/rib/rib_reconcile_local.go` - hidden `reconcile-export-local` command handler replaying non-selected, non-config-static `LocalOrigin` `ribOut` routes from `PrePolicyAttrHandle`
+- `internal/component/bgp/plugins/rib/rib_reconcile_local_test.go` - unit tests for `reconcile-export-local`
+- `internal/component/bgp/plugins/role/filter_event_test.go` - unit tests for `bgp-role` dual `Sends` declaration and commit-only emission
+- `test/reload/bgp-filter-export-reload-readvertise.ci` - functional reload test for RS egress re-advertisement, withdrawal on denial, and unaffected-peer silence
+- `test/reload/bgp-rib-export-policy-reload-readvertise.ci` - functional reload test for ordinary selected `bgp-rib` export re-advertisement and withdrawal
+- `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/ze.conf` - declarative Ze config for FRR interop scenario
+- `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/frr.conf` - declarative FRR config for FRR interop scenario
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | No new config syntax or user-facing RPC; hidden internal RIB command follows `flowSpecGateCommand` pattern |
+| YANG validation constraints | N-A | No new YANG leaves |
+| YANG custom validators | N-A | No new YANG leaves |
+| CLI commands/flags | N-A | No operator CLI commands added or changed |
+| CLI grammar (keyword before value) | N-A | No operator CLI commands added; hidden internal command follows `request bgp rib <action>` grammar |
+| Editor autocomplete | N-A | No config schema or CLI surface change |
+| Functional test for new RPC/API | Yes | `test/reload/bgp-filter-export-reload-readvertise.ci` and `test/reload/bgp-rib-export-policy-reload-readvertise.ci` exercise the full reload-to-wire path |
+| Pipe completeness | N-A | Hidden internal command returns structured map and declares no pipe operations |
+| Env var registration | N-A | No new env vars |
+| Doctor check for runtime dependencies | N-A | No new runtime dependency or service startup gate |
+| Doctor code per problem class | No | Absent `bgp-adj-rib-in` on non-selected RS/RR peer logs a structured WARN with exact operator fix (not a persistent startup service block); existing `CodeDoctorPluginConfigUnapplied` covers commit RPC failures |
+| Prometheus counters/metrics | N-A | Existing UPDATE/withdrawal and Adj-RIB-Out counters (`wireBytesSent`, `adjRIBOutSuppressed`, `adjRIBOutWithheld`) already measure reconciled traffic |
+| BGP family surface (new SAFI / capability / attribute) | N-A | Family-agnostic; uses existing `SelectRoutes`, `RelayStoredRoute`, `writeUpdateGated`, and `reconstructRefreshRoute` |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Behavior fix closing the reload-reconciliation gap already described on `docs/guide/config-reload.md` |
+| 2 | Config syntax changed? | No | Existing YANG config unchanged |
+| 3 | CLI command added/changed? | No | Hidden internal command only; no operator CLI change |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md` (optional `"peers"`/`"groups"` on `bgp:filter-definition-changed`) |
+| 5 | Plugin added/changed? | Yes | `docs/plugin-development/handlers.md` (commit-scoped `bgp:filter-definition-changed` emission and scoping) |
+| 6 | Has a user guide page? | Yes | `docs/guide/config-reload.md` |
+| 7 | Wire format changed? | No | Standard RFC 4271/4760/7911 UPDATEs and withdrawals |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/handlers.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 4271 Sections 3.1/9.1.3/9.2 are already enrolled and implemented; this spec extends enforcement to non-`final` export-policy reloads |
+| 10 | Test infrastructure changed? | No | Reuses existing `ze-peer` expectations and `interoplab` BGP checker registry |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` makes no claim contradicted by live export re-advertisement |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` (Section 18a) |
+| 13 | Route metadata keys added/changed? | No | `metaKeyReconcile` is an internal `CommandContext.Meta` replay flag beside `metaKeyReplay`, not a route policy metadata key |
+| 14 | Prometheus counters added/changed? | No | Reuses existing counters |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `bgp-role` adds `bgp:filter-definition-changed` to `Sends` and `bgp-rib` adds hidden `request bgp rib reconcile-export-local`; reflected in `docs/architecture/api/process-protocol.md` and plugin declarations checks |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Updated in `Files to Modify`: `docs/architecture/core-design.md`, `docs/architecture/api/process-protocol.md`, `docs/guide/config-reload.md`, `docs/plugin-development/handlers.md`. Declared `// Design:` pages checked and unaffected: `docs/architecture/api/architecture.md` (hidden `ReconcileExportLocalCommand` mirrors `ReplayRoutesCommand` without changing RIB ownership or bus routing), `docs/architecture/bgp/filter-irr.md` (moving reload emission to `OnConfigCommitted` keeps reload and stored-list contracts unchanged), `docs/architecture/config/apply-ordering.md` (operation decomposition and binder/provider apply ordering are unchanged; pending export reconciles flush only on `config-complete`), `docs/architecture/testing/interop.md` (new `bgp-export-policy-reload-readvertise-frr` scenario follows existing declarative directory + typed Go checker contract), `docs/architecture/update-building.md` (reuses existing `adjOut` ownership boundary and signature suppression, adding only `metaKeyReconcile` suppression parity for local `ribOut` reconciliation) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/config-reload.md` and `docs/plugin-development/handlers.md` updated in `Files to Modify` |
+
+## Design presentation
+
+### What changes
+
+When an operator edits any BGP egress rule and commits or reloads (SIGHUP or CLI `commit`), Ze now reconciles the routes already advertised to every affected established peer without restarting its session and without waiting for a new source UPDATE. Ordinary selected peers (`bgp-rib`), route-server and route-reflector peers (`bgp-rs`/`bgp-rr` with `bgp-adj-rib-in`), peer-configured static/default/plugin routes, and non-selected local `ribOut` routes are all re-evaluated under the committed export chain: routes whose attributes changed are re-advertised, routes newly permitted are announced, routes newly denied are withdrawn, unchanged local routes are suppressed, unaffected peers receive zero traffic, and rolled-back reloads send nothing.
+
+### Before and after
+
+1. **Editing an egress community tag (`community { standard TAG { value [ 65000:1 -> 65000:2 ] } }`) and reloading:**
+   - Before: routes sent after the reload carry `65000:2`, while `10.0.0.0/24` advertised before the reload stays at peer B with `65000:1` until peer A sends a new UPDATE or the session resets.
+   - After: once the reload commits, `bgp-filter-community` emits `bgp:filter-definition-changed` (scoped to peer B) and Ze's export-reconcile worker re-evaluates peer B's routes; peer B immediately receives an UPDATE for `10.0.0.0/24` carrying `65000:2`, while unaffected peer C receives nothing.
+2. **Tightening an export prefix-list or `modify` / `role export` rule and reloading:**
+   - Before: previously advertised routes that the tightened rule now rejects remain in the peer's table until the source withdraws or re-announces them.
+   - After: once the reload commits, Ze withdraws every previously advertised route the new rule rejects (and sends no withdrawal for routes the peer never held), while keeping the BGP session up.
+3. **Rolling back a failed reload that included an egress rule edit:**
+   - Before: no re-advertisement ran.
+   - After: still zero re-advertisements and zero withdrawals, because reconciliation triggers only on `OnConfigCommitted` / `config-complete(accepted=true)`.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Run export reconciliation synchronously inside `OnConfigApply` or `OnConfigCommitted` | `OnConfigApply` runs before other participants finish applying and before rollback is ruled out, risking uncommitted route leaks or evaluation against stale filter-plugin state; `OnConfigCommitted` has a 5-second RPC timeout (`config_tx_bridge.go:816`), which full-table reconciliation would exceed |
+| Trigger reconciliation by bouncing/restarting the BGP session | Violates soft reconfiguration expectations and drops customer/peer traffic on routine policy edits; Ze already swaps `ExportPolicy` in place |
+| Re-evaluate forwarded RS/RR routes from `bgp-rib`'s `ribOut` instead of `bgp-adj-rib-in` + `RelayStoredRoute` | `bgp-rib` is not always loaded on pure RS/RR setups, and `RelayStoredRoute` over `bgp-adj-rib-in` already preserves source peer identity, `adjOutForwarded` ownership, contested multi-source recovery election, and the `policyReplayHolds` live-update fence |
+| Keep a per-peer attribute signature copy for every forwarded route in `adjRIBOut` to suppress unchanged RS/RR routes | Violates `adj_rib_out.go:410`'s deliberate memory invariant at 1.2M routes × 100 peers; scoping affected peers via `SameDecisions` and optional `"peers"`/`"groups"` on `bgp:filter-definition-changed` already keeps unaffected peers silent |
+| Spawn one goroutine per peer or per reload event | Violates `ai/rules/goroutine-lifecycle.md` ("long-lived worker on a channel, never one per event") and risks unbounded concurrency during reload storms |
+
+### Documents departed from
+
+- `docs/guide/config-reload.md`, section "What Can Change Live" ("Plugin config changed" row) and the export-final reconciliation prose: currently states "a route already sent to a peer is not sent again under the edited filter until its source sends it again" and "This does not re-evaluate existing routes for arbitrary filter-definition changes." After this work, the page documents that committed egress filter and policy edits reconcile previously advertised routes to affected peers (while import edits remain next-update-only and RS/RR ordinary-family reconciliation requires `bgp-adj-rib-in`).
+- `docs/architecture/core-design.md`, section "18a. BGP Peer Reload: Swap or Restart": currently states "Arbitrary filter-definition changes do not generally re-evaluate existing routes." After this work, the section documents committed export-policy reconciliation through the reactor's long-lived export-reconcile worker across all route classes.
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-1. to be filled at design
+1. **Phase: Wiring (MANDATORY FIRST)** -- add `exportReconcileWorker` skeleton on `Reactor` (started in `StartWithContext`, stopped in `Stop`/`Wait`), `ReconcileExportLocalCommand` constant in `ribevents`, hidden command registration in `bgp-rib`, `bgp-role` dual `Sends` declaration, and failing wiring/unit tests
+   - Tests: `TestExportPolicyReloadCommitEnqueuesAndRollbackDiscards`, `TestRoleFilterDefinitionEventCommitAndRollback`, `TestReconcileExportLocalReplaysOnlyNonSelectedLocal`
+   - Files: `internal/component/bgp/reactor/reactor.go`, `internal/component/bgp/reactor/policy_reload_reconcile.go`, `internal/core/bgp/ribevents/replay.go`, `internal/component/bgp/plugins/rib/{rib.go,rib_commands.go,rib_reconcile_local.go}`, `internal/component/bgp/plugins/role/{register.go,role.go}`
+   - Verify: entry points compile and are reachable; wiring tests fail while reconciliation body is a stub
+2. **Phase: Commit-scoped triggering & filter-plugin emission** -- record pending export-policy peer changes in `applyHotSwappableSettingsWithGraphDiff`, flush on `OnConfigCommitted` / `completeBGPTransaction(..., accepted=true)` and discard on rollback; move reload `bgp:filter-definition-changed` emissions in `filter_community`, `filter_modify`, `filter_remove_private_as`, `filter_family`, `filter_irr`, and `role` to `OnConfigCommitted` with optional `"peers"`/`"groups"` scoping on `filter_community`, and enqueue matching peers in the reactor subscriber
+   - Tests: `TestExportPolicyReloadCommitEnqueuesAndRollbackDiscards`, `TestExportPolicyReloadUnaffectedPeerSilent`, `TestExportPolicyReloadDynamicGroupTemplate`, `TestExportPolicyReloadExternalFilterEvent`, `TestExportReconcileWorkerCoalesceCancelAndNonBlocking`, `TestRoleFilterDefinitionEventCommitAndRollback`, `TestFilterCommunityEmitsScopedOnCommitOnly`
+   - Files: `internal/component/bgp/reactor/{peer_settings_apply.go,reactor_api.go,policy_reload_reconcile.go}`, `internal/component/bgp/plugin/{register.go,operation.go}`, `internal/component/bgp/plugins/{filter_community,filter_modify,filter_remove_private_as,filter_family,filter_irr,role}/*`
+   - Verify: unit tests fail -> implement -> pass under `-race -tags ze_bgp`
+3. **Phase: Per-peer route reconciliation (selected, RS/RR, configured local, non-selected local `ribOut`)** -- implement `reconcilePeerExportPolicy`, `reconcileStaticRoutes`, `writeUpdateGated` reconcile-mode withdrawal on genuine policy reject, `adjOutWrite.allow` `metaKeyReconcile` duplicate suppression, RS/RR `RelayReplay`/`FlowSpecRoutes`/`RelayStoredRoute` + missing-store WARN, and `bgp-rib` `reconcile-export-local` handler
+   - Tests: `TestExportPolicyReloadReconcilesSelectedDestination`, `TestExportPolicyReloadReconcilesRSRoutes`, `TestExportPolicyReloadReconcilesConfiguredStatic`, `TestReconcileExportLocalReplaysOnlyNonSelectedLocal`
+   - Files: `internal/component/bgp/reactor/{policy_reload.go,policy_reload_reconcile.go,peer_static_wire.go,session_write.go,session_ownership.go}`, `internal/component/bgp/plugins/rib/rib_reconcile_local.go`
+   - Verify: unit tests fail -> implement -> pass under `-race -tags ze_bgp`
+4. **Phase: Functional reload tests, FRR interop scenario, and docs** -- add `test/reload/bgp-filter-export-reload-readvertise.ci` and `test/reload/bgp-rib-export-policy-reload-readvertise.ci`, flip `test/reload/bgp-filter-export-reload-next-update-only.ci` (with `ze-test-judge` approval) and re-validate sibling `test/reload/bgp-filter-*-reload.ci` and `test/reload/bgp-role-export-reload.ci`, add `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/` + checker in `internal/le/interoplab/bgp/checkers.go`, and update `docs/guide/config-reload.md`, `docs/architecture/core-design.md`, `docs/architecture/api/process-protocol.md`, and `docs/plugin-development/handlers.md`
+   - Tests: `./le test reload bgp-filter-export-reload-readvertise`, `./le test reload bgp-rib-export-policy-reload-readvertise`, `./le test reload bgp-filter-export-reload-next-update-only`, `./le test integration interop bgp-export-policy-reload-readvertise-frr`
+   - Files: `test/reload/*.ci`, `test/interop/scenarios/bgp-export-policy-reload-readvertise-frr/*`, `internal/le/interoplab/bgp/checkers.go`, `docs/*`
+   - Verify: all functional reload tests, interop scenario, plugin declaration/boundary/tier checks, and doc checks pass
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-1..AC-10 has an implementation at file:line and a passing test |
+| Feature completeness | Every user story works end-to-end across RS/RR, ordinary selected `bgp-rib`, configured local, and external filter plugins |
+| Correctness | Rolled-back reloads emit zero UPDATEs and zero withdrawals; fail-closed filter errors never withdraw held routes; never-advertised routes never produce withdrawals |
+| Naming | Event payload keys (`refs`, `peers`, `groups`) and command path (`request bgp rib reconcile-export-local`) follow kebab-case and existing grammar |
+| Data flow | Reactor never imports any BGP plugin package; every cross-boundary hop works identically internal and forked |
+| Operator errors and doctor codes | Missing `bgp-adj-rib-in` WARN names the peer, why ordinary received routes could not be re-evaluated, and the exact `bus { endpoint adj-rib-in { internal bgp-adj-rib-in; } }` fix; no unregistered doctor code |
+| Rule: goroutine-lifecycle | Exactly one long-lived `exportReconcileWorker` per `Reactor`, started in `StartWithContext` and joined in `Stop`/`Wait`; zero per-event or per-peer goroutines |
+| Rule: bus `Sends` registration | `bgp-role` declares `{Message: "bgp:filter-definition-changed"}` in BOTH `registry.Registration.Sends` and Stage 1 `sdk.Registration.Sends` |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Long-lived export reconciliation worker & commit-scoped trigger | `go test -race -tags ze_bgp ./internal/component/bgp/reactor/ -run TestExportPolicyReload\|TestExportReconcileWorker` |
+| Hidden `bgp-rib` local reconciliation command | `go test -race -tags ze_bgp ./internal/component/bgp/plugins/rib/ -run TestReconcileExportLocal` and `./le plugin declarations check` |
+| Commit-only `bgp:filter-definition-changed` emission across all 6 in-tree egress filter plugins including `bgp-role` | `go test -race -tags ze_bgp ./internal/component/bgp/plugins/role/ ./internal/component/bgp/plugins/filter_community/ ./internal/component/bgp/plugins/filter_modify/ ./internal/component/bgp/plugins/filter_remove_private_as/ ./internal/component/bgp/plugins/filter_family/ ./internal/component/bgp/plugins/filter_irr/` and `./le plugin boundary check` |
+| Reload functional tests & flipped boundary test | `./le test reload bgp-filter-export-reload-readvertise`, `./le test reload bgp-rib-export-policy-reload-readvertise`, `./le test reload bgp-filter-export-reload-next-update-only` |
+| FRR interop scenario | `./le test integration interop bgp-export-policy-reload-readvertise-frr` |
+| Updated documentation | `./le doc check all` |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | Reactor validates `<plugin>:<filter>` syntax and ignores unknown or malformed `bgp:filter-definition-changed` payloads without panic or spurious broad peer reconciliation |
+| Authorization | `bgp:filter-definition-changed` is gated by `bus_op_gate.go` requiring declared `Sends`; `reconcile-export-local` and `OnPeerExportPolicy` verify exact peer owner and session ID |
+| Resource exhaustion | Single coalescing worker prevents reload storms from spawning unbounded goroutines or queuing duplicate per-peer work; per-peer context bounds each pass |
+| Fail-closed safety | Transient filter errors (`res.failed == true`) never synthesize withdrawals that would blackhole valid routes |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+- `RelayStoredRoute` already uses `authority = adjOutForwarded` even when `InitialUpdate: true` (the flag only passes `policyReplayHolds`), so extending RS/RR policy reconciliation requires zero new ownership authority modes.
+- Moving reload-triggered `bgp:filter-definition-changed` emission from `OnConfigApply` to `OnConfigCommitted` (matching `bgp-role`'s existing `pruneLearnedRoles()` pattern) solves both transaction atomicity (no leak on rollback) and multi-plugin ordering (all plugins applied before reconciliation reads them).
+
+## Owned journal rows
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Reconcile asynchronously on one long-lived `Reactor` coalescing worker triggered at `OnConfigCommitted` / `config-complete(accepted=true)` | Synchronous reconciliation inside `OnConfigApply` or `OnConfigCommitted`; per-peer goroutines | Avoids uncommitted route leaks on rollback, avoids `configCommittedTimeout` (5s) timeouts on full tables, and obeys `ai/rules/goroutine-lifecycle.md` |
+| Reuse existing `reconcileSelectedExport`, `RelayStoredRoute` (`adjOutForwarded`), and `reconcileStaticRoutes` + hidden `reconcile-export-local` | Build a single monolithic reactor-side Adj-RIB-Out cache of all attributes | Preserves Ze's modular split (`bgp-rib` owns RIB, `bgp-adj-rib-in` owns receive store, `adjOut` stays memory-bounded with no forwarded attribute copies) |
+| Add optional additive `"peers"` and `"groups"` scoping fields to `bgp:filter-definition-changed` and include `bgp-role` as an emitter | Always reconcile every peer naming `bgp-filter-community:egress`; or invent a second event type | Prevents churning unaffected peers on per-peer community edits while staying 100% backward-compatible with `spec-bgp-refresh-reapplies-export-policy` D-3 and third-party external filter plugins |
+| Warn (do not fail) when an explicit RS/RR peer lacks `bgp-adj-rib-in` during post-commit reconciliation | Refuse every egress filter edit at commit when `bgp-adj-rib-in` is absent | Post-commit reconciliation cannot roll back an already-committed reload, and configured/FlowSpec routes still reconcile cleanly; `final` restoration keeps its existing commit-time refusal |
 
 ## Known Limitations
-- to be filled at design
-- Test-tooling need (recorded 2026-10-15 from the review of `test/reload/bgp-filter-export-reload-next-update-only.ci`): that test catches a re-send of U1 only when it reaches B before its end barrier U3. ze-peer checks only `reject=` rules after its last expectation, and a `reject=` pattern matches frame bytes, optionally scoped to the announced or withdrawn NLRI (`internal/test/peer/reject.go`, `ParseRejectRule`), with no `attribute=` qualifier, so no rule can refuse "NLRI 10.0.0.0/24 carrying COMMUNITY 65000:2" without also refusing the legitimate U1 at seq=2. When this spec flips that test, its re-advertisement assertion needs either an NLRI-plus-attribute reject qualifier or a reject that arms only after a given expectation; until then a late re-send is not caught.
+- Import policy re-evaluation on reload is out of scope and owned by `plan/post-release/features/spec-bgp-filtered-route-storage.md` AC-3.
+- An explicit RS/RR peer with negotiated ordinary families and no `bgp-adj-rib-in` loaded cannot re-evaluate previously forwarded ordinary received routes (it logs a structured WARN naming the `bgp-adj-rib-in` fix and still reconciles configured local and FlowSpec routes).
+- Direct one-shot API routes (`send bgp ... update text`) sent on a daemon where `bgp-rib` is not loaded have no retained pre-policy copy to re-evaluate.
+- Test-tooling note (from `test/reload/bgp-filter-export-reload-next-update-only.ci`): `internal/test/peer/reject.go` (`ParseRejectRule`) has no `attribute=` or `after_seq=` qualifier, so negative assertions proving an unchanged route is not re-sent after `seq=1` are verified in Go reactor tests (exact TCP frame counts) while `.ci` tests verify positive re-advertisement, denial withdrawal, and unaffected-peer silence.
+
+## RFC Documentation (Scope: protocol)
+
+Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| RFC 4271 Section 3.1 & 4.3 | Replacement UPDATEs overwrite existing routes on the connection; withdrawals name only routes previously advertised on the current connection | ADD-PATH per-path identification (RFC 7911); `adjOut` ownership fences | `TestExportPolicyReloadReconcilesRSRoutes`, `TestExportPolicyReloadReconcilesConfiguredStatic` | `TestExportPolicyReloadReconcilesSelectedDestination` |
+| RFC 4271 Section 9.1.3 | A previously advertised route excluded from Adj-RIB-Out by the updated export policy MUST be withdrawn by an UPDATE message | Fail-closed filter errors (`res.failed`) preserve existing routes rather than withdrawing on transient plugin failure | `TestExportPolicyReloadReconcilesSelectedDestination`, `TestExportPolicyReloadReconcilesRSRoutes`, `bgp-export-policy-reload-readvertise-frr` | `TestExportPolicyReloadReconcilesConfiguredStatic` (fail-closed subtest) |
+| RFC 4271 Section 9.2 | Unchanged locally originated routes are suppressed on re-evaluation via `adjOut` signature comparison | Normal RFC 2918 ROUTE-REFRESH (`metaKeyReplay` without `metaKeyReconcile`) continues forcing re-advertisement | `TestExportPolicyReloadReconcilesConfiguredStatic`, `TestReconcileExportLocalReplaysOnlyNonSelectedLocal` | `spec-bgp-refresh-reapplies-export-policy` refresh tests |
+| RFC 9234 Section 5 | Committed `role { export ... }` changes re-evaluate OTC egress policy across destination peers without dropping learned roles | Learned role retention on edits that remove no peer (`bgp-role-export-reload.ci`) | `TestRoleFilterDefinitionEventCommitAndRollback` | `test/reload/bgp-role-export-reload.ci` |
 
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
 - [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
 - [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated
-- [ ] `./le verify worktree` passes
+- [ ] AC-1..AC-10 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. GitHub CI verifies the pushed commit, and full whole-tree verification is Thomas's release check. A red CI reports gets a fix commit
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] **Commit A:** code + tests + docs + edited spec
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-export-policy-reload-readvertise.md` only
