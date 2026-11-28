@@ -2,16 +2,17 @@ package reactor
 
 import (
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/clock"
-	"github.com/ze-software/ze/internal/core/metrics"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // --- Spy types for metrics testing ---
@@ -40,12 +41,16 @@ func (c *spyCounter) Add(v float64)  { c.mu.Lock(); c.value += v; c.mu.Unlock() 
 func (c *spyCounter) Value() float64 { c.mu.Lock(); defer c.mu.Unlock(); return c.value }
 
 type spyGaugeVec struct {
-	mu     sync.Mutex
-	gauges map[string]*spyGauge
+	mu         sync.Mutex
+	labelNames []string
+	gauges     map[string]*spyGauge
 }
 
-func newSpyGaugeVec() *spyGaugeVec {
-	return &spyGaugeVec{gauges: make(map[string]*spyGauge)}
+func newSpyGaugeVec(labelNames []string) *spyGaugeVec {
+	return &spyGaugeVec{
+		labelNames: slices.Clone(labelNames),
+		gauges:     make(map[string]*spyGauge),
+	}
 }
 
 func (v *spyGaugeVec) With(labels ...string) metrics.Gauge {
@@ -79,12 +84,16 @@ func (v *spyGaugeVec) get(labels ...string) *spyGauge {
 }
 
 type spyCounterVec struct {
-	mu       sync.Mutex
-	counters map[string]*spyCounter
+	mu         sync.Mutex
+	labelNames []string
+	counters   map[string]*spyCounter
 }
 
-func newSpyCounterVec() *spyCounterVec {
-	return &spyCounterVec{counters: make(map[string]*spyCounter)}
+func newSpyCounterVec(labelNames []string) *spyCounterVec {
+	return &spyCounterVec{
+		labelNames: slices.Clone(labelNames),
+		counters:   make(map[string]*spyCounter),
+	}
 }
 
 func (v *spyCounterVec) With(labels ...string) metrics.Counter {
@@ -173,24 +182,24 @@ func (r *spyRegistry) Gauge(name, _ string) metrics.Gauge {
 	return g
 }
 
-func (r *spyRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
+func (r *spyRegistry) CounterVec(name, _ string, labelNames []string) metrics.CounterVec {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if cv, ok := r.counterVecs[name]; ok {
 		return cv
 	}
-	cv := newSpyCounterVec()
+	cv := newSpyCounterVec(labelNames)
 	r.counterVecs[name] = cv
 	return cv
 }
 
-func (r *spyRegistry) GaugeVec(name, _ string, _ []string) metrics.GaugeVec {
+func (r *spyRegistry) GaugeVec(name, _ string, labelNames []string) metrics.GaugeVec {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if gv, ok := r.gaugeVecs[name]; ok {
 		return gv
 	}
-	gv := newSpyGaugeVec()
+	gv := newSpyGaugeVec(labelNames)
 	r.gaugeVecs[name] = gv
 	return gv
 }
@@ -515,4 +524,60 @@ func TestMetricNames_MatchRegistration(t *testing.T) {
 		reg.mu.Unlock()
 		assert.True(t, ok, "expected counter vec %q to be registered", name)
 	}
+}
+
+// TestInitReactorMetricsRegistersAllMetrics verifies that initReactorMetrics
+// registers the four count-derived prefix vectors with (peer, family, mode)
+// labels while keeping static config and peer-level prefix vectors unchanged.
+//
+// VALIDATES: spec-bgp-prefix-count-mode-metric AC-1 label registration contract.
+// PREVENTS: missing or extra mode labels causing Prometheus cardinality panics
+// or spurious mode dimensions on static/peer-level metrics.
+func TestInitReactorMetricsRegistersAllMetrics(t *testing.T) {
+	reg := newSpyRegistry()
+	_ = initReactorMetrics(reg, "1.0.0", "1.2.3.4", "65000")
+
+	expectedGaugeLabels := map[string][]string{
+		"ze_bgp_prefix_count":            {metricLabelPeer, metricLabelFamily, metricLabelMode},
+		"ze_bgp_prefix_ratio":            {metricLabelPeer, metricLabelFamily, metricLabelMode},
+		"ze_bgp_prefix_warning_exceeded": {metricLabelPeer, metricLabelFamily, metricLabelMode},
+		"ze_bgp_prefix_maximum":          {metricLabelPeer, metricLabelFamily},
+		"ze_bgp_prefix_warning":          {metricLabelPeer, metricLabelFamily},
+		"ze_bgp_prefix_stale":            {metricLabelPeer},
+	}
+	for name, wantLabels := range expectedGaugeLabels {
+		gv := reg.gaugeVec(name)
+		require.NotNil(t, gv, "expected gauge vec %q to be registered", name)
+		assert.Equal(t, wantLabels, gv.labelNames, "gauge vec %q label names", name)
+	}
+
+	expectedCounterLabels := map[string][]string{
+		"ze_bgp_prefix_maximum_exceeded_total": {metricLabelPeer, metricLabelFamily, metricLabelMode},
+		"ze_bgp_prefix_teardown_total":         {metricLabelPeer},
+	}
+	for name, wantLabels := range expectedCounterLabels {
+		cv := reg.counterVec(name)
+		require.NotNil(t, cv, "expected counter vec %q to be registered", name)
+		assert.Equal(t, wantLabels, cv.labelNames, "counter vec %q label names", name)
+	}
+
+	// Verify against a real Prometheus registry that the exact label arities
+	// succeed without panicking on With() and Delete().
+	promReg := metrics.NewPrometheusRegistry()
+	rm := initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+	assert.NotPanics(t, func() {
+		rm.prefixCount.With("10.0.0.1", "ipv4/unicast", "offered").Set(1)
+		rm.prefixRatio.With("10.0.0.1", "ipv4/unicast", "offered").Set(0.5)
+		rm.prefixWarningExceeded.With("10.0.0.1", "ipv4/unicast", "offered").Set(1)
+		rm.prefixExceededTotal.With("10.0.0.1", "ipv4/unicast", "offered").Inc()
+		rm.prefixMaximum.With("10.0.0.1", "ipv4/unicast").Set(2)
+		rm.prefixWarning.With("10.0.0.1", "ipv4/unicast").Set(1)
+		rm.prefixTeardownTotal.With("10.0.0.1").Inc()
+		rm.prefixStale.With("10.0.0.1").Set(0)
+
+		assert.True(t, rm.prefixCount.Delete("10.0.0.1", "ipv4/unicast", "offered"))
+		assert.True(t, rm.prefixRatio.Delete("10.0.0.1", "ipv4/unicast", "offered"))
+		assert.True(t, rm.prefixWarningExceeded.Delete("10.0.0.1", "ipv4/unicast", "offered"))
+		assert.True(t, rm.prefixExceededTotal.Delete("10.0.0.1", "ipv4/unicast", "offered"))
+	})
 }

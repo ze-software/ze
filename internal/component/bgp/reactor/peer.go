@@ -738,6 +738,20 @@ type Peer struct {
 	// from a table that was read clears it (refreshLinkScopeWith), so a later
 	// failure warns again.
 	neighborTableUnreadWarned atomic.Bool
+
+	// prefixMetricsMu is a leaf mutex guarding prefixMetricEmitted, which tracks
+	// every (family, mode) pair emitted on the four count-derived prefix-limit
+	// metric vectors for this Peer. Only acquired on first emission per Session
+	// (deduplicated on the session read goroutine) and on cold peer removal or
+	// cleanup paths. Never held across I/O or any other lock.
+	//
+	// prefixMetricsRemoved is set true in Reactor.removalLocked once this Peer
+	// has been deleted from r.peers, so Peer.cleanupPrefixMetrics only acquires
+	// r.mu.RLock for removed peers and never deadlocks against Reactor.cleanup
+	// (which waits for remaining r.peers entries while holding r.mu.Lock).
+	prefixMetricsMu      sync.Mutex
+	prefixMetricEmitted  map[prefixMetricKey]struct{}
+	prefixMetricsRemoved atomic.Bool
 }
 
 // NewPeer creates a new peer for the given settings.

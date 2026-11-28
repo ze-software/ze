@@ -807,8 +807,20 @@ type Session struct {
 	prefixSetVisit func(entry []byte) bool
 
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
-	// Set by Peer in runOnce(). Nil when metrics are not enabled.
+	// Set by Peer in newSessionWithEpoch(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
+	// prefixMetricsRetired points to the owning Peer's stopping flag so a
+	// stopping session does not recreate retired prefix metric series after
+	// Reactor.removalLocked deletes them. Nil for standalone sessions.
+	prefixMetricsRetired *atomic.Bool
+	// onPrefixMetricFamily records each emitted (family, mode) pair on the
+	// owning Peer once per session for removal and cleanup retirement.
+	// Only invoked from the session read goroutine.
+	onPrefixMetricFamily func(family string, mode PrefixCountMode)
+	// emittedPrefixMetrics caches (family, mode) pairs already reported via
+	// onPrefixMetricFamily so the per-UPDATE read path takes no peer lock
+	// after first emission. Only accessed from the session read goroutine.
+	emittedPrefixMetrics map[prefixMetricKey]struct{}
 
 	// typedNLRIKeyScratch is the route key scratch the typed NLRI pass
 	// (typedNLRIEdit) hands nlritype.Retain, so deciding whether a malformed NLRI

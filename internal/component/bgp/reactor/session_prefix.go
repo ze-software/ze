@@ -1108,48 +1108,328 @@ func countPrefixEntries(fk uint32, data []byte, addPath, withdraw bool) int {
 }
 
 // --- Prometheus metric helpers ---
-// All are no-ops when prefixMetrics is nil (metrics not enabled).
+// All are no-ops when prefixMetrics is nil (metrics not enabled) or retired.
+
+// prefixMetricKey identifies one (family, mode) series tuple emitted for a peer
+// on the four count-derived prefix-limit metric vectors.
+type prefixMetricKey struct {
+	family string
+	mode   PrefixCountMode
+}
 
 func (s *Session) peerLabel() string {
 	return s.settings.Address.String()
 }
 
-func (s *Session) setPrefixCountMetric(family string, count int64) {
-	if s.prefixMetrics == nil {
+func (s *Session) prefixMetricsActive() bool {
+	return s.prefixMetrics != nil && (s.prefixMetricsRetired == nil || !s.prefixMetricsRetired.Load())
+}
+
+func (s *Session) recordPrefixMetricEmission(fam string, mode PrefixCountMode) {
+	if s.onPrefixMetricFamily == nil {
 		return
 	}
-	s.prefixMetrics.prefixCount.With(s.peerLabel(), family).Set(float64(count))
+	key := prefixMetricKey{family: fam, mode: mode}
+	if _, seen := s.emittedPrefixMetrics[key]; seen {
+		return
+	}
+	if s.emittedPrefixMetrics == nil {
+		s.emittedPrefixMetrics = make(map[prefixMetricKey]struct{}, 2)
+	}
+	s.emittedPrefixMetrics[key] = struct{}{}
+	s.onPrefixMetricFamily(fam, mode)
+}
+
+func (s *Session) setPrefixCountMetric(family string, count int64) {
+	if !s.prefixMetricsActive() {
+		return
+	}
+	mode := s.settings.prefixCountFor(family)
+	s.recordPrefixMetricEmission(family, mode)
+	modeLabel := mode.String()
+	peerAddr := s.peerLabel()
+	s.prefixMetrics.prefixCount.With(peerAddr, family, modeLabel).Set(float64(count))
 
 	// Update ratio: count / maximum.
 	if maximum, ok := s.settings.PrefixMaximum[family]; ok && maximum > 0 {
-		s.prefixMetrics.prefixRatio.With(s.peerLabel(), family).Set(float64(count) / float64(maximum))
+		s.prefixMetrics.prefixRatio.With(peerAddr, family, modeLabel).Set(float64(count) / float64(maximum))
 	}
 }
 
 func (s *Session) setPrefixWarningExceededMetric(family string, val float64) {
-	if s.prefixMetrics == nil {
+	if !s.prefixMetricsActive() {
 		return
 	}
-	s.prefixMetrics.prefixWarningExceeded.With(s.peerLabel(), family).Set(val)
+	mode := s.settings.prefixCountFor(family)
+	s.recordPrefixMetricEmission(family, mode)
+	s.prefixMetrics.prefixWarningExceeded.With(s.peerLabel(), family, mode.String()).Set(val)
 }
 
 func (s *Session) incrPrefixExceededMetric(family string) {
-	if s.prefixMetrics == nil {
+	if !s.prefixMetricsActive() {
 		return
 	}
-	s.prefixMetrics.prefixExceededTotal.With(s.peerLabel(), family).Inc()
+	mode := s.settings.prefixCountFor(family)
+	s.recordPrefixMetricEmission(family, mode)
+	s.prefixMetrics.prefixExceededTotal.With(s.peerLabel(), family, mode.String()).Inc()
 }
 
 func (s *Session) incrPrefixTeardownMetric() {
-	if s.prefixMetrics == nil {
+	if !s.prefixMetricsActive() {
 		return
 	}
 	s.prefixMetrics.prefixTeardownTotal.With(s.peerLabel()).Inc()
 }
 
-// setPrefixConfigMetrics publishes the static prefix configuration as Prometheus gauges.
-// Called once when the peer is added to the reactor.
-func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSettings, now time.Time) {
+func oppositePrefixCountMode(mode PrefixCountMode) PrefixCountMode {
+	if mode == PrefixCountInstalled {
+		return PrefixCountOffered
+	}
+	return PrefixCountInstalled
+}
+
+func deletePrefixModeSeries(m *reactorMetrics, peerAddr, fam string, mode PrefixCountMode) {
+	modeLabel := mode.String()
+	m.prefixCount.Delete(peerAddr, fam, modeLabel)
+	m.prefixRatio.Delete(peerAddr, fam, modeLabel)
+	m.prefixWarningExceeded.Delete(peerAddr, fam, modeLabel)
+	m.prefixExceededTotal.Delete(peerAddr, fam, modeLabel)
+}
+
+// recordPrefixMetricFamily records that this Peer has emitted count-derived
+// prefix metrics for (fam, mode). Called at most once per (fam, mode) per
+// Session from the session read goroutine.
+func (p *Peer) recordPrefixMetricFamily(fam string, mode PrefixCountMode) {
+	p.prefixMetricsMu.Lock()
+	if p.prefixMetricEmitted == nil {
+		p.prefixMetricEmitted = make(map[prefixMetricKey]struct{}, 2)
+	}
+	p.prefixMetricEmitted[prefixMetricKey{family: fam, mode: mode}] = struct{}{}
+	p.prefixMetricsMu.Unlock()
+}
+
+// snapshotPrefixMetricFamilies returns all (family, mode) pairs this Peer has
+// emitted. Safe for concurrent use with recordPrefixMetricFamily.
+func (p *Peer) snapshotPrefixMetricFamilies() []prefixMetricKey {
+	p.prefixMetricsMu.Lock()
+	if len(p.prefixMetricEmitted) == 0 {
+		p.prefixMetricsMu.Unlock()
+		return nil
+	}
+	out := make([]prefixMetricKey, 0, len(p.prefixMetricEmitted))
+	for k := range p.prefixMetricEmitted {
+		out = append(out, k)
+	}
+	p.prefixMetricsMu.Unlock()
+	return out
+}
+
+// hasEmittedPrefixMetric reports whether this Peer has emitted count-derived
+// prefix metrics for (fam, mode). Safe for concurrent use.
+func (p *Peer) hasEmittedPrefixMetric(fam string, mode PrefixCountMode) bool {
+	p.prefixMetricsMu.Lock()
+	_, ok := p.prefixMetricEmitted[prefixMetricKey{family: fam, mode: mode}]
+	p.prefixMetricsMu.Unlock()
+	return ok
+}
+
+// collectPeerPrefixMetrics gathers every (family, mode) tuple and family name
+// that peer either configured or emitted on prefix-limit metrics.
+func collectPeerPrefixMetrics(settings *PeerSettings, emitted []prefixMetricKey) (map[prefixMetricKey]struct{}, map[string]struct{}) {
+	modeKeys := make(map[prefixMetricKey]struct{}, len(emitted))
+	families := make(map[string]struct{}, len(emitted))
+	for _, k := range emitted {
+		modeKeys[k] = struct{}{}
+		families[k.family] = struct{}{}
+	}
+	if settings != nil {
+		for fam := range settings.PrefixMaximum {
+			modeKeys[prefixMetricKey{family: fam, mode: settings.prefixCountFor(fam)}] = struct{}{}
+			families[fam] = struct{}{}
+		}
+		for fam := range settings.PrefixWarning {
+			modeKeys[prefixMetricKey{family: fam, mode: settings.prefixCountFor(fam)}] = struct{}{}
+			families[fam] = struct{}{}
+		}
+		for fam := range settings.PrefixCount {
+			modeKeys[prefixMetricKey{family: fam, mode: settings.prefixCountFor(fam)}] = struct{}{}
+			families[fam] = struct{}{}
+		}
+	}
+	return modeKeys, families
+}
+
+// deletePeerPrefixMetrics removes all per-family prefix-limit metric series
+// owned by peer that are not owned by another active peer sharing the same
+// peer label. Caller MUST hold r.mu (read or write). Called from
+// Reactor.removalLocked immediately after peer.stopping.Store(true) across all
+// four peer-removal paths.
+func deletePeerPrefixMetrics(r *Reactor, peer *Peer) {
+	if r == nil {
+		return
+	}
+	if peer == nil {
+		return
+	}
+	r.deleteUnownedPeerPrefixMetricsLocked(peer, peer.Settings(), peer.snapshotPrefixMetricFamilies())
+}
+
+// activePeersAtLabelLocked returns all non-stopping peers in r.peers other than
+// exclude whose Prometheus peer label equals label. Caller MUST hold r.mu.
+func (r *Reactor) activePeersAtLabelLocked(exclude *Peer, label string) []*Peer {
+	var activeSameAddr []*Peer
+	for _, other := range r.peers {
+		if other == exclude {
+			continue
+		}
+		if other.stopping.Load() {
+			continue
+		}
+		if other.peerAddrLabel() == label {
+			activeSameAddr = append(activeSameAddr, other)
+		}
+	}
+	return activeSameAddr
+}
+
+// deleteUnownedPeerPrefixMetricsLocked deletes every candidate (family, mode)
+// count-derived series and static maximum/warning gauge belonging to peer that
+// is not currently owned by another active peer at the same peer label.
+// Caller MUST hold r.mu (read or write).
+func (r *Reactor) deleteUnownedPeerPrefixMetricsLocked(peer *Peer, settings *PeerSettings, emitted []prefixMetricKey) {
+	rm := r.rmetrics
+	if rm == nil {
+		return
+	}
+	modeKeys, families := collectPeerPrefixMetrics(settings, emitted)
+	if len(modeKeys) == 0 && len(families) == 0 {
+		return
+	}
+	label := peer.peerAddrLabel()
+	activeSameAddr := r.activePeersAtLabelLocked(peer, label)
+
+	for key := range modeKeys {
+		owned := false
+		for _, other := range activeSameAddr {
+			if peerOwnsPrefixMetricMode(other, key.family, key.mode) {
+				owned = true
+				break
+			}
+		}
+		if !owned {
+			deletePrefixModeSeries(rm, label, key.family, key.mode)
+		}
+	}
+	for fam := range families {
+		maxOwned := false
+		warnOwned := false
+		for _, other := range activeSameAddr {
+			otherSettings := other.Settings()
+			if otherSettings == nil {
+				continue
+			}
+			if _, ok := otherSettings.PrefixMaximum[fam]; ok {
+				maxOwned = true
+			}
+			if _, ok := otherSettings.PrefixWarning[fam]; ok {
+				warnOwned = true
+			}
+		}
+		if !maxOwned {
+			rm.prefixMaximum.Delete(label, fam)
+		}
+		if !warnOwned {
+			rm.prefixWarning.Delete(label, fam)
+		}
+	}
+}
+
+// peerOwnsPrefixMetricMode reports whether an active peer currently owns the
+// (fam, mode) count-derived metric series, either via its configured family
+// mode or because it has already emitted that tuple.
+func peerOwnsPrefixMetricMode(peer *Peer, fam string, mode PrefixCountMode) bool {
+	if peer.hasEmittedPrefixMetric(fam, mode) {
+		return true
+	}
+	settings := peer.Settings()
+	if settings == nil {
+		return false
+	}
+	_, hasMax := settings.PrefixMaximum[fam]
+	_, hasWarn := settings.PrefixWarning[fam]
+	_, hasCount := settings.PrefixCount[fam]
+	if !hasMax && !hasWarn && !hasCount {
+		return false
+	}
+	return settings.prefixCountFor(fam) == mode
+}
+
+// cleanupPrefixMetrics deletes any residual per-family prefix metric series
+// written by this Peer in the narrow window before Peer.stopping was observed.
+// Called from Peer.cleanup() after Session.Run has exited so no further writes
+// from this Peer can occur.
+//
+// Only runs for peers marked prefixMetricsRemoved in Reactor.removalLocked
+// (already deleted from r.peers). Peers stopped directly by Reactor.cleanup
+// while r.mu.Lock() is held leave prefixMetricsRemoved false so cleanup()
+// never acquires r.mu.RLock() and cannot deadlock reactor shutdown.
+//
+// Lock ordering: p.mu (released) -> p.prefixMetricsMu (released) -> r.mu.RLock
+// -> other.mu / other.prefixMetricsMu (released) -> Prometheus vector Delete (leaf).
+// Caller MUST NOT hold p.mu or r.mu.
+func (p *Peer) cleanupPrefixMetrics() {
+	if !p.prefixMetricsRemoved.Load() {
+		return
+	}
+	p.mu.RLock()
+	r := p.reactor
+	settings := p.settings
+	p.mu.RUnlock()
+	if r == nil {
+		return
+	}
+	emitted := p.snapshotPrefixMetricFamilies()
+	if settings == nil && len(emitted) == 0 {
+		return
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	r.deleteUnownedPeerPrefixMetricsLocked(p, settings, emitted)
+}
+
+// setPrefixConfigMetricsLocked publishes static prefix gauges for peer and
+// retires opposite-mode series for each configured family unless another active
+// peer sharing the same IP label owns that opposite mode. Caller MUST hold r.mu.
+func (r *Reactor) setPrefixConfigMetricsLocked(peer *Peer, settings *PeerSettings, now time.Time) {
+	if r.rmetrics == nil {
+		return
+	}
+	peerAddr := settings.Address.String()
+	setPrefixStaticConfigMetrics(r.rmetrics, peerAddr, settings, now)
+	activeSameAddr := r.activePeersAtLabelLocked(peer, peerAddr)
+	retireOpposite := func(fam string) {
+		opp := oppositePrefixCountMode(settings.prefixCountFor(fam))
+		for _, other := range activeSameAddr {
+			if peerOwnsPrefixMetricMode(other, fam, opp) {
+				return
+			}
+		}
+		deletePrefixModeSeries(r.rmetrics, peerAddr, fam, opp)
+	}
+	for fam := range settings.PrefixMaximum {
+		retireOpposite(fam)
+	}
+	for fam := range settings.PrefixWarning {
+		retireOpposite(fam)
+	}
+	for fam := range settings.PrefixCount {
+		retireOpposite(fam)
+	}
+}
+
+// setPrefixStaticConfigMetrics publishes the static prefix configuration gauges
+// and staleness gauge for a peer without retiring opposite-mode series.
+func setPrefixStaticConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSettings, now time.Time) {
 	if m == nil {
 		return
 	}

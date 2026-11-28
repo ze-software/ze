@@ -284,7 +284,7 @@ session {
 | `maximum` | uint32 | required | Hard cap. Exceeding it stops the session with NOTIFICATION Cease / Maximum Number of Prefixes Reached. |
 | `warning` | uint32 | 90% of `maximum` | Warning threshold. Logged and exported as a metric. |
 | `teardown` | boolean | `true` | Stop the session on exceed. `false` warns and drops further NLRI of that family. |
-| `count` | enum | `offered` | `offered` counts each announcement on the wire. `installed` counts the prefix set this family holds. |
+| `count` | enum | `offered` | `offered` counts each announcement on the wire. `installed` counts the prefix set this family holds. Exported as the `mode` label on count-derived prefix-limit Prometheus metrics (`ze_bgp_prefix_count`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded`, `ze_bgp_prefix_maximum_exceeded_total`). |
 | `idle-timeout` | uint16 | `0` | Seconds to wait before reconnect. The wait doubles on each repeat teardown, up to one hour. |
 | `reconnect` | enum | see below | `never`, `backoff`, or `timer`. |
 

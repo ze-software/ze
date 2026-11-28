@@ -853,6 +853,7 @@ func (p *Peer) cleanup() {
 		discardInbound(inbound)
 	}
 	p.incomingWG.Wait()
+	p.cleanupPrefixMetrics()
 	p.releaseRouterIDClaim()
 	p.ClearStats()
 

@@ -230,7 +230,7 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
 		r.rmetrics.peersAddedTotal.Inc()
-		setPrefixConfigMetrics(r.rmetrics, settings.Address.String(), settings, r.clock.Now())
+		r.setPrefixConfigMetricsLocked(peer, settings, r.clock.Now())
 	}
 
 	// Raise / clear prefix-stale on the report bus based on PrefixUpdated.

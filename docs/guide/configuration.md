@@ -1388,6 +1388,14 @@ same UPDATE whole, and both send the same NOTIFICATION under `teardown true`.
 proportion to what the peer sends, bounded by `maximum` when one is configured.
 `offered` keeps a number.
 
+The configured `count` mode (`offered` or `installed`) is exported as the `mode`
+label on the four count-derived Prometheus metrics (`ze_bgp_prefix_count`,
+`ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded`, and
+`ze_bgp_prefix_maximum_exceeded_total`). Changing `count` across a reload
+restarts the peer and retires the obsolete `(peer, family, mode)` series so
+scrapes never mix modes. See the [Monitoring Guide](monitoring.md#prefix-limits-rfc-4486)
+for the full metric table and PromQL notes.
+
 An UPDATE refused by any family's maximum leaves every `installed` set
 unchanged, including withdrawals in that message. Its announcements and
 withdrawals never reach consumers, so neither may change the installed count.

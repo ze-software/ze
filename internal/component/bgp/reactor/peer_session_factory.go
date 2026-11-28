@@ -61,6 +61,8 @@ func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
 		}
 		return p.settings.ExportPolicy.AcceptsExportAtEnd(p.settings.IsEBGP(), kind)
 	}
+	session.prefixMetricsRetired = &p.stopping
+	session.onPrefixMetricFamily = p.recordPrefixMetricFamily
 	if p.reactor != nil {
 		session.egressRouteFilter = p.egressGate(session)
 		session.prefixMetrics = p.reactor.rmetrics

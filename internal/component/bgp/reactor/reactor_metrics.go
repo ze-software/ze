@@ -23,6 +23,7 @@ const (
 	metricLabelCode    = "code"
 	metricLabelSubcode = "subcode"
 	metricLabelFamily  = "family"
+	metricLabelMode    = "mode"
 )
 
 // metricsUpdateIntervalDefault is how often periodic metrics are refreshed.
@@ -159,13 +160,14 @@ type reactorMetrics struct {
 	peerConnectAttempts       metrics.CounterVec   // Connection attempts (labels: peer)
 	peerBackoffSeconds        metrics.HistogramVec // Backoff wait duration (labels: peer)
 
-	// Prefix limits (labeled by peer + family)
-	prefixCount           metrics.GaugeVec   // Current prefix count per family
+	// Prefix limits (count-derived vectors labeled by peer + family + mode;
+	// static config gauges by peer + family; peer-level vectors by peer)
+	prefixCount           metrics.GaugeVec   // Current prefix count per family and count mode
 	prefixMaximum         metrics.GaugeVec   // Configured hard maximum per family
 	prefixWarning         metrics.GaugeVec   // Configured warning threshold per family
-	prefixWarningExceeded metrics.GaugeVec   // 1 if count >= warning for this family
-	prefixRatio           metrics.GaugeVec   // current_count / maximum (0.0 to 1.0+)
-	prefixExceededTotal   metrics.CounterVec // Times this family exceeded maximum
+	prefixWarningExceeded metrics.GaugeVec   // 1 if count >= warning for this family and count mode
+	prefixRatio           metrics.GaugeVec   // current_count / maximum (0.0 to 1.0+) per family and count mode
+	prefixExceededTotal   metrics.CounterVec // Times this family exceeded maximum per count mode
 	prefixTeardownTotal   metrics.CounterVec // Times session torn down for prefix limit (per peer)
 	prefixStale           metrics.GaugeVec   // 1 if prefix updated timestamp is older than 6 months (per peer)
 
@@ -277,12 +279,12 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 			[]float64{1, 2, 5, 10, 30, 60, 120}, []string{metricLabelPeer}),
 
 		// RFC 4486: Prefix limit metrics
-		prefixCount:           reg.GaugeVec("ze_bgp_prefix_count", "Current prefix count per family.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixCount:           reg.GaugeVec("ze_bgp_prefix_count", "Current prefix count per family.", []string{metricLabelPeer, metricLabelFamily, metricLabelMode}),
 		prefixMaximum:         reg.GaugeVec("ze_bgp_prefix_maximum", "Configured hard maximum per family.", []string{metricLabelPeer, metricLabelFamily}),
 		prefixWarning:         reg.GaugeVec("ze_bgp_prefix_warning", "Configured warning threshold per family.", []string{metricLabelPeer, metricLabelFamily}),
-		prefixWarningExceeded: reg.GaugeVec("ze_bgp_prefix_warning_exceeded", "1 if count >= warning for this family.", []string{metricLabelPeer, metricLabelFamily}),
-		prefixRatio:           reg.GaugeVec("ze_bgp_prefix_ratio", "Current prefix count / maximum (0.0 to 1.0+).", []string{metricLabelPeer, metricLabelFamily}),
-		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{metricLabelPeer, metricLabelFamily}),
+		prefixWarningExceeded: reg.GaugeVec("ze_bgp_prefix_warning_exceeded", "1 if count >= warning for this family.", []string{metricLabelPeer, metricLabelFamily, metricLabelMode}),
+		prefixRatio:           reg.GaugeVec("ze_bgp_prefix_ratio", "Current prefix count / maximum (0.0 to 1.0+).", []string{metricLabelPeer, metricLabelFamily, metricLabelMode}),
+		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{metricLabelPeer, metricLabelFamily, metricLabelMode}),
 		prefixTeardownTotal:   reg.CounterVec("ze_bgp_prefix_teardown_total", "Times session torn down for prefix limit.", []string{metricLabelPeer}),
 		prefixStale:           reg.GaugeVec("ze_bgp_prefix_stale", "1 if prefix data is older than 6 months.", []string{metricLabelPeer}),
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Existing BGP prefix-limit enforcement metrics must identify whether `offered` or `installed` counting produced their values so scrapes do not mislead operators. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -75,7 +75,7 @@ This spec owns AC-5 split out from `plan/release/fixes/spec-bgp-per-peer-receive
 | Reactor Prometheus metric registry | `internal/component/bgp/reactor/reactor_metrics.go` `reactorMetrics`, `initReactorMetrics`, `metricLabel*` constants | Registers push-model `GaugeVec` and `CounterVec` metrics behind `internal/core/metrics.Registry` with explicit label-name constants | Extends: adds `metricLabelMode = "mode"` to the four count-derived prefix limit vectors while keeping the existing registry and push model |
 | Per-session prefix metric helpers | `internal/component/bgp/reactor/session_prefix.go` `setPrefixCountMetric`, `setPrefixWarningExceededMetric`, `incrPrefixExceededMetric`, `setPrefixConfigMetrics` | Publishes prefix count, ratio, warning-exceeded, and maximum-exceeded series per `(peer, family)` from `applyPrefixDelta`, `applyPrefixCheck`, and `reportPrefixExceeded` | Extends: passes `s.settings.prefixCountFor(family).String()` as the `mode` label, checks a per-peer atomic retirement fence, and records emitted `(family, mode)` entries for cleanup |
 | Per-family count-mode enum | `internal/component/bgp/reactor/peer_settings.go` `PrefixCountMode`, `PrefixCountOffered`, `PrefixCountInstalled`, `PeerSettings.prefixCountFor` | Defines the closed two-value mode vocabulary (`offered`, `installed`) and resolves absent families to `offered` | Extends: reuses `prefixCountFor(fam).String()` as the sole source of `mode` label values and opposite-mode retirement |
-| Peer removal and reload metric cleanup | `internal/component/bgp/reactor/peer_removal.go` `Reactor.removalLocked`; `internal/component/bgp/reactor/reactor_peers.go` `doRemovePeer`; `internal/component/bgp/reactor/peer_run.go` `Peer.cleanup` | `Reactor.removalLocked` is the shared locked removal choke point for all four removal paths (`doRemovePeer`, `reconcilePeersJournaled` remove, `reconcilePeersJournaled` add-undo rollback, `removeDynamicPeer`) and sets `peer.stopping.Store(true)`; `Peer.cleanup` runs after `Session.Run` exits | Extends: calls `deletePeerPrefixMetrics(r.rmetrics, peer)` from `Reactor.removalLocked` right after `peer.stopping.Store(true)`, fences session metric helpers on `&p.stopping`, and adds an owner-checked residual sweep in `Peer.cleanup` |
+| Peer removal and reload metric cleanup | `internal/component/bgp/reactor/peer_removal.go` `Reactor.removalLocked`; `internal/component/bgp/reactor/reactor_peers.go` `doRemovePeer`; `internal/component/bgp/reactor/peer_run.go` `Peer.cleanup` | `Reactor.removalLocked` is the shared locked removal choke point for all four removal paths (`doRemovePeer`, `reconcilePeersJournaled` remove, `reconcilePeersJournaled` add-undo rollback, `removeDynamicPeer`) and sets `peer.stopping.Store(true)`; `Peer.cleanup` runs after `Session.Run` exits | Extends: calls `deletePeerPrefixMetrics(r, peer)` from `Reactor.removalLocked` right after `peer.stopping.Store(true)` and `peer.prefixMetricsRemoved.Store(true)`, fences session metric helpers on `&p.stopping`, and adds an owner-checked residual sweep in `Peer.cleanup` for removed peers |
 
 ## Design documents
 
@@ -115,6 +115,17 @@ This spec owns AC-5 split out from `plan/release/fixes/spec-bgp-per-peer-receive
 | `docs/architecture/edge-cases/extended-message.md` | TL;DR | anchored to `peer_run.go` | - | silent | Covers RFC 8654 extended message buffers; silent on Prometheus prefix metrics. |
 | `docs/architecture/memory/lifetime-contracts.md` | TL;DR | anchored to `peer_run.go` | - | silent | Covers pooled read buffer lifetime contracts; silent on Prometheus prefix metrics. |
 | `docs/architecture/mrt.md` | Packages | anchored to `peer_run.go` | - | silent | Covers MRT table/update dumps; silent on Prometheus prefix metrics. |
+| `docs/architecture/buffer-architecture.md` | Executive Summary | `// Design:` of `session.go`; anchored to `session.go` | - | silent | Covers read/write buffer pools and framing; silent on Prometheus prefix metric labels. |
+| `docs/architecture/behavior/fsm-open-confirm.md` | TL;DR | anchored to `session.go` | - | silent | Covers OpenConfirm FSM state; silent on Prometheus prefix metrics. |
+| `docs/architecture/chaos-web-dashboard.md` | Architecture Overview | anchored to `session.go` | - | silent | Covers chaos web dashboard visualization; silent on reactor Prometheus prefix metric labels. |
+| `docs/architecture/congestion-industry.md` | Backpressure Mechanisms | anchored to `session.go` | - | silent | Covers slow-peer congestion backpressure; silent on Prometheus prefix metrics. |
+| `docs/architecture/message-buffer-design.md` | Overview | anchored to `session.go` | - | silent | Covers message buffer sizing and allocation; silent on Prometheus prefix metrics. |
+| `docs/architecture/rib-transition.md` | Current: Engine Has No RIB | anchored to `session.go` | - | silent | Covers migration of RIB ownership to `bgp-rib`; silent on Prometheus prefix metric labels. |
+| `docs/architecture/bgp/interface-event-reactions.md` | The decisions | anchored to `reactor_peers.go` | - | silent | Covers interface/neighbor re-advertisement reactions; silent on Prometheus prefix metrics. |
+| `docs/architecture/config/apply-ordering.md` | Phases 2 and 5, for BGP | anchored to `reactor_peers.go` | - | silent | Covers config apply ordering and transport validation; silent on Prometheus prefix metric labels. |
+| `docs/architecture/config/transaction-protocol.md` | 6. Transaction Exclusion | anchored to `reactor_peers.go` | - | silent | Covers config transaction stream protocol; silent on Prometheus prefix metrics. |
+| `docs/architecture/config/yang-config-design.md` | Where a validator actually runs | anchored to `reactor_peers.go` | - | silent | Covers YANG schema and validator placement; silent on Prometheus prefix metric labels. |
+| `docs/architecture/bgp/interface-event-reactions.md` | Design decisions | decision of 2026-11-22 | "Interface and neighbor change re-advertisement runs the first flip immediately, then coalesces bursts behind a per-peer cooldown with at most one queued trailing re-pass; BGP route flap dampening (RFC 2439) is a separate concept and, if ever implemented, must be an option off by default ("flap dampening should be an option and off by default as since the RFC it was found to not help. 1A is fine.")" | agrees | Preserves interface/neighbor re-advertisement coalescing and route flap dampening separation untouched. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | Preserves data-plane mismatch validation untouched; BGP prefix metrics are data-plane agnostic. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | Preserves the unified mismatch refusal path untouched. |
 | `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | Preserves VPP firewall verification untouched. |
@@ -155,9 +166,9 @@ This spec owns AC-5 split out from `plan/release/fixes/spec-bgp-per-peer-receive
 2. When `Peer` constructs a `Session` (`peer_session_factory.go`), it binds `session.prefixMetrics`, `session.prefixMetricsRetired` (pointing to the existing `Peer.stopping` atomic bool), and `session.onPrefixMetricFamily` (recording emitted `(family, mode)` entries on `Peer` once per family).
 3. On each UPDATE section settlement in `session_prefix.go` (`applyPrefixDelta`, `applyPrefixCheck`, `reportPrefixExceeded`), the metric helpers check `s.prefixMetricsRetired` (one atomic load, no lock); if not retired, they resolve `mode := s.settings.prefixCountFor(famName).String()`, record `(famName, mode)` once per family on the peer, and update `.With(peerAddr, famName, mode)` for count, ratio, warning exceeded, and maximum exceeded.
 4. When any peer is removed or restarted (`doRemovePeer`, `reconcilePeersJournaled` remove including any `PrefixCount` change between `offered` and `installed`, `reconcilePeersJournaled` add-undo rollback, or `removeDynamicPeer`):
-   - Under `r.mu`, the shared `Reactor.removalLocked` (`peer_removal.go`) sets `peer.stopping.Store(true)` and invokes `deletePeerPrefixMetrics(r.rmetrics, peer)`, deleting all four mode-labeled vectors across every recorded and configured `(peer, family, mode)` plus `(peer, family)` on `prefixMaximum` and `prefixWarning`.
-   - When the replacement peer is added (`addPeerLocked` -> `setPrefixConfigMetrics`), it publishes the new `prefixMaximum`/`prefixWarning`/`prefixStale` and deletes the opposite mode for every configured family so no stale mode series can remain.
-   - When the outgoing peer's goroutine exits in `Peer.cleanup()` (`peer_run.go`), after `Session.Run` has returned, any `(peer, family, mode)` written in the narrow window before `peer.stopping` was observed is deleted only if no active peer in `r.peers` currently owns that `(peer, family, mode)`.
+   - Under `r.mu`, the shared `Reactor.removalLocked` (`peer_removal.go`) sets `peer.stopping.Store(true)` and `peer.prefixMetricsRemoved.Store(true)` and invokes `deletePeerPrefixMetrics(r, peer)`, deleting unowned mode-labeled vectors across every recorded and configured `(peer, family, mode)` plus unowned `(peer, family)` on `prefixMaximum` and `prefixWarning`.
+   - When the replacement peer is added (`addPeerLocked` -> `setPrefixConfigMetricsLocked`), it publishes the new `prefixMaximum`/`prefixWarning`/`prefixStale` and deletes the opposite mode for every configured family when no active sibling peer owns it so no stale mode series can remain.
+   - When the outgoing removed peer's goroutine exits in `Peer.cleanup()` (`peer_run.go`), after `Session.Run` has returned, any `(peer, family, mode)` written in the narrow window before `peer.stopping` was observed is deleted only if no active peer in `r.peers` currently owns that `(peer, family, mode)`. Peers stopped during whole-reactor shutdown skip `r.mu` acquisition to avoid deadlocking `Reactor.cleanup`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -199,7 +210,7 @@ This spec owns AC-5 split out from `plan/release/fixes/spec-bgp-per-peer-receive
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Changing `prefix { count offered|installed; }` restarts the peer via `reconcilePeersJournaled` | `peer_settings_apply.go` omits `PrefixCount` from `hotSwappableSettings` | Mode change would happen in-place without hitting the removal loop | unit test + `.ci` reload from `offered` to `installed` | confirmed (2026-11-26) |
 | A-2 | `PrefixCountMode` has a closed two-value set (`offered`, `installed`) | `ze-bgp-conf.yang` `leaf count` enum and `peer_settings.go` `PrefixCountMode` | Unbounded label cardinality on Prometheus series | `peer_settings.go` `parsePrefixCountMode` rejects any other value | confirmed (2026-11-26) |
-| A-3 | `metrics.GaugeVec.Delete` and `metrics.CounterVec.Delete` remove retired label tuples from `/metrics` | `internal/core/metrics/metrics.go` (`Delete(labelValues ...string) bool`) and `reactor_metrics.go` `setInfo` | Obsolete mode series would remain visible after reload | unit test with real Prometheus registry + `.ci` scrape after reload | unvalidated |
+| A-3 | `metrics.GaugeVec.Delete` and `metrics.CounterVec.Delete` remove retired label tuples from `/metrics` | `internal/core/metrics/metrics.go` (`Delete(labelValues ...string) bool`) and `reactor_metrics.go` `setInfo` | Obsolete mode series would remain visible after reload | unit test with real Prometheus registry + `.ci` scrape after reload | confirmed (2026-11-28) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -263,11 +274,13 @@ This spec owns AC-5 split out from `plan/release/fixes/spec-bgp-per-peer-receive
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_metrics.go` - add `metricLabelMode = "mode"` to `ze_bgp_prefix_count`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded`, and `ze_bgp_prefix_maximum_exceeded_total`.
-- `internal/component/bgp/reactor/session_prefix.go` - stamp `s.settings.prefixCountFor(family).String()` on the four count-derived metrics, check `s.prefixMetricsRetired`, track emitted `(family, mode)` entries, add `deletePeerPrefixMetrics`, and retire opposite-mode series in `setPrefixConfigMetrics`.
-- `internal/component/bgp/reactor/peer.go` - add emitted `(family, mode)` tracking on `Peer` (reusing existing `Peer.stopping` atomic bool as the retirement fence).
+- `internal/component/bgp/reactor/session.go` - add `prefixMetricsRetired`, `onPrefixMetricFamily`, and `emittedPrefixMetrics` fields on `Session`.
+- `internal/component/bgp/reactor/session_prefix.go` - stamp `s.settings.prefixCountFor(family).String()` on the four count-derived metrics, check `s.prefixMetricsRetired`, track emitted `(family, mode)` entries, add owner-checked `deletePeerPrefixMetrics` / `deleteUnownedPeerPrefixMetricsLocked`, and retire opposite-mode series in `setPrefixConfigMetricsLocked` when unowned by sibling peers.
+- `internal/component/bgp/reactor/reactor_peers.go` - call `r.setPrefixConfigMetricsLocked` on peer add so opposite-mode retirement respects sibling peers sharing the same IP on distinct ports.
+- `internal/component/bgp/reactor/peer.go` - add emitted `(family, mode)` tracking and `prefixMetricsRemoved` atomic flag on `Peer` (reusing existing `Peer.stopping` atomic bool as the retirement fence).
 - `internal/component/bgp/reactor/peer_session_factory.go` - wire `session.prefixMetricsRetired = &p.stopping` and metric-family tracking from `Peer` onto `Session`.
-- `internal/component/bgp/reactor/peer_run.go` - run owner-checked residual prefix-metric cleanup in `Peer.cleanup()` after `Session.Run` exits.
-- `internal/component/bgp/reactor/peer_removal.go` - call `deletePeerPrefixMetrics(r.rmetrics, peer)` in `Reactor.removalLocked` (right after `peer.stopping.Store(true)`), covering all four peer-removal paths (`doRemovePeer`, `reconcilePeersJournaled` remove, `reconcilePeersJournaled` add-undo rollback, and `removeDynamicPeer`).
+- `internal/component/bgp/reactor/peer_run.go` - run owner-checked residual prefix-metric cleanup in `Peer.cleanup()` after `Session.Run` exits (only for peers marked `prefixMetricsRemoved`).
+- `internal/component/bgp/reactor/peer_removal.go` - set `peer.prefixMetricsRemoved.Store(true)` and call `deletePeerPrefixMetrics(r, peer)` in `Reactor.removalLocked` (right after `peer.stopping.Store(true)`), covering all four peer-removal paths (`doRemovePeer`, `reconcilePeersJournaled` remove, `reconcilePeersJournaled` add-undo rollback, and `removeDynamicPeer`).
 - `internal/component/bgp/reactor/reactor_metrics_test.go` - update label expectations for the four prefix vectors.
 - `internal/component/bgp/reactor/session_prefix_test.go` - add mode-label and reload-retirement unit tests.
 - `docs/guide/monitoring.md` - update the Prefix Limits metric table with the `mode` label and add a PromQL migration note.
@@ -352,7 +365,7 @@ none
    - Tests: `TestInitReactorMetricsRegistersAllMetrics`, `TestPrefixMetricsCarryCountModeLabel`, `TestPrefixModeReloadRetiresObsoleteSeries`, `test/plugin/bgp-prefix-count-mode.ci`
    - Files: `reactor_metrics.go`, `session_prefix.go`, `reactor_metrics_test.go`, `session_prefix_test.go`, `test/plugin/bgp-prefix-count-mode.ci`
    - Verify: mode label appears on all four metrics; reload test fails red until series retirement is wired.
-2. **Phase: Series retirement and race safety** -- add emitted `(family, mode)` tracking on `Peer`, wire `session.prefixMetricsRetired = &p.stopping` through `peer_session_factory.go`, call `deletePeerPrefixMetrics(r.rmetrics, peer)` in `Reactor.removalLocked` (`peer_removal.go`), delete opposite mode in `setPrefixConfigMetrics`, and perform owner-checked post-exit cleanup in `Peer.cleanup()` (`peer_run.go`).
+2. **Phase: Series retirement and race safety** -- add emitted `(family, mode)` tracking and `prefixMetricsRemoved` on `Peer`, wire `session.prefixMetricsRetired = &p.stopping` through `peer_session_factory.go`, call `deletePeerPrefixMetrics(r, peer)` in `Reactor.removalLocked` (`peer_removal.go`), delete unowned opposite mode in `setPrefixConfigMetricsLocked` (`reactor_peers.go` / `session_prefix.go`), and perform owner-checked post-exit cleanup in `Peer.cleanup()` (`peer_run.go`).
    - Tests: `TestPrefixModeReloadRetiresObsoleteSeries` under `-race`, `test/plugin/bgp-prefix-count-mode.ci`
    - Files: `peer.go`, `peer_session_factory.go`, `peer_run.go`, `peer_removal.go`, `session_prefix.go`
    - Verify: unit tests and `.ci` pass green; `-race` clean; existing prefix-limit enforcement tests unchanged.
@@ -405,8 +418,160 @@ none
 - Pre-policy `routes-received` exposure on CLI and Looking Glass is owned separately by `plan/release/fixes/spec-bgp-per-peer-received-counter.md`.
 - Optional descriptive peer labels (`description`, `hostname`, `peer-type`, `peer-group`) and native collector selection remain post-release in `plan/post-release/features/spec-bgp-peer-metric-labels.md`.
 
+## Implementation Summary
+
+### What Was Implemented
+- Added `metricLabelMode = "mode"` to `ze_bgp_prefix_count`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded`, and `ze_bgp_prefix_maximum_exceeded_total` in `internal/component/bgp/reactor/reactor_metrics.go`, leaving `ze_bgp_prefix_maximum`, `ze_bgp_prefix_warning`, `ze_bgp_prefix_teardown_total`, and `ze_bgp_prefix_stale` unchanged.
+- Updated `internal/component/bgp/reactor/session_prefix.go`, `session.go`, `peer.go`, `peer_session_factory.go`, `peer_removal.go`, `peer_run.go`, and `reactor_peers.go` to:
+  - Stamp `s.settings.prefixCountFor(family).String()` (`offered` or `installed`) on the four count-derived vectors with zero new hot-path lock or per-NLRI allocation (session-local `emittedPrefixMetrics` dedup + single atomic `prefixMetricsRetired` load pointing to `&p.stopping`).
+  - Track emitted `(family, mode)` tuples under leaf mutex `Peer.prefixMetricsMu` and gate `Peer.cleanupPrefixMetrics()` on `Peer.prefixMetricsRemoved` (set only in `Reactor.removalLocked` after `delete(r.peers, key)`) so whole-reactor shutdown in `Reactor.cleanup()` never deadlocks on `r.mu`.
+  - Retire obsolete unowned `(peer, family, mode)` and `(peer, family)` series synchronously across all four peer-removal paths in `Reactor.removalLocked` (`deletePeerPrefixMetrics(r, peer)` -> `deleteUnownedPeerPrefixMetricsLocked`) and retire unowned opposite-mode series on peer add (`setPrefixConfigMetricsLocked`), preserving active replacement and shared-IP multi-port sibling peers' series.
+- Added unit tests `TestInitReactorMetricsRegistersAllMetrics` (`reactor_metrics_test.go`), `TestPrefixMetricsCarryCountModeLabel`, and `TestPrefixModeReloadRetiresObsoleteSeries` (including `offered <-> installed` reload, removal, unrelated same-mode reload, concurrent UPDATEs + reload under `-race`, shared-IP multi-port sibling preservation, and whole-reactor shutdown deadlock regression) in `session_prefix_test.go`.
+- Created and promoted `test/plugin/bgp-prefix-count-mode.ci` proving `offered` vs `installed` `/metrics` labels and live reload series retirement end-to-end (80/80 `stress-repro` clean under 64-burner load).
+- Updated `docs/guide/monitoring.md`, `docs/guide/configuration.md`, `docs/guide/bgp-peering.md`, and created closure news fragment `website/changes/fragments/bgp-prefix-count-mode-metric.md`.
+
+### Bugs Found/Fixed
+- **Round 1 Review Gate (shared-IP multi-port peers):** `deletePeerPrefixMetrics` and `setPrefixConfigMetrics` initially deleted series for a peer IP without checking sibling peers on distinct ports sharing the same Prometheus `peer` label. Unified removal and post-exit cleanup onto `deleteUnownedPeerPrefixMetricsLocked` and guarded opposite-mode retirement in `setPrefixConfigMetricsLocked`; covered by `TestPrefixModeReloadRetiresObsoleteSeries/shared_IP_multi-port_peers_preserve_surviving_peer_metrics`.
+- **Round 2 Review Gate (shutdown `r.mu` deadlock):** `Peer.cleanupPrefixMetrics()` unconditionally acquired `r.mu.RLock()`, which deadlocked against `Reactor.cleanup()` waiting on `peer.Wait` while holding `r.mu.Lock()`. Added `Peer.prefixMetricsRemoved atomic.Bool` set only in `Reactor.removalLocked` (after `delete(r.peers, key)`) and early-returned when unset; covered by `TestPrefixModeReloadRetiresObsoleteSeries/reactor_shutdown_with_running_peer_does_not_deadlock_on_r.mu` (`<500ms` shutdown under `-race`).
+
+### Documentation Updates
+- `docs/guide/monitoring.md` — updated Prefix Limits (RFC 4486) metric table with `mode` label, added PromQL migration note, anchored to `internal/component/bgp/reactor/reactor_metrics.go` (`initReactorMetrics`) and `internal/component/bgp/reactor/session_prefix.go` (`setPrefixCountMetric`, `deletePeerPrefixMetrics`).
+- `docs/guide/configuration.md` — documented that per-family `prefix { count offered|installed; }` appears as the `mode` label on count-derived Prometheus metrics and retires obsolete series on reload.
+- `docs/guide/bgp-peering.md` — noted the `mode` label on the `count` leaf row under `## Prefix limits are per family`.
+- `website/changes/fragments/bgp-prefix-count-mode-metric.md` — operator-facing change fragment (topic `BGP`).
+- `./le doc check all` — zero broken anchors or drift in any file touched by this spec.
+
+### Deviations from Plan
+- Added `internal/component/bgp/reactor/session.go` (3 per-session fields) and `internal/component/bgp/reactor/reactor_peers.go` (`setPrefixConfigMetricsLocked` call on `addPeerLocked`) to `Files to Modify`, added all 11 derived rows to `Design documents`, and had independent `/ze-design-judge` re-approve (`d26c2b9d0685`, `ready to present`).
+- Renamed `deletePeerPrefixMetrics(r.rmetrics, peer)` -> `deletePeerPrefixMetrics(r, peer)` and `setPrefixConfigMetrics` -> `setPrefixConfigMetricsLocked` / `setPrefixStaticConfigMetrics` so both peer add and peer removal share the sibling-peer ownership check.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `Peer.cleanupPrefixMetrics()` took `r.mu.RLock()` unconditionally for every stopping peer | `Reactor.cleanup()` holds `r.mu.Lock()` while awaiting `peer.Wait` on every peer still in `r.peers`, so taking `r.mu.RLock()` inside `Peer.cleanup()` deadlocked whole-reactor shutdown until the 2s wait timeout | Round 2 Independent Review Gate (`1590cd0d`) | Added `Peer.prefixMetricsRemoved` set only in `Reactor.removalLocked` after `delete(r.peers, key)`, guarded `cleanupPrefixMetrics()`, and added `<500ms` shutdown regression test |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Closed `mode` label (`offered`/`installed`) on the 4 count-derived prefix metrics | Done | `internal/component/bgp/reactor/reactor_metrics.go:282-289`, `session_prefix.go:1143-1174` | Uses `metricLabelMode = "mode"` and `PrefixCountMode.String()` |
+| Preserve static/peer-level prefix metrics unchanged | Done | `internal/component/bgp/reactor/reactor_metrics.go:282-289`, `session_prefix.go:1423-1439` | `prefixMaximum`/`prefixWarning` keep `(peer, family)`; `prefixTeardownTotal`/`prefixStale` keep `(peer)` |
+| Retire obsolete `(peer, family, mode)` series cleanly without racing stopping sessions or disturbing active replacement/sibling peers | Done | `internal/component/bgp/reactor/peer_removal.go:71-73`, `reactor_peers.go:233`, `peer_run.go:856`, `session_prefix.go:1264-1420` | Synchronous retirement in `removalLocked` + `&p.stopping` fence + `prefixMetricsRemoved`-gated owner-checked sweep in `Peer.cleanup()` |
+| Document label addition and PromQL migration | Done | `docs/guide/monitoring.md:724-741`, `docs/guide/configuration.md:1391-1397`, `docs/guide/bgp-peering.md:287` | Includes PromQL selector and `by (peer, family, mode)` guidance |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInitReactorMetricsRegistersAllMetrics`, `TestPrefixMetricsCarryCountModeLabel`, `test/plugin/bgp-prefix-count-mode.ci` | Both `offered` and `installed` emit exact values and `mode` labels; static/peer metrics unchanged; `maximum == 0` skips ratio |
+| AC-2 | Done | `TestPrefixModeReloadRetiresObsoleteSeries`, `test/plugin/bgp-prefix-count-mode.ci` | Reload `offered <-> installed` and peer removal retire obsolete tuples; sibling/replacement peers preserved |
+| AC-3 | Done | `TestPrefixModeReloadRetiresObsoleteSeries` (20x `-race` + 5x `-race` after polish) | Zero races, zero panics, zero lingering obsolete series, `<500ms` reactor shutdown |
+| AC-4 | Done | `./le --name mup-work test bgp plugin --pattern prefix` (29/29 prefix tests PASS) + `reactor` `Prefix` unit tests | Zero behavioral regression in prefix enforcement |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestInitReactorMetricsRegistersAllMetrics` | Done | `internal/component/bgp/reactor/reactor_metrics_test.go` | PASS under `-race` |
+| `TestPrefixMetricsCarryCountModeLabel` | Done | `internal/component/bgp/reactor/session_prefix_test.go` | PASS under `-race` |
+| `TestPrefixModeReloadRetiresObsoleteSeries` | Done | `internal/component/bgp/reactor/session_prefix_test.go` | PASS 20x + 5x under `-race` |
+| `bgp-prefix-count-mode` | Done | `test/plugin/bgp-prefix-count-mode.ci` | 80/80 `stress-repro` clean under 64-burner load; live PASS (`3.6s`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/reactor/reactor_metrics.go` | Done | Added `metricLabelMode = "mode"` to 4 count-derived vectors |
+| `internal/component/bgp/reactor/session.go` | Done | Added `prefixMetricsRetired`, `onPrefixMetricFamily`, `emittedPrefixMetrics` |
+| `internal/component/bgp/reactor/session_prefix.go` | Done | Typed `PrefixCountMode` tracking, fence, unified owner-checked retirement |
+| `internal/component/bgp/reactor/peer.go` | Done | Added `prefixMetricsMu`, `prefixMetricEmitted`, `prefixMetricsRemoved` |
+| `internal/component/bgp/reactor/peer_session_factory.go` | Done | Wired retirement fence and family callback onto `Session` |
+| `internal/component/bgp/reactor/peer_run.go` | Done | Invoked `p.cleanupPrefixMetrics()` in `Peer.cleanup()` |
+| `internal/component/bgp/reactor/peer_removal.go` | Done | Set `prefixMetricsRemoved` and invoked `deletePeerPrefixMetrics(r, peer)` |
+| `internal/component/bgp/reactor/reactor_peers.go` | Done | Called `r.setPrefixConfigMetricsLocked` in `addPeerLocked` |
+| `internal/component/bgp/reactor/reactor_metrics_test.go` | Done | Added `TestInitReactorMetricsRegistersAllMetrics` |
+| `internal/component/bgp/reactor/session_prefix_test.go` | Done | Added `TestPrefixMetricsCarryCountModeLabel` and `TestPrefixModeReloadRetiresObsoleteSeries` |
+| `test/plugin/bgp-prefix-count-mode.ci` | Done | Promoted after 80/80 `stress-repro` |
+| `docs/guide/monitoring.md` | Done | Updated metric table and PromQL migration note |
+| `docs/guide/configuration.md` | Done | Noted `mode` label and reload retirement |
+| `docs/guide/bgp-peering.md` | Done | Noted `mode` label on `count` leaf row |
+| `website/changes/fragments/bgp-prefix-count-mode-metric.md` | Done | Closure news fragment |
+
+### Audit Summary
+- **Total items:** 19
+- **Done:** 19
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations: added `session.go`/`reactor_peers.go` with `/ze-design-judge` re-approval, unified owner-checked retirement helper names)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Expose closed `mode` label (`offered`/`installed`) on the 4 count-derived prefix metrics while preserving static/peer metrics | Functional `.ci` + Unit test | `test/plugin/bgp-prefix-count-mode.ci` (PASS `3.6s`, 80/80 `stress-repro`), `TestInitReactorMetricsRegistersAllMetrics`, `TestPrefixMetricsCarryCountModeLabel` |
+| Retire obsolete `(peer, family, mode)` series cleanly on reload and removal without races, sibling disturbance, or shutdown deadlock | Functional `.ci` + `-race` unit tests | `test/plugin/bgp-prefix-count-mode.ci` live reload stage, `TestPrefixModeReloadRetiresObsoleteSeries` (20x + 5x `-race` PASS including concurrent reload, multi-port siblings, and `<500ms` shutdown) |
+| Preserve existing prefix-limit enforcement behavior across `offered` and `installed` | Functional `.ci` suite | `./le --name mup-work test bgp plugin --pattern prefix`: 29/29 prefix tests PASS (`prefix-count-installed`, `prefix-count-offered`, `prefix-warn-only-drops-nlri`, `prefix-maximum-enforce`, `prefix-per-family-teardown`, etc.) |
+| Document label addition and PromQL migration | Doc check | `docs/guide/monitoring.md`, `docs/guide/configuration.md`, `docs/guide/bgp-peering.md`; zero broken anchors in touched docs |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Pre-policy `routes-received` CLI and Looking Glass exposure | Explicitly split out by Thomas on 2026-11-24 | `plan/release/fixes/spec-bgp-per-peer-received-counter.md` |
+| Optional descriptive peer labels (`description`, `hostname`, `peer-type`, `peer-group`) and native collector selection | Post-release scope per owner decision | `plan/post-release/features/spec-bgp-peer-metric-labels.md` |
+
 ## Review Gate
-Pending implementation and independent `/ze-review` + `/ze-review-spec`.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-prefix-count-mode-metric-c6b80008-8888-4000-8000-000000000008.md` |
+| `./le spec review check` | clean |
+| Rounds | 4 (Round 1: 2 ISSUE; Round 2: 1 BLOCKER + 1 ISSUE; Round 3: 1 test-only BLOCKER; Round 4: CLEAN 0 BLOCKER, 0 ISSUE) |
+| Reviewer lenses used | Independent `/ze-review` + `/ze-review-spec` (concurrency/lock-ordering, Prometheus label arity, hot path, `.ci` state assertions, docs/design-doc gates) across 4 fresh `ze-read` passes (`2dcb8fd9`, `1590cd0d`, `d9013b33`, `6a880931`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `session.go` missing from `Files to Modify` and `Design documents` | `plan/release/fixes/spec-bgp-prefix-count-mode-metric.md` | Added `session.go` + `reactor_peers.go` and 11 derived rows; re-approved by `ze-design-judge` (`72b28b1a`) |
+| 2 | ISSUE | `deletePeerPrefixMetrics` and `setPrefixConfigMetrics` unconditionally deleted series on shared-IP multi-port peers | `internal/component/bgp/reactor/session_prefix.go`, `peer_removal.go`, `reactor_peers.go` | Unified onto `deleteUnownedPeerPrefixMetricsLocked` and `setPrefixConfigMetricsLocked` with sibling-peer unit test |
+| 3 | BLOCKER | `Peer.cleanupPrefixMetrics` acquired `r.mu.RLock` during `Reactor.cleanup` (`r.mu.Lock` + `peer.Wait`) causing 2s shutdown deadlock | `internal/component/bgp/reactor/peer.go`, `peer_removal.go`, `session_prefix.go` | Gated `cleanupPrefixMetrics` on `Peer.prefixMetricsRemoved` set only in `Reactor.removalLocked` + `<500ms` shutdown regression test |
+| 4 | ISSUE | Dead `setPrefixConfigMetrics` duplicate remained after switching `addPeerLocked` to `setPrefixConfigMetricsLocked` | `internal/component/bgp/reactor/session_prefix.go` | Deleted dead helper and updated test caller to `setPrefixStaticConfigMetrics` |
+| 5 | BLOCKER | Shutdown regression test constructed borrow-mode `New(&Config{})` and left redundant `r.StartPeers()` | `internal/component/bgp/reactor/session_prefix_test.go` | Switched to `Standalone: true`, removed `r.StartPeers()`, added `recordPrefixMetricFamily` and `require.Eventually` for `p.State() != PeerStateStopped` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-prefix-count-mode.ci` | Yes | `git status --porcelain`: `?? test/plugin/bgp-prefix-count-mode.ci` |
+| `website/changes/fragments/bgp-prefix-count-mode-metric.md` | Yes | `git status --porcelain`: `?? website/changes/fragments/bgp-prefix-count-mode-metric.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | 4 count-derived metrics carry `mode="offered"`/`"installed"`, static/peer metrics unchanged | `job prefix-mode-test: exit 0` (`go test -race -tags ze_bgp -count=5 -run 'Test(InitReactorMetricsRegistersAllMetrics\|PrefixMetricsCarryCountModeLabel\|PrefixModeReloadRetiresObsoleteSeries)' ./internal/component/bgp/reactor/`) + `test/plugin/bgp-prefix-count-mode.ci` PASS `3.6s` |
+| AC-2 | Live reload `offered <-> installed` and peer removal retire obsolete series while preserving sibling/replacement peers | `test/plugin/bgp-prefix-count-mode.ci` PASS `3.6s` (80/80 `stress-repro` clean) + `TestPrefixModeReloadRetiresObsoleteSeries` PASS (20x + 5x `-race`) |
+| AC-3 | Concurrent UPDATEs during reload/removal and reactor shutdown are race-free and deadlock-free | `TestPrefixModeReloadRetiresObsoleteSeries` 20x `-race` (`exit 0`) + 5x `-race` (`exit 0`, including `<500ms` shutdown subtest) |
+| AC-4 | Existing prefix-limit enforcement tests unchanged across `offered` and `installed` | `./le --name mup-work test bgp plugin --pattern prefix`: 29/29 prefix tests PASS |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Prometheus `/metrics` scrape with `offered` and `installed` peers + live reload `offered` -> `installed` | `test/plugin/bgp-prefix-count-mode.ci` | Yes — read full `.ci` file; verifies both initial `mode="offered"`/`"installed"` values and post-reload `mode="installed"` presence + `mode="offered"` absence via `show metrics values` with zero `sleep` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed (2026-11-26) | `peer_settings_apply.go` omits `PrefixCount` from `hotSwappableSettings`; live reload in `bgp-prefix-count-mode.ci` restarts peer cleanly |
+| A-2 | confirmed (2026-11-26) | `PrefixCountMode` enum in `peer_settings.go` / `ze-bgp-conf.yang` is closed to `offered` and `installed` |
+| A-3 | confirmed (2026-11-28) | `metrics.GaugeVec.Delete` / `CounterVec.Delete` removed all retired tuples in real `metrics.NewPrometheusRegistry()` unit scrapes and live `test/plugin/bgp-prefix-count-mode.ci` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/monitoring.md` Prefix Limits table & PromQL migration note | Anchored to `reactor_metrics.go` (`initReactorMetrics`) and `session_prefix.go` (`setPrefixCountMetric`, `deletePeerPrefixMetrics`); verified against `git grep -nE 'prefix(Count\|Ratio\|WarningExceeded\|ExceededTotal\|Maximum\|Warning\|TeardownTotal\|Stale)\.(With\|Delete)' internal/component/bgp/reactor/` | Yes |
+| `docs/guide/configuration.md` & `docs/guide/bgp-peering.md` `count` -> `mode` label notes | Verified against `PrefixCountMode.String()` in `peer_settings.go` and `session_prefix.go` | Yes |
+| `website/changes/fragments/bgp-prefix-count-mode-metric.md` | Topic `BGP` from `website/data/topics.json`, 6 fixed headings, operator-facing prose | Yes |
+| Non-applicable doc categories (CLI/RPC/YANG/wire/RFC/plugin inventory) | `git diff --stat` confirms edits are confined to `internal/component/bgp/reactor/`, `test/plugin/bgp-prefix-count-mode.ci`, `docs/guide/`, and `website/changes/fragments/` | Yes |
 
 ## Checklist
 

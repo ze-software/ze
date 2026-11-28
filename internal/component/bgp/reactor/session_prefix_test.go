@@ -1,6 +1,11 @@
 package reactor
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -741,4 +747,395 @@ func TestPrefixLimitsZeroMaximumStillEnforces(t *testing.T) {
 
 	_, _, hasMax = s.prefixConfigLookup(ipv6UKey)
 	assert.False(t, hasMax, "an unconfigured family states no maximum")
+}
+
+func scrapePromMetrics(t *testing.T, reg *metrics.PrometheusRegistry) string {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	reg.Handler().ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	return rec.Body.String()
+}
+
+func assertNoPrefixMetricsForPeer(t *testing.T, body, peer string) {
+	t.Helper()
+	needle := `peer="` + peer + `"`
+	for line := range strings.SplitSeq(body, "\n") {
+		if strings.HasPrefix(line, "ze_bgp_prefix_") && strings.Contains(line, needle) {
+			assert.Failf(t, "unexpected prefix metric series", "line: %s", line)
+		}
+	}
+}
+
+func newPrefixModeTestSettings(addr string, max, warn uint32, mode PrefixCountMode, routerID uint32) *PeerSettings {
+	ps := NewPeerSettings(mustParseAddr(addr), 65000, 65001, routerID)
+	ps.PrefixMaximum = map[string]uint32{"ipv4/unicast": max}
+	ps.PrefixWarning = map[string]uint32{"ipv4/unicast": warn}
+	ps.PrefixTeardown = map[string]bool{"ipv4/unicast": false}
+	ps.PrefixCount = map[string]PrefixCountMode{"ipv4/unicast": mode}
+	return ps
+}
+
+func singleIPv4AnnounceBody(octet2, octet3 byte) []byte {
+	return []byte{0, 0, 0, 0, 24, 10, octet2, octet3}
+}
+
+func singleIPv4WithdrawBody(octet2, octet3 byte) []byte {
+	return []byte{0, 4, 24, 10, octet2, octet3, 0, 0}
+}
+
+// TestPrefixMetricsCarryCountModeLabel verifies that the four count-derived
+// prefix-limit Prometheus metrics stamp mode="offered" or mode="installed"
+// matching each family's configured count mode, while static/peer metrics
+// omit mode and maximum==0 skips prefixRatio without panicking.
+//
+// VALIDATES: spec-bgp-prefix-count-mode-metric AC-1 and boundary maximum == 0.
+// PREVENTS: scrapes reporting prefix counts/ratios/warnings/exceeds without
+// identifying whether offered or installed counting produced them.
+func TestPrefixMetricsCarryCountModeLabel(t *testing.T) {
+	promReg := metrics.NewPrometheusRegistry()
+	rm := initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+
+	// Offered peer: 3 distinct /24s against max=2, warn=1, teardown=false.
+	// Offered counts the dropped 3rd announcement: count=3, ratio=1.5, warn=1, exceeded=1.
+	psOffered := newPrefixModeTestSettings("10.0.0.1", 2, 1, PrefixCountOffered, 0x01010101)
+	setPrefixStaticConfigMetrics(rm, psOffered.Address.String(), psOffered, time.Now())
+	sOffered := NewSession(psOffered)
+	sOffered.prefixMetrics = rm
+
+	checkOK(t, sOffered, singleIPv4AnnounceBody(0, 1))
+	checkOK(t, sOffered, singleIPv4AnnounceBody(0, 2))
+	notif, drop := sOffered.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(0, 3)))
+	assert.Nil(t, notif)
+	assert.True(t, drop)
+
+	// Installed peer: 1st prefix, re-announce 1st prefix (no-op), 2nd prefix, 3rd prefix (dropped + rolled back).
+	// Installed keeps count=2, ratio=1, warn=1, exceeded=1.
+	psInstalled := newPrefixModeTestSettings("10.0.0.2", 2, 1, PrefixCountInstalled, 0x02020202)
+	setPrefixStaticConfigMetrics(rm, psInstalled.Address.String(), psInstalled, time.Now())
+	sInstalled := NewSession(psInstalled)
+	sInstalled.prefixMetrics = rm
+
+	checkOK(t, sInstalled, singleIPv4AnnounceBody(1, 1))
+	checkOK(t, sInstalled, singleIPv4AnnounceBody(1, 1)) // re-announcement does not raise installed count
+	checkOK(t, sInstalled, singleIPv4AnnounceBody(1, 2))
+	notif, drop = sInstalled.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(1, 3)))
+	assert.Nil(t, notif)
+	assert.True(t, drop)
+
+	// Boundary: maximum == 0 skips prefixRatio (no divide-by-zero panic) while still
+	// emitting count and maximum_exceeded_total with mode="offered".
+	psZero := newPrefixModeTestSettings("10.0.0.3", 0, 0, PrefixCountOffered, 0x03030303)
+	setPrefixStaticConfigMetrics(rm, psZero.Address.String(), psZero, time.Now())
+	sZero := NewSession(psZero)
+	sZero.prefixMetrics = rm
+	notif, drop = sZero.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(2, 1)))
+	assert.Nil(t, notif)
+	assert.True(t, drop)
+
+	body := scrapePromMetrics(t, promReg)
+
+	// Offered peer assertions.
+	assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="offered",peer="10.0.0.1"} 3`)
+	assert.Contains(t, body, `ze_bgp_prefix_ratio{family="ipv4/unicast",mode="offered",peer="10.0.0.1"} 1.5`)
+	assert.Contains(t, body, `ze_bgp_prefix_warning_exceeded{family="ipv4/unicast",mode="offered",peer="10.0.0.1"} 1`)
+	assert.Contains(t, body, `ze_bgp_prefix_maximum_exceeded_total{family="ipv4/unicast",mode="offered",peer="10.0.0.1"} 1`)
+	assert.NotContains(t, body, `mode="installed",peer="10.0.0.1"`)
+
+	// Installed peer assertions.
+	assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="installed",peer="10.0.0.2"} 2`)
+	assert.Contains(t, body, `ze_bgp_prefix_ratio{family="ipv4/unicast",mode="installed",peer="10.0.0.2"} 1`)
+	assert.Contains(t, body, `ze_bgp_prefix_warning_exceeded{family="ipv4/unicast",mode="installed",peer="10.0.0.2"} 1`)
+	assert.Contains(t, body, `ze_bgp_prefix_maximum_exceeded_total{family="ipv4/unicast",mode="installed",peer="10.0.0.2"} 1`)
+	assert.NotContains(t, body, `mode="offered",peer="10.0.0.2"`)
+
+	// Boundary maximum == 0 assertions.
+	assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="offered",peer="10.0.0.3"} 1`)
+	assert.Contains(t, body, `ze_bgp_prefix_maximum_exceeded_total{family="ipv4/unicast",mode="offered",peer="10.0.0.3"} 1`)
+	assert.NotContains(t, body, `ze_bgp_prefix_ratio{family="ipv4/unicast",mode="offered",peer="10.0.0.3"}`)
+
+	// Static config gauges and peer-level metrics intentionally omit mode.
+	assert.Contains(t, body, `ze_bgp_prefix_maximum{family="ipv4/unicast",peer="10.0.0.1"} 2`)
+	assert.Contains(t, body, `ze_bgp_prefix_warning{family="ipv4/unicast",peer="10.0.0.1"} 1`)
+	assert.Contains(t, body, `ze_bgp_prefix_stale{peer="10.0.0.1"} 0`)
+
+	// Warning clear updates the same mode series to 0 rather than creating another tuple.
+	checkOK(t, sInstalled, singleIPv4WithdrawBody(1, 1))
+	checkOK(t, sInstalled, singleIPv4WithdrawBody(1, 2))
+	bodyAfterClear := scrapePromMetrics(t, promReg)
+	assert.Contains(t, bodyAfterClear, `ze_bgp_prefix_warning_exceeded{family="ipv4/unicast",mode="installed",peer="10.0.0.2"} 0`)
+	assert.NotContains(t, bodyAfterClear, `mode="offered",peer="10.0.0.2"`)
+}
+
+// TestPrefixModeReloadRetiresObsoleteSeries verifies that reloading a peer's
+// count mode (offered <-> installed), removing a peer, running an unrelated
+// reload with unchanged mode, and concurrent UPDATEs + removal/reload all keep
+// Prometheus series accurate with zero stale mode tuples and zero data races.
+//
+// VALIDATES: spec-bgp-prefix-count-mode-metric AC-2 and AC-3, risks R-1 and R-2.
+// PREVENTS: stale mode series lingering after reload/removal, stopping sessions
+// recreating retired series, or Peer.cleanup() deleting a replacement peer's
+// live series after an unrelated reload.
+func TestPrefixModeReloadRetiresObsoleteSeries(t *testing.T) {
+	t.Run("reload offered to installed and back plus removal", func(t *testing.T) {
+		promReg := metrics.NewPrometheusRegistry()
+		r := New(&Config{})
+		r.rmetrics = initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+		adapter := &reactorAPIAdapter{r: r}
+
+		psOffered := newPrefixModeTestSettings("10.1.0.1", 2, 1, PrefixCountOffered, 0x01010101)
+		require.NoError(t, r.AddPeer(psOffered))
+		p1 := r.peers[psOffered.PeerKey()]
+		require.NotNil(t, p1)
+
+		s1 := p1.newSession()
+		checkOK(t, s1, singleIPv4AnnounceBody(0, 1))
+		checkOK(t, s1, singleIPv4AnnounceBody(0, 2))
+		_, drop := s1.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(0, 3)))
+		require.True(t, drop)
+
+		before := scrapePromMetrics(t, promReg)
+		assert.Contains(t, before, `ze_bgp_prefix_count{family="ipv4/unicast",mode="offered",peer="10.1.0.1"} 3`)
+		assert.Contains(t, before, `ze_bgp_prefix_ratio{family="ipv4/unicast",mode="offered",peer="10.1.0.1"} 1.5`)
+		assert.Contains(t, before, `ze_bgp_prefix_warning_exceeded{family="ipv4/unicast",mode="offered",peer="10.1.0.1"} 1`)
+		assert.Contains(t, before, `ze_bgp_prefix_maximum_exceeded_total{family="ipv4/unicast",mode="offered",peer="10.1.0.1"} 1`)
+
+		// Reload offered -> installed: restarts peer through removalLocked + AddPeer.
+		psInstalled := newPrefixModeTestSettings("10.1.0.1", 2, 1, PrefixCountInstalled, 0x01010101)
+		require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{psInstalled}, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+		require.True(t, p1.stopping.Load(), "outgoing peer must be marked stopping")
+
+		// Late write on retired session s1 is fenced by Peer.stopping.
+		_, _ = s1.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(0, 4)))
+
+		afterToInstalled := scrapePromMetrics(t, promReg)
+		assert.NotContains(t, afterToInstalled, `mode="offered",peer="10.1.0.1"`,
+			"all four offered series must be deleted when reloading to installed")
+
+		p2 := r.peers[psInstalled.PeerKey()]
+		require.NotNil(t, p2)
+		require.NotSame(t, p1, p2)
+
+		s2 := p2.newSession()
+		checkOK(t, s2, singleIPv4AnnounceBody(1, 1))
+		checkOK(t, s2, singleIPv4AnnounceBody(1, 2))
+		_, drop = s2.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(1, 3)))
+		require.True(t, drop)
+
+		// Even if a stale offered sample had been written in the narrow pre-fence window,
+		// p1.cleanup() sweeps it while leaving p2's live installed series intact.
+		r.rmetrics.prefixCount.With("10.1.0.1", "ipv4/unicast", "offered").Set(99)
+		p1.cleanup()
+
+		liveInstalled := scrapePromMetrics(t, promReg)
+		assert.NotContains(t, liveInstalled, `mode="offered",peer="10.1.0.1"`,
+			"Peer.cleanup must sweep any residual obsolete mode series")
+		assert.Contains(t, liveInstalled, `ze_bgp_prefix_count{family="ipv4/unicast",mode="installed",peer="10.1.0.1"} 2`)
+		assert.Contains(t, liveInstalled, `ze_bgp_prefix_ratio{family="ipv4/unicast",mode="installed",peer="10.1.0.1"} 1`)
+		assert.Contains(t, liveInstalled, `ze_bgp_prefix_warning_exceeded{family="ipv4/unicast",mode="installed",peer="10.1.0.1"} 1`)
+		assert.Contains(t, liveInstalled, `ze_bgp_prefix_maximum_exceeded_total{family="ipv4/unicast",mode="installed",peer="10.1.0.1"} 1`)
+		assert.Contains(t, liveInstalled, `ze_bgp_prefix_maximum{family="ipv4/unicast",peer="10.1.0.1"} 2`)
+		assert.Contains(t, liveInstalled, `ze_bgp_prefix_warning{family="ipv4/unicast",peer="10.1.0.1"} 1`)
+
+		// Reload installed -> offered.
+		psOfferedAgain := newPrefixModeTestSettings("10.1.0.1", 2, 1, PrefixCountOffered, 0x01010101)
+		require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{psOfferedAgain}, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+		p2.cleanup()
+
+		afterToOffered := scrapePromMetrics(t, promReg)
+		assert.NotContains(t, afterToOffered, `mode="installed",peer="10.1.0.1"`,
+			"all four installed series must be deleted when reloading back to offered")
+
+		p3 := r.peers[psOfferedAgain.PeerKey()]
+		require.NotNil(t, p3)
+		s3 := p3.newSession()
+		checkOK(t, s3, singleIPv4AnnounceBody(2, 1))
+		assert.Contains(t, scrapePromMetrics(t, promReg), `ze_bgp_prefix_count{family="ipv4/unicast",mode="offered",peer="10.1.0.1"} 1`)
+
+		// Full peer removal removes all per-family and peer-level prefix metrics.
+		require.NoError(t, r.RemovePeer(psOfferedAgain.Address))
+		p3.cleanup()
+
+		assertNoPrefixMetricsForPeer(t, scrapePromMetrics(t, promReg), "10.1.0.1")
+	})
+
+	t.Run("unrelated reload with unchanged mode preserves replacement peer live series", func(t *testing.T) {
+		promReg := metrics.NewPrometheusRegistry()
+		r := New(&Config{})
+		r.rmetrics = initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+		adapter := &reactorAPIAdapter{r: r}
+
+		ps1 := newPrefixModeTestSettings("10.1.0.2", 4, 2, PrefixCountOffered, 0x01010101)
+		require.NoError(t, r.AddPeer(ps1))
+		p1 := r.peers[ps1.PeerKey()]
+		require.NotNil(t, p1)
+
+		s1 := p1.newSession()
+		checkOK(t, s1, singleIPv4AnnounceBody(0, 1))
+		checkOK(t, s1, singleIPv4AnnounceBody(0, 2))
+
+		// Unrelated restart: router-id changes while ipv4/unicast stays count=offered.
+		ps2 := newPrefixModeTestSettings("10.1.0.2", 4, 2, PrefixCountOffered, 0x02020202)
+		require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{ps2}, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+		p2 := r.peers[ps2.PeerKey()]
+		require.NotNil(t, p2)
+		require.NotSame(t, p1, p2)
+
+		// Replacement peer establishes and emits live metrics before p1.cleanup() runs.
+		s2 := p2.newSession()
+		checkOK(t, s2, singleIPv4AnnounceBody(1, 1))
+		checkOK(t, s2, singleIPv4AnnounceBody(1, 2))
+		checkOK(t, s2, singleIPv4AnnounceBody(1, 3))
+
+		// Delayed p1.cleanup() MUST NOT delete p2's live series.
+		p1.cleanup()
+
+		body := scrapePromMetrics(t, promReg)
+		assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="offered",peer="10.1.0.2"} 3`,
+			"Peer.cleanup must preserve the active replacement peer's live count series")
+		assert.Contains(t, body, `ze_bgp_prefix_ratio{family="ipv4/unicast",mode="offered",peer="10.1.0.2"} 0.75`)
+		assert.Contains(t, body, `ze_bgp_prefix_warning_exceeded{family="ipv4/unicast",mode="offered",peer="10.1.0.2"} 1`)
+		assert.Contains(t, body, `ze_bgp_prefix_maximum{family="ipv4/unicast",peer="10.1.0.2"} 4`)
+		assert.Contains(t, body, `ze_bgp_prefix_warning{family="ipv4/unicast",peer="10.1.0.2"} 2`)
+	})
+
+	t.Run("concurrent updates during mode reload and removal are race free", func(t *testing.T) {
+		promReg := metrics.NewPrometheusRegistry()
+		r := New(&Config{})
+		r.rmetrics = initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+		adapter := &reactorAPIAdapter{r: r}
+
+		for iter := range 10 {
+			psOld := newPrefixModeTestSettings("10.1.0.3", 2, 1, PrefixCountOffered, uint32(0x01010100+iter))
+			require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{psOld}, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+			pOld := r.peers[psOld.PeerKey()]
+			require.NotNil(t, pOld)
+			sOld := pOld.newSession()
+
+			started := make(chan struct{})
+			stopFeed := make(chan struct{})
+			var wg sync.WaitGroup
+			wg.Go(func() {
+				close(started)
+				for i := range 200 {
+					select {
+					case <-stopFeed:
+						return
+					default:
+						_, _ = sOld.checkPrefixLimits(testWireUpdate(singleIPv4AnnounceBody(byte(iter), byte(i))))
+					}
+				}
+			})
+
+			<-started
+			// Concurrently reload to installed mode while sOld is actively processing UPDATEs.
+			psNew := newPrefixModeTestSettings("10.1.0.3", 2, 1, PrefixCountInstalled, uint32(0x02020200+iter))
+			require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{psNew}, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+
+			close(stopFeed)
+			wg.Wait()
+			// Mirrors Peer.cleanup() running after Session.Run exits.
+			pOld.cleanup()
+
+			pNew := r.peers[psNew.PeerKey()]
+			require.NotNil(t, pNew)
+			sNew := pNew.newSession()
+			checkOK(t, sNew, singleIPv4AnnounceBody(9, 1))
+
+			body := scrapePromMetrics(t, promReg)
+			assert.NotContains(t, body, `mode="offered",peer="10.1.0.3"`,
+				"iter %d: no obsolete offered series may survive after Peer.cleanup", iter)
+			assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="installed",peer="10.1.0.3"} 1`,
+				"iter %d: replacement installed series must be present", iter)
+			assert.True(t, strings.Contains(body, `ze_bgp_prefix_maximum{family="ipv4/unicast",peer="10.1.0.3"} 2`))
+
+			require.NoError(t, r.RemovePeer(psNew.Address))
+			pNew.cleanup()
+			assertNoPrefixMetricsForPeer(t, scrapePromMetrics(t, promReg), "10.1.0.3")
+		}
+	})
+
+	t.Run("shared IP multi-port peers preserve surviving peer metrics", func(t *testing.T) {
+		promReg := metrics.NewPrometheusRegistry()
+		r := New(&Config{})
+		r.rmetrics = initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+		adapter := &reactorAPIAdapter{r: r}
+
+		psOffered := newPrefixModeTestSettings("10.1.0.9", 5, 2, PrefixCountOffered, 0x01010109)
+		psOffered.Port = 179
+		psInstalled := newPrefixModeTestSettings("10.1.0.9", 5, 2, PrefixCountInstalled, 0x02020209)
+		psInstalled.Port = 1179
+
+		require.NoError(t, r.AddPeer(psOffered))
+		pOff := r.peers[psOffered.PeerKey()]
+		require.NotNil(t, pOff)
+		sOff := pOff.newSession()
+		checkOK(t, sOff, singleIPv4AnnounceBody(1, 1))
+
+		// Adding a second peer at the same IP on another port with the opposite mode
+		// must not delete the active peer's offered series.
+		require.NoError(t, r.AddPeer(psInstalled))
+		pInst := r.peers[psInstalled.PeerKey()]
+		require.NotNil(t, pInst)
+		sInst := pInst.newSession()
+		checkOK(t, sInst, singleIPv4AnnounceBody(2, 1))
+
+		body := scrapePromMetrics(t, promReg)
+		assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="offered",peer="10.1.0.9"} 1`)
+		assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="installed",peer="10.1.0.9"} 1`)
+
+		// Removing the offered peer via reconcile must retire only its unowned
+		// mode="offered" series while leaving the surviving :1179 peer's
+		// installed series and static maximum/warning gauges intact.
+		require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{psInstalled}, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+		pOff.cleanup()
+
+		body = scrapePromMetrics(t, promReg)
+		assert.NotContains(t, body, `mode="offered",peer="10.1.0.9"`)
+		assert.Contains(t, body, `ze_bgp_prefix_count{family="ipv4/unicast",mode="installed",peer="10.1.0.9"} 1`)
+		assert.Contains(t, body, `ze_bgp_prefix_maximum{family="ipv4/unicast",peer="10.1.0.9"} 5`)
+		assert.Contains(t, body, `ze_bgp_prefix_warning{family="ipv4/unicast",peer="10.1.0.9"} 2`)
+
+		require.NoError(t, adapter.reconcilePeersJournaled(nil, Globals{}, dynamicGroupsNotRead, "test", noopJournal{}))
+		pInst.cleanup()
+		body = scrapePromMetrics(t, promReg)
+		assert.NotContains(t, body, `family="ipv4/unicast",mode="offered",peer="10.1.0.9"`)
+		assert.NotContains(t, body, `family="ipv4/unicast",mode="installed",peer="10.1.0.9"`)
+		assert.NotContains(t, body, `ze_bgp_prefix_maximum{family="ipv4/unicast",peer="10.1.0.9"}`)
+		assert.NotContains(t, body, `ze_bgp_prefix_warning{family="ipv4/unicast",peer="10.1.0.9"}`)
+	})
+
+	t.Run("reactor shutdown with running peer does not deadlock on r.mu", func(t *testing.T) {
+		promReg := metrics.NewPrometheusRegistry()
+		r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true})
+		r.rmetrics = initReactorMetrics(promReg, "1.0.0", "1.2.3.4", "65000")
+
+		ps := newPrefixModeTestSettings("127.0.0.1", 5, 2, PrefixCountInstalled, 0x0101010a)
+		ps.Connection = ConnectionActive
+		ps.LocalAddress = ps.Address
+		ps.Port = 1
+		require.NoError(t, r.AddPeer(ps))
+
+		p := r.peers[ps.PeerKey()]
+		require.NotNil(t, p)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		require.NoError(t, r.StartWithContext(ctx))
+		p.recordPrefixMetricFamily("ipv4/unicast", PrefixCountInstalled)
+		require.Eventually(t, func() bool {
+			return p.State() != PeerStateStopped
+		}, 2*time.Second, 5*time.Millisecond, "peer goroutine must start before Reactor.Stop")
+
+		start := time.Now()
+		r.Stop()
+		require.NoError(t, r.Wait(t.Context()))
+		elapsed := time.Since(start)
+
+		assert.Less(t, elapsed, 500*time.Millisecond,
+			"Reactor.Stop+Wait must not stall on Reactor.cleanup <-> Peer.cleanupPrefixMetrics r.mu deadlock (2s waitCtx timeout)")
+		assert.Equal(t, PeerStateStopped, p.State(),
+			"Peer.cleanup must have completed cleanly before Reactor.Wait returned")
+	})
 }

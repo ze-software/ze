@@ -1,0 +1,248 @@
+# QUESTION: Does a live Prometheus scrape stamp mode="offered" and mode="installed" on all four count-derived prefix metrics and retire obsolete mode series across a live reload?
+# A unit test cannot decide end-to-end YANG config parsing, live BGP UPDATE traffic, Prometheus exposition via telemetry, and SIGHUP peer-restart series retirement together.
+#
+# Test: two peers advertise three distinct IPv4 unicast routes (distinct NEXT_HOPs so
+#       readAndProcessCoalesced never coalesces them) against maximum=2, warning=1,
+#       teardown=false. peer-offered (127.0.0.1) starts in count=offered (count=3,
+#       ratio=1.5, warning_exceeded=1, maximum_exceeded_total=1); peer-installed
+#       (127.0.0.2) runs in count=installed (count=2, ratio=1, warning_exceeded=1,
+#       maximum_exceeded_total=1).
+# Live change: reload config2.conf switches 127.0.0.1 from count=offered to
+#              count=installed (forcing a Cease 6/6 restart) while leaving 127.0.0.2
+#              untouched. On connection 2, 127.0.0.1 re-advertises the same three
+#              routes and Prometheus must expose mode="installed" (count=2, ratio=1,
+#              warning_exceeded=1, maximum_exceeded_total=1) with zero surviving
+#              mode="offered" series across all four count-derived metrics.
+#
+# VALIDATES: spec-bgp-prefix-count-mode-metric AC-1 and AC-2 end-to-end.
+# PREVENTS: missing mode labels on count-derived prefix metrics or stale mode series
+#           surviving a live count-mode reload.
+
+option=timeout:value=60s
+
+# Peer 1 (127.0.0.1, AS 65001): starts offered on conn=1, restarts as installed on conn=2.
+stdin=peer_offered:terminator=EOF_PEER_OFFERED
+option=tcp_connections:value=2
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65001
+option=open:value=router-id:id=127.0.0.1
+# conn=1: 3 distinct /24s with distinct NEXT_HOPs (10.0.0.1, 10.0.0.2, 10.0.0.3)
+# ORIGIN=IGP, AS_PATH=[65001], NLRI=10.0.{0,1,2}.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000001180A0000
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000002180A0001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000003180A0002
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Reload switching count offered -> installed restarts the peer with Cease 6/6.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+# conn=2: re-establish under count=installed and send the same 3 routes.
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000001180A0000
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000002180A0001
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE94003040A000003180A0002
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER_OFFERED
+
+# Peer 2 (127.0.0.2, AS 65002): stays count=installed across the entire test.
+stdin=peer_installed:terminator=EOF_PEER_INSTALLED
+option=tcp_connections:value=1
+option=timeout:value=50s
+option=linger:value=true
+option=asn:value=65002
+option=open:value=router-id:id=127.0.0.2
+# 3 distinct /24s with distinct NEXT_HOPs (10.0.0.1, 10.0.0.2, 10.0.0.3)
+# ORIGIN=IGP, AS_PATH=[65002], NLRI=10.1.{0,1,2}.0/24.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000001180A0100
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000002180A0101
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDEA4003040A000003180A0102
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER_INSTALLED
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+# Stage 1 (AC-1): verify offered metrics on 127.0.0.1 and installed metrics on 127.0.0.2.
+has show metrics values => ze_bgp_prefix_count{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"} 3
+has show metrics values => ze_bgp_prefix_ratio{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"} 1.5
+has show metrics values => ze_bgp_prefix_warning_exceeded{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"} 1
+has show metrics values => ze_bgp_prefix_maximum_exceeded_total{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"} 1
+has show metrics values => ze_bgp_prefix_maximum{family=\"ipv4/unicast\",peer=\"127.0.0.1\"} 2
+has show metrics values => ze_bgp_prefix_warning{family=\"ipv4/unicast\",peer=\"127.0.0.1\"} 1
+has show metrics values => ze_bgp_prefix_stale{peer=\"127.0.0.1\"} 0
+lacks show metrics values => mode=\"installed\",peer=\"127.0.0.1\"
+
+has show metrics values => ze_bgp_prefix_count{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.2\"} 2
+has show metrics values => ze_bgp_prefix_ratio{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.2\"} 1
+has show metrics values => ze_bgp_prefix_warning_exceeded{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.2\"} 1
+has show metrics values => ze_bgp_prefix_maximum_exceeded_total{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.2\"} 1
+has show metrics values => ze_bgp_prefix_maximum{family=\"ipv4/unicast\",peer=\"127.0.0.2\"} 2
+has show metrics values => ze_bgp_prefix_warning{family=\"ipv4/unicast\",peer=\"127.0.0.2\"} 1
+has show metrics values => ze_bgp_prefix_stale{peer=\"127.0.0.2\"} 0
+lacks show metrics values => mode=\"offered\",peer=\"127.0.0.2\"
+
+# Stage 2 (AC-2): reload 127.0.0.1 from count offered -> count installed.
+reload config2.conf
+
+# Wait for 127.0.0.1 to re-establish and publish all four metrics under mode="installed",
+# and assert every retired mode="offered" series for 127.0.0.1 is absent.
+has show metrics values => ze_bgp_prefix_count{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.1\"} 2
+has show metrics values => ze_bgp_prefix_ratio{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.1\"} 1
+has show metrics values => ze_bgp_prefix_warning_exceeded{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.1\"} 1
+has show metrics values => ze_bgp_prefix_maximum_exceeded_total{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.1\"} 1
+lacks show metrics values => ze_bgp_prefix_count{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"}
+lacks show metrics values => ze_bgp_prefix_ratio{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"}
+lacks show metrics values => ze_bgp_prefix_warning_exceeded{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"}
+lacks show metrics values => ze_bgp_prefix_maximum_exceeded_total{family=\"ipv4/unicast\",mode=\"offered\",peer=\"127.0.0.1\"}
+has show metrics values => ze_bgp_prefix_count{family=\"ipv4/unicast\",mode=\"installed\",peer=\"127.0.0.2\"} 2
+say BGP-PREFIX-COUNT-MODE: offered and installed mode labels verified across live reload
+EOF_SCRIPT
+
+# Startup config: peer-offered uses count offered, peer-installed uses count installed.
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer-offered {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						warning 1
+						teardown false
+						count offered
+					}
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer peer-installed {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						warning 1
+						teardown false
+						count installed
+					}
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF
+
+# Reload config: switches peer-offered (127.0.0.1) from count offered to count installed.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bus {
+	endpoint stages {
+		external {
+			run "le test fixture reload/live-stages stages.script";
+		}
+		encoding json;
+	}
+}
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer-offered {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						warning 1
+						teardown false
+						count installed
+					}
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+	peer peer-installed {
+		connection {
+			remote { ip 127.0.0.2; }
+			local { ip 127.0.0.2; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65002; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 2
+						warning 1
+						teardown false
+						count installed
+					}
+				}
+			}
+			capability { graceful-restart disable; }
+		}
+		behavior { group-updates disable; }
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer_offered
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer_installed
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=BGP-PREFIX-COUNT-MODE: offered and installed mode labels verified across live reload
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=LIVE-STAGES line

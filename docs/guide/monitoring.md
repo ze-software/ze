@@ -725,14 +725,20 @@ their authority is checked by AAA, while the bus filter governs program sends.
 
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
-| `ze_bgp_prefix_count` | gauge | `peer`, `family` | Current prefix count |
+| `ze_bgp_prefix_count` | gauge | `peer`, `family`, `mode` | Current prefix count |
 | `ze_bgp_prefix_maximum` | gauge | `peer`, `family` | Configured hard maximum |
 | `ze_bgp_prefix_warning` | gauge | `peer`, `family` | Warning threshold |
-| `ze_bgp_prefix_warning_exceeded` | gauge | `peer`, `family` | 1 if count >= warning |
-| `ze_bgp_prefix_ratio` | gauge | `peer`, `family` | count / maximum (0.0 to 1.0+) |
-| `ze_bgp_prefix_maximum_exceeded_total` | counter | `peer`, `family` | Times maximum exceeded |
+| `ze_bgp_prefix_warning_exceeded` | gauge | `peer`, `family`, `mode` | 1 if count >= warning |
+| `ze_bgp_prefix_ratio` | gauge | `peer`, `family`, `mode` | count / maximum (0.0 to 1.0+) |
+| `ze_bgp_prefix_maximum_exceeded_total` | counter | `peer`, `family`, `mode` | Times maximum exceeded |
 | `ze_bgp_prefix_teardown_total` | counter | `peer` | Sessions torn down for prefix limit |
 | `ze_bgp_prefix_stale` | gauge | `peer` | 1 if prefix data older than 6 months |
+
+The `mode` label carries the closed per-family counting mode (`offered` or `installed`) configured via `session { family { <afi/safi> { prefix { count offered|installed; } } } }`. Static limit gauges (`ze_bgp_prefix_maximum`, `ze_bgp_prefix_warning`) and peer-level metrics (`ze_bgp_prefix_teardown_total`, `ze_bgp_prefix_stale`) omit `mode`. When a peer is removed or reloaded with a different `count` mode, obsolete `(peer, family, mode)` series are deleted so scrapes reflect only the active mode.
+
+**PromQL migration:** Existing selectors matching `{peer, family}` continue to match unchanged after the `mode` label is added. Aggregations grouped with `by (peer, family)` should include `mode` (`by (peer, family, mode)`) when separating or surfacing which counting mode produced a peer's series.
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- setPrefixCountMetric, deletePeerPrefixMetrics -->
 
 ### Managed Fleet Metrics
 
