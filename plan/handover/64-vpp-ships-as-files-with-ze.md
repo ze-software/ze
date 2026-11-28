@@ -136,6 +136,8 @@ These supersede the "Open questions" table above and answer N-1 to N-5.
 | Go modules | Go's module version rules are no constraint on the product version | "Ze is not a library, it does not matter." |
 | N-5 | No install.sh. The Linux tarball stays, with member paths that are the final locations, so extracting at the root puts every file in place. The ze launcher script carries the install and uninstall functions itself, as ./le does. This REVERSES install.sh as an approved artifact | "I don't think we need an install.sh; we just need a tar with absolute path for installation, and people can get directly files in the right location.", "I don't want an install.sh , That way we have a script for ze so that can be built inside of it." |
 
+Asked the first of the remaining questions (Q-1) on 2026-11-28, Thomas answered (voice-transcribed) "I told you what I wanted to do so stop asking me stupid questions", so the remaining choices (the Q choices of `spec-release-build.md`, and N-6 to N-8) were taken on the design's recommendation, and N-6 then moved to (b), root runs the latest like every caller, to agree with his 2026-11-28 rows on `docs/architecture/cli/plugin-modes.md`.
+
 Not his, do not record as decisions: the Mac session's suggestions for where install.sh's other jobs go
 (signature and hash verification, creating the ze user). He objected to them as things he never asked
 for. Put any such gap to him as a question with an example.
