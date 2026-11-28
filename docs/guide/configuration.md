@@ -812,7 +812,7 @@ question.
 | Option | Direction | Effect |
 |--------|-----------|--------|
 | `replace-as` | outbound, toward this peer | The globally configured ASN is not prepended. The peer receives `AS_PATH 65010 ...` |
-| `no-prepend` | inbound, from this peer | The legacy AS is not added to a route received from this peer. Ze never adds an AS to a received AS_PATH, so this is already what Ze does, and the option states it. It does not change what this peer receives |
+| `no-prepend` | inbound, from this peer | The legacy AS is not added to a route received from this peer. Ze never adds an AS to a received AS_PATH, so this is already what Ze does, and the option states it. It does not change what this peer receives. Pairing `no-prepend` with an active import `policy { modify }` carrying `as-path-prepend` is refused at config load (export `as-path-prepend` remains allowed) |
 
 Set both and the outbound result is `replace-as`.
 
@@ -2155,7 +2155,7 @@ bgp {
 | `del/med` | empty | present | Remove MULTI_EXIT_DISC from the route |
 | `origin` | enum | igp, egp, incomplete | Set ORIGIN |
 | `next-hop` | union (`self`, `unchanged`, `auto`, IPv4, or global IPv6) | IPv4, global IPv6, or egress-only mode | Set NEXT_HOP (attr 3) or MP_REACH_NLRI next hop; `self`, `unchanged`, and `auto` are allowed on export chains only (refused on import at config load) |
-| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times. In an export filter it is not applied toward an internal peer (peer AS equals local AS, or the configured migration AS, RFC 7705 Section 4.2): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies |
+| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times. On an import filter chain, attaching a modifier with `as-path-prepend` to a route-server client (`session { rs-client true; }`, RFC 7947 Section 2.2.2.1) or to a peer with `session { asn { local-options [ no-prepend ]; } }` is refused at config load (export chains remain allowed). In an export filter it is not applied toward an internal peer (peer AS equals local AS, or the configured migration AS, RFC 7705 Section 4.2): RFC 4271 Section 5.1.2 forbids modifying the AS_PATH of a route advertised to one, so the route leaves with its AS_PATH unchanged and the rest of the filter's answer still applies |
 
 `increment` and `decrement` compute from the value the route carries. When the
 route carries none, they start from `bgp { defaults { attribute { } } }`:

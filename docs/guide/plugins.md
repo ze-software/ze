@@ -1282,6 +1282,14 @@ NEXT_HOP), or a global IPv6 address (MP_REACH_NLRI via the family's
 unspecified, IPv6 loopback (`::1`), multicast, zoned, and IPv4-mapped IPv6
 addresses are refused at config load. Egress-only modes (`self`, `unchanged`,
 `auto`) are refused on import chains at config load. `as-path-prepend` takes 1 to 32.
+`bgp-filter-modify` refuses at config load (`ze config validate`, commit, boot,
+and reload) attaching an active import modifier carrying `as-path-prepend` to any
+peer or dynamic group whose effective `session { asn { local-options } }`
+includes `no-prepend` (including group-inherited `local-options` and global,
+group, or peer import chains), because `no-prepend` and import `as-path-prepend`
+contradict each other; export-chain `as-path-prepend`, `replace-as`-only peers,
+peers overriding a group's `no-prepend`, and deactivated (`inactive`) import
+references remain allowed.
 
 **Increment/Decrement** (relative adjustment): `increment { local-preference 50; }`
 or `decrement { med 30; }`. Supported attributes: local-preference, med, aigp.
@@ -1750,7 +1758,7 @@ after `interface` when interface configuration is present, so its logical names
 bind before sessions start; a BFD-only configuration does not load an interface
 backend. Cycles among selected plugins are refused for order-only edges too.
 
-`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `send bgp <sel> cached <id>` pipeline. See [architecture/api/commands](../architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface.
+`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled. `bgp-rs` forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3) instead of the legacy text-RPC `send bgp <sel> cached <id>` pipeline. See [architecture/api/commands](../architecture/api/commands.md#fast-path-typed-sdk-rs-fastpath-3) for the full SDK surface. At config load (`ze config validate`, commit, boot, and reload), `bgp-rs` refuses attaching an active import `policy { modify }` carrying `as-path-prepend` to any peer or dynamic group whose effective `session { rs-client }` is `true` (RFC 7947 Section 2.2.2.1), while non-RS peers, peers overriding `rs-client false`, export-chain `as-path-prepend`, and deactivated (`inactive`) import references remain allowed.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies, Registration.OptionalDependencies, Registration.StartAfter -->
 <!-- source: internal/component/bfd/register.go -- StartAfter -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->

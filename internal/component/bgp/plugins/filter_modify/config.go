@@ -19,16 +19,33 @@ package filter_modify
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-const maxNameLen = 256
+const (
+	maxNameLen         = 256
+	localOptionsLeaf   = "local-options"
+	noPrependOption    = "no-prepend"
+	modifyPluginPrefix = "bgp-filter-modify"
+)
+
+// noPrependConflict identifies one peer or dynamic group that combines
+// session > asn > local-options no-prepend with an active import modify
+// definition carrying set { as-path-prepend }.
+type noPrependConflict struct {
+	target  string
+	modName string
+}
 
 var setBlockAllowedKeys = map[string]bool{
 	localPreferenceAttr:              true,
@@ -48,6 +65,20 @@ var incDecAttrs = map[string]bool{
 	localPreferenceAttr: true,
 	medAttr:             true,
 	aigpAttr:            true,
+}
+
+// parseModifyDefsWithBGP reads policy/modify definitions out of policyCfg and
+// refuses any active BGP import chain attaching an as-path-prepend modifier to
+// a peer or dynamic group declaring session > asn > local-options no-prepend.
+func parseModifyDefsWithBGP(policyCfg, bgpCfg map[string]any) (map[string]*modifyDef, error) {
+	defs, err := parseModifyDefs(policyCfg)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateNoPrependImportConflict(bgpCfg, defs); err != nil {
+		return nil, err
+	}
+	return defs, nil
 }
 
 // parseModifyDefs reads policy/modify definitions out of policyCfg.
@@ -197,6 +228,7 @@ func buildSets(def *modifyDef, ops *modifyOps) error {
 		if v < 1 || v > 32 {
 			return fmt.Errorf("set: %s %d is outside 1 to 32", asPathPrependAttr, v)
 		}
+		def.hasASPathPrepend = true
 		def.sets = append(def.sets, setNumber(policy.FieldASPath.String(), rpc.FilterSetActionPrepend, v))
 		deltaText(delta, asPathPrependAttr, 0, string(strconv.AppendUint(nil, uint64(v), 10)))
 	}
@@ -450,4 +482,158 @@ func validateNoConflict(ops *modifyOps) error {
 		}
 	}
 	return nil
+}
+
+// validateNoPrependImportConflict refuses any peer or dynamic-group template
+// whose effective session > asn > local-options includes no-prepend when its
+// active import filter chain (global, group, or peer level) references a
+// policy { modify } definition carrying set { as-path-prepend }.
+func validateNoPrependImportConflict(bgpCfg map[string]any, defs map[string]*modifyDef) error {
+	if bgpCfg == nil {
+		return nil
+	}
+	if !anyDefHasASPathPrepend(defs) {
+		return nil
+	}
+	globalImport := importFilterRefs(bgpCfg)
+
+	var conflict *noPrependConflict
+	configjson.ForEachPeer(bgpCfg, func(name string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
+		if !effectiveHasNoPrepend(peerMap, groupMap) {
+			return
+		}
+		modName, found := firstImportPrependDef(defs, globalImport, importFilterRefs(groupMap), importFilterRefs(peerMap))
+		if !found {
+			return
+		}
+		target := peerTargetLabel(name, origin)
+		if conflict == nil {
+			conflict = &noPrependConflict{target: target, modName: modName}
+			return
+		}
+		if target < conflict.target {
+			conflict = &noPrependConflict{target: target, modName: modName}
+		}
+	})
+	if conflict != nil {
+		return noPrependImportConflictError(conflict.target, conflict.modName)
+	}
+	return nil
+}
+
+// anyDefHasASPathPrepend reports whether at least one parsed modify definition
+// sets as-path-prepend.
+func anyDefHasASPathPrepend(defs map[string]*modifyDef) bool {
+	for _, def := range defs {
+		if def.hasASPathPrepend {
+			return true
+		}
+	}
+	return false
+}
+
+// effectiveHasNoPrepend resolves session > asn > local-options for a peer or
+// dynamic-group template: peer replaces group when local-options is present.
+func effectiveHasNoPrepend(peerMap, groupMap map[string]any) bool {
+	if opts, set := sessionLocalOptions(peerMap); set {
+		return slices.Contains(opts, noPrependOption)
+	}
+	if opts, set := sessionLocalOptions(groupMap); set {
+		return slices.Contains(opts, noPrependOption)
+	}
+	return false
+}
+
+// sessionLocalOptions reads session > asn > local-options from one peer or
+// group map, returning (values, true) when the key is present.
+func sessionLocalOptions(m map[string]any) ([]string, bool) {
+	if m == nil {
+		return nil, false
+	}
+	session, ok := m["session"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	asn, ok := session["asn"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	raw, exists := asn[localOptionsLeaf]
+	if !exists {
+		return nil, false
+	}
+	return configvalue.LeafList(raw), true
+}
+
+// importFilterRefs returns the active import filter references from one config
+// level (global bgp, group, or peer), or nil when absent.
+func importFilterRefs(m map[string]any) []string {
+	if filterBlock, ok := m["filter"].(map[string]any); ok {
+		if imp, ok := filterBlock["import"].(map[string]any); ok {
+			return configvalue.LeafList(imp["filters"])
+		}
+	}
+	return nil
+}
+
+// firstImportPrependDef returns the first modify definition name in chains
+// whose modifyDef sets as-path-prepend, matching bare NAME, modify:NAME, and
+// bgp-filter-modify:NAME while ignoring references qualified for other plugins.
+func firstImportPrependDef(defs map[string]*modifyDef, chains ...[]string) (string, bool) {
+	for _, refs := range chains {
+		for _, ref := range refs {
+			modName := modifyRefName(ref)
+			if modName == "" {
+				continue
+			}
+			def, ok := defs[modName]
+			if !ok {
+				continue
+			}
+			if def.hasASPathPrepend {
+				return modName, true
+			}
+		}
+	}
+	return "", false
+}
+
+// modifyRefName extracts the modify instance name from a filter chain
+// reference, or returns "" if the reference is qualified for another filter
+// type or plugin.
+func modifyRefName(ref string) string {
+	prefix, name, qualified := strings.Cut(ref, ":")
+	if !qualified {
+		return ref
+	}
+	if prefix == filterTypeName {
+		return name
+	}
+	if prefix == modifyPluginPrefix {
+		return name
+	}
+	return ""
+}
+
+// peerTargetLabel formats a peer or dynamic-group template for operator errors.
+func peerTargetLabel(name string, origin configjson.PeerOrigin) string {
+	var tb textbuf.Buffer
+	if origin.Template {
+		return tb.Str("group ").Str(origin.Group).String()
+	}
+	return tb.Str("peer ").Str(name).String()
+}
+
+// noPrependImportConflictError builds the operator error refusing an active
+// import as-path-prepend modifier on a peer declaring local-options no-prepend.
+func noPrependImportConflictError(target, modName string) error {
+	var problem, why, fix textbuf.Buffer
+	problem.Str(target).Str(" sets session asn local-options no-prepend and attaches import modify ").
+		Byte('"').Str(modName).Byte('"').Str(" with ").Str(asPathPrependAttr)
+	why.Str("local-options no-prepend suppresses inbound AS_PATH prepending while import modify ").
+		Byte('"').Str(modName).Byte('"').Str(" prepends the local AS on inbound routes; the two settings contradict each other")
+	fix.Str("remove ").Byte('"').Str(modName).Byte('"').Str(" from the import filter chain of ").Str(target).
+		Str(", remove set { ").Str(asPathPrependAttr).Str(" } from policy modify ").
+		Byte('"').Str(modName).Byte('"').Str(", or remove no-prepend from session asn local-options")
+	return opererr.New(problem.String(), why.String(), fix.String())
 }

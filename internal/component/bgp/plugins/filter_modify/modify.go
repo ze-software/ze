@@ -47,6 +47,10 @@ type modifyDef struct {
 	// "unchanged", or "auto") when configured in set { next-hop }. Empty for
 	// explicit IPv4/IPv6 addresses or when next-hop is unset.
 	egressOnlyNextHop string
+	// hasASPathPrepend records whether set { as-path-prepend } is configured on
+	// this definition, so config-load validation can detect conflicts with
+	// session > asn > local-options no-prepend without re-scanning sets.
+	hasASPathPrepend bool
 	// delta and importDelta are the operations as text, for the "modify apply"
 	// log line, in the same two variants.
 	delta       string

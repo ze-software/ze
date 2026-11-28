@@ -479,8 +479,16 @@ an import chain only. An export chain refuses it and logs why, because RFC 4271
 Section 9.1.2.2 makes MULTI_EXIT_DISC part of the decision process.
 
 The `set { }` container holds `local-preference`, `med`, `origin`, `next-hop`,
-`as-path-prepend`, and the community add and remove leaf-lists. The `del { }`
-container holds `med`. The `increment { }` and `decrement { }` containers are unchanged.
+`as-path-prepend`, and the community add and remove leaf-lists. On a BGP import
+chain, attaching an active `modify` carrying `set { as-path-prepend }` is
+refused at config load (`ze config validate`, commit, boot, and reload) for any
+peer or dynamic group whose effective `session { rs-client }` is `true`
+(enforced by `bgp-rs` per RFC 7947 Section 2.2.2.1) or whose effective
+`session { asn { local-options } }` contains `no-prepend` (enforced by
+`bgp-filter-modify`); export-chain `as-path-prepend`, non-RS peers without
+`no-prepend`, and deactivated (`inactive`) import references remain allowed.
+The `del { }` container holds `med`. The `increment { }` and `decrement { }`
+containers are unchanged.
 <!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- list modify -->
 
 ### `bgp { defaults { attribute { } } }`

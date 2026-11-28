@@ -231,9 +231,9 @@ No wire format, RPC message schema, event format, or BGP wire attribute encoding
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Both `bgp` and `policy` sections are delivered together to `bgp-rs` and `bgp-filter-modify` across `ze config validate`, commit, Stage 2 boot, and reload when `ConfigRoots: ["bgp"]`, `ConfigReads: ["policy"]`, and `WantsConfig: ["bgp", "policy"]` are declared. | Verified in `internal/component/config/plugin_verify.go` (`reg.ConfigSectionRoots()`), `internal/component/policy/section.go` (`SectionsParser`), `internal/component/bgp/plugins/role/register.go`, and `docs/architecture/config/transaction-protocol.md` (`joinConfigReads`, `reloadConfigSections`). | One entry point would miss cross-root conflicts (e.g., editing only `policy { modify }` would not re-check `bgp` peers). | `TestRouteServerRefusesInboundASPathPrepend` and `TestNoPrependRefusesInboundASPathPrepend` driving both `config.VerifyPluginConfig` and `sdk.ConfigTx` (`Configure` + `Verify`). | confirmed by source; runtime test owed |
-| A-2 | In delivered `bgp` JSON (`ToPluginMap`), inactive filter references are already pruned, `filter > import > filters` is cumulative (`bgp` + `group` + `peer`), and peer-level `session > rs-client` and `session > asn > local-options` override group-level values when set. | Verified in `internal/component/config/plugin_verify.go` (`ActiveConfigMap`), `internal/component/bgp/config/peers.go` lines 245-310, and `internal/component/bgp/config/resolve.go` (`cumulativePaths` excludes `local-options`). | A deactivated ref could be falsely refused, or a peer overriding `rs-client false` / `local-options [ replace-as ]` could inherit a stale group conflict. | Unit test subcases covering inactive refs, global/group/peer import inheritance, dynamic groups, and peer-overrides-group precedence. | confirmed by source; runtime test owed |
-| A-3 | On a route server, an ingress import `as-path-prepend` rewrites `msg.WireUpdate` before caching, `reactorForwardRS`, and `bgp-rs` dispatch, so a second client would receive the modified path unless config load refuses the combination. | Verified in `internal/component/bgp/reactor/reactor_notify.go` lines 714-1009 and `forward_rs.go` (`update.WireUpdate.Payload()`). | Even if the RS rail were unaffected, the refusal stays as defense in depth and explicit config integrity (original design ruling). | `test/plugin/bgp-local-as-inbound-route-server.ci` proving client 2 receives client 1's AS_PATH byte-identically on valid RS config while the conflicting config is refused. | confirmed by source; functional proof owed |
+| A-1 | Both `bgp` and `policy` sections are delivered together to `bgp-rs` and `bgp-filter-modify` across `ze config validate`, commit, Stage 2 boot, and reload when `ConfigRoots: ["bgp"]`, `ConfigReads: ["policy"]`, and `WantsConfig: ["bgp", "policy"]` are declared. | Verified in `internal/component/config/plugin_verify.go` (`reg.ConfigSectionRoots()`), `internal/component/policy/section.go` (`SectionsParser`), `internal/component/bgp/plugins/role/register.go`, and `docs/architecture/config/transaction-protocol.md` (`joinConfigReads`, `reloadConfigSections`). | One entry point would miss cross-root conflicts (e.g., editing only `policy { modify }` would not re-check `bgp` peers). | `TestRouteServerRefusesInboundASPathPrepend` and `TestNoPrependRefusesInboundASPathPrepend` driving both `config.VerifyPluginConfig` and `sdk.ConfigTx` (`Configure` + `Verify`). | confirmed |
+| A-2 | In delivered `bgp` JSON (`ToPluginMap`), inactive filter references are already pruned, `filter > import > filters` is cumulative (`bgp` + `group` + `peer`), and peer-level `session > rs-client` and `session > asn > local-options` override group-level values when set. | Verified in `internal/component/config/plugin_verify.go` (`ActiveConfigMap`), `internal/component/bgp/config/peers.go` lines 245-310, and `internal/component/bgp/config/resolve.go` (`cumulativePaths` excludes `local-options`). | A deactivated ref could be falsely refused, or a peer overriding `rs-client false` / `local-options [ replace-as ]` could inherit a stale group conflict. | Unit test subcases covering inactive refs, global/group/peer import inheritance, dynamic groups, and peer-overrides-group precedence. | confirmed |
+| A-3 | On a route server, an ingress import `as-path-prepend` rewrites `msg.WireUpdate` before caching, `reactorForwardRS`, and `bgp-rs` dispatch, so a second client would receive the modified path unless config load refuses the combination. | Verified in `internal/component/bgp/reactor/reactor_notify.go` lines 714-1009 and `forward_rs.go` (`update.WireUpdate.Payload()`). | Even if the RS rail were unaffected, the refusal stays as defense in depth and explicit config integrity (original design ruling). | `test/plugin/bgp-local-as-inbound-route-server.ci` proving client 2 receives client 1's AS_PATH byte-identically on valid RS config while the conflicting config is refused. | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -512,8 +512,131 @@ Add `// RFC 7947 Section 2.2.2.1: "..."` above the AC-3 enforcing code in `inter
 - [ ] Interop tests for protocol features (N-A — local config-load refusals and unchanged RS forwarding; FRR recipe interop stays in sibling spec)
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
-- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
-- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
-- [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-import-prepend-guards.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+- [x] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [x] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [x] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [x] **Commit A:** code + tests + docs + edited spec + news fragment
+- [x] **Commit B:** `remove plan/release/fixes/spec-bgp-import-prepend-guards.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **AC-3 (`bgp-rs`):** Added `ConfigReads: []string{policy.RootName}`, `InProcessConfigVerifier: verifyRSConfig`, and `FatalOnConfigError: true` in `internal/component/bgp/plugins/rs/register.go` (preserving `Dependencies` and `OptionalDependencies`), added `policy.RootName` to `WantsConfig` in `internal/component/bgp/plugins/rs/server.go`, and implemented `parseQueueSizeSections`, `verifyRSConfig`, `validateRSNoImportASPathPrepend` (with verbatim RFC 7947 Section 2.2.2.1 quote), and `rsImportPrependError` (`opererr.New`) in `internal/component/bgp/plugins/rs/config_tx.go`.
+- **AC-4 (`bgp-filter-modify`):** Added `InProcessConfigVerifier: verifyModifyConfig` and `FatalOnConfigError: true` in `internal/component/bgp/plugins/filter_modify/register.go`, recorded `hasASPathPrepend` on `modifyDef` in `internal/component/bgp/plugins/filter_modify/modify.go`, implemented fail-closed `parseModifySections` / `parseModifySectionObject` / `verifyModifyConfig` in `internal/component/bgp/plugins/filter_modify/config_tx.go` (without double plugin prefixing), and implemented `parseModifyDefsWithBGP` / `validateNoPrependImportConflict` / `noPrependImportConflictError` (`opererr.New`) in `internal/component/bgp/plugins/filter_modify/config.go`.
+- **Tests & Docs:** Added `internal/component/bgp/plugins/rs/config_refusal_test.go` (`TestRouteServerRefusesInboundASPathPrepend`), `internal/component/bgp/plugins/filter_modify/config_refusal_test.go` (`TestNoPrependRefusesInboundASPathPrepend`), promoted `test/plugin/bgp-local-as-inbound-route-server.ci` (80/80 `stress-repro` PASS under 64-burner load), updated YANG descriptions/help (`ze-filter-modify.yang`, `ze-bgp-conf.yang`), and updated `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/config-reference.md`, and `website/changes/fragments/bgp-import-prepend-guards.md`.
+
+### Bugs Found/Fixed
+- **Fail-open JSON `null` / non-object root handling and double plugin prefix in `filter_modify`:** Round 1 Review Gate found `policy.SectionsParser` accepted JSON `null` and non-object wrapped root sections (`{"bgp":"invalid"}`, `{"policy":"invalid"}`) and added a duplicate `filter-modify:` prefix under `VerifyPluginConfigMapTransition`. Replaced with `parseModifySections` / `parseModifySectionObject` in `internal/component/bgp/plugins/filter_modify/config_tx.go`, verified by `TestNoPrependRefusesInboundASPathPrepend` (`malformed_json_fails_closed` + double-prefix check).
+
+### Documentation Updates
+- Updated `internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang`, `internal/component/bgp/yang/ze-bgp-conf.yang`, `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/config-reference.md`, and `website/changes/fragments/bgp-import-prepend-guards.md`.
+
+### Deviations from Plan
+- Replaced `policy.SectionsParser` with a dedicated fail-closed `parseModifySections` / `parseModifySectionObject` in `internal/component/bgp/plugins/filter_modify/config_tx.go` (matching `rs/config_tx.go`) so JSON `null` and non-object root values fail closed with structured `*opererr.Error` and without a duplicate `bgp-filter-modify: filter-modify:` prefix. Removed unused `errFilterModifyInvalidBgpConfigJson` from `filter_modify.go`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Initially wired `filter_modify/config_tx.go` through `policy.SectionsParser` | `policy.SectionsParser` silently ignores JSON `null` / non-object root values and prepends an extra `filter-modify:` prefix | Independent Review Gate Round 1 (`I-1`, `I-2`) | Implemented dedicated fail-closed `parseModifySections` / `parseModifySectionObject` returning unwrapped `*opererr.Error` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Refuse `rs-client true` + active import `as-path-prepend` across validate, Stage 2, and reload (`bgp-rs`, AC-3) | Done | `internal/component/bgp/plugins/rs/{register.go,server.go,config_tx.go:72,84,142,297}` | `opererr` naming peer/group, modify def, `as-path-prepend`, RFC 7947 Section 2.2.2.1, fix |
+| Refuse `local-options no-prepend` + active import `as-path-prepend` across validate, Stage 2, and reload (`bgp-filter-modify`, AC-4) | Done | `internal/component/bgp/plugins/filter_modify/{register.go,modify.go,config_tx.go:20,87,config.go:73,491,629}` | `opererr` naming peer/group, modify def, `as-path-prepend`, `local-options no-prepend`, fix |
+| Route-server transparent `AS_PATH` relay and config refusal functional proof | Done | `test/plugin/bgp-local-as-inbound-route-server.ci` | 80/80 `stress-repro` PASS under 64-burner load |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-3 | Done | `TestRouteServerRefusesInboundASPathPrepend`, `test/plugin/bgp-local-as-inbound-route-server.ci` | Covers standalone, grouped, dynamic-group, global/group/peer import chains, all 3 ref spellings, survivors, malformed JSON |
+| AC-4 | Done | `TestNoPrependRefusesInboundASPathPrepend` | Covers standalone, grouped, dynamic-group, global/group/peer import chains, all 3 ref spellings, survivors, malformed JSON, no double prefix |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRouteServerRefusesInboundASPathPrepend` | Done | `internal/component/bgp/plugins/rs/config_refusal_test.go` | PASS (`rs` pkg ok) |
+| `TestNoPrependRefusesInboundASPathPrepend` | Done | `internal/component/bgp/plugins/filter_modify/config_refusal_test.go` | PASS (`filter_modify` pkg ok) |
+| `test/plugin/bgp-local-as-inbound-route-server.ci` | Done | `test/plugin/bgp-local-as-inbound-route-server.ci` | PASS live (`1.7s`) + 80/80 `stress-repro` under 64-burner load |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 12 modified + 3 created files in plan | Done | Plus `internal/component/bgp/plugins/filter_modify/filter_modify.go` (removed unused sentinel error) and `website/changes/fragments/bgp-import-prepend-guards.md` |
+
+### Audit Summary
+- **Total items:** 8 (3 requirements, 2 ACs, 3 tests)
+- **Done:** 8
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Refuse `rs-client true` + import `as-path-prepend` and relay valid RS `AS_PATH` byte-identically (AC-3) | functional `.ci` + 80x load stress + unit test | `./le test unit pkg path ./internal/component/bgp/plugins/rs/` PASS; `./le test bgp plugin --draft --pattern bgp-local-as-inbound-route-server` PASS (`1.7s`); `stress-repro` 80/80 PASS under 64-burner load |
+| Refuse `local-options no-prepend` + import `as-path-prepend` across all config entry points (AC-4) | unit test across `config.VerifyPluginConfigContent`, `ConfigTx.Configure`, `ConfigTx.Verify` | `./le test unit pkg path ./internal/component/bgp/plugins/filter_modify/` PASS; `./le go lint run scope "./internal/component/bgp/plugins/filter_modify/..."` 0 issues |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Automatic inbound append ASN-migration recipe, width regression tests, and FRR interop (AC-1, AC-2, AC-5..AC-8) | Explicitly outside this spec per Reciprocal ownership and Owner decision (2026-11-24) | `plan/post-release/features/spec-bgp-local-as-inbound-append.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | Recorded via `CLAUDE_CODE_SESSION_ID=c6f60006-6666-4000-8000-000000000006 ./le spec review record` before Commit A |
+| `./le spec review check` | Verified clean over all files in Commit A |
+| Rounds | 2 (Round 1 caught 3 ISSUEs + 3 NOTEs; all fixed; Round 2 returned `CLEAN: 0 BLOCKER, 0 ISSUE, 0 NOTE`) |
+| Reviewer lenses used | logic+wiring, fail-closed JSON security, `opererr` prefix/format, Go standards, RFC 7947 wording, `.ci` wire bytes & claims |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| I-1 | ISSUE | `policy.SectionsParser` failed open on JSON `null` and non-object root values | `internal/component/bgp/plugins/filter_modify/config_tx.go` | Replaced with fail-closed `parseModifySections` / `parseModifySectionObject` + unit subtests |
+| I-2 | ISSUE | Double plugin prefix `bgp-filter-modify: filter-modify:` | `internal/component/bgp/plugins/filter_modify/config_tx.go` | Returned unwrapped `*opererr.Error` so `VerifyPluginConfigMapTransition` owns the single prefix |
+| I-3 | ISSUE | `.ci` header `VALIDATES:` overclaimed `ze start` step | `test/plugin/bgp-local-as-inbound-route-server.ci:5-9` | Scoped header accurately to `ze config validate` and cross-referenced unit test for Stage 2/reload |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/plugins/rs/config_refusal_test.go` | Yes | `git status --short`: `?? internal/component/bgp/plugins/rs/config_refusal_test.go` |
+| `internal/component/bgp/plugins/filter_modify/config_refusal_test.go` | Yes | `git status --short`: `?? internal/component/bgp/plugins/filter_modify/config_refusal_test.go` |
+| `test/plugin/bgp-local-as-inbound-route-server.ci` | Yes | `ls -la test/plugin/bgp-local-as-*.ci`: `5145 Nov 28 05:07 test/plugin/bgp-local-as-inbound-route-server.ci` |
+| `website/changes/fragments/bgp-import-prepend-guards.md` | Yes | Created and validated at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3 | `bgp-rs` refuses `rs-client` + import `as-path-prepend` across validate/Stage 2/reload and preserves valid RS relay | `./le test unit pkg path ./internal/component/bgp/plugins/rs/` PASS (`4.99s` combined); `bgp-local-as-inbound-route-server.ci` PASS (`1.7s` + 80/80 `stress-repro`) |
+| AC-4 | `bgp-filter-modify` refuses `local-options no-prepend` + import `as-path-prepend` across validate/Stage 2/reload | `./le test unit pkg path ./internal/component/bgp/plugins/filter_modify/` PASS; `filter_modify` lint 0 issues; `coercion`, `operator-error`, `tier`, `boundary` all OK |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `bgp-rs` `InProcessConfigVerifier` + `ConfigTx` | `TestRouteServerRefusesInboundASPathPrepend` | Yes — exercises `config.VerifyPluginConfigContent`, `Configure`, and `Verify` |
+| `bgp-filter-modify` `InProcessConfigVerifier` + `ConfigTx` | `TestNoPrependRefusesInboundASPathPrepend` | Yes — exercises `config.VerifyPluginConfigContent`, `Configure`, and `Verify` |
+| Two `rs-client` peers + refused `bad-rs-prepend.conf` | `test/plugin/bgp-local-as-inbound-route-server.ci` | Yes — read full file, passed live (`1.7s`) and 80/80 `stress-repro` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestRouteServerRefusesInboundASPathPrepend` and `TestNoPrependRefusesInboundASPathPrepend` drive `VerifyPluginConfigContent`, `Configure`, and `Verify` |
+| A-2 | confirmed | Permitted-survivor subtests confirm inactive ref stripping, cumulative global/group/peer import chains, dynamic-group templates, and peer-overrides-group precedence |
+| A-3 | confirmed | `test/plugin/bgp-local-as-inbound-route-server.ci` confirms valid RS byte-identical relay and config-load refusal |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| YANG texts (`ze-filter-modify.yang`, `ze-bgp-conf.yang`) | `./le doc yang-contract help-shape` 0 broken rules on both files; `TestTheConfiguration` PASS | Yes |
+| User guides & config reference (`docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/config-reference.md`) | Verified against `rs/config_tx.go` and `filter_modify/config.go`; deferred migration recipe not published | Yes |

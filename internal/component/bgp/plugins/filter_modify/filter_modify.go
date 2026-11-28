@@ -90,9 +90,8 @@ const (
 )
 
 var (
-	errFilterModifyInvalidBgpConfigJson = errors.New("filter-modify: invalid bgp config JSON")
-	errFilterBeforeConfigure            = errors.New("filter-modify: a route arrived before the configuration")
-	errUnknownModify                    = errors.New("filter-modify: no modify of this name is configured")
+	errFilterBeforeConfigure = errors.New("filter-modify: a route arrived before the configuration")
+	errUnknownModify         = errors.New("filter-modify: no modify of this name is configured")
 )
 
 var logger = slogutil.LazyLogger("bgp.filter.modify")

@@ -6,6 +6,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/retention"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/policy"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/events"
@@ -68,10 +69,14 @@ func init() {
 	filterapi.EnableRSForwarding()
 
 	reg := registry.Registration{
-		Name:         rsPluginName,
-		Description:  "Route Server",
-		RFCs:         []string{"7947"},
-		ConfigRoots:  []string{"bgp"},
+		Name:        rsPluginName,
+		Description: "Route Server",
+		RFCs:        []string{"7947"},
+		ConfigRoots: []string{configRootBGP},
+		// The policy root holds policy { modify } definitions checked against
+		// rs-client import chains (RFC 7947 Section 2.2.2.1); a read root never
+		// auto-loads the plugin.
+		ConfigReads:  []string{policy.RootName},
 		Features:     "yang",
 		YANG:         yang.ZeRsConfYANG,
 		Dependencies: []string{"bgp-rib"},
@@ -87,7 +92,7 @@ func init() {
 		// on bgp-adj-rib-in's Stage-2 configure, which completes before peers
 		// start. See ClaimPeerUpReplay in server_handlers.go.
 		Claims:            []string{ClaimPeerUpReplay, disseminationRole},
-		ClaimSessionScope: []rpc.FilterSessionFact{{Fact: "rs-client", Values: []string{"true"}}},
+		ClaimSessionScope: []rpc.FilterSessionFact{{Fact: rsClientLeaf, Values: []string{"true"}}},
 		Dissemination:     disseminationDecls(),
 		// handleState makes a peer a live forward target (Up + ForwardFrom, one
 		// critical section, server_handlers.go). An UPDATE taken delivery of
@@ -119,6 +124,12 @@ func init() {
 		// with bgp-rs forked), and a third-party route server cannot declare it.
 		RelaysOnRSFastPath: true,
 		RunEngine:          RunRouteServer,
+		// `ze config validate` and commit run this without starting the plugin:
+		// the same parser Stage 2 and reload verify execute (config_tx.go).
+		InProcessConfigVerifier: verifyRSConfig,
+		// A Stage 2 config refusal (*rpc.RPCCallError) fails startup rather
+		// than running the daemon silently without the route server.
+		FatalOnConfigError: true,
 		// RFC 7947 Section 2.2 transparency toward every route-server client,
 		// served by evaluateRSFilter and inserted by the client's session
 		// fact (transparency.go).

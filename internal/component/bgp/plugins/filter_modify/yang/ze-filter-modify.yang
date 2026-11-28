@@ -180,8 +180,11 @@ and keeps every other attribute unchanged.";
                         range "1..32";
                     }
                     description "Ze prepends the local-as of the peer, which the session config
-holds. The range 1 to 32 stops the path from growing without a limit.";
-                    ze:help "Prepend the local AS to AS_PATH this many times.";
+holds. The range 1 to 32 stops the path from growing without a limit. On a BGP import chain, Ze
+refuses a modifier carrying as-path-prepend at config load when attached to a route-server client
+(session rs-client true, RFC 7947 Section 2.2.2.1) or to a peer declaring session asn
+local-options no-prepend.";
+                    ze:help "Prepend local AS to AS_PATH N times (refused on import for rs-client or no-prepend).";
                 }
 
                 leaf-list community-add {

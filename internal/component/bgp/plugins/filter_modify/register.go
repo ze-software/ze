@@ -34,6 +34,12 @@ func init() {
 		YANG:         fmyang.ZeFilterModifyYANG,
 		FilterTypes:  []string{filterTypeName},
 		RunEngine:    runFilterModify,
+		// `ze config validate` and commit run this without starting the plugin:
+		// the same parser Stage 2 and reload verify execute (config_tx.go).
+		InProcessConfigVerifier: verifyModifyConfig,
+		// A Stage 2 config refusal (*rpc.RPCCallError) fails startup rather
+		// than running the daemon silently without the attribute modifier.
+		FatalOnConfigError: true,
 	}
 	// The forked form (`ze plugin <name>`) runs the engine over TLS
 	// connect-back, as every external plugin does.

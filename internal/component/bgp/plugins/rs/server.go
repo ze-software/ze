@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
@@ -1136,9 +1137,10 @@ func routeServerRegistration() *sdk.Registration {
 		SignalsSessionReady: true,
 		FencesLiveForwards:  true,
 		// WantsConfig: the engine delivers only the roots a plugin declares
-		// here, so without it OnConfigure never sees bgp { route-server }
-		// and worker-queue-size takes effect from the env var alone.
-		WantsConfig: []string{configRootBGP},
+		// here, so both bgp (worker-queue-size and rs-client peers) and policy
+		// (modify definitions checked against rs-client import chains) are
+		// listed for both internal and forked runs.
+		WantsConfig: []string{configRootBGP, policy.RootName},
 		Commands:    commandDecls(),
 		// The same declarations register.go makes (rsFilterDecls,
 		// rsInsertions, rsParticipantNodes, rsBusSends, rsBusReceives), so
