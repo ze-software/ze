@@ -8,7 +8,7 @@
 | Release reason | Installing Ze from ONIE on a switch is broader platform support, not a missing first-release installer artifact: the ISO and PXE installers already exist. |
 | RFC gaps | - |
 | Depends | spec-appliance-perm-grows-at-install (in progress: it wires the growth steps this work shares and must not be redesigned in parallel) |
-| Phase | DESIGN (scope and research gates passed 2026-11-28; design not yet presented) |
+| Phase | DESIGN (direction approved 2026-11-28; the three children are written and await the design judge and Thomas's terminal approval) |
 | Handoff | - |
 | Design tier | strongest tier |
 | Updated | 2026-11-28 |
@@ -48,7 +48,7 @@ NOS, and Ze builds neither of those architectures.
 | D-4 | ONIE must survive a Ze install | Ze installs beside ONIE and the diagnostics partition and can boot back into ONIE. The whole-disk overwrite NOSaic uses is rejected |
 | D-5 | The work is saved on the Linux server, in its shared checkout | One-off authorisation for this spec, given to a session on the Mac |
 
-### Children (proposed cut, not yet approved)
+### Children (cut approved by Thomas on 2026-11-28)
 
 | Child | Owns | Why it is separate |
 |-------|------|--------------------|
@@ -203,5 +203,6 @@ network device.
 | # | Question |
 |---|----------|
 | C-1 | DECIDED 2026-11-28: the QEMU harness may boot ONIE's own virtual machine image, pinned by checksum, as the third party under test. Recorded in `ai/META-DECISIONS-SITUATIONAL.md`, "Test systems and labs" |
-| C-2 | Under BIOS, how does the switch return to ONIE without a menu boot loader: by restoring ONIE's saved MBR boot code, or by another route |
-| C-3 | Whether the three children are the right cut |
+| C-2 | Design taken in `spec-onie-3-installer.md`: ONIE's boot code is saved in a checksummed record before Ze's replaces it, and the return command restores it |
+| C-3 | DECIDED 2026-11-28: three children, as listed under "Children" |
+| C-4 | Raised by Thomas: "Can we update the kernel when we do an onie install?" The installed switch always runs Ze's kernel. Having the installer itself jump to Ze's installer kernel is recorded as an alternative set aside in `spec-onie-3-installer.md`, with the condition that reopens it |
