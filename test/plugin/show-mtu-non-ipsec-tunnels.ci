@@ -1,0 +1,72 @@
+# Test: show mtu sizes non-IPsec GRE and VXLAN tunnels over a clamped path
+# Spec: spec-mtu-non-ipsec-tunnels -- user story 1, AC-1, AC-3, AC-5, AC-10
+# VALIDATES: a daemon configuring a keyed GRE tunnel (mtugre1, MTU 1472, IPv4
+#            addressed) and a VXLAN tunnel (mtuvx10, MTU 1450) toward the far
+#            namespace behind a 1400-octet router clamp discovers both live
+#            interfaces through iface.GetTunnelInfo, measures 1400 via ICMP,
+#            sizes mtugre1 (overhead 28, ceiling 1372, recommended 1340, mss
+#            1300, oversized by 100) and mtuvx10 (overhead 50, ceiling 1350,
+#            recommended 1318, no mss, oversized by 100), reports underlay
+#            advice circuit-clamped against reference 10.99.2.9, and lists
+#            exact `set interface tunnel <name> mtu <rec>` commands.
+# PREVENTS: non-IPsec tunnels staying invisible to show mtu, wrong GRE key or
+#           VXLAN overhead calculations, and bogus L2 MSS values.
+#
+# The path is three network namespaces joined by veth pairs, built by the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, via netlink):
+# the daemon runs in the sender namespace, the router clamps the far link to
+# 1400, and the far namespace answers.
+
+option=needs-linux:caps=net-admin,net-raw
+option=timeout:value=90s
+
+tmpfs=mtu-non-ipsec.conf:terminator=EOF_CONF
+bus {
+	endpoint show-mtu-test {
+		external {
+			run "le test fixture plugin/show-mtu-non-ipsec";
+		}
+		encoding json;
+	}
+}
+environment {
+	mtu {
+		reference-address 10.99.2.9
+	}
+}
+interface {
+	backend kernel
+
+	tunnel mtugre1 {
+		mtu 1472
+		encapsulation {
+			gre {
+				local { ip 10.99.1.1; }
+				remote { ip 10.99.2.1; }
+				key 42
+			}
+		}
+		unit 0 {
+			ipv4 {
+				address [10.200.0.1/30]
+			}
+		}
+	}
+	tunnel mtuvx10 {
+		mtu 1450
+		encapsulation {
+			vxlan {
+				local { ip 10.99.1.1; }
+				remote { ip 10.99.2.1; }
+				vni 100
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/clamped-path netns zemtunonipsec$PORT run ze start mtu-non-ipsec.conf:timeout=80s
+expect=exit:code=0
+expect=stderr:contains=OK: non-IPsec GRE and VXLAN tunnels are oversized against the 1400 clamp and the circuit is clamped
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

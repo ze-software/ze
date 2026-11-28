@@ -16,20 +16,19 @@ module ze-mtu-cmd {
         container mtu {
             config false;
             ze:command "ze-mtu:show-mtu";
-            description "Measures the path MTU to every configured IPsec peer and to the reference
-address, derives the ESP ceiling of each tunnel from its negotiated transform,
-and reports whether each tunnel interface is oversized, tight, under-utilized
-or correct, with the configuration commands that fix it. The run changes
-nothing on the router. With host <address>, one address is measured instead
-of the peers.";
-            ze:help "Measure the path MTU and size the IPsec tunnels from it.";
+            description "Measures the path MTU to every IPsec, GRE, VXLAN, WireGuard, and IP-in-IP
+tunnel endpoint and to the reference address. It derives each tunnel ceiling
+from live encapsulation state. It reports each tunnel interface as oversized,
+tight, under-utilized, or correct, with the commands that fix it. The run
+changes nothing on the router. With host <address>, Ze measures one address
+instead of the tunnels.";
+            ze:help "Measure path MTU and size IPsec and non-IPsec tunnels.";
             leaf host {
                 type zt:ip-address;
-                description "The value follows the host keyword and is one IPv4 or IPv6 address. Ze
-measures the path MTU to that address alone and skips the peers and the
-reference address. A name is refused: the run sends probes to the address as
-typed.";
-                ze:help "Measure one address instead of the IPsec peers.";
+                description "The value follows the host keyword and names one IPv4 or IPv6 address. Ze
+measures the path MTU to that address alone and skips all tunnels and the
+reference address. Ze refuses a hostname because probes go to the typed address.";
+                ze:help "Measure one address instead of the tunnel endpoints.";
             }
             leaf search {
                 type enumeration {

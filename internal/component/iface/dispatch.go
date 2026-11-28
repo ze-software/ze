@@ -488,6 +488,35 @@ func GetXFRMInfo(name string) (XFRMInfo, error) {
 	return b.GetXFRMInfo(osName)
 }
 
+// GetTunnelInfo reads the live encapsulation parameters for the named non-IPsec
+// tunnel interface via the active backend.
+func GetTunnelInfo(name string) (TunnelInfo, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return TunnelInfo{}, err
+	}
+	osName, err := ResolveDevice(name)
+	if err != nil {
+		return TunnelInfo{}, err
+	}
+	return b.GetTunnelInfo(osName)
+}
+
+// GetWireguardDevice reads the live configuration for the named WireGuard
+// interface via the active backend. Callers MUST NOT log or emit PrivateKey or
+// PresharedKey values.
+func GetWireguardDevice(name string) (WireguardSpec, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return WireguardSpec{}, err
+	}
+	osName, err := ResolveDevice(name)
+	if err != nil {
+		return WireguardSpec{}, err
+	}
+	return b.GetWireguardDevice(osName)
+}
+
 // ListRates returns the current rate data for all interfaces.
 // Returns nil if the rate tracker is not running.
 func ListRates() map[string]InterfaceRate {

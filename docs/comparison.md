@@ -551,7 +551,7 @@ one.
 | Runtime health monitoring | Yes | No | No | No | No | No | No | No | No | No | No |
 | Pre-start readiness checks | Yes | No | No | No | No | No | No | No | No | No | No |
 | Don't Fragment path probing (ping/traceroute with the reported next-hop MTU) | Yes | No | No | No | No | No | No | No | No | No | No |
-| IPsec tunnel MTU sizing from a live path measurement (`show mtu`) | Yes | No | No | No | No | No | No | No | No | No | No |
+| Tunnel MTU sizing from live path measurement for IPsec, GRE, WireGuard, VXLAN, and IP-in-IP (`show mtu`) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Tunnel path measured over the live IKE SA (a padded INFORMATIONAL exchange, so a path that filters ICMP is still measured) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Docker image | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
 | netlab lab integration | Yes (daemon, in-repo, unvalidated) | No | Yes (daemon) | Yes (device) | Yes (device) | Not found | Not found | Not found | Not found | Not found | Not found |

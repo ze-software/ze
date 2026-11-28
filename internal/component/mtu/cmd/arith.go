@@ -81,7 +81,7 @@ const (
 var errNoUsableMTU = errors.New("mtu: no usable tunnel MTU")
 
 // alignDown rounds value down to a multiple of block. A block of zero is a
-// programmer error: every espOverhead carries a block of at least 4.
+// programmer error: every encapOverhead carries a block of at least 1.
 func alignDown(value, block uint16) uint16 {
 	if block == 0 {
 		panic("BUG: alignDown with a zero block")
@@ -89,28 +89,26 @@ func alignDown(value, block uint16) uint16 {
 	return value - value%block
 }
 
-// ceiling is the largest packet a Child SA can be handed so that, after ESP,
-// it fits the underlay path MTU. It is 0 when nothing is left, and 0 is a
-// legitimate figure here: recommended turns it into errNoUsableMTU.
+// ceiling is the largest packet a tunnel can be handed so that, after
+// encapsulation, it fits the underlay path MTU. It is 0 when nothing is left,
+// and 0 is a legitimate figure here: recommended turns it into errNoUsableMTU.
 //
-// Tunnel mode: the packet is the ESP payload, so the outer header and the
-// fixed octets come off the underlay, what remains is padded down to the
-// cipher block, and the two trailer octets sit inside that padded region.
+// Tunnel mode: the outer header and the fixed octets come off the underlay,
+// what remains is aligned down to o.block, and o.trailer sits inside that
+// aligned region (2 octets for ESP, 0 for non-IPsec tunnels).
 //
-// Transport mode: the packet keeps its own IP header outside the ESP
+// Transport mode (ESP): the packet keeps its own IP header outside the ESP
 // payload (RFC 4303 Section 3.1.1), so the same subtraction and alignment
-// apply to the part after the header, and the header is added back. The
-// mode is read from the overhead so tunnel-mode arithmetic is never applied
-// to a transport-mode SA (AC-16).
-func ceiling(underlay uint16, o *espOverhead) uint16 {
+// apply to the part after the header, and the header is added back.
+func ceiling(underlay uint16, o *encapOverhead) uint16 {
 	if underlay <= o.outerHeader+o.fixed {
 		return 0
 	}
 	room := alignDown(underlay-o.outerHeader-o.fixed, o.block)
-	if room <= espTrailerOctets {
+	if room <= o.trailer {
 		return 0
 	}
-	room -= espTrailerOctets
+	room -= o.trailer
 	if o.mode == ipsecinventory.ModeTransport {
 		return room + o.outerHeader
 	}
@@ -118,27 +116,27 @@ func ceiling(underlay uint16, o *espOverhead) uint16 {
 }
 
 // recommended backs off recommendedMarginOctets from the ceiling and lands on
-// the cipher's alignment boundary, the trailer accounted for on both sides.
+// the encapsulation's alignment boundary, o.trailer accounted for on both sides.
 // It answers errNoUsableMTU when the ceiling is 0 or the backed-off value
 // lands below the inner family's minimum: a tunnel that cannot carry the
 // minimum packet its family requires has no safe size, and the operator is
 // told so rather than handed a small number (AC-6).
-func recommended(ceil uint16, o *espOverhead, inner ipFamily) (uint16, error) {
+func recommended(ceil uint16, o *encapOverhead, inner ipFamily) (uint16, error) {
 	floor, err := minimumMTU(inner)
 	if err != nil {
 		return 0, err
 	}
 	if ceil == 0 {
-		return 0, fmt.Errorf("%w: the path leaves no room for a packet after ESP", errNoUsableMTU)
+		return 0, fmt.Errorf("%w: the path leaves no room for a packet after encapsulation", errNoUsableMTU)
 	}
-	if ceil+espTrailerOctets < recommendedMarginOctets {
+	if ceil+o.trailer < recommendedMarginOctets {
 		return 0, fmt.Errorf("%w: a ceiling of %d is below the %d-octet margin", errNoUsableMTU, ceil, recommendedMarginOctets)
 	}
-	value := alignDown(ceil+espTrailerOctets-recommendedMarginOctets, o.block)
-	if value <= espTrailerOctets {
+	value := alignDown(ceil+o.trailer-recommendedMarginOctets, o.block)
+	if value <= o.trailer {
 		return 0, fmt.Errorf("%w: a ceiling of %d leaves nothing above the trailer", errNoUsableMTU, ceil)
 	}
-	value -= espTrailerOctets
+	value -= o.trailer
 	if value < floor {
 		return 0, fmt.Errorf("%w: a ceiling of %d leaves %d, below the %s minimum link MTU of %d", errNoUsableMTU, ceil, value, inner, floor)
 	}

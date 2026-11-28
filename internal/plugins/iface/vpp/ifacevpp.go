@@ -244,11 +244,13 @@ func (b *vppBackendImpl) resolveIndex(name string) (interface_types.InterfaceInd
 	if err := b.ensureChannel(); err != nil {
 		return 0, err
 	}
-	idx, ok := b.names.lookupIndex(name)
-	if !ok {
-		return 0, fmt.Errorf("ifacevpp: unknown interface %q", name)
+	if idx, ok := b.names.lookupIndex(name); ok {
+		return interface_types.InterfaceIndex(idx), nil
 	}
-	return interface_types.InterfaceIndex(idx), nil
+	if idx, ok := b.names.lookupNativeIndex(name); ok {
+		return interface_types.InterfaceIndex(idx), nil
+	}
+	return 0, fmt.Errorf("ifacevpp: unknown interface %q", name)
 }
 
 // resolveBridgeDomain looks up the VPP bridge domain ID for a bridge name.

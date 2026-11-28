@@ -13,12 +13,15 @@ package ifacenetlink
 
 import (
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/test/userns"
@@ -445,5 +448,238 @@ func TestCreateTunnelTTLZeroInherits(t *testing.T) {
 		if ttl != 0 {
 			t.Errorf("outer TTL = %d, want 0 (inherit)", ttl)
 		}
+	})
+}
+
+// createIP6GREIgnoreEncapLimit creates an ip6gre device with
+// IP6_TNL_F_IGN_ENCAP_LIMIT set via rtnetlink directly, because
+// vishvananda/netlink's Gretun builder omits IFLA_GRE_FLAGS.
+func createIP6GREIgnoreEncapLimit(t *testing.T, name string, local, remote netip.Addr) {
+	t.Helper()
+	req := nl.NewNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
+	req.AddData(nl.NewIfInfomsg(unix.AF_UNSPEC))
+	req.AddData(nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name)))
+	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
+	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated("ip6gre"))
+	data := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
+	localBytes := local.As16()
+	remoteBytes := remote.As16()
+	data.AddRtAttr(nl.IFLA_GRE_LOCAL, localBytes[:])
+	data.AddRtAttr(nl.IFLA_GRE_REMOTE, remoteBytes[:])
+	data.AddRtAttr(nl.IFLA_GRE_FLAGS, nl.Uint32Attr(uint32(netlink.IP6_TNL_F_IGN_ENCAP_LIMIT)))
+	req.AddData(linkInfo)
+	if _, err := req.Execute(unix.NETLINK_ROUTE, 0); err != nil {
+		t.Fatalf("create ip6gre %s with IP6_TNL_F_IGN_ENCAP_LIMIT: %v", name, err)
+	}
+}
+
+// TestGetTunnelInfoKernelRoundTrip verifies real kernel readback through
+// iface.GetTunnelInfo for every modeled non-IPsec tunnel kind, including keyed
+// gretap (proving immunity to vendored netlink's parseGretapData IKey/OKey
+// swap) and ip6gre with/without IP6_TNL_F_IGN_ENCAP_LIMIT, plus rejection of a
+// non-tunnel dummy device.
+//
+// VALIDATES: AC-3 and Wiring (iface.GetTunnelInfo -> netlinkBackend.GetTunnelInfo).
+// PREVENTS: Misreading GRETap key flags, misclassifying IPv6 encap-limit
+// overhead by 8 octets, or silently succeeding on non-tunnel devices.
+func TestGetTunnelInfoKernelRoundTrip(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
+	withTunnelNetNS(t, func(b iface.Backend) {
+		v4Local := netip.MustParseAddr("192.0.2.1")
+		v4Remote := netip.MustParseAddr("198.51.100.1")
+		v6Local := netip.MustParseAddr("2001:db8::1")
+		v6Remote := netip.MustParseAddr("2001:db8::2")
+		v6RemoteIPIP6 := netip.MustParseAddr("2001:db8::3")
+		v6RemoteIP6GREIgn := netip.MustParseAddr("2001:db8::4")
+
+		cases := []struct {
+			name string
+			spec iface.TunnelSpec
+			want iface.TunnelInfo
+		}{
+			{
+				name: "gre-unkeyed",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindGRE,
+					Name:          "rgre0",
+					LocalAddress:  v4Local.String(),
+					RemoteAddress: v4Remote.String(),
+				},
+				want: iface.TunnelInfo{
+					Kind:   iface.TunnelKindGRE,
+					Local:  v4Local,
+					Remote: v4Remote,
+				},
+			},
+			{
+				name: "gre-keyed",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindGRE,
+					Name:          "rgre1",
+					LocalAddress:  v4Local.String(),
+					RemoteAddress: v4Remote.String(),
+					Key:           77,
+					KeySet:        true,
+				},
+				want: iface.TunnelInfo{
+					Kind:   iface.TunnelKindGRE,
+					Local:  v4Local,
+					Remote: v4Remote,
+					GREKey: true,
+				},
+			},
+			{
+				name: "gretap-keyed",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindGRETap,
+					Name:          "rgtap0",
+					LocalAddress:  v4Local.String(),
+					RemoteAddress: v4Remote.String(),
+					Key:           88,
+					KeySet:        true,
+				},
+				want: iface.TunnelInfo{
+					Kind:   iface.TunnelKindGRETap,
+					Local:  v4Local,
+					Remote: v4Remote,
+					GREKey: true,
+				},
+			},
+			{
+				name: "ip6gre-default-encaplimit",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindIP6GRE,
+					Name:          "rip6gre0",
+					LocalAddress:  v6Local.String(),
+					RemoteAddress: v6Remote.String(),
+				},
+				want: iface.TunnelInfo{
+					Kind:           iface.TunnelKindIP6GRE,
+					Local:          v6Local,
+					Remote:         v6Remote,
+					IPv6EncapLimit: true,
+				},
+			},
+			{
+				name: "vxlan",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindVxlan,
+					Name:          "rvx0",
+					LocalAddress:  v4Local.String(),
+					RemoteAddress: v4Remote.String(),
+					VNI:           42,
+					VNISet:        true,
+				},
+				want: iface.TunnelInfo{
+					Kind:   iface.TunnelKindVxlan,
+					Local:  v4Local,
+					Remote: v4Remote,
+					VNI:    42,
+				},
+			},
+			{
+				name: "ipip",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindIPIP,
+					Name:          "ripip0",
+					LocalAddress:  v4Local.String(),
+					RemoteAddress: v4Remote.String(),
+				},
+				want: iface.TunnelInfo{
+					Kind:   iface.TunnelKindIPIP,
+					Local:  v4Local,
+					Remote: v4Remote,
+				},
+			},
+			{
+				name: "sit",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindSIT,
+					Name:          "rsit0",
+					LocalAddress:  v4Local.String(),
+					RemoteAddress: v4Remote.String(),
+				},
+				want: iface.TunnelInfo{
+					Kind:   iface.TunnelKindSIT,
+					Local:  v4Local,
+					Remote: v4Remote,
+				},
+			},
+			{
+				name: "ip6tnl",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindIP6Tnl,
+					Name:          "rip6t0",
+					LocalAddress:  v6Local.String(),
+					RemoteAddress: v6Remote.String(),
+					EncapLimit:    4,
+					EncapLimitSet: true,
+				},
+				want: iface.TunnelInfo{
+					Kind:           iface.TunnelKindIP6Tnl,
+					Local:          v6Local,
+					Remote:         v6Remote,
+					IPv6EncapLimit: true,
+				},
+			},
+			{
+				name: "ipip6",
+				spec: iface.TunnelSpec{
+					Kind:          iface.TunnelKindIPIP6,
+					Name:          "ripip6",
+					LocalAddress:  v6Local.String(),
+					RemoteAddress: v6RemoteIPIP6.String(),
+				},
+				want: iface.TunnelInfo{
+					Kind:           iface.TunnelKindIPIP6,
+					Local:          v6Local,
+					Remote:         v6RemoteIPIP6,
+					IPv6EncapLimit: true,
+				},
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				if err := b.CreateTunnel(tc.spec); err != nil {
+					t.Fatalf("CreateTunnel(%s): %v", tc.spec.Name, err)
+				}
+				got, err := iface.GetTunnelInfo(tc.spec.Name)
+				if err != nil {
+					t.Fatalf("GetTunnelInfo(%s): %v", tc.spec.Name, err)
+				}
+				if got != tc.want {
+					t.Errorf("GetTunnelInfo(%s) = %+v, want %+v", tc.spec.Name, got, tc.want)
+				}
+			})
+		}
+
+		t.Run("ip6gre-ign-encap-limit", func(t *testing.T) {
+			createIP6GREIgnoreEncapLimit(t, "rip6gre1", v6Local, v6RemoteIP6GREIgn)
+			got, err := iface.GetTunnelInfo("rip6gre1")
+			if err != nil {
+				t.Fatalf("GetTunnelInfo(rip6gre1): %v", err)
+			}
+			want := iface.TunnelInfo{
+				Kind:           iface.TunnelKindIP6GRE,
+				Local:          v6Local,
+				Remote:         v6RemoteIP6GREIgn,
+				IPv6EncapLimit: false,
+			}
+			if got != want {
+				t.Errorf("GetTunnelInfo(rip6gre1) = %+v, want %+v", got, want)
+			}
+		})
+
+		t.Run("non-tunnel-dummy-rejected", func(t *testing.T) {
+			if err := b.CreateDummy("rdum0"); err != nil {
+				t.Fatalf("CreateDummy: %v", err)
+			}
+			if _, err := iface.GetTunnelInfo("rdum0"); err == nil {
+				t.Fatal("GetTunnelInfo on dummy device succeeded, want error")
+			}
+		})
 	})
 }

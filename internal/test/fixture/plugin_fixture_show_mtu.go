@@ -11,6 +11,7 @@ package fixture
 // Related: test/plugin/show-mtu-json.ci -- the payload as one document
 // Related: test/plugin/show-mtu-no-ipsec-component.ci -- a registered inventory with no tunnel
 // Related: test/plugin/show-mtu-oversized-tunnels.ci -- two bound tunnels over the clamp
+// Related: test/plugin/show-mtu-non-ipsec-tunnels.ci -- keyed GRE and VXLAN over the clamp
 // Related: plugin_fixture_13.go -- observe13, command13 and requireDone13
 
 import (
@@ -518,6 +519,125 @@ func showMTUOversizedRow(row map[string]any) error {
 	}
 	if got := number13(row["octets"]); got != showMTUXfrmMTU-showMTUGCMCeiling {
 		return fmt.Errorf("peer %v excess %d, want %d", row["peer"], got, showMTUXfrmMTU-showMTUGCMCeiling)
+	}
+	return nil
+}
+
+// showMTUNonIPsec polls `show mtu` until the configured keyed GRE (`mtugre1`)
+// and VXLAN (`mtuvx10`) tunnel interfaces are created and sized against the
+// 1400-octet clamp, then verifies exact overheads, ceilings, recommendations,
+// MSS presence/absence, verdicts, underlay advice, and remediation commands.
+func showMTUNonIPsec(ctx context.Context, _ []string) error {
+	return observe13(ctx, "show-mtu-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		var doc map[string]any
+		sized := Poll(ctx, 20, 2*time.Second, func() bool {
+			d, err := showMTUResult(ctx, plugin, "show mtu")
+			if err != nil {
+				return false
+			}
+			doc = d
+			rows, err := showMTURows(d, "tunnels")
+			if err != nil {
+				return false
+			}
+			greRow := showMTURowByIface(rows, "mtugre1")
+			if greRow == nil {
+				return false
+			}
+			vxRow := showMTURowByIface(rows, "mtuvx10")
+			if vxRow == nil {
+				return false
+			}
+			return greRow["sized"] == true && vxRow["sized"] == true
+		})
+		if !sized {
+			return fmt.Errorf("show mtu: mtugre1 and mtuvx10 were not sized within the poll: %v", doc)
+		}
+		rows, err := showMTURows(doc, "tunnels")
+		if err != nil {
+			return err
+		}
+		greRow := showMTURowByIface(rows, "mtugre1")
+		if err := checkNonIPsecRow(greRow, "gre", 28, 1372, 1340, 100, 1300, true); err != nil {
+			return fmt.Errorf("mtugre1: %w", err)
+		}
+		vxRow := showMTURowByIface(rows, "mtuvx10")
+		if err := checkNonIPsecRow(vxRow, "vxlan", 50, 1350, 1318, 100, 0, false); err != nil {
+			return fmt.Errorf("mtuvx10: %w", err)
+		}
+		if doc[showMTUKeyVerdict] != "action-needed" {
+			return fmt.Errorf("run verdict %v, want action-needed", doc[showMTUKeyVerdict])
+		}
+		underlay, ok := doc["underlay"].(map[string]any)
+		if !ok {
+			return errors.New("no underlay row")
+		}
+		if underlay["advice"] != "circuit-clamped" {
+			return fmt.Errorf("underlay advice %v, want circuit-clamped: %v", underlay["advice"], doc["notes"])
+		}
+		commands, ok := doc["commands"].([]any)
+		if !ok {
+			return fmt.Errorf("commands is not a list: %v", doc["commands"])
+		}
+		joined := fmt.Sprint(commands)
+		for _, want := range []string{
+			"set interface tunnel mtugre1 mtu 1340",
+			"set interface tunnel mtuvx10 mtu 1318",
+			"set interface veth sr0 mtu 1400",
+		} {
+			if !strings.Contains(joined, want) {
+				return fmt.Errorf("commands %v lack %q", commands, want)
+			}
+		}
+		fmt.Fprintln(os.Stderr, "OK: non-IPsec GRE and VXLAN tunnels are oversized against the 1400 clamp and the circuit is clamped")
+		return nil
+	})
+}
+
+func showMTURowByIface(rows []map[string]any, ifaceName string) map[string]any {
+	for _, row := range rows {
+		if row["interface"] == ifaceName {
+			return row
+		}
+	}
+	return nil
+}
+
+func checkNonIPsecRow(row map[string]any, kind string, overhead, ceil, rec, excess, wantMSS int, expectMSS bool) error {
+	if row == nil {
+		return errors.New("row absent")
+	}
+	if row["kind"] != kind {
+		return fmt.Errorf("kind %v, want %s: %v", row["kind"], kind, row)
+	}
+	if got := number13(row["overhead"]); got != overhead {
+		return fmt.Errorf("overhead %d, want %d: %v", got, overhead, row)
+	}
+	if got := number13(row["path-mtu"]); got != showMTUClampMTU {
+		return fmt.Errorf("path-mtu %d, want %d: %v", got, showMTUClampMTU, row)
+	}
+	if got := number13(row["ceiling"]); got != ceil {
+		return fmt.Errorf("ceiling %d, want %d: %v", got, ceil, row)
+	}
+	if got := number13(row["recommended"]); got != rec {
+		return fmt.Errorf("recommended %d, want %d: %v", got, rec, row)
+	}
+	if row[showMTUKeyVerdict] != "oversized" {
+		return fmt.Errorf("verdict %v, want oversized: %v", row[showMTUKeyVerdict], row)
+	}
+	if got := number13(row["octets"]); got != excess {
+		return fmt.Errorf("excess %d, want %d: %v", got, excess, row)
+	}
+	mssVal, hasMSS := row["mss"]
+	if expectMSS {
+		if !hasMSS {
+			return fmt.Errorf("mss absent, want %d: %v", wantMSS, row)
+		}
+		if number13(mssVal) != wantMSS {
+			return fmt.Errorf("mss %v, want %d: %v", mssVal, wantMSS, row)
+		}
+	} else if hasMSS {
+		return fmt.Errorf("unexpected mss %v on L2 tunnel: %v", mssVal, row)
 	}
 	return nil
 }

@@ -12,11 +12,14 @@ package ifacevpp
 
 import (
 	"fmt"
+	"net/netip"
 
 	"go.fd.io/govpp/binapi/gre"
+	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/ipip"
 	"go.fd.io/govpp/binapi/tunnel_types"
+	"go.fd.io/govpp/binapi/vxlan"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -153,4 +156,216 @@ func (b *vppBackendImpl) createIPIPTunnel(spec iface.TunnelSpec) error {
 	})
 	b.emitCreated(name, spec.Kind.String(), idx)
 	return nil
+}
+
+// GetTunnelInfo reads live encapsulation state for the named VPP tunnel
+// interface via VPP's GRE, IPIP, and VXLAN dump APIs. Returns an error when
+// the interface does not exist or is not one of VPP's supported tunnel kinds.
+func (b *vppBackendImpl) GetTunnelInfo(name string) (iface.TunnelInfo, error) {
+	if err := b.ensureChannel(); err != nil {
+		return iface.TunnelInfo{}, err
+	}
+	idx, err := b.resolveIndex(name)
+	if err != nil {
+		return iface.TunnelInfo{}, err
+	}
+	info, found, err := b.dumpGRETunnelInfo(name, idx)
+	if err != nil {
+		return iface.TunnelInfo{}, err
+	}
+	if found {
+		return info, nil
+	}
+	info, found, err = b.dumpIPIPTunnelInfo(name, idx)
+	if err != nil {
+		return iface.TunnelInfo{}, err
+	}
+	if found {
+		return info, nil
+	}
+	info, found, err = b.dumpVxlanTunnelInfo(name, idx)
+	if err != nil {
+		return iface.TunnelInfo{}, err
+	}
+	if found {
+		return info, nil
+	}
+	return iface.TunnelInfo{}, fmt.Errorf("ifacevpp: %q is not a VPP tunnel interface", name)
+}
+
+func (b *vppBackendImpl) dumpGRETunnelInfo(name string, idx interface_types.InterfaceIndex) (iface.TunnelInfo, bool, error) {
+	ctx := b.ch.SendMultiRequest(&gre.GreTunnelDump{SwIfIndex: idx})
+	var found bool
+	var info iface.TunnelInfo
+	// Bounded by VPP: the dump ends with its last-reply marker.
+	for {
+		d := &gre.GreTunnelDetails{}
+		last, err := ctx.ReceiveReply(d)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: GreTunnelDump %q: %w", name, err)
+		}
+		if last {
+			break
+		}
+		if d.Tunnel.SwIfIndex != idx {
+			continue
+		}
+		kind, err := vppGRETunnelKind(d.Tunnel.Type)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: GreTunnelDump %q: %w", name, err)
+		}
+		flowBased, err := vppTunnelModeFlowBased(d.Tunnel.Mode)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: GreTunnelDump %q: %w", name, err)
+		}
+		local, err := vppAddrToNetip(d.Tunnel.Src)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: GreTunnelDump %q src: %w", name, err)
+		}
+		remote, err := vppAddrToNetip(d.Tunnel.Dst)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: GreTunnelDump %q dst: %w", name, err)
+		}
+		if err := requireIPv4VPPEndpoints(name, kind.String(), local, remote); err != nil {
+			return iface.TunnelInfo{}, false, err
+		}
+		info = iface.TunnelInfo{
+			Kind:      kind,
+			Local:     local,
+			Remote:    remote,
+			FlowBased: flowBased,
+		}
+		found = true
+	}
+	return info, found, nil
+}
+
+func (b *vppBackendImpl) dumpIPIPTunnelInfo(name string, idx interface_types.InterfaceIndex) (iface.TunnelInfo, bool, error) {
+	ctx := b.ch.SendMultiRequest(&ipip.IpipTunnelDump{SwIfIndex: idx})
+	var found bool
+	var info iface.TunnelInfo
+	// Bounded by VPP: the dump ends with its last-reply marker.
+	for {
+		d := &ipip.IpipTunnelDetails{}
+		last, err := ctx.ReceiveReply(d)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: IpipTunnelDump %q: %w", name, err)
+		}
+		if last {
+			break
+		}
+		if d.Tunnel.SwIfIndex != idx {
+			continue
+		}
+		flowBased, err := vppTunnelModeFlowBased(d.Tunnel.Mode)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: IpipTunnelDump %q: %w", name, err)
+		}
+		local, err := vppAddrToNetip(d.Tunnel.Src)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: IpipTunnelDump %q src: %w", name, err)
+		}
+		remote, err := vppAddrToNetip(d.Tunnel.Dst)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: IpipTunnelDump %q dst: %w", name, err)
+		}
+		if err := requireIPv4VPPEndpoints(name, iface.TunnelKindIPIP.String(), local, remote); err != nil {
+			return iface.TunnelInfo{}, false, err
+		}
+		info = iface.TunnelInfo{
+			Kind:      iface.TunnelKindIPIP,
+			Local:     local,
+			Remote:    remote,
+			FlowBased: flowBased,
+		}
+		found = true
+	}
+	return info, found, nil
+}
+
+func vppTunnelModeFlowBased(mode tunnel_types.TunnelMode) (bool, error) {
+	switch mode {
+	case tunnel_types.TUNNEL_API_MODE_P2P:
+		return false, nil
+	case tunnel_types.TUNNEL_API_MODE_MP:
+		return true, nil
+	default:
+		// VPP tunnel modes are open; refuse any mode we cannot interpret safely.
+		return false, fmt.Errorf("unsupported VPP tunnel mode %d", mode)
+	}
+}
+
+func requireIPv4VPPEndpoints(name, kind string, local, remote netip.Addr) error {
+	if local.IsValid() && local.Is6() {
+		return errNotSupported("IPv6-underlay VPP " + kind + " tunnel " + name)
+	}
+	if remote.IsValid() && remote.Is6() {
+		return errNotSupported("IPv6-underlay VPP " + kind + " tunnel " + name)
+	}
+	return nil
+}
+
+func (b *vppBackendImpl) dumpVxlanTunnelInfo(name string, idx interface_types.InterfaceIndex) (iface.TunnelInfo, bool, error) {
+	ctx := b.ch.SendMultiRequest(&vxlan.VxlanTunnelV2Dump{SwIfIndex: idx})
+	var found bool
+	var info iface.TunnelInfo
+	// Bounded by VPP: the dump ends with its last-reply marker.
+	for {
+		d := &vxlan.VxlanTunnelV2Details{}
+		last, err := ctx.ReceiveReply(d)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: VxlanTunnelV2Dump %q: %w", name, err)
+		}
+		if last {
+			break
+		}
+		if d.SwIfIndex != idx {
+			continue
+		}
+		local, err := vppAddrToNetip(d.SrcAddress)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: VxlanTunnelV2Dump %q src: %w", name, err)
+		}
+		remote, err := vppAddrToNetip(d.DstAddress)
+		if err != nil {
+			return iface.TunnelInfo{}, false, fmt.Errorf("ifacevpp: VxlanTunnelV2Dump %q dst: %w", name, err)
+		}
+		info = iface.TunnelInfo{
+			Kind:   iface.TunnelKindVxlan,
+			Local:  local,
+			Remote: remote,
+			VNI:    d.Vni,
+		}
+		found = true
+	}
+	return info, found, nil
+}
+
+func vppGRETunnelKind(typ gre.GreTunnelType) (iface.TunnelKind, error) {
+	switch typ {
+	case gre.GRE_API_TUNNEL_TYPE_L3:
+		return iface.TunnelKindGRE, nil
+	case gre.GRE_API_TUNNEL_TYPE_TEB:
+		return iface.TunnelKindGRETap, nil
+	case gre.GRE_API_TUNNEL_TYPE_ERSPAN:
+		return iface.TunnelKindUnknown, fmt.Errorf("unsupported GRE tunnel type %s", typ)
+	default:
+		// VPP's GreTunnelType set is open; reject unknown types.
+		return iface.TunnelKindUnknown, fmt.Errorf("unknown GRE tunnel type %d", typ)
+	}
+}
+
+// vppAddrToNetip converts a VPP ip_types.Address into a netip.Addr. The
+// address family comes from VPP (an open set): an unknown family returns an
+// error instead of a zero address.
+func vppAddrToNetip(a ip_types.Address) (netip.Addr, error) {
+	switch a.Af {
+	case ip_types.ADDRESS_IP4:
+		return netip.AddrFrom4(a.Un.GetIP4()), nil
+	case ip_types.ADDRESS_IP6:
+		return netip.AddrFrom16(a.Un.GetIP6()), nil
+	default:
+		// VPP's AddressFamily set is open; refuse unknown values.
+		return netip.Addr{}, fmt.Errorf("unknown VPP address family %d", a.Af)
+	}
 }

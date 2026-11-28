@@ -15,9 +15,12 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
 )
@@ -374,4 +377,235 @@ func resolveLocalInterface(name string) (uint32, error) {
 		return 0, fmt.Errorf("local interface %q: index %d out of uint32 range", name, idx)
 	}
 	return uint32(idx), nil
+}
+
+// GetTunnelInfo reads live encapsulation parameters for a non-IPsec tunnel
+// netdev via rtnetlink. For GRE/GRETap it reads OFlags directly (avoiding the
+// vendored netlink parseGretapData IKey/OKey swap) and inspects Remote before
+// Local to determine outer address family (avoiding Local.To4() == nil when
+// local-interface is used). For IPv6 GRE it issues one RTM_GETLINK to read
+// IFLA_GRE_FLAGS so IPv6EncapLimit reflects IP6_TNL_F_IGN_ENCAP_LIMIT exactly.
+func (b *netlinkBackend) GetTunnelInfo(name string) (iface.TunnelInfo, error) {
+	if err := iface.ValidateIfaceName(name); err != nil {
+		return iface.TunnelInfo{}, fmt.Errorf("tunnel info %q: %w", name, err)
+	}
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+	}
+
+	switch t := link.(type) {
+	case *netlink.Gretun:
+		info, err := greTunnelInfo(iface.TunnelKindGRE, iface.TunnelKindIP6GRE,
+			t.Index, t.Local, t.Remote, t.OFlags, t.EncapType, t.FlowBased)
+		if err != nil {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+		}
+		return info, nil
+	case *netlink.Gretap:
+		info, err := greTunnelInfo(iface.TunnelKindGRETap, iface.TunnelKindIP6GRETap,
+			t.Index, t.Local, t.Remote, t.OFlags, t.EncapType, t.FlowBased)
+		if err != nil {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+		}
+		return info, nil
+	case *netlink.Vxlan:
+		if t.VxlanId < 0 {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: negative vxlan id %d", name, t.VxlanId)
+		}
+		if int64(t.VxlanId) > math.MaxUint32 {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: vxlan id %d overflows uint32", name, t.VxlanId)
+		}
+		local, remote, err := tunnelEndpointAddrs(t.SrcAddr, t.Group)
+		if err != nil {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+		}
+		return iface.TunnelInfo{
+			Kind:      iface.TunnelKindVxlan,
+			Local:     local,
+			Remote:    remote,
+			FlowBased: t.FlowBased,
+			VNI:       uint32(t.VxlanId),
+		}, nil
+	case *netlink.Iptun:
+		local, remote, err := tunnelEndpointAddrs(t.Local, t.Remote)
+		if err != nil {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+		}
+		return iface.TunnelInfo{
+			Kind:           iface.TunnelKindIPIP,
+			Local:          local,
+			Remote:         remote,
+			OuterEncapType: t.EncapType,
+			FlowBased:      t.FlowBased,
+		}, nil
+	case *netlink.Sittun:
+		local, remote, err := tunnelEndpointAddrs(t.Local, t.Remote)
+		if err != nil {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+		}
+		return iface.TunnelInfo{
+			Kind:           iface.TunnelKindSIT,
+			Local:          local,
+			Remote:         remote,
+			OuterEncapType: t.EncapType,
+		}, nil
+	case *netlink.Ip6tnl:
+		local, remote, err := tunnelEndpointAddrs(t.Local, t.Remote)
+		if err != nil {
+			return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: %w", name, err)
+		}
+		kind := iface.TunnelKindIP6Tnl
+		if t.Proto == syscall.IPPROTO_IPIP {
+			kind = iface.TunnelKindIPIP6
+		}
+		return iface.TunnelInfo{
+			Kind:           kind,
+			Local:          local,
+			Remote:         remote,
+			IPv6EncapLimit: t.Flags&uint32(netlink.IP6_TNL_F_IGN_ENCAP_LIMIT) == 0,
+			OuterEncapType: t.EncapType,
+			FlowBased:      t.FlowBased,
+		}, nil
+	default:
+		return iface.TunnelInfo{}, fmt.Errorf("iface: tunnel info %q: not a tunnel interface (type %q)", name, link.Type())
+	}
+}
+
+// netIPToAddr converts an optional net.IP from netlink into an unmapped
+// netip.Addr. An empty slice represents an omitted endpoint attribute; a
+// non-empty slice that is neither 4 nor 16 bytes is refused as an error.
+func netIPToAddr(ip net.IP) (netip.Addr, error) {
+	if len(ip) == 0 {
+		return netip.Addr{}, nil
+	}
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return netip.Addr{}, fmt.Errorf("malformed kernel IP length %d", len(ip))
+	}
+	return addr.Unmap(), nil
+}
+
+// tunnelEndpointAddrs decodes a tunnel's local and remote netlink IP slices.
+func tunnelEndpointAddrs(localIP, remoteIP net.IP) (local, remote netip.Addr, err error) {
+	local, err = netIPToAddr(localIP)
+	if err != nil {
+		return netip.Addr{}, netip.Addr{}, fmt.Errorf("local endpoint: %w", err)
+	}
+	remote, err = netIPToAddr(remoteIP)
+	if err != nil {
+		return netip.Addr{}, netip.Addr{}, fmt.Errorf("remote endpoint: %w", err)
+	}
+	return local, remote, nil
+}
+
+// greTunnelInfo builds TunnelInfo for both L3 (Gretun) and L2 (Gretap) links.
+// Underlay family prefers Remote when valid and falls back to Local so an IPv4
+// tunnel using local-interface (unset Local) is never misclassified as IPv6.
+func greTunnelInfo(kindV4, kindV6 iface.TunnelKind, index int, local, remote net.IP, oflags, encapType uint16, flowBased bool) (iface.TunnelInfo, error) {
+	localAddr, remoteAddr, err := tunnelEndpointAddrs(local, remote)
+	if err != nil {
+		return iface.TunnelInfo{}, err
+	}
+	var isV6 bool
+	if remoteAddr.IsValid() {
+		isV6 = remoteAddr.Is6()
+	} else if localAddr.IsValid() {
+		isV6 = localAddr.Is6()
+	}
+	kind := kindV4
+	if isV6 {
+		kind = kindV6
+	}
+	info := iface.TunnelInfo{
+		Kind:           kind,
+		Local:          localAddr,
+		Remote:         remoteAddr,
+		GREKey:         oflags&uint16(nl.GRE_KEY) != 0,
+		GREChecksum:    oflags&uint16(nl.GRE_CSUM) != 0,
+		GRESequence:    oflags&uint16(nl.GRE_SEQ) != 0,
+		OuterEncapType: encapType,
+		FlowBased:      flowBased,
+	}
+	if isV6 && !flowBased {
+		encapLimit, err := readIP6GREEncapLimit(index)
+		if err != nil {
+			return iface.TunnelInfo{}, err
+		}
+		info.IPv6EncapLimit = encapLimit
+	}
+	return info, nil
+}
+
+// readIP6GREEncapLimit issues one RTM_GETLINK for index and reads
+// IFLA_GRE_FLAGS from IFLA_LINKINFO -> IFLA_INFO_DATA. It returns true when
+// IP6_TNL_F_IGN_ENCAP_LIMIT is clear (meaning Linux emits the 8-octet RFC 2473
+// Section 4.1.1 Tunnel Encapsulation Limit Destination Options header).
+func readIP6GREEncapLimit(index int) (bool, error) {
+	if index <= 0 {
+		return false, fmt.Errorf("read ip6gre flags: invalid ifindex %d", index)
+	}
+	if int64(index) > math.MaxInt32 {
+		return false, fmt.Errorf("read ip6gre flags: ifindex %d overflows int32", index)
+	}
+	req := nl.NewNetlinkRequest(unix.RTM_GETLINK, 0)
+	msg := nl.NewIfInfomsg(unix.AF_UNSPEC)
+	msg.Index = int32(index)
+	req.AddData(msg)
+	answers, err := req.Execute(unix.NETLINK_ROUTE, unix.RTM_NEWLINK)
+	if err != nil {
+		return false, fmt.Errorf("read ip6gre flags (ifindex %d): %w", index, err)
+	}
+	if len(answers) != 1 {
+		return false, fmt.Errorf("read ip6gre flags (ifindex %d): got %d netlink answers, want 1", index, len(answers))
+	}
+	if len(answers[0]) < unix.SizeofIfInfomsg {
+		return false, fmt.Errorf("read ip6gre flags (ifindex %d): truncated ifinfomsg (%d bytes)", index, len(answers[0]))
+	}
+	return ip6GREEncapLimitFromAttrs(answers[0][unix.SizeofIfInfomsg:])
+}
+
+// ip6GREEncapLimitFromAttrs locates IFLA_LINKINFO -> IFLA_INFO_DATA ->
+// IFLA_GRE_FLAGS inside the attribute bytes following struct ifinfomsg.
+func ip6GREEncapLimitFromAttrs(attrs []byte) (bool, error) {
+	top, err := nl.ParseRouteAttr(attrs)
+	if err != nil {
+		return false, fmt.Errorf("parse link attributes: %w", err)
+	}
+	for _, attr := range top {
+		if attr.Attr.Type != unix.IFLA_LINKINFO {
+			continue
+		}
+		return ip6GREEncapLimitFromLinkInfo(attr.Value)
+	}
+	return false, fmt.Errorf("ip6gre link carries no IFLA_LINKINFO")
+}
+
+// ip6GREEncapLimitFromLinkInfo parses IFLA_GRE_FLAGS out of IFLA_LINKINFO.
+func ip6GREEncapLimitFromLinkInfo(linkInfo []byte) (bool, error) {
+	entries, err := nl.ParseRouteAttr(linkInfo)
+	if err != nil {
+		return false, fmt.Errorf("parse IFLA_LINKINFO: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.Attr.Type != nl.IFLA_INFO_DATA {
+			continue
+		}
+		dataAttrs, err := nl.ParseRouteAttr(entry.Value)
+		if err != nil {
+			return false, fmt.Errorf("parse IFLA_INFO_DATA: %w", err)
+		}
+		for _, attr := range dataAttrs {
+			if attr.Attr.Type != nl.IFLA_GRE_FLAGS {
+				continue
+			}
+			if len(attr.Value) != 4 {
+				return false, fmt.Errorf("IFLA_GRE_FLAGS has %d bytes, want 4", len(attr.Value))
+			}
+			flags := nl.NativeEndian().Uint32(attr.Value)
+			return flags&uint32(netlink.IP6_TNL_F_IGN_ENCAP_LIMIT) == 0, nil
+		}
+		return false, fmt.Errorf("ip6gre IFLA_INFO_DATA carries no IFLA_GRE_FLAGS")
+	}
+	return false, fmt.Errorf("ip6gre IFLA_LINKINFO carries no IFLA_INFO_DATA")
 }

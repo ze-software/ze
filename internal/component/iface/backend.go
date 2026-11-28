@@ -104,6 +104,12 @@ type Backend interface {
 	// TunnelKind. The TunnelSpec carries kind-specific parameters; fields not
 	// applicable to a kind are ignored. See tunnel.go for the spec shape.
 	CreateTunnel(spec TunnelSpec) error
+	// GetTunnelInfo reads the live encapsulation parameters from the dataplane
+	// for the named non-IPsec tunnel interface. Used by diagnostics such as
+	// `show mtu` for both managed and unmanaged tunnel devices. Returns an
+	// error when the interface does not exist or is not a supported tunnel
+	// kind on this backend.
+	GetTunnelInfo(name string) (TunnelInfo, error)
 	// CreateWireguardDevice creates a WireGuard netdev with the given name.
 	// Only the netdev is created here; the private key, listen port, fwmark,
 	// and peer set are configured by ConfigureWireguardDevice via wgctrl

@@ -42,14 +42,17 @@ func (f *fakeProber) close() error {
 // XFRM interfaces, the underlay, the cached PMTUs and the local state. Every
 // field has a default a test overrides.
 type fakeDeps struct {
-	paths       map[netip.Addr]*fakePath
-	probers     []*fakeProber
-	dfModes     []probe.DFMode
-	tunnels     []ipsecinventory.Tunnel
-	tunnelsErr  error
-	xfrms       []xfrmInterface
-	underlay    string
-	underlayMTU int
+	paths           map[netip.Addr]*fakePath
+	probers         []*fakeProber
+	dfModes         []probe.DFMode
+	tunnels         []ipsecinventory.Tunnel
+	tunnelsErr      error
+	xfrms           []xfrmInterface
+	nonIPsecTunnels []nonIPsecTunnel
+	wireguards      []wireguardInterface
+	snapshotErr     error
+	underlay        string
+	underlayMTU     int
 	// underlayType is the netlink link type the fake interface backend reports
 	// for the underlay; "device" is what a physical Ethernet port answers.
 	underlayType string
@@ -124,7 +127,16 @@ func (f *fakeDeps) install(t *testing.T) {
 		getLink: func(name string) (*iface.InterfaceInfo, error) {
 			return &iface.InterfaceInfo{Name: name, Type: f.underlayType, MTU: f.underlayMTU, State: interfaceStateUp}, nil
 		},
-		xfrmInterfaces:  func() ([]xfrmInterface, error) { return f.xfrms, nil },
+		tunnelSnapshot: func() (tunnelSnapshot, error) {
+			if f.snapshotErr != nil {
+				return tunnelSnapshot{}, f.snapshotErr
+			}
+			return tunnelSnapshot{
+				xfrms:      f.xfrms,
+				tunnels:    f.nonIPsecTunnels,
+				wireguards: f.wireguards,
+			}, nil
+		},
 		fragmentation:   func() (fragmentationCounters, error) { return f.counters, nil },
 		tcpMTUProbing:   func() (tcpMTUProbing, error) { return f.probing, nil },
 		routeMTUExpires: func() (uint32, error) { return 600, nil },
@@ -1508,5 +1520,449 @@ func TestIKEProbeRekeyedIsRetriedAtTheSameSize(t *testing.T) {
 	}
 	if got := number(t, rows[0], fieldExchanges); got != 2 {
 		t.Errorf("exchanges %v, want 2: the retired exchange counts", got)
+	}
+}
+
+// rowByInterface finds one tunnel row by its interface name, failing when absent.
+func rowByInterface(t *testing.T, rows []map[string]any, ifaceName string) map[string]any {
+	t.Helper()
+	for _, row := range rows {
+		if row[fieldInterface] == ifaceName {
+			return row
+		}
+	}
+	t.Fatalf("no tunnel row for interface %q in %v", ifaceName, rows)
+	return nil
+}
+
+// TestShowMTUSizesNonIPsecTunnelsAndWireguard validates AC-5, AC-9, and the
+// show mtu wiring across IPsec, GRE (IPv4, dual-stack, unaddressed), GRETap,
+// VXLAN, and WireGuard in one run: shared-remote deduplication, kind/overhead
+// fields, L2 and unaddressed MSS omission with 1280 floor, exact remediation
+// commands, and host-run isolation.
+func TestShowMTUSizesNonIPsecTunnelsAndWireguard(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[peerB] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.xfrms = []xfrmInterface{{name: "xfrm1", ifID: 1, mtu: 1500, up: true}}
+	f.nonIPsecTunnels = []nonIPsecTunnel{
+		{
+			name:  "gre1",
+			mtu:   1472,
+			up:    true,
+			addrs: []iface.AddrInfo{{Address: "10.10.0.1", PrefixLength: 30, Family: "ipv4"}},
+			info:  iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA, GREKey: true},
+		},
+		{
+			name: "gre-dual",
+			mtu:  1476,
+			up:   true,
+			addrs: []iface.AddrInfo{
+				{Address: "10.10.1.1", PrefixLength: 30, Family: "ipv4"},
+				{Address: "2001:db8:10::1", PrefixLength: 64, Family: "ipv6"},
+			},
+			info: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerB},
+		},
+		{
+			name:  "gre-unaddr",
+			mtu:   1476,
+			up:    true,
+			addrs: []iface.AddrInfo{{Address: "fe80::1", PrefixLength: 64, Family: "ipv6", LinkLocal: true}},
+			info:  iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerB},
+		},
+		{
+			name: "gretap1",
+			mtu:  1462,
+			up:   true,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindGRETap, Remote: peerB},
+		},
+		{
+			name: "vxlan10",
+			mtu:  1450,
+			up:   true,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindVxlan, Remote: peerB, VNI: 10},
+		},
+	}
+	f.wireguards = []wireguardInterface{
+		{
+			name: "wg0",
+			mtu:  1420,
+			up:   true,
+			peers: []wireguardPeer{
+				{
+					name:       "hub-v4",
+					endpoint:   peerB,
+					allowedIPs: []netip.Prefix{netip.MustParsePrefix("10.20.0.0/24")},
+				},
+			},
+		},
+	}
+	f.install(t)
+
+	doc := showMTU(t)
+	if doc[fieldVerdict] != runVerdictActionNeeded.String() {
+		t.Errorf("run verdict %v, want action-needed", doc[fieldVerdict])
+	}
+
+	// peerA is shared by IPsec site-a and gre1; peerB is shared by gre-dual,
+	// gre-unaddr, gretap1, vxlan10, and wg0. Only 2 unique peer measurements.
+	measurements := rowsOf(t, doc, fieldMeasurements)
+	if len(measurements) != 2 {
+		t.Fatalf("got %d measurements (%v), want 2 deduplicated peer targets", len(measurements), measurements)
+	}
+	caveats := stringsOf(t, doc, fieldCaveats)
+	if len(caveats) != 1 || !strings.Contains(caveats[0], "GRE") {
+		t.Errorf("caveats %v, want updated ICMP caveat mentioning GRE", caveats)
+	}
+
+	rows := rowsOf(t, doc, fieldTunnels)
+	if len(rows) != 7 {
+		t.Fatalf("got %d tunnel rows, want 7", len(rows))
+	}
+
+	// IPsec row retains all existing fields plus kind and overhead.
+	ipsecRow := rowByInterface(t, rows, "xfrm1")
+	if ipsecRow[fieldKind] != tunnelKindIPsec {
+		t.Errorf("ipsec kind = %v, want ipsec", ipsecRow[fieldKind])
+	}
+	if got := number(t, ipsecRow, fieldOverhead); got != 52 {
+		t.Errorf("ipsec overhead = %v, want 52", got)
+	}
+	if ipsecRow[fieldEncapsulation] != false || ipsecRow[fieldTransform] != "aes128gcm/none" {
+		t.Errorf("ipsec row lost backward-compatible fields: %v", ipsecRow)
+	}
+
+	// Keyed IPv4-addressed GRE over 1400 path: overhead 28, ceiling 1372, rec 1340, v4 mss 1300.
+	greRow := rowByInterface(t, rows, "gre1")
+	if greRow[fieldKind] != "gre" || number(t, greRow, fieldOverhead) != 28 {
+		t.Errorf("gre1 kind/overhead = %v/%v, want gre/28", greRow[fieldKind], greRow[fieldOverhead])
+	}
+	if number(t, greRow, fieldCeiling) != 1372 || number(t, greRow, fieldRecommended) != 1340 || number(t, greRow, fieldMSS) != 1300 {
+		t.Errorf("gre1 sizing = %v, want ceiling 1372 rec 1340 mss 1300", greRow)
+	}
+	if greRow[fieldVerdict] != tunnelVerdictOversized.String() || number(t, greRow, fieldOctets) != 100 {
+		t.Errorf("gre1 verdict/octets = %v/%v, want oversized/100", greRow[fieldVerdict], greRow[fieldOctets])
+	}
+
+	// Dual-stack GRE over 1400 path: overhead 24, ceiling 1376, rec 1344, v6 mss 1284.
+	dualRow := rowByInterface(t, rows, "gre-dual")
+	if number(t, dualRow, fieldMSS) != 1284 {
+		t.Errorf("gre-dual mss = %v, want 1284 (IPv6 conservative)", dualRow[fieldMSS])
+	}
+
+	// Unaddressed GRE (only link-local) and L2 tunnels (gretap, vxlan) omit mss.
+	for _, noMSS := range []struct {
+		iface string
+		kind  string
+		ovhd  float64
+		ceil  float64
+		rec   float64
+	}{
+		{"gre-unaddr", "gre", 24, 1376, 1344},
+		{"gretap1", "gretap", 38, 1362, 1330},
+		{"vxlan10", "vxlan", 50, 1350, 1318},
+	} {
+		row := rowByInterface(t, rows, noMSS.iface)
+		if row[fieldKind] != noMSS.kind || number(t, row, fieldOverhead) != noMSS.ovhd {
+			t.Errorf("%s kind/overhead = %v/%v, want %s/%v", noMSS.iface, row[fieldKind], row[fieldOverhead], noMSS.kind, noMSS.ovhd)
+		}
+		if number(t, row, fieldCeiling) != noMSS.ceil || number(t, row, fieldRecommended) != noMSS.rec {
+			t.Errorf("%s ceiling/rec = %v/%v, want %v/%v", noMSS.iface, row[fieldCeiling], row[fieldRecommended], noMSS.ceil, noMSS.rec)
+		}
+		if _, hasMSS := row[fieldMSS]; hasMSS {
+			t.Errorf("%s must omit mss, got %v", noMSS.iface, row[fieldMSS])
+		}
+	}
+
+	// WireGuard IPv4 over 1400 path: overhead 60, ceiling 1340, rec 1308, v4 mss 1268.
+	wgRow := rowByInterface(t, rows, "wg0")
+	if wgRow[fieldKind] != tunnelKindWireguard || number(t, wgRow, fieldOverhead) != 60 {
+		t.Errorf("wg0 kind/overhead = %v/%v, want wireguard/60", wgRow[fieldKind], wgRow[fieldOverhead])
+	}
+	if number(t, wgRow, fieldCeiling) != 1340 || number(t, wgRow, fieldRecommended) != 1308 || number(t, wgRow, fieldMSS) != 1268 {
+		t.Errorf("wg0 sizing = %v, want ceiling 1340 rec 1308 mss 1268", wgRow)
+	}
+
+	commands := strings.Join(stringsOf(t, doc, fieldCommands), "\n")
+	for _, want := range []string{
+		"set interface xfrm xfrm1 mtu 1314",
+		"set interface tunnel gre1 mtu 1340",
+		"set interface tunnel vxlan10 mtu 1318",
+		"set interface wireguard wg0 mtu 1308",
+	} {
+		if !strings.Contains(commands, want) {
+			t.Errorf("commands lack %q:\n%s", want, commands)
+		}
+	}
+
+	// AC-9: show mtu host <address> skips all IPsec and non-IPsec tunnel discovery.
+	hostDoc := showMTU(t, argHost, peerA.String())
+	if len(rowsOf(t, hostDoc, fieldTunnels)) != 0 {
+		t.Errorf("host run reported tunnels: %v", hostDoc[fieldTunnels])
+	}
+	if _, present := hostDoc[fieldVerdict]; present {
+		t.Errorf("host run carries verdict: %v", hostDoc[fieldVerdict])
+	}
+}
+
+// TestShowMTUWireguardMultiPeerUsesTightestCeiling validates AC-6: a single
+// WireGuard device with an IPv4 peer (1500 path -> ceiling 1440), an IPv6 peer
+// (1400 path -> ceiling 1320), and an endpoint-less peer emits ONE row sized
+// to the tightest ceiling (1320 -> rec 1288, mss 1228, oversized by 100),
+// names the IPv6 peer, and emits ONE set interface wireguard command. Also
+// proves wireguardPeersFromSpec never retains PrivateKey or PresharedKey.
+func TestShowMTUWireguardMultiPeerUsesTightestCeiling(t *testing.T) {
+	peerV4 := netip.MustParseAddr("198.51.100.10")
+	peerV6 := netip.MustParseAddr("2001:db8::20")
+	f := newFakeDeps()
+	f.paths[peerV4] = clampedAt(1500)
+	f.paths[peerV6] = &fakePath{overhead: icmpOverheadIPv6, ifaceMTU: 1500, pathMTU: 1400, reportsMTU: true}
+	f.paths[refV4] = clampedAt(1500)
+	f.wireguards = []wireguardInterface{
+		{
+			name: "wg0",
+			mtu:  1420,
+			up:   true,
+			peers: []wireguardPeer{
+				{
+					name:       "peer-v4",
+					endpoint:   peerV4,
+					allowedIPs: []netip.Prefix{netip.MustParsePrefix("10.0.1.0/24")},
+				},
+				{
+					name:       "peer-v6",
+					endpoint:   peerV6,
+					allowedIPs: []netip.Prefix{netip.MustParsePrefix("2001:db8:1::/48")},
+				},
+				{
+					name: "peer-passive",
+				},
+			},
+		},
+	}
+	f.install(t)
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldTunnels)
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows for multi-peer wg0, want 1: %v", len(rows), rows)
+	}
+	row := rows[0]
+	if row[fieldKind] != tunnelKindWireguard || row[fieldInterface] != "wg0" {
+		t.Errorf("wg0 row identity = %v", row)
+	}
+	if row[fieldPeer] != "peer-v6" || row[fieldRemote] != peerV6.String() {
+		t.Errorf("controlling peer = %v/%v, want peer-v6/%s", row[fieldPeer], row[fieldRemote], peerV6)
+	}
+	if number(t, row, fieldOverhead) != 80 || number(t, row, fieldCeiling) != 1320 || number(t, row, fieldRecommended) != 1288 || number(t, row, fieldMSS) != 1228 {
+		t.Errorf("wg0 sizing = %v, want overhead 80 ceiling 1320 rec 1288 mss 1228", row)
+	}
+	if row[fieldVerdict] != tunnelVerdictOversized.String() || number(t, row, fieldOctets) != 100 {
+		t.Errorf("wg0 verdict/octets = %v/%v, want oversized/100", row[fieldVerdict], row[fieldOctets])
+	}
+	commands := stringsOf(t, doc, fieldCommands)
+	if len(commands) != 1 || commands[0] != "set interface wireguard wg0 mtu 1288" {
+		t.Errorf("commands = %v, want one command for wg0", commands)
+	}
+
+	// Verify secret key material is never copied by wireguardPeersFromSpec.
+	var priv, psk iface.WireguardKey
+	priv[0], psk[0] = 0xAA, 0xBB
+	peers := wireguardPeersFromSpec(&iface.WireguardSpec{
+		Name:       "wg0",
+		PrivateKey: priv,
+		Peers: []iface.WireguardPeerSpec{
+			{Name: "p1", PresharedKey: psk, HasPresharedKey: true, EndpointIP: peerV4.String(), AllowedIPs: []string{"10.0.0.0/24"}},
+		},
+	})
+	if len(peers) != 1 || peers[0].endpoint != peerV4 {
+		t.Fatalf("wireguardPeersFromSpec = %+v", peers)
+	}
+}
+
+// TestShowMTUNonIPsecEdgeCasesNotProbedOrDown validates AC-7 and AC-2:
+// admin-down tunnel, point-to-multipoint GRE (0.0.0.0), multicast VXLAN
+// (239.1.1.1), FlowBased tunnel, endpoint-less WireGuard, FOU outer encap
+// refusal, per-device readback error isolation, and dormant kernel fallback
+// filtering.
+func TestShowMTUNonIPsecEdgeCasesNotProbedOrDown(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.nonIPsecTunnels = []nonIPsecTunnel{
+		{
+			name: "gre-down",
+			mtu:  1476,
+			up:   false,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA},
+		},
+		{
+			name: "mgre0",
+			mtu:  1476,
+			up:   true,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: netip.MustParseAddr("0.0.0.0")},
+		},
+		{
+			name: "vxlan-mc",
+			mtu:  1450,
+			up:   true,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindVxlan, Remote: netip.MustParseAddr("239.1.1.1")},
+		},
+		{
+			name: "gre-flow",
+			mtu:  1476,
+			up:   true,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA, FlowBased: true},
+		},
+		{
+			name: "gre-fou",
+			mtu:  1476,
+			up:   true,
+			info: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA, OuterEncapType: 1},
+		},
+		{
+			name:    "gre-readerr",
+			mtu:     1476,
+			up:      true,
+			readErr: errors.New("netlink readback refused"),
+		},
+		{
+			name:  "gre-ok",
+			mtu:   1344,
+			up:    true,
+			addrs: []iface.AddrInfo{{Address: "10.0.0.1", PrefixLength: 30, Family: "ipv4"}},
+			info:  iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA},
+		},
+	}
+	f.wireguards = []wireguardInterface{
+		{
+			name: "wg-passive",
+			mtu:  1420,
+			up:   true,
+			peers: []wireguardPeer{
+				{name: "responder-only"},
+			},
+		},
+	}
+	f.install(t)
+
+	doc := showMTU(t)
+	// Only peerA was probed; 0.0.0.0 and 239.1.1.1 must NEVER be probed.
+	measurements := rowsOf(t, doc, fieldMeasurements)
+	if len(measurements) != 1 || measurements[0][fieldTarget] != peerA.String() {
+		t.Fatalf("measurements = %v, want only %s", measurements, peerA)
+	}
+
+	rows := rowsOf(t, doc, fieldTunnels)
+	downRow := rowByInterface(t, rows, "gre-down")
+	if downRow[fieldVerdict] != tunnelVerdictDown.String() || downRow[fieldSized] != false || downRow[fieldReason] != "interface gre-down is down" {
+		t.Errorf("gre-down row = %v", downRow)
+	}
+	for _, unsized := range []struct {
+		iface      string
+		wantReason string
+	}{
+		{"mgre0", "unspecified"},
+		{"vxlan-mc", "multicast"},
+		{"gre-flow", "flow-based"},
+		{"gre-fou", "overhead refused"},
+		{"gre-readerr", "tunnel state could not be read"},
+		{"wg-passive", "no WireGuard peer has a known unicast endpoint address"},
+	} {
+		row := rowByInterface(t, rows, unsized.iface)
+		if row[fieldSized] != false {
+			t.Errorf("%s sized = %v, want false", unsized.iface, row[fieldSized])
+		}
+		if reason := text(t, row, fieldReason); !strings.Contains(reason, unsized.wantReason) {
+			t.Errorf("%s reason = %q, want %q", unsized.iface, reason, unsized.wantReason)
+		}
+	}
+	// Sibling valid tunnel gre-ok is still sized despite gre-readerr and gre-fou.
+	okRow := rowByInterface(t, rows, "gre-ok")
+	if okRow[fieldSized] != true || okRow[fieldVerdict] != tunnelVerdictOK.String() {
+		t.Errorf("gre-ok row = %v, want sized=true verdict=ok", okRow)
+	}
+	if !hasNoteContaining(t, doc, "gre-fou") || !hasNoteContaining(t, doc, "gre-readerr") {
+		t.Errorf("missing fault notes for gre-fou/gre-readerr: %v", noteTexts(t, doc))
+	}
+
+	// Dormant Linux kernel fallback devices are filtered, while active or
+	// configured devices with the same names are preserved.
+	dormant := iface.TunnelInfo{Kind: iface.TunnelKindGRE, Local: netip.MustParseAddr("0.0.0.0"), Remote: netip.MustParseAddr("0.0.0.0")}
+	if !isDormantKernelFallbackTunnel("gre0", false, &dormant) {
+		t.Error("dormant kernel gre0 fallback was not filtered")
+	}
+	if isDormantKernelFallbackTunnel("gre0", true, &dormant) {
+		t.Error("admin-up gre0 was filtered as dormant")
+	}
+	if isDormantKernelFallbackTunnel("mgre0", false, &dormant) {
+		t.Error("operator-named mgre0 was filtered as kernel fallback")
+	}
+	configured := iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA}
+	if isDormantKernelFallbackTunnel("gre0", false, &configured) {
+		t.Error("gre0 with a configured remote was filtered as dormant")
+	}
+}
+
+// TestShowMTUNonIPsecWorksWithoutIPsecInventory validates AC-8: when !ze_ike
+// (ipsecinventory.ErrNotRegistered), zero non-IPsec tunnels preserves the
+// exact existing no-verdict behavior, while having a GRE or WireGuard tunnel
+// sizes it, emits run verdict and underlay advice, and still notes that IPsec
+// inventory is not registered.
+func TestShowMTUNonIPsecWorksWithoutIPsecInventory(t *testing.T) {
+	// (a) No non-IPsec tunnels -> identical to TestShowMTUNoInventoryIsNotZeroTunnels.
+	f := newFakeDeps()
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnelsErr = ipsecinventory.ErrNotRegistered
+	f.install(t)
+
+	doc := showMTU(t)
+	if doc[fieldInventory] != inventoryNotRegistered.String() {
+		t.Errorf("inventory = %v, want not-registered", doc[fieldInventory])
+	}
+	if _, present := doc[fieldVerdict]; present {
+		t.Errorf("verdict present with no IPsec inventory and no non-IPsec tunnels: %v", doc[fieldVerdict])
+	}
+	if !hasNoteContaining(t, doc, "so no tunnel exists to size") {
+		t.Errorf("expected original caution note: %v", noteTexts(t, doc))
+	}
+
+	// (b) With a GRE tunnel present -> sizes it, computes verdict and underlay advice.
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1400)
+	f.nonIPsecTunnels = []nonIPsecTunnel{
+		{
+			name:  "gre1",
+			mtu:   1476,
+			up:    true,
+			addrs: []iface.AddrInfo{{Address: "10.0.0.1", PrefixLength: 30, Family: "ipv4"}},
+			info:  iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: peerA},
+		},
+	}
+
+	doc = showMTU(t)
+	if doc[fieldInventory] != inventoryNotRegistered.String() {
+		t.Errorf("inventory = %v, want not-registered", doc[fieldInventory])
+	}
+	if doc[fieldVerdict] != runVerdictActionNeeded.String() {
+		t.Errorf("verdict = %v, want action-needed", doc[fieldVerdict])
+	}
+	if !hasNoteContaining(t, doc, "non-IPsec tunnels are still sized") {
+		t.Errorf("expected non-IPsec caution note: %v", noteTexts(t, doc))
+	}
+	rows := rowsOf(t, doc, fieldTunnels)
+	if len(rows) != 1 || rows[0][fieldSized] != true || number(t, rows[0], fieldCeiling) != 1376 {
+		t.Errorf("unexpected tunnel rows: %v", rows)
+	}
+	underlay, ok := doc[fieldUnderlay].(map[string]any)
+	if !ok || underlay[fieldAdvice] != underlayCircuitClamped.String() {
+		t.Errorf("underlay advice = %v, want circuit-clamped", underlay)
+	}
+	commands := stringsOf(t, doc, fieldCommands)
+	joined := strings.Join(commands, "\n")
+	if !strings.Contains(joined, "set interface tunnel gre1 mtu 1344") || !strings.Contains(joined, "set interface ethernet eth0 mtu 1400") {
+		t.Errorf("commands = %v", commands)
 	}
 }

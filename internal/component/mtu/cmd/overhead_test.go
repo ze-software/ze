@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
@@ -283,5 +284,124 @@ func TestESPFixedCipherMTUAdvice(t *testing.T) {
 				t.Errorf("%s/%s/%s: MSS %d, want %d", tc.name, tc.mode, family, gotMSS, wantMSS)
 			}
 		}
+	}
+}
+
+// TestNonIPsecTunnelOverheadExact validates AC-1: every modeled non-IPsec
+// tunnel kind (gre, gretap, ip6gre, ip6gretap, vxlan, ipip, sit, ip6tnl,
+// ipip6) and WireGuard produce exact hand-computed overheads, trailer=0,
+// block=1, and exact ceilings and recommendations over a 1500-octet underlay.
+func TestNonIPsecTunnelOverheadExact(t *testing.T) {
+	v4 := netip.MustParseAddr("198.51.100.1")
+	v6 := netip.MustParseAddr("2001:db8::1")
+	cases := []struct {
+		name         string
+		info         iface.TunnelInfo
+		wantOverhead uint16
+		inner        ipFamily
+		wantCeiling  uint16
+		wantRec      uint16
+	}{
+		{"gre base", iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: v4}, 24, ipFamilyV4, 1476, 1444},
+		{"gre +key", iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: v4, GREKey: true}, 28, ipFamilyV4, 1472, 1440},
+		{"gre +csum+key+seq", iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: v4, GREChecksum: true, GREKey: true, GRESequence: true}, 36, ipFamilyV4, 1464, 1432},
+		{"gretap base", iface.TunnelInfo{Kind: iface.TunnelKindGRETap, Remote: v4}, 38, ipFamilyV6, 1462, 1430},
+		{"gretap +key", iface.TunnelInfo{Kind: iface.TunnelKindGRETap, Remote: v4, GREKey: true}, 42, ipFamilyV6, 1458, 1426},
+		{"ip6gre default encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6GRE, Remote: v6, IPv6EncapLimit: true}, 52, ipFamilyV6, 1448, 1416},
+		{"ip6gre no encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6GRE, Remote: v6}, 44, ipFamilyV6, 1456, 1424},
+		{"ip6gre +key +encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6GRE, Remote: v6, GREKey: true, IPv6EncapLimit: true}, 56, ipFamilyV6, 1444, 1412},
+		{"ip6gretap default encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6GRETap, Remote: v6, IPv6EncapLimit: true}, 66, ipFamilyV6, 1434, 1402},
+		{"ip6gretap no encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6GRETap, Remote: v6}, 58, ipFamilyV6, 1442, 1410},
+		{"vxlan ipv4", iface.TunnelInfo{Kind: iface.TunnelKindVxlan, Remote: v4}, 50, ipFamilyV6, 1450, 1418},
+		{"vxlan ipv6", iface.TunnelInfo{Kind: iface.TunnelKindVxlan, Remote: v6}, 70, ipFamilyV6, 1430, 1398},
+		{"ipip", iface.TunnelInfo{Kind: iface.TunnelKindIPIP, Remote: v4}, 20, ipFamilyV4, 1480, 1448},
+		{"sit", iface.TunnelInfo{Kind: iface.TunnelKindSIT, Remote: v4}, 20, ipFamilyV6, 1480, 1448},
+		{"ip6tnl default encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6Tnl, Remote: v6, IPv6EncapLimit: true}, 48, ipFamilyV6, 1452, 1420},
+		{"ip6tnl ign-encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIP6Tnl, Remote: v6}, 40, ipFamilyV6, 1460, 1428},
+		{"ipip6 default encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIPIP6, Remote: v6, IPv6EncapLimit: true}, 48, ipFamilyV4, 1452, 1420},
+		{"ipip6 ign-encap-limit", iface.TunnelInfo{Kind: iface.TunnelKindIPIP6, Remote: v6}, 40, ipFamilyV4, 1460, 1428},
+	}
+	for _, tc := range cases {
+		got, err := deriveTunnelOverhead(&tc.info)
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", tc.name, err)
+			continue
+		}
+		if got.octets() != tc.wantOverhead {
+			t.Errorf("%s: overhead = %d, want %d", tc.name, got.octets(), tc.wantOverhead)
+		}
+		if got.trailer != 0 || got.block != 1 || got.mode != ipsecinventory.ModeTunnel {
+			t.Errorf("%s: framing = %+v, want trailer=0 block=1 mode=tunnel", tc.name, got)
+		}
+		if ceil := ceiling(1500, &got); ceil != tc.wantCeiling {
+			t.Errorf("%s: ceiling(1500) = %d, want %d", tc.name, ceil, tc.wantCeiling)
+		}
+		rec, err := recommended(tc.wantCeiling, &got, tc.inner)
+		if err != nil {
+			t.Errorf("%s: recommended: %v", tc.name, err)
+		}
+		if rec != tc.wantRec {
+			t.Errorf("%s: recommended = %d, want %d", tc.name, rec, tc.wantRec)
+		}
+	}
+
+	// WireGuard IPv4 (60) and IPv6 (80): matches Linux 1420 default on 1500 Ethernet.
+	for _, wg := range []struct {
+		name     string
+		endpoint netip.Addr
+		want     uint16
+		ceil1500 uint16
+	}{
+		{"wireguard ipv4", v4, 60, 1440},
+		{"wireguard ipv6", v6, 80, 1420},
+	} {
+		got, err := deriveWireguardOverhead(wg.endpoint)
+		if err != nil {
+			t.Fatalf("%s: %v", wg.name, err)
+		}
+		if got.octets() != wg.want {
+			t.Errorf("%s: overhead = %d, want %d", wg.name, got.octets(), wg.want)
+		}
+		if got.trailer != 0 || got.block != 1 || got.mode != ipsecinventory.ModeTunnel {
+			t.Errorf("%s: framing = %+v, want trailer=0 block=1 mode=tunnel", wg.name, got)
+		}
+		if ceil := ceiling(1500, &got); ceil != wg.ceil1500 {
+			t.Errorf("%s: ceiling(1500) = %d, want %d", wg.name, ceil, wg.ceil1500)
+		}
+	}
+}
+
+// TestNonIPsecTunnelOverheadRefusesUnknownOrFOU validates AC-2: exact-or-reject
+// refuses nil info, FOU/GUE outer encapsulation (OuterEncapType != 0), unknown
+// or unsupported TunnelKind, VXLAN with an invalid remote, and WireGuard with
+// an invalid endpoint.
+func TestNonIPsecTunnelOverheadRefusesUnknownOrFOU(t *testing.T) {
+	v4 := netip.MustParseAddr("198.51.100.1")
+	v6 := netip.MustParseAddr("2001:db8::1")
+	if _, err := deriveTunnelOverhead(nil); !errors.Is(err, errOverheadRefused) {
+		t.Errorf("nil info: err = %v, want errOverheadRefused", err)
+	}
+	cases := []struct {
+		name string
+		info iface.TunnelInfo
+	}{
+		{"FOU outer encap (1)", iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: v4, OuterEncapType: 1}},
+		{"GUE outer encap (2)", iface.TunnelInfo{Kind: iface.TunnelKindIPIP, Remote: v4, OuterEncapType: 2}},
+		{"unknown kind", iface.TunnelInfo{Kind: iface.TunnelKindUnknown, Remote: v4}},
+		{"unsupported kind", iface.TunnelInfo{Kind: iface.TunnelKind(255), Remote: v4}},
+		{"gre with IPv6 remote", iface.TunnelInfo{Kind: iface.TunnelKindGRE, Remote: v6}},
+		{"ipip with IPv6 remote", iface.TunnelInfo{Kind: iface.TunnelKindIPIP, Remote: v6}},
+		{"ip6gre with IPv4 remote", iface.TunnelInfo{Kind: iface.TunnelKindIP6GRE, Remote: v4}},
+		{"ip6tnl with IPv4 remote", iface.TunnelInfo{Kind: iface.TunnelKindIP6Tnl, Remote: v4}},
+		{"vxlan invalid remote", iface.TunnelInfo{Kind: iface.TunnelKindVxlan}},
+	}
+	for _, tc := range cases {
+		got, err := deriveTunnelOverhead(&tc.info)
+		if !errors.Is(err, errOverheadRefused) {
+			t.Errorf("%s: err = %v, overhead = %+v; want errOverheadRefused", tc.name, err, got)
+		}
+	}
+	if got, err := deriveWireguardOverhead(netip.Addr{}); !errors.Is(err, errOverheadRefused) {
+		t.Errorf("wireguard invalid endpoint: err = %v, overhead = %+v; want errOverheadRefused", err, got)
 	}
 }

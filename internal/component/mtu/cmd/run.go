@@ -32,59 +32,65 @@ import (
 
 // The keys the run adds to the payload beside the ones mtu.go declares.
 const (
-	fieldInventory      = "inventory"
-	fieldTarget         = "target"
-	fieldLabel          = "label"
-	fieldOutcome        = "outcome"
-	fieldPathMTU        = "path-mtu"
-	fieldMethod         = "method"
-	fieldProbes         = "probes"
-	fieldLossy          = "lossy"
-	fieldCachedPathMTU  = "cached-path-mtu"
-	fieldProbesSent     = "probes-sent"
-	fieldPayload        = "payload"
-	fieldWire           = "wire"
-	fieldReportedMTU    = "reported-mtu"
-	fieldHost           = "host"
-	fieldInterface      = "interface"
-	fieldKind           = "kind"
-	fieldMTU            = "mtu"
-	fieldSource         = "source"
-	fieldAdvice         = "advice"
-	fieldPeer           = "peer"
-	fieldRemote         = "remote"
-	fieldMode           = "mode"
-	fieldEncapsulation  = "encapsulation"
-	fieldTransform      = "transform"
-	fieldAssumed        = "assumed"
-	fieldCurrentMTU     = "current-mtu"
-	fieldCeiling        = "ceiling"
-	fieldRecommended    = "recommended"
-	fieldMSS            = "mss"
-	fieldOctets         = "octets"
-	fieldSized          = "sized"
-	fieldReason         = "reason"
-	fieldTCPMTUProbing  = "tcp-mtu-probing"
-	fieldProber         = "prober"
-	fieldIKEDeclined    = "ike-declined"
-	fieldIKEConfirmed   = "ike-confirmed"
-	fieldExchanges      = "exchanges"
-	labelHost           = "host"
-	labelReference      = "reference"
-	labelPeer           = "peer"
-	xfrmLinkType        = "xfrm"
-	interfaceStateUp    = "up"
-	underlaySourceRoute = "route to "
+	fieldInventory           = "inventory"
+	fieldTarget              = "target"
+	fieldLabel               = "label"
+	fieldOutcome             = "outcome"
+	fieldPathMTU             = "path-mtu"
+	fieldMethod              = "method"
+	fieldProbes              = "probes"
+	fieldLossy               = "lossy"
+	fieldCachedPathMTU       = "cached-path-mtu"
+	fieldProbesSent          = "probes-sent"
+	fieldPayload             = "payload"
+	fieldWire                = "wire"
+	fieldReportedMTU         = "reported-mtu"
+	fieldHost                = "host"
+	fieldInterface           = "interface"
+	fieldKind                = "kind"
+	fieldMTU                 = "mtu"
+	fieldSource              = "source"
+	fieldAdvice              = "advice"
+	fieldPeer                = "peer"
+	fieldRemote              = "remote"
+	fieldMode                = "mode"
+	fieldEncapsulation       = "encapsulation"
+	fieldTransform           = "transform"
+	fieldOverhead            = "overhead"
+	fieldAssumed             = "assumed"
+	fieldCurrentMTU          = "current-mtu"
+	fieldCeiling             = "ceiling"
+	fieldRecommended         = "recommended"
+	fieldMSS                 = "mss"
+	fieldOctets              = "octets"
+	fieldSized               = "sized"
+	fieldReason              = "reason"
+	fieldTCPMTUProbing       = "tcp-mtu-probing"
+	fieldProber              = "prober"
+	fieldIKEDeclined         = "ike-declined"
+	fieldIKEConfirmed        = "ike-confirmed"
+	fieldExchanges           = "exchanges"
+	labelHost                = "host"
+	labelReference           = "reference"
+	labelPeer                = "peer"
+	xfrmLinkType             = "xfrm"
+	tunnelKindIPsec          = "ipsec"
+	tunnelKindTunnel         = "tunnel"
+	tunnelKindWireguard      = "wireguard"
+	interfaceStateUp         = "up"
+	underlaySourceRoute      = "route to "
+	noPeerPathMeasuredReason = "no path to any peer was measured"
+	notAdvisedSuffix         = "; its figures are not advised"
 )
 
 // icmpCaveat is what an ICMP-measured figure says about itself: ICMP echo is
-// what was sent, so a path that treats ESP or UDP differently is not seen. A
-// figure the IKE prober measured drops it and, without UDP encapsulation,
+// what was sent, so a path that treats ESP, GRE or UDP differently is not seen.
+// A figure the IKE prober measured drops it and, without UDP encapsulation,
 // carries ikePathCaveat instead: the exchange rode UDP/500 where ESP rides
 // protocol 50, and a path can treat the two differently (AC-7). A NAT-T SA
 // rides the path ESP-in-UDP rides, marker included, and carries no caveat.
 const (
-	icmpCaveat    = "the measurement is ICMP echo with Don't Fragment set; a path that treats ESP or UDP differently is not measured, so every figure is optimistic"
+	icmpCaveat    = "the measurement is ICMP echo with Don't Fragment set; a path that treats ESP, GRE or UDP differently is not measured, so every figure is optimistic"
 	ikePathCaveat = "the measurement is a padded IKE exchange on UDP/500 while ESP rides protocol 50, a different path when a middlebox treats the two differently; only a NAT-T tunnel measures the path ESP-in-UDP rides"
 )
 
@@ -162,6 +168,44 @@ type xfrmInterface struct {
 	up   bool
 }
 
+// nonIPsecTunnel is one non-IPsec tunnel interface read from the iface
+// backend (gre, gretap, ip6gre, ip6gretap, vxlan, ipip, sit, ip6tnl, ipip6).
+type nonIPsecTunnel struct {
+	name    string
+	mtu     int
+	up      bool
+	addrs   []iface.AddrInfo
+	info    iface.TunnelInfo
+	readErr error
+}
+
+// wireguardPeer holds only the non-secret fields of one WireGuard peer needed
+// for endpoint probing and inner family detection. PrivateKey and PresharedKey
+// are never copied out of iface.WireguardSpec.
+type wireguardPeer struct {
+	name       string
+	endpoint   netip.Addr
+	allowedIPs []netip.Prefix
+}
+
+// wireguardInterface is one WireGuard interface read from the iface backend.
+type wireguardInterface struct {
+	name    string
+	mtu     int
+	up      bool
+	addrs   []iface.AddrInfo
+	peers   []wireguardPeer
+	readErr error
+}
+
+// tunnelSnapshot holds every XFRM, non-IPsec tunnel and WireGuard interface
+// collected from a single iface.ListInterfaces pass.
+type tunnelSnapshot struct {
+	xfrms      []xfrmInterface
+	tunnels    []nonIPsecTunnel
+	wireguards []wireguardInterface
+}
+
 // mtuDeps are every read the run makes outside this package, in one struct
 // so a test stands fakes in the place of the live inventory, the wire, the
 // interface backend and the kernel state, and drives the whole run through
@@ -176,7 +220,7 @@ type mtuDeps struct {
 	// getLink reads the underlay's link facts (MTU, kind) without its
 	// addresses, so a failed address dump cannot hide the underlay.
 	getLink         func(name string) (*iface.InterfaceInfo, error)
-	xfrmInterfaces  func() ([]xfrmInterface, error)
+	tunnelSnapshot  func() (tunnelSnapshot, error)
 	fragmentation   func() (fragmentationCounters, error)
 	tcpMTUProbing   func() (tcpMTUProbing, error)
 	routeMTUExpires func() (uint32, error)
@@ -197,7 +241,7 @@ var liveDeps = mtuDeps{
 	kernelPathMTU:   probe.KernelPathMTU,
 	routeInterface:  routeInterfaceOf,
 	getLink:         iface.GetLink,
-	xfrmInterfaces:  listXFRMInterfaces,
+	tunnelSnapshot:  listTunnelSnapshot,
 	fragmentation:   func() (fragmentationCounters, error) { return readFragmentationCounters(procMountPoint) },
 	tcpMTUProbing:   readTCPMTUProbing,
 	routeMTUExpires: readRouteMTUExpires,
@@ -238,35 +282,136 @@ func routeInterfaceOf(target netip.Addr) (string, error) {
 	return name, nil
 }
 
-// listXFRMInterfaces answers every XFRM interface with its if_id, read from
-// the iface component: ListInterfaces for the type (the kernel backend
-// reports link.Type(), "xfrm" for an XFRM interface) and GetXFRMInfo for the
-// id. The list is bounded by the interfaces the box holds.
-func listXFRMInterfaces() ([]xfrmInterface, error) {
+// listTunnelSnapshot collects every XFRM, non-IPsec tunnel and WireGuard
+// interface from one iface.ListInterfaces call. Per-device readback failures
+// on non-IPsec tunnel or WireGuard links are recorded on that device so the
+// rest of the box is still sized.
+func listTunnelSnapshot() (tunnelSnapshot, error) {
 	if err := iface.EnsureBackend(); err != nil {
-		return nil, err
+		return tunnelSnapshot{}, err
 	}
 	all, err := iface.ListInterfaces()
 	if err != nil {
-		return nil, err
+		return tunnelSnapshot{}, err
 	}
-	var out []xfrmInterface
+	var snap tunnelSnapshot
 	for i := range all {
-		if all[i].Type != xfrmLinkType {
-			continue
+		link := &all[i]
+		switch iface.CanonicalInterfaceType(link) {
+		case xfrmLinkType:
+			info, infoErr := iface.GetXFRMInfo(link.Name)
+			if infoErr != nil {
+				return tunnelSnapshot{}, fmt.Errorf("mtu: xfrm interface %s: %w", link.Name, infoErr)
+			}
+			snap.xfrms = append(snap.xfrms, xfrmInterface{
+				name: link.Name,
+				ifID: info.IfID,
+				mtu:  link.MTU,
+				up:   link.State == interfaceStateUp,
+			})
+		case tunnelKindTunnel:
+			tun := nonIPsecTunnel{
+				name:  link.Name,
+				mtu:   link.MTU,
+				up:    link.State == interfaceStateUp,
+				addrs: link.Addresses,
+			}
+			tun.info, tun.readErr = iface.GetTunnelInfo(link.Name)
+			if tun.readErr == nil {
+				if isDormantKernelFallbackTunnel(link.Name, tun.up, &tun.info) {
+					continue
+				}
+			}
+			snap.tunnels = append(snap.tunnels, tun)
+		case tunnelKindWireguard:
+			wg := wireguardInterface{
+				name:  link.Name,
+				mtu:   link.MTU,
+				up:    link.State == interfaceStateUp,
+				addrs: link.Addresses,
+			}
+			spec, specErr := iface.GetWireguardDevice(link.Name)
+			if specErr == nil {
+				wg.peers = wireguardPeersFromSpec(&spec)
+			} else {
+				wg.readErr = specErr
+			}
+			snap.wireguards = append(snap.wireguards, wg)
 		}
-		info, err := iface.GetXFRMInfo(all[i].Name)
-		if err != nil {
-			return nil, fmt.Errorf("mtu: xfrm interface %s: %w", all[i].Name, err)
+	}
+	return snap, nil
+}
+
+// isDormantKernelFallbackTunnel reports whether a netlink tunnel link is one
+// of the Linux kernel's auto-created dormant fallback devices (tunl0, sit0,
+// gre0, gretap0, ip6tnl0, ip6gre0) that exist in every network namespace when
+// those tunnel modules are loaded: admin-down, no local or remote endpoint,
+// no GRE options, and not flow-based. Any configured or admin-up device with
+// one of those names is kept.
+func isDormantKernelFallbackTunnel(name string, up bool, info *iface.TunnelInfo) bool {
+	if up {
+		return false
+	}
+	switch name {
+	case "tunl0", "sit0", "gre0", "gretap0", "ip6tnl0", "ip6gre0":
+	default:
+		return false
+	}
+	if info.FlowBased {
+		return false
+	}
+	if info.GREKey {
+		return false
+	}
+	if info.GREChecksum {
+		return false
+	}
+	if info.GRESequence {
+		return false
+	}
+	if info.Local.IsValid() {
+		if !info.Local.Unmap().IsUnspecified() {
+			return false
 		}
-		out = append(out, xfrmInterface{
-			name: all[i].Name,
-			ifID: info.IfID,
-			mtu:  all[i].MTU,
-			up:   all[i].State == interfaceStateUp,
+	}
+	if info.Remote.IsValid() {
+		if !info.Remote.Unmap().IsUnspecified() {
+			return false
+		}
+	}
+	return true
+}
+
+// wireguardPeersFromSpec copies only the peer name/public-key label, endpoint
+// IP, and AllowedIPs prefixes out of spec. PrivateKey and PresharedKey are
+// never retained.
+func wireguardPeersFromSpec(spec *iface.WireguardSpec) []wireguardPeer {
+	peers := make([]wireguardPeer, 0, len(spec.Peers))
+	for i := range spec.Peers {
+		src := &spec.Peers[i]
+		name := src.Name
+		if name == "" {
+			name = src.PublicKey.String()
+		}
+		var ep netip.Addr
+		if src.EndpointIP != "" {
+			if parsed, err := netip.ParseAddr(src.EndpointIP); err == nil {
+				ep = parsed.Unmap()
+			}
+		}
+		allowed := make([]netip.Prefix, 0, len(src.AllowedIPs))
+		for _, cidr := range src.AllowedIPs {
+			if prefix, err := netip.ParsePrefix(cidr); err == nil {
+				allowed = append(allowed, prefix)
+			}
+		}
+		peers = append(peers, wireguardPeer{
+			name:       name,
+			endpoint:   ep,
+			allowedIPs: allowed,
 		})
 	}
-	return out, nil
+	return peers
 }
 
 // measurement is one target's result: the label the payload shows, the
@@ -343,15 +488,26 @@ type mtuRun struct {
 	req  *mtuRequest
 	deps *mtuDeps
 
-	inventory    inventoryState
-	tunnels      []ipsecinventory.Tunnel
-	measurements []measurement
-	byTarget     map[netip.Addr]int
-	reference    *measurement
-	dfGateFailed bool
-	notes        []stateNote
-	commands     []string
-	expires      uint32
+	inventory     inventoryState
+	tunnels       []ipsecinventory.Tunnel
+	snapshot      tunnelSnapshot
+	snapshotFault bool
+	measurements  []measurement
+	byTarget      map[netip.Addr]int
+	reference     *measurement
+	dfGateFailed  bool
+	notes         []stateNote
+	commands      []string
+	expires       uint32
+}
+
+// hasNonIPsecTunnels reports whether the snapshot discovered any non-IPsec
+// tunnel or WireGuard interface.
+func (r *mtuRun) hasNonIPsecTunnels() bool {
+	if len(r.snapshot.tunnels) > 0 {
+		return true
+	}
+	return len(r.snapshot.wireguards) > 0
 }
 
 // runMTU is the whole run: resolve the targets, read the underlay, measure
@@ -390,7 +546,7 @@ func runMTU(ctx context.Context, req *mtuRequest, deps *mtuDeps) map[string]any 
 	if run.inventory != inventoryUnspecified {
 		payload[fieldInventory] = run.inventory.String()
 	}
-	if run.inventory == inventoryRegistered {
+	if run.inventory == inventoryRegistered || run.hasNonIPsecTunnels() {
 		var verdicts []tunnelVerdict
 		var fault bool
 		tunnelRows, verdicts, fault = run.sizeTunnels()
@@ -408,6 +564,19 @@ func runMTU(ctx context.Context, req *mtuRequest, deps *mtuDeps) map[string]any 
 	return payload
 }
 
+// isProbeableRemote reports whether addr names one unicast remote endpoint
+// that the ICMP prober may send to: valid, non-unspecified, non-multicast.
+func isProbeableRemote(addr netip.Addr) bool {
+	if !addr.IsValid() {
+		return false
+	}
+	unmapped := addr.Unmap()
+	if unmapped.IsUnspecified() {
+		return false
+	}
+	return !unmapped.IsMulticast()
+}
+
 // addTarget records one target once and answers its index; the same address
 // reached through two tunnels is measured once.
 func (r *mtuRun) addTarget(target netip.Addr, label string) int {
@@ -419,36 +588,73 @@ func (r *mtuRun) addTarget(target netip.Addr, label string) int {
 	return len(r.measurements) - 1
 }
 
-// resolvePeerTargets asks the inventory and derives one target per tunnel:
-// the installed remote while the child is up (AC-17), else the configured
-// remote when it is an address. A configured remote that is a hostname or
-// `any` on a down tunnel is not probed; the tunnel is still listed.
+// resolvePeerTargets snapshots interface tunnels (XFRM, non-IPsec tunnels and
+// WireGuard) once, queries the IPsec inventory, and adds every probeable
+// unicast remote endpoint to the deduplicated peer target list.
 func (r *mtuRun) resolvePeerTargets() {
-	tunnels, err := r.deps.tunnels()
-	if errors.Is(err, ipsecinventory.ErrNotRegistered) {
-		r.inventory = inventoryNotRegistered
-		r.note(noteSeverityCaution, "no IPsec inventory is registered: this build carries no IKE engine, so no tunnel exists to size; show mtu host <address> measures one path")
-		return
+	snap, snapErr := r.deps.tunnelSnapshot()
+	if snapErr == nil {
+		r.snapshot = snap
+	} else {
+		r.snapshotFault = true
+		r.note(noteSeverityFault, "the tunnel interfaces could not be listed: "+snapErr.Error())
 	}
-	if err != nil {
+
+	tunnels, err := r.deps.tunnels()
+	switch {
+	case errors.Is(err, ipsecinventory.ErrNotRegistered):
+		r.inventory = inventoryNotRegistered
+		if r.hasNonIPsecTunnels() {
+			r.note(noteSeverityCaution, "no IPsec inventory is registered: this build carries no IKE engine, so IPsec tunnels cannot be checked; non-IPsec tunnels are still sized")
+		} else {
+			r.note(noteSeverityCaution, "no IPsec inventory is registered: this build carries no IKE engine, so no tunnel exists to size; show mtu host <address> measures one path")
+		}
+	case err != nil:
 		r.inventory = inventoryNotRegistered
 		r.note(noteSeverityFault, "the IPsec inventory could not be read: "+err.Error())
-		return
+	default:
+		r.inventory = inventoryRegistered
+		r.tunnels = tunnels
+		for i := range tunnels {
+			target := tunnelTarget(&tunnels[i])
+			if !target.IsValid() {
+				continue
+			}
+			m := &r.measurements[r.addTarget(target, labelPeer)]
+			// A live SA is what the IKE prober measures over. The first tunnel up to
+			// an address names the SA; a second one to the same address shares the
+			// figure, and one SA is enough to confirm it.
+			if tunnels[i].Up && m.peer == "" {
+				m.peer = tunnels[i].Peer
+				m.udpEncap = tunnels[i].UDPEncap
+			}
+		}
 	}
-	r.inventory = inventoryRegistered
-	r.tunnels = tunnels
-	for i := range tunnels {
-		target := tunnelTarget(&tunnels[i])
-		if !target.IsValid() {
+
+	for i := range r.snapshot.tunnels {
+		tun := &r.snapshot.tunnels[i]
+		if tun.readErr != nil {
 			continue
 		}
-		m := &r.measurements[r.addTarget(target, labelPeer)]
-		// A live SA is what the IKE prober measures over. The first tunnel up to
-		// an address names the SA; a second one to the same address shares the
-		// figure, and one SA is enough to confirm it.
-		if tunnels[i].Up && m.peer == "" {
-			m.peer = tunnels[i].Peer
-			m.udpEncap = tunnels[i].UDPEncap
+		if tun.info.FlowBased {
+			continue
+		}
+		if !isProbeableRemote(tun.info.Remote) {
+			continue
+		}
+		r.addTarget(tun.info.Remote.Unmap(), labelPeer)
+	}
+	for i := range r.snapshot.wireguards {
+		wg := &r.snapshot.wireguards[i]
+		if wg.readErr != nil {
+			continue
+		}
+		for j := range wg.peers {
+			ep := wg.peers[j].endpoint
+			if !isProbeableRemote(ep) {
+				continue
+			}
+			r.addTarget(ep.Unmap(), labelPeer)
 		}
 	}
 }
@@ -804,15 +1010,16 @@ func (r *mtuRun) tightestPeerPath() (uint16, bool) {
 	return tightest, found
 }
 
-// tunnelPath is the path MTU a tunnel is sized from: its own target's
+// targetPath is the path MTU one target address is sized from: its own
 // measurement when it answered; else the tightest measured peer path,
 // marked assumed. The third result is false when nothing was measured.
-func (r *mtuRun) tunnelPath(t *ipsecinventory.Tunnel) (mtu uint16, assumed, ok bool) {
-	target := tunnelTarget(t)
-	if i, seen := r.byTarget[target]; seen {
-		m := &r.measurements[i]
-		if m.measured() {
-			return m.pathMTU(), false, true
+func (r *mtuRun) targetPath(target netip.Addr) (mtu uint16, assumed, ok bool) {
+	if target.IsValid() {
+		if i, seen := r.byTarget[target.Unmap()]; seen {
+			m := &r.measurements[i]
+			if m.measured() {
+				return m.pathMTU(), false, true
+			}
 		}
 	}
 	tightest, found := r.tightestPeerPath()
@@ -822,48 +1029,120 @@ func (r *mtuRun) tunnelPath(t *ipsecinventory.Tunnel) (mtu uint16, assumed, ok b
 	return tightest, true, true
 }
 
-// sizeTunnels builds one row per tunnel, applies the arithmetic and the
-// verdict where the tunnel can be sized, and collects the remediation
-// commands. It answers the rows, the verdicts the run ladder reads, and
-// whether a fault outside the table (a refused transform) was met.
-func (r *mtuRun) sizeTunnels() ([]map[string]any, []tunnelVerdict, bool) {
-	rows := make([]map[string]any, 0, len(r.tunnels))
-	var verdicts []tunnelVerdict
-	fault := false
-	xfrms, err := r.deps.xfrmInterfaces()
-	if err != nil {
-		r.note(noteSeverityFault, "the XFRM interfaces could not be listed: "+err.Error())
-		fault = true
+// tunnelPath is the path MTU an IPsec tunnel is sized from.
+func (r *mtuRun) tunnelPath(t *ipsecinventory.Tunnel) (mtu uint16, assumed, ok bool) {
+	return r.targetPath(tunnelTarget(t))
+}
+
+// tunnelSizingInput carries the inputs shared by IPsec, non-IPsec tunnel, and
+// WireGuard sizing once path MTU, overhead, and inner family are known.
+type tunnelSizingInput struct {
+	cmdKind   string
+	ifaceName string
+	current   uint16
+	path      uint16
+	assumed   bool
+	overhead  encapOverhead
+	inner     ipFamily
+	emitMSS   bool
+}
+
+// wgCandidate holds the evaluated path and ceiling for one WireGuard peer.
+type wgCandidate struct {
+	peer     *wireguardPeer
+	path     uint16
+	assumed  bool
+	overhead encapOverhead
+	ceiling  uint16
+}
+
+// applyTunnelSizing computes ceiling, recommended, optional MSS, verdict,
+// octets, and remediation command for one tunnel and writes them into row.
+func (r *mtuRun) applyTunnelSizing(row map[string]any, in *tunnelSizingInput) tunnelVerdict {
+	row[fieldOverhead] = in.overhead.octets()
+	row[fieldPathMTU] = in.path
+	row[fieldAssumed] = in.assumed
+
+	ceil := ceiling(in.path, &in.overhead)
+	row[fieldCeiling] = ceil
+	sizing := tunnelSizing{up: true, current: in.current, ceiling: ceil}
+	if rec, recErr := recommended(ceil, &in.overhead, in.inner); recErr == nil {
+		sizing.recommended, sizing.hasRecommended = rec, true
+		row[fieldRecommended] = rec
+		if in.emitMSS {
+			if m, mssErr := mss(rec, in.inner); mssErr == nil {
+				row[fieldMSS] = m
+			}
+		}
 	}
+	verdict, octets := classifyTunnel(&sizing)
+	row[fieldVerdict] = verdict.String()
+	row[fieldOctets] = octets
+	if verdict.needsCommand() {
+		r.commands = append(r.commands, tunnelCommand(in.cmdKind, in.ifaceName, sizing.recommended))
+	}
+	return verdict
+}
+
+// sizeTunnels builds one row per IPsec tunnel, non-IPsec tunnel, and WireGuard
+// interface, applies the unified arithmetic and classification where the
+// tunnel can be sized, and collects the remediation commands. It answers the
+// rows, the verdicts the run ladder reads, and whether a fault outside the
+// table (a refused overhead or failed device readback) was met.
+func (r *mtuRun) sizeTunnels() ([]map[string]any, []tunnelVerdict, bool) {
+	rows := make([]map[string]any, 0, len(r.tunnels)+len(r.snapshot.tunnels)+len(r.snapshot.wireguards))
+	var verdicts []tunnelVerdict
+	fault := r.snapshotFault
 	for i := range r.tunnels {
 		t := &r.tunnels[i]
 		row := tunnelRow(t)
-		verdict, sized := r.sizeTunnel(t, xfrms, row)
+		verdict, sized, rowFault := r.sizeTunnel(t, r.snapshot.xfrms, row)
 		row[fieldSized] = sized
 		if verdict != tunnelVerdictUnspecified {
 			verdicts = append(verdicts, verdict)
 		}
-		if reason, refused := row[fieldReason].(string); refused {
-			if sizedReasonIsFault(reason) {
-				fault = true
-			}
+		if rowFault {
+			fault = true
+		}
+		rows = append(rows, row)
+	}
+	for i := range r.snapshot.tunnels {
+		tun := &r.snapshot.tunnels[i]
+		row := nonIPsecTunnelRow(tun)
+		verdict, sized, rowFault := r.sizeNonIPsecTunnel(tun, row)
+		row[fieldSized] = sized
+		if verdict != tunnelVerdictUnspecified {
+			verdicts = append(verdicts, verdict)
+		}
+		if rowFault {
+			fault = true
+		}
+		rows = append(rows, row)
+	}
+	for i := range r.snapshot.wireguards {
+		wg := &r.snapshot.wireguards[i]
+		row := wireguardTunnelRow(wg)
+		verdict, sized, rowFault := r.sizeWireguardTunnel(wg, row)
+		row[fieldSized] = sized
+		if verdict != tunnelVerdictUnspecified {
+			verdicts = append(verdicts, verdict)
+		}
+		if rowFault {
+			fault = true
 		}
 		rows = append(rows, row)
 	}
 	return rows, verdicts, fault
 }
 
-// refusedTransformReason prefixes the one not-sized reason that is a fault
-// outside the table: a transform the arithmetic refuses to advise on.
+// refusedTransformReason prefixes the IPsec not-sized reason when the
+// arithmetic refuses a negotiated transform.
 const refusedTransformReason = "transform refused: "
 
-func sizedReasonIsFault(reason string) bool {
-	return len(reason) >= len(refusedTransformReason) && reason[:len(refusedTransformReason)] == refusedTransformReason
-}
-
-// tunnelRow is the part of a tunnel's row every tunnel carries.
+// tunnelRow is the part of an IPsec tunnel's row every IPsec tunnel carries.
 func tunnelRow(t *ipsecinventory.Tunnel) map[string]any {
 	row := map[string]any{
+		fieldKind: tunnelKindIPsec,
 		fieldPeer: t.Peer,
 	}
 	if target := tunnelTarget(t); target.IsValid() {
@@ -883,77 +1162,304 @@ func tunnelRow(t *ipsecinventory.Tunnel) map[string]any {
 	return row
 }
 
-// sizeTunnel applies the verdict order to one tunnel: down before anything,
-// then the reasons a tunnel cannot be sized, then the arithmetic and the
-// classification. It answers the verdict (Unspecified when the tunnel is not
-// classified) and whether the row carries figures.
-func (r *mtuRun) sizeTunnel(t *ipsecinventory.Tunnel, xfrms []xfrmInterface, row map[string]any) (tunnelVerdict, bool) {
+// interfaceDownReason builds the reason string for an admin-down interface.
+func interfaceDownReason(name string) string {
+	return "interface " + name + " is down"
+}
+
+// interfaceMTURangeReason builds the reason string for an out-of-range MTU.
+func interfaceMTURangeReason(name string, mtu int) string {
+	var b textbuf.Buffer
+	b.Str("interface ").Str(name).Str(" reports an MTU of ").Int(int64(mtu)).Str(", outside 1..65535")
+	return b.String()
+}
+
+// sizeTunnel applies the verdict order to one IPsec tunnel: down before
+// anything, then the reasons a tunnel cannot be sized, then the unified
+// arithmetic and classification.
+func (r *mtuRun) sizeTunnel(t *ipsecinventory.Tunnel, xfrms []xfrmInterface, row map[string]any) (verdict tunnelVerdict, sized, fault bool) {
 	if !t.Up {
 		row[fieldVerdict] = tunnelVerdictDown.String()
 		row[fieldReason] = "no child SA is installed"
-		return tunnelVerdictDown, false
+		return tunnelVerdictDown, false, false
 	}
 	if t.IfID == 0 {
 		row[fieldReason] = "the child SA is policy-based and bound to no interface"
-		return tunnelVerdictUnspecified, false
+		return tunnelVerdictUnspecified, false, false
 	}
 	xfrm, found := xfrmByID(xfrms, t.IfID)
 	if !found {
 		var b textbuf.Buffer
 		b.Str("no xfrm interface carries if_id ").Uint32(t.IfID)
 		row[fieldReason] = b.String()
-		return tunnelVerdictUnspecified, false
+		return tunnelVerdictUnspecified, false, false
 	}
 	row[fieldInterface] = xfrm.name
 	if !xfrm.up {
 		row[fieldVerdict] = tunnelVerdictDown.String()
-		row[fieldReason] = "interface " + xfrm.name + " is down"
-		return tunnelVerdictDown, false
+		row[fieldReason] = interfaceDownReason(xfrm.name)
+		return tunnelVerdictDown, false, false
 	}
 	current, ok := interfaceMTUOctets(xfrm.mtu)
 	if !ok {
-		var b textbuf.Buffer
-		b.Str("interface ").Str(xfrm.name).Str(" reports an MTU of ").Int(int64(xfrm.mtu)).Str(", outside 1..65535")
-		row[fieldReason] = b.String()
-		return tunnelVerdictUnspecified, false
+		row[fieldReason] = interfaceMTURangeReason(xfrm.name, xfrm.mtu)
+		return tunnelVerdictUnspecified, false, false
 	}
 	row[fieldCurrentMTU] = current
 	inner := innerFamily(t)
 	if inner == ipFamilyUnspecified {
 		row[fieldReason] = "the child SA carries no traffic selector, so its inner family is unknown"
-		return tunnelVerdictUnspecified, false
+		return tunnelVerdictUnspecified, false, false
 	}
 	overhead, err := deriveESPOverhead(t)
 	if err != nil {
 		row[fieldReason] = refusedTransformReason + err.Error()
-		r.note(noteSeverityFault, "peer "+t.Peer+": "+err.Error()+"; its figures are not advised")
-		return tunnelVerdictUnspecified, false
+		r.note(noteSeverityFault, "peer "+t.Peer+": "+err.Error()+notAdvisedSuffix)
+		return tunnelVerdictUnspecified, false, true
 	}
 	path, assumed, measured := r.tunnelPath(t)
 	if !measured {
-		row[fieldReason] = "no path to any peer was measured"
-		return tunnelVerdictUnspecified, false
+		row[fieldReason] = noPeerPathMeasuredReason
+		return tunnelVerdictUnspecified, false, false
 	}
-	row[fieldPathMTU] = path
-	row[fieldAssumed] = assumed
+	verdict = r.applyTunnelSizing(row, &tunnelSizingInput{
+		cmdKind:   xfrmLinkType,
+		ifaceName: xfrm.name,
+		current:   current,
+		path:      path,
+		assumed:   assumed,
+		overhead:  overhead,
+		inner:     inner,
+		emitMSS:   true,
+	})
+	return verdict, true, false
+}
 
-	ceil := ceiling(path, &overhead)
-	row[fieldCeiling] = ceil
-	sizing := tunnelSizing{up: true, current: current, ceiling: ceil}
-	if rec, recErr := recommended(ceil, &overhead, inner); recErr == nil {
-		sizing.recommended, sizing.hasRecommended = rec, true
-		row[fieldRecommended] = rec
-		if m, mssErr := mss(rec, inner); mssErr == nil {
-			row[fieldMSS] = m
+// nonIPsecTunnelRow builds the base fields for one non-IPsec tunnel interface.
+func nonIPsecTunnelRow(tun *nonIPsecTunnel) map[string]any {
+	row := map[string]any{
+		fieldKind:      tunnelKindTunnel,
+		fieldInterface: tun.name,
+	}
+	if tun.readErr != nil {
+		return row
+	}
+	if tun.info.Kind != iface.TunnelKindUnknown {
+		row[fieldKind] = tun.info.Kind.String()
+	}
+	if tun.info.Remote.IsValid() {
+		row[fieldRemote] = tun.info.Remote.Unmap().String()
+	}
+	return row
+}
+
+// sizeNonIPsecTunnel applies the verdict order and overhead arithmetic to one
+// non-IPsec tunnel interface (gre, gretap, ip6gre, ip6gretap, vxlan, ipip,
+// sit, ip6tnl, ipip6).
+func (r *mtuRun) sizeNonIPsecTunnel(tun *nonIPsecTunnel, row map[string]any) (verdict tunnelVerdict, sized, fault bool) {
+	if !tun.up {
+		row[fieldVerdict] = tunnelVerdictDown.String()
+		row[fieldReason] = interfaceDownReason(tun.name)
+		return tunnelVerdictDown, false, false
+	}
+	if tun.readErr != nil {
+		row[fieldReason] = "tunnel state could not be read: " + tun.readErr.Error()
+		r.note(noteSeverityFault, "tunnel "+tun.name+": "+tun.readErr.Error()+notAdvisedSuffix)
+		return tunnelVerdictUnspecified, false, true
+	}
+	current, ok := interfaceMTUOctets(tun.mtu)
+	if !ok {
+		row[fieldReason] = interfaceMTURangeReason(tun.name, tun.mtu)
+		return tunnelVerdictUnspecified, false, false
+	}
+	row[fieldCurrentMTU] = current
+	if tun.info.FlowBased {
+		row[fieldReason] = "tunnel is flow-based with no fixed remote endpoint"
+		return tunnelVerdictUnspecified, false, false
+	}
+	if !tun.info.Remote.IsValid() {
+		row[fieldReason] = "tunnel has no configured remote endpoint"
+		return tunnelVerdictUnspecified, false, false
+	}
+	remote := tun.info.Remote.Unmap()
+	if remote.IsUnspecified() {
+		row[fieldReason] = "tunnel has an unspecified point-to-multipoint remote endpoint"
+		return tunnelVerdictUnspecified, false, false
+	}
+	if remote.IsMulticast() {
+		row[fieldReason] = "tunnel has a multicast remote endpoint and cannot be probed"
+		return tunnelVerdictUnspecified, false, false
+	}
+	overhead, err := deriveTunnelOverhead(&tun.info)
+	if err != nil {
+		row[fieldReason] = "overhead refused: " + err.Error()
+		r.note(noteSeverityFault, "tunnel "+tun.name+": "+err.Error()+notAdvisedSuffix)
+		return tunnelVerdictUnspecified, false, true
+	}
+	path, assumed, measured := r.targetPath(remote)
+	if !measured {
+		row[fieldReason] = noPeerPathMeasuredReason
+		return tunnelVerdictUnspecified, false, false
+	}
+	inner, emitMSS := nonIPsecInnerFamily(tun.info.Kind, tun.addrs)
+	verdict = r.applyTunnelSizing(row, &tunnelSizingInput{
+		cmdKind:   tunnelKindTunnel,
+		ifaceName: tun.name,
+		current:   current,
+		path:      path,
+		assumed:   assumed,
+		overhead:  overhead,
+		inner:     inner,
+		emitMSS:   emitMSS,
+	})
+	return verdict, true, false
+}
+
+// wireguardTunnelRow builds the base fields for one WireGuard interface.
+func wireguardTunnelRow(wg *wireguardInterface) map[string]any {
+	return map[string]any{
+		fieldKind:      tunnelKindWireguard,
+		fieldInterface: wg.name,
+	}
+}
+
+// sizeWireguardTunnel evaluates every peer with a probeable unicast endpoint
+// and sizes the single WireGuard device to the peer yielding the tightest
+// (lowest) ceiling, emitting at most one set interface wireguard command.
+func (r *mtuRun) sizeWireguardTunnel(wg *wireguardInterface, row map[string]any) (verdict tunnelVerdict, sized, fault bool) {
+	if !wg.up {
+		row[fieldVerdict] = tunnelVerdictDown.String()
+		row[fieldReason] = interfaceDownReason(wg.name)
+		return tunnelVerdictDown, false, false
+	}
+	if wg.readErr != nil {
+		row[fieldReason] = "wireguard state could not be read: " + wg.readErr.Error()
+		r.note(noteSeverityFault, "wireguard "+wg.name+": "+wg.readErr.Error()+notAdvisedSuffix)
+		return tunnelVerdictUnspecified, false, true
+	}
+	current, ok := interfaceMTUOctets(wg.mtu)
+	if !ok {
+		row[fieldReason] = interfaceMTURangeReason(wg.name, wg.mtu)
+		return tunnelVerdictUnspecified, false, false
+	}
+	row[fieldCurrentMTU] = current
+	var chosen *wgCandidate
+	probeable := 0
+	for i := range wg.peers {
+		peer := &wg.peers[i]
+		if !isProbeableRemote(peer.endpoint) {
+			continue
+		}
+		probeable++
+		path, assumed, measured := r.targetPath(peer.endpoint)
+		if !measured {
+			continue
+		}
+		overhead, err := deriveWireguardOverhead(peer.endpoint)
+		if err != nil {
+			row[fieldReason] = "overhead refused: " + err.Error()
+			r.note(noteSeverityFault, "wireguard "+wg.name+": "+err.Error()+notAdvisedSuffix)
+			return tunnelVerdictUnspecified, false, true
+		}
+		ceil := ceiling(path, &overhead)
+		if chosen == nil {
+			chosen = &wgCandidate{peer: peer, path: path, assumed: assumed, overhead: overhead, ceiling: ceil}
+			continue
+		}
+		if ceil < chosen.ceiling {
+			chosen = &wgCandidate{peer: peer, path: path, assumed: assumed, overhead: overhead, ceiling: ceil}
+			continue
+		}
+		if ceil == chosen.ceiling && chosen.assumed && !assumed {
+			chosen = &wgCandidate{peer: peer, path: path, assumed: assumed, overhead: overhead, ceiling: ceil}
 		}
 	}
-	verdict, octets := classifyTunnel(&sizing)
-	row[fieldVerdict] = verdict.String()
-	row[fieldOctets] = octets
-	if verdict.needsCommand() {
-		r.commands = append(r.commands, tunnelCommand(xfrm.name, sizing.recommended))
+	if probeable == 0 {
+		row[fieldReason] = "no WireGuard peer has a known unicast endpoint address"
+		return tunnelVerdictUnspecified, false, false
 	}
-	return verdict, true
+	if chosen == nil {
+		row[fieldReason] = noPeerPathMeasuredReason
+		return tunnelVerdictUnspecified, false, false
+	}
+	if chosen.peer.name != "" {
+		row[fieldPeer] = chosen.peer.name
+	}
+	row[fieldRemote] = chosen.peer.endpoint.Unmap().String()
+	inner, emitMSS := addressedInnerFamily(wg.addrs, wg.peers)
+	verdict = r.applyTunnelSizing(row, &tunnelSizingInput{
+		cmdKind:   tunnelKindWireguard,
+		ifaceName: wg.name,
+		current:   current,
+		path:      chosen.path,
+		assumed:   chosen.assumed,
+		overhead:  chosen.overhead,
+		inner:     inner,
+		emitMSS:   emitMSS,
+	})
+	return verdict, true, false
+}
+
+// nonIPsecInnerFamily returns the inner address family (controlling the
+// minimum MTU floor) and whether TCP MSS is meaningful for one non-IPsec
+// tunnel kind.
+func nonIPsecInnerFamily(kind iface.TunnelKind, addrs []iface.AddrInfo) (ipFamily, bool) {
+	switch kind {
+	case iface.TunnelKindIPIP, iface.TunnelKindIPIP6:
+		return ipFamilyV4, true
+	case iface.TunnelKindSIT, iface.TunnelKindIP6Tnl:
+		return ipFamilyV6, true
+	case iface.TunnelKindGRETap, iface.TunnelKindIP6GRETap, iface.TunnelKindVxlan:
+		return ipFamilyV6, false
+	case iface.TunnelKindGRE, iface.TunnelKindIP6GRE:
+		return addressedInnerFamily(addrs, nil)
+	case iface.TunnelKindUnknown:
+		return ipFamilyV6, false
+	default:
+		// The TunnelKind set is open; enforce the 1280-octet IPv6 floor with no MSS.
+		return ipFamilyV6, false
+	}
+}
+
+// addressedInnerFamily inspects live non-link-local interface addresses and
+// WireGuard AllowedIPs prefixes. Any non-link-local IPv6 address or prefix
+// selects IPv6 (conservative for dual-stack); else any IPv4 address or prefix
+// selects IPv4; else (unaddressed) enforces the 1280-octet floor and omits MSS.
+func addressedInnerFamily(addrs []iface.AddrInfo, peers []wireguardPeer) (ipFamily, bool) {
+	hasV4 := false
+	for i := range addrs {
+		if addrs[i].LinkLocal {
+			continue
+		}
+		parsed, err := netip.ParseAddr(addrs[i].Address)
+		if err != nil {
+			continue
+		}
+		addr := parsed.Unmap()
+		if addr.Is6() {
+			if addr.IsLinkLocalUnicast() {
+				continue
+			}
+			return ipFamilyV6, true
+		}
+		hasV4 = true
+	}
+	for i := range peers {
+		for _, prefix := range peers[i].allowedIPs {
+			addr := prefix.Addr().Unmap()
+			if addr.Is6() {
+				if addr.IsLinkLocalUnicast() {
+					continue
+				}
+				return ipFamilyV6, true
+			}
+			hasV4 = true
+		}
+	}
+	if hasV4 {
+		return ipFamilyV4, true
+	}
+	return ipFamilyV6, false
 }
 
 // xfrmByID finds the interface a tunnel's if_id names.

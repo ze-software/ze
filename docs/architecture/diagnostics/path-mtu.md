@@ -1,11 +1,11 @@
 # Path MTU Diagnostic
 
-`show mtu` measures the path MTU the router's IPsec tunnels ride on, derives the
-ESP ceiling of each tunnel from the transform it negotiated, and reports whether
-each tunnel interface is oversized, tight, under-utilized or correct, with the
-configuration commands that fix it. The run changes nothing on the router: no
-path from the handler reaches a configuration write, and the remediation
-commands are strings for the operator to apply.
+`show mtu` measures the path MTU for the router's IPsec, GRE, GRETap, IP6GRE,
+IP6GRETap, VXLAN, WireGuard, IPIP, SIT, IP6Tnl, and IPIP6 tunnels. It derives
+each tunnel ceiling from live dataplane encapsulation state and reports whether
+each tunnel interface is oversized, tight, under-utilized, or correct. It also
+lists the configuration commands that fix each interface. The run changes
+nothing on the router, because no handler path writes configuration.
 
 This page is the owner of the `mtu` component (`internal/component/mtu/cmd`) and
 of its command schema (`internal/component/mtu/yang`). It states the
@@ -55,14 +55,21 @@ value, which is an option and never data.
 
 `runMTU` (`run.go`) owns the control flow, in this order:
 
-1. **Targets.** A `host` run has one target and never consults the inventory.
-   A default run asks `ipsecinventory.Tunnels()`: `ErrNotRegistered` is the
-   `inventory: not-registered` outcome with a caution note, distinct from a
-   registered inventory holding no tunnel (`verdict: no-tunnels`). Each tunnel
-   contributes one target: its installed remote while the Child SA is up
-   (AC-17), else its configured remote when that is an address. A hostname or
-   `any` on a down tunnel is not probed; the tunnel is still listed. One
-   address reached through two tunnels is measured once.
+1. **Targets.** A `host` run has one target and never consults the inventory or
+   tunnel interfaces. A default run takes one `iface.ListInterfaces()` snapshot
+   (`listTunnelSnapshot`) to collect XFRM, non-IPsec tunnel (`iface.GetTunnelInfo`),
+   and WireGuard (`iface.GetWireguardDevice`) interfaces. It skips dormant Linux
+   kernel fallback links (`tunl0`, `sit0`, `gre0`, `gretap0`, `ip6tnl0`, `ip6gre0`)
+   that are admin-down with unspecified endpoints. It also asks
+   `ipsecinventory.Tunnels()`. `ErrNotRegistered` produces `inventory:
+   not-registered` with a caution note, distinct from a registered inventory
+   holding no tunnel (`verdict: no-tunnels`). When non-IPsec tunnels exist on a
+   build without `ze_ike`, Ze still probes and sizes them. Each IPsec tunnel
+   contributes its installed remote while up (AC-17), or its configured address
+   otherwise. Each non-IPsec tunnel with a unicast remote and each WireGuard peer
+   with a unicast endpoint adds a peer target. Multipoint (`0.0.0.0`, `::`),
+   multicast, `FlowBased`, and endpoint-less tunnels are never probed. Ze
+   deduplicates shared target addresses across all tunnels.
 2. **Underlay.** The interface the route to the first target leaves by
    (`iface.RouteLookup`, then `iface.GetInterface` for its MTU), or the route
    to the reference address when there is no target. The row names its
@@ -92,18 +99,16 @@ value, which is an option and never data.
    measured unless it is already a target, in which case that measurement is
    the reference. A silent reference makes the underlay advice undecidable
    (AC-14).
-5. **Tunnels.** Per tunnel, in the verdict order: down when no Child SA is
-   installed or the bound interface is down; not sized when the SA is
-   policy-based (`if_id` 0), when no xfrm interface carries its `if_id`, when
-   the child holds no traffic selector (the inner family comes from `TSRemote`,
-   then `TSLocal`), when `deriveESPOverhead` refuses the transform (a fault
-   note, never a default; this includes a tunnel whose transforms the engine
-   could not resolve, `Tunnel.TransformErr`, whose row then carries no
-   `transform`), or when no peer path was measured. Otherwise the
-   path MTU is the tunnel's own measurement, or the tightest measured peer
-   path marked `assumed` when its own target did not answer; then `ceiling`,
-   `recommended` (absent when none), `mss`, `classifyTunnel`, and a
-   `tunnelCommand` for every verdict that earns one.
+5. **Tunnels.** Ze sizes IPsec tunnels first, then non-IPsec tunnels, then
+   WireGuard interfaces through one shared helper (`applyTunnelSizing`). A down
+   interface earns `verdict: down` and `sized: false`. Unbound or unreadable
+   tunnels, multipoint/multicast/flow-based remotes, endpoint-less WireGuard
+   devices, and refused overheads report `sized: false` with an explicit
+   `reason`. A multi-peer WireGuard interface emits one row and at most one
+   command, sized from the peer with the lowest ceiling. Each sized row writes
+   `kind`, `overhead`, `path-mtu`, `assumed`, `ceiling`, `recommended` (absent
+   when none), optional `mss`, `verdict`, `octets`, and appends
+   `tunnelCommand(kind, name, recommended)` for actionable verdicts.
 6. **Underlay advice.** `adviseUnderlay` runs once a peer path was measured,
    writes `underlay.advice`, a note with the matrix's sentence, and the
    `underlayCommand` when the matrix produced one.
@@ -119,11 +124,12 @@ which this spec does not add. The probe budget per target is bounded
 (`runProbeBudget`), so the worst case is computable.
 
 Every read outside the package goes through `mtuDeps` (`liveDeps` in
-production): the inventory, the prober, the cached PMTU, the route lookup, the
-interface, the xfrm interface list, the counters and the sysctls. A test
-replaces the struct and drives the whole run through `handleShowMTU`.
+production). That includes the IPsec inventory, probers, cached PMTU, route
+lookup, underlay link, single-pass tunnel snapshot (`tunnelSnapshot`),
+counters, and sysctls. A test replaces the struct and drives the whole run
+through `handleShowMTU`.
 
-<!-- source: internal/component/mtu/cmd/run.go -- runMTU, mtuDeps, liveDeps -->
+<!-- source: internal/component/mtu/cmd/run.go -- runMTU, mtuDeps, liveDeps, listTunnelSnapshot -->
 
 ## The payload
 
@@ -136,14 +142,14 @@ never a marker glued to another field's text.
 |-----|-------|---------|
 | `status` | one of `ok`, `nothing-measured`, `df-gate-failed` | always |
 | `inventory` | `registered` or `not-registered` | on a default run |
-| `verdict` | the run-level ladder, first match wins: `action-needed`, `check`, `no-tunnels`, `ok` | on a default run with a registered inventory |
+| `verdict` | the run-level ladder, first match wins: `action-needed`, `check`, `no-tunnels`, `ok` | on a default run with a registered IPsec inventory or any non-IPsec tunnel |
 | `measurements` | one row per target: `target`, `label` (`host`, `peer`), `outcome` (`measured`, `unmeasurable`, `df-gate-failed`, `error`), `probes` (the ICMP probes sent, on every prober), `lossy`, `prober` (`icmp`, or `ike` when the peer's live SA confirmed or measured the figure), `ike-confirmed` under `prober: ike` (the largest wire size the padded exchange proved the path carries whole, the size the engine sent; equal to `path-mtu` when IKE refuted the ICMP figure, below it when a cipher grid sent a smaller datagram than the ask), `ike-declined` when the IKE prober was asked and produced no figure (the refusal by name, `sa-failed at <size> octets`, the budget, or `not in this build`), `cached-path-mtu` when the kernel held one, `path-mtu`, `method` (how the ICMP search found its figure) and `caveats` (the row's own, by its prober: the ICMP caveat, the different-path caveat, or none) under `measured`, `exchanges` (the IKE exchanges spent, 0 when it declined before sending) under `measured` for a target with a live SA, `reason` under `error`, and `probes-sent` (`payload`, `wire`, `outcome`, `reported-mtu`) under `detail` | always |
 | `reference` | `host`, then `path-mtu`, `method` and `prober` when measured, else `outcome` | on a default run |
 | `underlay` | `interface`, `mtu`, `source`, `kind` when the link type has an interface list in the iface YANG (`iface.CanonicalInterfaceType`), and `advice` once the matrix ran | once the underlay was read |
-| `tunnels` | one row per tunnel: `peer`, `remote`, `interface`, `mode`, `encapsulation`, `transform`, `path-mtu`, `assumed`, `current-mtu`, `ceiling`, `recommended`, `mss`, `verdict`, `octets` (the excess, spare or gain the verdict names), `sized`, `reason` when not sized | on a default run |
+| `tunnels` | one row per tunnel: `kind` (`ipsec`, `gre`, `gretap`, `ip6gre`, `ip6gretap`, `vxlan`, `wireguard`, `ipip`, `sit`, `ip6tnl`, `ipip6`), `peer` (IPsec or controlling WireGuard peer), `remote`, `interface`, `overhead` (fixed encapsulation octets), `mode`, `encapsulation`, `transform` (IPsec), `path-mtu`, `assumed`, `current-mtu`, `ceiling`, `recommended`, `mss` (L3 addressed tunnels), `verdict`, `octets`, `sized`, `reason` when not sized | on a default run |
 | `commands` | the remediation commands, one string each, in Ze's own config syntax | always |
 | `notes` | rows of `severity` (`info`, `caution`, `fault`) and `text` | always |
-| `caveats` | the run's summary of what its figures cannot see: the ICMP caveat while any figure in the payload, a measurement or the reference, is ICMP-measured; empty when every figure is IKE-measured. Each measurement row carries its own | always |
+| `caveats` | the run's summary of what its figures cannot see: the ICMP caveat (noting ESP, GRE, or UDP paths are not measured) while any figure is ICMP-measured, or empty when every figure is IKE-measured | always |
 | `tcp-mtu-probing` | `disabled`, `on-blackhole`, `always` | once the sysctl was read |
 
 A key listed as present under a condition is ABSENT otherwise, never zero: an
@@ -152,7 +158,7 @@ Go side of each closed set is a typed enum whose zero value is `Unspecified`,
 written to the payload through `String()` and never compared.
 
 <!-- source: internal/component/mtu/cmd/mtu.go -- runStatus, runVerdict, noteSeverity -->
-<!-- source: internal/component/mtu/cmd/run.go -- inventoryState, measurementRow, tunnelRow, sizeTunnel -->
+<!-- source: internal/component/mtu/cmd/run.go -- inventoryState, measurementRow, tunnelRow, sizeTunnel, sizeNonIPsecTunnel, sizeWireguardTunnel, applyTunnelSizing -->
 
 ## The reference address
 
@@ -400,26 +406,50 @@ rather than an addition. The overhead carries the mode, and the ceiling
 arithmetic branches on it, so tunnel-mode arithmetic is never applied to a
 transport-mode SA.
 
-<!-- source: internal/component/mtu/cmd/overhead.go -- deriveESPOverhead, espICVOctets -->
+### Non-IPsec tunnel overhead
+
+`encapOverhead` unifies ESP (`trailer: 2`, `block: 4|8|16`) with all non-IPsec
+encapsulations (`trailer: 0`, `block: 1`). `deriveTunnelOverhead` reads live
+dataplane state from `iface.GetTunnelInfo`, and `deriveWireguardOverhead` reads
+each WireGuard peer endpoint IP from `iface.GetWireguardDevice`.
+
+| Kind | Outer IP | Fixed headers | Total octets |
+|------|----------|---------------|--------------|
+| `gre` | 20 (IPv4) | 4 GRE + 4 per option (checksum, key, sequence) | 24 (base), 28 (+key), 36 (all) |
+| `gretap` | 20 (IPv4) | GRE + 14 Ethernet | 38 (base), 42 (+key) |
+| `ip6gre` | 40 (IPv6) | GRE + 8 RFC 2473 encap-limit (when active) | 52 (default), 44 (no limit), 56 (+key) |
+| `ip6gretap` | 40 (IPv6) | GRE + 14 Ethernet + 8 encap-limit (when active) | 66 (default), 58 (no limit) |
+| `vxlan` | 20 (IPv4) or 40 (IPv6) | 8 UDP + 8 VXLAN + 14 Ethernet | 50 (IPv4), 70 (IPv6) |
+| `wireguard` | 20 (IPv4) or 40 (IPv6) | 8 UDP + 16 WG header + 16 Poly1305 tag | 60 (IPv4), 80 (IPv6) |
+| `ipip`, `sit` | 20 (IPv4) | 0 | 20 |
+| `ip6tnl`, `ipip6` | 40 (IPv6) | 8 RFC 2473 encap-limit (when active) | 48 (default), 40 (ign-encap-limit) |
+
+Linux WireGuard caps 16-octet plaintext padding at the device MTU, so a
+full-MTU packet adds zero padding octets. `deriveTunnelOverhead` refuses any
+unknown kind or non-zero `OuterEncapType` (FOU/GUE) with `errOverheadRefused`.
+`mtu/cmd` never retains or logs WireGuard `PrivateKey` or `PresharedKey` fields.
+
+<!-- source: internal/component/mtu/cmd/overhead.go -- encapOverhead, deriveESPOverhead, deriveTunnelOverhead, deriveWireguardOverhead, espICVOctets -->
 <!-- source: internal/component/ike/crypto/transform.go -- EncryptionID.ESPWireSizes, espOnlyEncryptionRegistry -->
 <!-- source: internal/component/ike/crypto/aead.go -- aeadTransforms -->
 
 ## The arithmetic
 
-The figures are the ported tool's, with the overhead derived rather than
-assumed.
+The arithmetic runs over one unified `encapOverhead` struct for both ESP
+(`trailer = 2`, `block = 4|8|16`) and non-IPsec tunnels (`trailer = 0`,
+`block = 1`).
 
 | Figure | Formula | Absent when |
 |--------|---------|-------------|
-| ceiling | tunnel mode: `alignDown(underlay - outer - fixed, block) - 2`; transport mode: the same over the part after the packet's own header, plus that header | never: 0 when nothing is left |
-| recommended | `alignDown(ceiling + 2 - 32, block) - 2` | the ceiling is 0, or the value lands below the inner family's minimum: 1280 for inner IPv6 (RFC 8200 Section 5), 576 for inner IPv4 (a documented default from RFC 791's reassembly minimum, not a conformance claim) |
-| MSS | `mtu - inner IP header - 20` | the headers leave nothing |
+| ceiling | tunnel mode: `alignDown(underlay - outer - fixed, block) - trailer`. ESP transport mode: the same over the part after the packet's own header, plus that header | never (0 when nothing is left) |
+| recommended | `alignDown(ceiling + trailer - 32, block) - trailer` | the ceiling is 0, or the value lands below the inner family minimum: 1280 for IPv6 or L2 tunnels (RFC 8200 Section 5), 576 for IPv4 |
+| MSS | `mtu - inner IP header - 20` | L2 tunnels (`vxlan`, `gretap`, `ip6gretap`), unaddressed L3 tunnels, or when headers leave nothing |
 
-The margin of 32 is `recommendedMarginOctets`, with the ported tool's reason
-beside it. An absent value is `errNoUsableMTU`, never 0: a 0 would read as a
-recommendation and reach a `set ... mtu 0` command. The inner family is an
-input the caller supplies (`ipFamily`), because the inventory's `Tunnel`
-carries no traffic selector.
+For dual-stack L3 tunnels (`gre`, `ip6gre`, `wireguard`), Ze inspects live
+non-link-local interface addresses and WireGuard `AllowedIPs`. Any IPv6 address
+or prefix selects the IPv6 floor (1280) and IPv6 MSS. Otherwise, any IPv4
+address or prefix selects the IPv4 floor (576) and IPv4 MSS. Unaddressed L3
+tunnels enforce the 1280-octet floor and omit `mss`.
 
 <!-- source: internal/component/mtu/cmd/arith.go -- ceiling, recommended, mss, ipv6MinimumLinkMTU, recommendedMarginOctets -->
 
@@ -433,7 +463,7 @@ the verdict.
 |---------|-----------|--------|---------|
 | `down` | the interface is down | none | none |
 | `no-usable-mtu` | no recommended value exists | none | none |
-| `oversized` | `current > ceiling` | the excess, `current - ceiling` | `set interface xfrm <name> mtu <recommended>` |
+| `oversized` | `current > ceiling` | the excess, `current - ceiling` | `set interface <kind> <name> mtu <recommended>` (`xfrm`, `tunnel`, or `wireguard`) |
 | `tight` | `current > ceiling - 32` | the spare, `ceiling - current` | the same |
 | `under-utilized` | `current != recommended` | the gain, `recommended - current` | the same |
 | `ok` | otherwise | none | none |
@@ -535,5 +565,9 @@ here. The check is registered by `register.go` beside the RPC, in the
 | `TestMTUCmdSchemaOwnsShowMTU` | the dedicated module declares the whole surface |
 | `TestReportedMTUConfirmedOnTheWire`, `TestSearchLadderThenBisect`, `TestSearchDoesNotMoveBoundsOnSingleSilence`, `TestSearchUnmeasurable`, `TestSearchExhaustiveDiscardsTheReport` | the search, over a model of a path (AC-7 to AC-11) |
 | `TestSearchClampedPathViaICMP`, `TestSearchFilteredPathLadderThenBisect`, `TestSearchExhaustiveBypassesPoisonedCache` | the wire prober against a Linux router (AC-1, AC-8, AC-9, AC-11) |
+| `TestNonIPsecTunnelOverheadExact`, `TestNonIPsecTunnelOverheadRefusesUnknownOrFOU` | exact non-IPsec tunnel and WireGuard overheads plus exact-or-reject refusals for unknown kinds and FOU/GUE |
+| `TestShowMTUSizesNonIPsecTunnelsAndWireguard`, `TestShowMTUWireguardMultiPeerUsesTightestCeiling`, `TestShowMTUNonIPsecEdgeCasesNotProbedOrDown`, `TestShowMTUNonIPsecWorksWithoutIPsecInventory` | non-IPsec tunnel and multi-peer WireGuard sizing, shared-remote dedup, edge-case isolation, and `!ze_ike` runs |
+| `TestShowMTUNonIPsecClampedPathIntegration` (`non_ipsec_integration_linux_test.go`) | real Linux kernel keyed GRE and VXLAN links sized over a 1400-octet clamped path inside `userns.Enter` |
+| `show-mtu-non-ipsec-tunnels.ci` (`test/plugin/`) | live daemon configuring keyed GRE and VXLAN over the clamped path and answering oversized verdicts with `set interface tunnel` commands |
 
 <!-- source: internal/component/mtu/cmd/mtu_test.go -- the wiring tests -->

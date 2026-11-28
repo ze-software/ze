@@ -377,10 +377,10 @@ func kindConfigurable(kind string) bool {
 }
 
 // tunnelCommand is the Ze configuration command that sets a tunnel
-// interface's MTU. A tunnel a Child SA is bound to is an xfrm interface, and
-// the xfrm list carries the same interface-common mtu leaf.
-func tunnelCommand(iface string, mtu uint16) string {
-	return interfaceMTUCommand("xfrm", iface, mtu)
+// interface's MTU: `set interface <kind> <name> mtu <value>`, where kind is
+// "xfrm", "tunnel" or "wireguard".
+func tunnelCommand(kind, iface string, mtu uint16) string {
+	return interfaceMTUCommand(kind, iface, mtu)
 }
 
 func interfaceMTUCommand(kind, iface string, mtu uint16) string {

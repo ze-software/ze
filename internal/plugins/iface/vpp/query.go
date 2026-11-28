@@ -101,6 +101,9 @@ func (b *vppBackendImpl) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	out := make([]iface.InterfaceInfo, 0, len(details))
 	for i := range details {
 		info := detailsToInfo(&details[i])
+		if zeName, ok := b.names.lookupName(uint32(details[i].SwIfIndex)); ok && zeName != "" {
+			info.Name = zeName
+		}
 		if parent, ok := parents[interface_types.InterfaceIndex(details[i].SupSwIfIndex)]; ok && inheritsParentMAC(&details[i]) {
 			info.MAC = net.HardwareAddr(parent[:]).String()
 		} else if err := b.fillParentMAC(&info, &details[i]); err != nil {
@@ -151,10 +154,15 @@ func readVPPIfaceStats() (map[string]*iface.InterfaceStats, error) {
 	return out, nil
 }
 
-// attachVPPIfaceStats sets info.Stats from statsMap. A stats read that failed
-// leaves Stats nil, which InterfaceInfo.Stats documents as "not read", and the
-// failure is answered by GetStats, which reads the segment for itself.
+// attachVPPIfaceStats sets info.Stats from statsMap. Stats are keyed by VPP's
+// native interface name (OsName), with fallback to Name for callers without
+// OsName. A stats read that failed leaves Stats nil, which InterfaceInfo.Stats
+// documents as "not read", and the failure is answered by GetStats.
 func attachVPPIfaceStats(info *iface.InterfaceInfo, statsMap map[string]*iface.InterfaceStats) {
+	if s, ok := statsMap[info.OsName]; ok {
+		info.Stats = s
+		return
+	}
 	if s, ok := statsMap[info.Name]; ok {
 		info.Stats = s
 	}
@@ -392,13 +400,38 @@ func detailsToInfo(d *interfaces.SwInterfaceDetails) iface.InterfaceInfo {
 		// kernel backend has always set it (show_linux.go).
 		OsName:      name,
 		Index:       int(d.SwIfIndex),
-		Type:        d.Type.String(),
+		Type:        vppInterfaceType(d),
 		State:       state,
 		AdminState:  adminState,
 		MTU:         mtu,
 		MAC:         net.HardwareAddr(d.L2Address[:]).String(),
 		ParentIndex: int(d.SupSwIfIndex),
 		VlanID:      int(d.SubOuterVlanID),
+	}
+}
+
+const (
+	vppDevTypeGRE       = "gre"
+	vppDevTypeIPIP      = "ipip"
+	vppDevTypeVxlan     = "vxlan"
+	vppDevTypeWireguard = "wireguard"
+)
+
+// vppInterfaceType maps VPP's SwInterfaceDetails.InterfaceDevType string onto
+// the canonical link-type vocabulary iface.CanonicalInterfaceType recognizes
+// ("gre", "ipip", "vxlan", "wireguard"). Other device types keep d.Type.String().
+func vppInterfaceType(d *interfaces.SwInterfaceDetails) string {
+	switch strings.ToLower(trimCString(d.InterfaceDevType)) {
+	case vppDevTypeGRE:
+		return vppDevTypeGRE
+	case vppDevTypeIPIP:
+		return vppDevTypeIPIP
+	case vppDevTypeVxlan:
+		return vppDevTypeVxlan
+	case vppDevTypeWireguard:
+		return vppDevTypeWireguard
+	default:
+		return d.Type.String()
 	}
 }
 

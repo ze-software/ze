@@ -2409,29 +2409,29 @@ Returns result (connected/refused/timeout) and latency-ms.
 ### show mtu
 
 ```
-ze show mtu                          # Measure every IPsec peer and the reference address
-ze show mtu host 192.0.2.1           # Measure one address instead of the peers
-ze show mtu exhaustive               # Probe every size on the wire, discarding the cached and the reported path MTU
+ze show mtu                          # Measure every IPsec and non-IPsec tunnel endpoint plus the reference address
+ze show mtu host 192.0.2.1           # Measure one address instead of the tunnel endpoints
+ze show mtu exhaustive               # Probe every size on the wire, discarding cached and reported path MTU
 ze show mtu host 2001:db8::1 detail  # Report every probe sent and every reply received
 ```
 
-`host` takes one IPv4 or IPv6 address, and a value that is not an address is
-refused by the grammar. `exhaustive` and `detail` are bare words and go with either
-form. The answer is one document: `status`, `measurements`, `tunnels`,
-`commands`, `notes` and `caveats` always; `inventory`, `verdict` and
-`reference` on a run over the peers; `underlay` once the route's interface
-was read. Every measurement row says which prober produced its figure:
-`prober: ike` when the peer's live IKE SA confirmed or measured the path with
-a padded exchange (`ike-confirmed` is the largest size it proved; `path-mtu`
-stays the ICMP figure unless IKE refuted it), `prober: icmp` otherwise, with
-`ike-declined` saying why a live SA was not used and each row's `caveats`
-naming what its prober cannot see. The
-reference address is the `environment { mtu { reference-address } }` leaf, or
-the first `system { name-server }` when the leaf is not set; with neither, a run
-over the peers is refused before any probe is sent. The
-payload keys, the run and its outcomes are
-`docs/architecture/diagnostics/path-mtu.md`. The command changes nothing on
-the router: the commands it lists are for the operator to apply.
+`host` takes one IPv4 or IPv6 address, and the grammar refuses non-address
+values. `exhaustive` and `detail` are bare words that work with either form.
+A default run measures every IPsec peer and every GRE, GRETap, IP6GRE,
+IP6GRETap, VXLAN, WireGuard, IPIP, SIT, IP6Tnl, and IPIP6 tunnel with a
+unicast remote endpoint. Multi-peer WireGuard interfaces size to the tightest
+peer ceiling and emit one `set interface wireguard` command. The answer is one
+document with `status`, `measurements`, `tunnels`, `commands`, `notes`, and
+`caveats`. A default run adds `inventory`, `reference`, and `verdict` (when
+IPsec inventory is registered or any non-IPsec tunnel exists). `underlay`
+appears once Ze reads the route interface. Every measurement row names its
+prober (`ike` when a live IKE SA confirmed or measured the path, `icmp`
+otherwise). The reference address comes from `environment { mtu {
+reference-address } }` or the first `system { name-server }`. Without either,
+Ze refuses a default run before it sends any probe. See
+`docs/architecture/diagnostics/path-mtu.md` for all keys and outcomes. The
+command changes nothing on the router and lists remediation commands for the
+operator to apply.
 
 A run over two aes128gcm tunnels whose path is clamped at 1400, as
 `test/plugin/show-mtu-oversized-tunnels.ci` builds it, answers (the notes, the
@@ -2450,7 +2450,7 @@ padded exchange asked at 1400 left at the 1388 grid point and confirmed it):
   "reference": {"host": "10.99.2.9", "path-mtu": 1400, "method": "via ICMP", "prober": "icmp"},
   "underlay": {"interface": "sr0", "kind": "veth", "mtu": 1600, "source": "route to 10.99.2.1", "advice": "circuit-clamped"},
   "tunnels": [
-    {"peer": "site-b", "remote": "10.99.2.1", "interface": "xa", "mode": "tunnel", "encapsulation": false, "transform": "aes128gcm/none",
+    {"kind": "ipsec", "peer": "site-b", "remote": "10.99.2.1", "interface": "xa", "overhead": 52, "mode": "tunnel", "encapsulation": false, "transform": "aes128gcm/none",
      "path-mtu": 1400, "assumed": false, "current-mtu": 1500, "ceiling": 1346, "recommended": 1314, "mss": 1274,
      "verdict": "oversized", "octets": 154, "sized": true}
   ],

@@ -19,25 +19,26 @@ import (
 
 // gcmV4 is AES-GCM over an IPv4 endpoint without UDP encapsulation: 52 octets
 // of overhead on the 4-octet ESP boundary (AC-2).
-var gcmV4 = espOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 32, block: 4}
+var gcmV4 = encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 32, trailer: espTrailerOctets, block: 4}
 
 // cbcV4 is AES-CBC with HMAC-SHA-256 over IPv4: 60 octets on the 16-octet
 // AES block.
-var cbcV4 = espOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 40, block: 16}
+var cbcV4 = encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 40, trailer: espTrailerOctets, block: 16}
 
 // TestCeilingAlignsAndSubtractsTrailer pins the ceiling at hand-computed
 // values: the room after the overhead is aligned DOWN to the cipher block,
-// then the two trailer octets come off, and a path with no room answers 0.
+// then the trailer octets come off (2 for ESP, 0 for non-IPsec), and a path
+// with no room answers 0.
 func TestCeilingAlignsAndSubtractsTrailer(t *testing.T) {
 	cases := []struct {
 		name     string
 		underlay uint16
-		overhead espOverhead
+		overhead encapOverhead
 		want     uint16
 	}{
 		{"gcm 1500: 1448 is aligned already", 1500, gcmV4, 1446},
 		{"gcm 1499: 1447 aligns down to 1444", 1499, gcmV4, 1442},
-		{"gcm udp 1500: 8 fewer, ceiling 8 lower (AC-3)", 1500, espOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 40, block: 4}, 1438},
+		{"gcm udp 1500: 8 fewer, ceiling 8 lower (AC-3)", 1500, encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 40, trailer: espTrailerOctets, block: 4}, 1438},
 		{"cbc 1500: 1440 on the 16 boundary", 1500, cbcV4, 1438},
 		{"cbc 1501: 1441 aligns down to 1440", 1501, cbcV4, 1438},
 		{"cbc 1455: 1395 aligns down to 1392", 1455, cbcV4, 1390},
@@ -45,8 +46,13 @@ func TestCeilingAlignsAndSubtractsTrailer(t *testing.T) {
 		{"room below one block aligns to 0", 55, gcmV4, 0},
 		{"room of one block leaves 2 above the trailer", 56, gcmV4, 2},
 		{"room of two blocks leaves 6 above the trailer", 60, gcmV4, 6},
-		{"transport gcm 1500: the packet keeps its own header", 1500, espOverhead{mode: ipsecinventory.ModeTransport, outerHeader: 20, fixed: 32, block: 4}, 1466},
-		{"transport cbc ipv6 1500: 1420 aligns to 1408, less 2, plus 40", 1500, espOverhead{mode: ipsecinventory.ModeTransport, outerHeader: 40, fixed: 40, block: 16}, 1446},
+		{"transport gcm 1500: the packet keeps its own header", 1500, encapOverhead{mode: ipsecinventory.ModeTransport, outerHeader: 20, fixed: 32, trailer: espTrailerOctets, block: 4}, 1466},
+		{"transport cbc ipv6 1500: 1420 aligns to 1408, less 2, plus 40", 1500, encapOverhead{mode: ipsecinventory.ModeTransport, outerHeader: 40, fixed: 40, trailer: espTrailerOctets, block: 16}, 1446},
+		{"non-ipsec gre keyed 1400: trailer 0 block 1", 1400, encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 8, trailer: 0, block: 1}, 1372},
+		{"non-ipsec vxlan ipv4 1400: trailer 0 block 1", 1400, encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 30, trailer: 0, block: 1}, 1350},
+		{"non-ipsec wireguard ipv6 1400: trailer 0 block 1", 1400, encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 40, fixed: 40, trailer: 0, block: 1}, 1320},
+		{"non-ipsec underlay equal to overhead: nothing left", 28, encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 8, trailer: 0, block: 1}, 0},
+		{"non-ipsec room of 1 octet leaves 1", 29, encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 8, trailer: 0, block: 1}, 1},
 	}
 	for _, c := range cases {
 		got := ceiling(c.underlay, &c.overhead)
@@ -64,11 +70,12 @@ func TestCeilingAlignsAndSubtractsTrailer(t *testing.T) {
 // floor itself; neither real cipher block can produce 1280 or 576, so the
 // nearest values each block does produce are pinned beside them.
 func TestRecommendedAbsentBelowMinimumLinkMTU(t *testing.T) {
-	block2 := espOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 32, block: 2}
+	block2 := encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 32, trailer: espTrailerOctets, block: 2}
+	nonIPsec := encapOverhead{mode: ipsecinventory.ModeTunnel, outerHeader: 20, fixed: 30, trailer: 0, block: 1}
 	cases := []struct {
 		name     string
 		ceiling  uint16
-		overhead espOverhead
+		overhead encapOverhead
 		inner    ipFamily
 		want     uint16
 		absent   bool
@@ -83,6 +90,11 @@ func TestRecommendedAbsentBelowMinimumLinkMTU(t *testing.T) {
 		{"inner ipv4 lands on 575: absent", 607, block2, ipFamilyV4, 0, true},
 		{"inner ipv4 block 16 lands on 590", 622, cbcV4, ipFamilyV4, 590, false},
 		{"inner ipv4 block 16 lands on 574: absent", 606, cbcV4, ipFamilyV4, 0, true},
+		{"non-ipsec vxlan ipv6/l2 boundary: 1312 -> 1280", 1312, nonIPsec, ipFamilyV6, 1280, false},
+		{"non-ipsec vxlan ipv6/l2 boundary: 1311 -> absent", 1311, nonIPsec, ipFamilyV6, 0, true},
+		{"non-ipsec ipip ipv4 boundary: 608 -> 576", 608, nonIPsec, ipFamilyV4, 576, false},
+		{"non-ipsec ipip ipv4 boundary: 607 -> absent", 607, nonIPsec, ipFamilyV4, 0, true},
+		{"non-ipsec ceiling equal to margin is absent", 32, nonIPsec, ipFamilyV4, 0, true},
 		{"a ceiling of 0 is absent", 0, gcmV4, ipFamilyV6, 0, true},
 		{"a ceiling below the margin is absent", 20, gcmV4, ipFamilyV4, 0, true},
 		{"a ceiling of exactly the margin is absent", 32, gcmV4, ipFamilyV4, 0, true},

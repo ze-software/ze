@@ -2482,7 +2482,8 @@ func (b *fakeBackend) CreateMacvlanDevice(spec MacvlanSpec) error {
 	}
 	return nil
 }
-func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
+func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error)     { return XFRMInfo{}, nil }
+func (b *fakeBackend) GetTunnelInfo(_ string) (TunnelInfo, error) { return TunnelInfo{}, nil }
 
 // CreateOwnedBridge is faithful to the kernel backend: the bridge carries its
 // own kernel index, the requested MTU and the ownership alias, and is up. Its

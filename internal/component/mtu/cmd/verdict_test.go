@@ -198,8 +198,19 @@ func TestUnderlayAdviceMatrix(t *testing.T) {
 			t.Errorf("%s: severity %s, want %s", outcome, got, want)
 		}
 	}
-	if got := tunnelCommand("vti-site-a", 1414); got != "set interface xfrm vti-site-a mtu 1414" {
-		t.Errorf("tunnelCommand = %q", got)
+	for _, tc := range []struct {
+		kind  string
+		iface string
+		mtu   uint16
+		want  string
+	}{
+		{"xfrm", "vti-site-a", 1414, "set interface xfrm vti-site-a mtu 1414"},
+		{"tunnel", "gre1", 1340, "set interface tunnel gre1 mtu 1340"},
+		{"wireguard", "wg0", 1288, "set interface wireguard wg0 mtu 1288"},
+	} {
+		if got := tunnelCommand(tc.kind, tc.iface, tc.mtu); got != tc.want {
+			t.Errorf("tunnelCommand(%q, %q, %d) = %q, want %q", tc.kind, tc.iface, tc.mtu, got, tc.want)
+		}
 	}
 	// An outcome that names a value but earns no command says why in its note.
 	unknown := underlayInput{iface: "ppp0", current: 1500, tightest: 1400, reference: 1400, hasReference: true, referenceHost: ref}

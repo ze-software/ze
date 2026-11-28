@@ -28,6 +28,7 @@ import (
 	"go.fd.io/govpp/binapi/lcp"
 	"go.fd.io/govpp/binapi/qos"
 	"go.fd.io/govpp/binapi/span"
+	"go.fd.io/govpp/binapi/tunnel_types"
 	"go.fd.io/govpp/binapi/vxlan"
 	"go.fd.io/govpp/binapi/wireguard"
 
@@ -58,10 +59,13 @@ type progChannel struct {
 	loopbackIndex interface_types.InterfaceIndex
 
 	// Dump responses delivered by SendMultiRequest, used by GetWireguardDevice
-	// round-trip tests. Each slice is streamed one entry per ReceiveReply,
-	// then a final (last=true) terminates the dump.
+	// and GetTunnelInfo round-trip tests. Each slice is streamed one entry per
+	// ReceiveReply, then a final (last=true) terminates the dump.
 	wgIfaceDetails []wireguard.WireguardInterfaceDetails
 	wgPeerDetails  []wireguard.WireguardPeersDetails
+	greDetails     []gre.GreTunnelDetails
+	ipipDetails    []ipip.IpipTunnelDetails
+	vxlanDetails   []vxlan.VxlanTunnelV2Details
 
 	// swDetails answers SwInterfaceDump, filtered by the requested index the
 	// way VPP filters it. CreateVLAN dumps the parent to give the new
@@ -91,6 +95,33 @@ func (c *progChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 		for i := range c.wgPeerDetails {
 			d := c.wgPeerDetails[i]
 			ctx.details = append(ctx.details, &d)
+		}
+		return ctx
+	case *gre.GreTunnelDump:
+		ctx := &progMultiCtx{}
+		for i := range c.greDetails {
+			d := c.greDetails[i]
+			if d.Tunnel.SwIfIndex == dump.SwIfIndex {
+				ctx.details = append(ctx.details, &d)
+			}
+		}
+		return ctx
+	case *ipip.IpipTunnelDump:
+		ctx := &progMultiCtx{}
+		for i := range c.ipipDetails {
+			d := c.ipipDetails[i]
+			if d.Tunnel.SwIfIndex == dump.SwIfIndex {
+				ctx.details = append(ctx.details, &d)
+			}
+		}
+		return ctx
+	case *vxlan.VxlanTunnelV2Dump:
+		ctx := &progMultiCtx{}
+		for i := range c.vxlanDetails {
+			d := c.vxlanDetails[i]
+			if d.SwIfIndex == dump.SwIfIndex {
+				ctx.details = append(ctx.details, &d)
+			}
 		}
 		return ctx
 	case *interfaces.SwInterfaceDump:
@@ -179,6 +210,18 @@ func (m *progMultiCtx) ReceiveReply(msg api.Message) (bool, error) {
 		}
 	case *wireguard.WireguardPeersDetails:
 		if src, ok := m.details[m.idx].(*wireguard.WireguardPeersDetails); ok {
+			*dst = *src
+		}
+	case *gre.GreTunnelDetails:
+		if src, ok := m.details[m.idx].(*gre.GreTunnelDetails); ok {
+			*dst = *src
+		}
+	case *ipip.IpipTunnelDetails:
+		if src, ok := m.details[m.idx].(*ipip.IpipTunnelDetails); ok {
+			*dst = *src
+		}
+	case *vxlan.VxlanTunnelV2Details:
+		if src, ok := m.details[m.idx].(*vxlan.VxlanTunnelV2Details); ok {
 			*dst = *src
 		}
 	case *interfaces.SwInterfaceDetails:
@@ -2998,4 +3041,237 @@ func TestStopMonitorSafe(t *testing.T) {
 	// PREVENTS: panic on no-op stop
 	b := &vppBackendImpl{names: newNameMap()}
 	b.StopMonitor() // should not panic
+}
+
+// TestVPPGetTunnelInfoRoundTrip verifies GetTunnelInfo reads back GRE, GRETap,
+// IPIP, and VXLAN tunnel details from VPP's dump APIs and refuses non-tunnel
+// and absent interfaces.
+//
+// VALIDATES: AC-4 and Wiring (vppBackendImpl.GetTunnelInfo).
+// PREVENTS: VPP tunnel readback returning wrong kinds, missing VNI, or
+// succeeding on non-tunnel devices.
+func TestVPPGetTunnelInfoRoundTrip(t *testing.T) {
+	localV4, err := ip_types.ParseAddress("192.0.2.1")
+	if err != nil {
+		t.Fatalf("ParseAddress local: %v", err)
+	}
+	remoteV4, err := ip_types.ParseAddress("198.51.100.1")
+	if err != nil {
+		t.Fatalf("ParseAddress remote: %v", err)
+	}
+	localV6, err := ip_types.ParseAddress("2001:db8::1")
+	if err != nil {
+		t.Fatalf("ParseAddress localV6: %v", err)
+	}
+	remoteV6, err := ip_types.ParseAddress("2001:db8::2")
+	if err != nil {
+		t.Fatalf("ParseAddress remoteV6: %v", err)
+	}
+	wantLocal := netip.MustParseAddr("192.0.2.1")
+	wantRemote := netip.MustParseAddr("198.51.100.1")
+
+	ch := &progChannel{
+		greDetails: []gre.GreTunnelDetails{
+			{Tunnel: gre.GreTunnel{
+				SwIfIndex: 10,
+				Type:      gre.GRE_API_TUNNEL_TYPE_L3,
+				Mode:      tunnel_types.TUNNEL_API_MODE_P2P,
+				Src:       localV4,
+				Dst:       remoteV4,
+			}},
+			{Tunnel: gre.GreTunnel{
+				SwIfIndex: 11,
+				Type:      gre.GRE_API_TUNNEL_TYPE_TEB,
+				Mode:      tunnel_types.TUNNEL_API_MODE_P2P,
+				Src:       localV4,
+				Dst:       remoteV4,
+			}},
+			{Tunnel: gre.GreTunnel{
+				SwIfIndex: 15,
+				Type:      gre.GRE_API_TUNNEL_TYPE_L3,
+				Mode:      tunnel_types.TUNNEL_API_MODE_MP,
+				Src:       localV4,
+				Dst:       remoteV4,
+			}},
+			{Tunnel: gre.GreTunnel{
+				SwIfIndex: 16,
+				Type:      gre.GRE_API_TUNNEL_TYPE_L3,
+				Mode:      tunnel_types.TUNNEL_API_MODE_P2P,
+				Src:       localV6,
+				Dst:       remoteV6,
+			}},
+		},
+		ipipDetails: []ipip.IpipTunnelDetails{
+			{Tunnel: ipip.IpipTunnel{
+				SwIfIndex: 12,
+				Mode:      tunnel_types.TUNNEL_API_MODE_P2P,
+				Src:       localV4,
+				Dst:       remoteV4,
+			}},
+			{Tunnel: ipip.IpipTunnel{
+				SwIfIndex: 17,
+				Mode:      tunnel_types.TUNNEL_API_MODE_P2P,
+				Src:       localV6,
+				Dst:       remoteV6,
+			}},
+		},
+		vxlanDetails: []vxlan.VxlanTunnelV2Details{
+			{
+				SwIfIndex:  13,
+				SrcAddress: localV4,
+				DstAddress: remoteV4,
+				Vni:        4200,
+			},
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+	b.names.Add("gre0", 10, "gre0")
+	b.names.Add("gretap0", 11, "gre1")
+	b.names.Add("ipip0", 12, "ipip0")
+	b.names.Add("vxlan10", 13, "vxlan_tunnel0")
+	b.names.Add("loop0", 14, "loop0")
+	b.names.Add("mgre0", 15, "gre2")
+	b.names.Add("gre6", 16, "gre3")
+	b.names.Add("ipip6", 17, "ipip1")
+
+	cases := []struct {
+		name string
+		want iface.TunnelInfo
+	}{
+		{
+			name: "gre0",
+			want: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Local: wantLocal, Remote: wantRemote},
+		},
+		{
+			name: "gretap0",
+			want: iface.TunnelInfo{Kind: iface.TunnelKindGRETap, Local: wantLocal, Remote: wantRemote},
+		},
+		{
+			name: "mgre0",
+			want: iface.TunnelInfo{Kind: iface.TunnelKindGRE, Local: wantLocal, Remote: wantRemote, FlowBased: true},
+		},
+		{
+			name: "ipip0",
+			want: iface.TunnelInfo{Kind: iface.TunnelKindIPIP, Local: wantLocal, Remote: wantRemote},
+		},
+		{
+			name: "vxlan10",
+			want: iface.TunnelInfo{Kind: iface.TunnelKindVxlan, Local: wantLocal, Remote: wantRemote, VNI: 4200},
+		},
+		{
+			// Also verify native VPP OsName lookup works after ResolveDevice.
+			name: "vxlan_tunnel0",
+			want: iface.TunnelInfo{Kind: iface.TunnelKindVxlan, Local: wantLocal, Remote: wantRemote, VNI: 4200},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, getErr := b.GetTunnelInfo(tc.name)
+			if getErr != nil {
+				t.Fatalf("GetTunnelInfo(%s): %v", tc.name, getErr)
+			}
+			if got != tc.want {
+				t.Errorf("GetTunnelInfo(%s) = %+v, want %+v", tc.name, got, tc.want)
+			}
+		})
+	}
+
+	if _, err := b.GetTunnelInfo("gre6"); err == nil {
+		t.Fatal("GetTunnelInfo(gre6) succeeded on IPv6-underlay VPP GRE, want exact-or-reject error")
+	}
+	if _, err := b.GetTunnelInfo("ipip6"); err == nil {
+		t.Fatal("GetTunnelInfo(ipip6) succeeded on IPv6-underlay VPP IPIP, want exact-or-reject error")
+	}
+	if _, err := b.GetTunnelInfo("loop0"); err == nil {
+		t.Fatal("GetTunnelInfo(loop0) succeeded on non-tunnel interface, want error")
+	}
+	if _, err := b.GetTunnelInfo("missing0"); err == nil {
+		t.Fatal("GetTunnelInfo(missing0) succeeded on absent interface, want error")
+	}
+}
+
+// TestVPPListInterfacesClassifiesTunnelsAndWireguard verifies ListInterfaces
+// maps VPP InterfaceDevType strings onto canonical link types recognized by
+// iface.CanonicalInterfaceType ("tunnel" / "wireguard") and sets Name to Ze's
+// logical name while preserving VPP's native name in OsName.
+//
+// VALIDATES: AC-4 (VPP tunnel and WireGuard classification and logical naming).
+// PREVENTS: VPP tunnels and WireGuard devices appearing as IF_API_TYPE_P2P
+// (unclassified) or losing their Ze logical names in `show mtu`.
+func TestVPPListInterfacesClassifiesTunnelsAndWireguard(t *testing.T) {
+	ch := &dumpChannel{
+		details: []interfaces.SwInterfaceDetails{
+			{
+				SwIfIndex:        10,
+				InterfaceName:    asciiName("gre0"),
+				InterfaceDevType: asciiName("GRE"),
+				Type:             interface_types.IF_API_TYPE_P2P,
+				Flags:            interface_types.IF_STATUS_API_FLAG_ADMIN_UP,
+			},
+			{
+				SwIfIndex:        11,
+				InterfaceName:    asciiName("ipip0"),
+				InterfaceDevType: asciiName("IPIP"),
+				Type:             interface_types.IF_API_TYPE_P2P,
+				Flags:            interface_types.IF_STATUS_API_FLAG_ADMIN_UP,
+			},
+			{
+				SwIfIndex:        12,
+				InterfaceName:    asciiName("vxlan_tunnel0"),
+				InterfaceDevType: asciiName("VXLAN"),
+				Type:             interface_types.IF_API_TYPE_P2P,
+				Flags:            interface_types.IF_STATUS_API_FLAG_ADMIN_UP,
+			},
+			{
+				SwIfIndex:        13,
+				InterfaceName:    asciiName("wg0"),
+				InterfaceDevType: asciiName("Wireguard"),
+				Type:             interface_types.IF_API_TYPE_P2P,
+				Flags:            interface_types.IF_STATUS_API_FLAG_ADMIN_UP,
+			},
+		},
+	}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+	b.names.Add("tun-gre", 10, "gre0")
+	b.names.Add("tun-ipip", 11, "ipip0")
+	b.names.Add("vxlan10", 12, "vxlan_tunnel0")
+	b.names.Add("wg-wan", 13, "wg0")
+
+	got, err := b.ListInterfaces()
+	if err != nil {
+		t.Fatalf("ListInterfaces: %v", err)
+	}
+	if len(got) != 4 {
+		t.Fatalf("ListInterfaces returned %d interfaces, want 4", len(got))
+	}
+
+	want := []struct {
+		name      string
+		osName    string
+		linkType  string
+		canonical string
+	}{
+		{name: "tun-gre", osName: "gre0", linkType: "gre", canonical: "tunnel"},
+		{name: "tun-ipip", osName: "ipip0", linkType: "ipip", canonical: "tunnel"},
+		{name: "vxlan10", osName: "vxlan_tunnel0", linkType: "vxlan", canonical: "tunnel"},
+		{name: "wg-wan", osName: "wg0", linkType: "wireguard", canonical: "wireguard"},
+	}
+
+	for i, w := range want {
+		if got[i].Name != w.name {
+			t.Errorf("[%d] Name = %q, want %q", i, got[i].Name, w.name)
+		}
+		if got[i].OsName != w.osName {
+			t.Errorf("[%d] OsName = %q, want %q", i, got[i].OsName, w.osName)
+		}
+		if got[i].Type != w.linkType {
+			t.Errorf("[%d] Type = %q, want %q", i, got[i].Type, w.linkType)
+		}
+		if canonical := iface.CanonicalInterfaceType(&got[i]); canonical != w.canonical {
+			t.Errorf("[%d] CanonicalInterfaceType = %q, want %q", i, canonical, w.canonical)
+		}
+	}
 }

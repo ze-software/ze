@@ -1604,6 +1604,7 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `CreateBridge` | real | real (BridgeDomainAddDelV2) | err |
 | | `CreateVLAN` | real | real (CreateVlanSubif) | err |
 | | `CreateTunnel` | real [1] | err (pending GoVPP tunnel API) | err |
+| | `GetTunnelInfo` | real (rtnetlink) | real (GRE, GRETap, IPIP, VXLAN) | err | <!-- source: internal/component/iface/backend.go -- Backend.GetTunnelInfo; internal/plugins/iface/netlink/tunnel_linux.go -- GetTunnelInfo; internal/plugins/iface/vpp/tunnel.go -- GetTunnelInfo -->
 | | `CreateWireguardDevice` | real (rtnetlink) | err (requires VPP wg plugin) | err |
 | | `ConfigureWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
 | | `GetWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |

@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md -- Tunnel interface specification
-// Related: backend.go -- Backend.CreateTunnel uses TunnelSpec
+// Related: backend.go -- Backend.CreateTunnel uses TunnelSpec; Backend.GetTunnelInfo returns TunnelInfo
 // Related: config.go -- parseTunnelEntry/parseTunnelLeaves populate TunnelSpec from YANG
 
 package iface
@@ -195,6 +195,23 @@ type TunnelSpec struct {
 	VNISet          bool
 	Port            uint16 // vxlan only; UDP destination port; 0 = default 4789
 	PortSet         bool
+}
+
+// TunnelInfo holds the live dataplane encapsulation state of a non-IPsec
+// tunnel interface read back through Backend.GetTunnelInfo. It is a pure value
+// type carrying no backend-specific types so consumers such as `show mtu` stay
+// decoupled from rtnetlink and GoVPP.
+type TunnelInfo struct {
+	Kind           TunnelKind
+	Local          netip.Addr
+	Remote         netip.Addr
+	GREKey         bool
+	GREChecksum    bool
+	GRESequence    bool
+	IPv6EncapLimit bool   // true when RFC 2473 Section 4.1.1 8-octet Destination Options header is emitted
+	OuterEncapType uint16 // non-zero when FOU/GUE UDP outer encapsulation is active
+	FlowBased      bool   // collect-metadata / flow-based tunnel with no fixed remote
+	VNI            uint32
 }
 
 // CheckRemote refuses a remote endpoint that names no single remote: an
