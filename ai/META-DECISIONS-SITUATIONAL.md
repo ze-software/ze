@@ -121,6 +121,11 @@ benchmarks and perf/alloc figures.
   Alpine or a stock distribution kernel. A problem that exists only because a
   guest runs another system is out of scope: the fix is moving that guest to
   Ze's system. Colima may manage the VM on macOS, booting Ze's image only.
+- A third-party installer environment that a Ze installer is proven against
+  (ONIE's virtual machine image) may boot as a guest in the QEMU harness,
+  pinned by checksum. It is the third party under test, as FRR and BIRD are in
+  the interop lab, not a test guest of Ze's: once Ze is installed, that guest
+  runs Ze's own kernel and system.
 - A test that needs a kernel feature runs on Ze's kernel, which carries it.
 - Ze running on a standard distribution kernel can load the kernel modules it
   needs with `modprobe`, as an optional feature of `ze` itself. `le` is
