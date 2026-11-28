@@ -22,6 +22,11 @@ import (
 	testpeer "github.com/ze-software/ze/internal/test/peer"
 )
 
+const (
+	vppMsgIPRouteAddDelV2 = "ip_route_add_del_v2"
+	vppEnvXDGDataHome     = "XDG_DATA_HOME"
+)
+
 func init() {
 	Register("vpp/vpp-boot", vppBootDriver)
 	Register("vpp/vpp-fib-route", vppRouteDriver)
@@ -314,7 +319,7 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 	var scanErr error
 	ok := Poll(ctx, 120, 100*time.Millisecond, func() bool {
 		matched, err := vppLogMatches(log, func(entry map[string]any) bool {
-			if entry["msg"] != "ip_route_add_del_v2" {
+			if entry["msg"] != vppMsgIPRouteAddDelV2 {
 				return false
 			}
 			fields, _ := entry["fields"].(map[string]any)
@@ -466,9 +471,9 @@ func vppFIBDummyDriver(ctx context.Context, args []string) error {
 	}
 	defer stopFixtureProcess(peer, 2*time.Second)
 
-	const passHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+	const bcryptTestHash = "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO" //nolint:gosec // synthetic test bcrypt cost-4 hash for valueTestPassword
 	var cfgBuf textbuf.Buffer
-	cfgBuf.Str("system {\n\tauthentication {\n\t\tuser admin {\n\t\t\tpassword \"").Str(passHash).Str("\"\n\t\t}\n\t}\n}\n")
+	cfgBuf.Str("system {\n\tauthentication {\n\t\tuser admin {\n\t\t\tpassword \"").Str(bcryptTestHash).Str("\"\n\t\t}\n\t}\n}\n")
 	cfgBuf.Str("environment {\n\tssh {\n\t\tenabled true;\n\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport ").Int(int64(sshPort)).Str(";\n\t\t}\n\t}\n}\n")
 	cfgBuf.Str("bus {\n\tendpoint bgp-rib {\n\t\tinternal bgp-rib;\n\t}\n}\n")
 	cfgBuf.Str("bgp {\n\tpeer peer1 {\n\t\tconnection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }\n")
@@ -477,16 +482,19 @@ func vppFIBDummyDriver(ctx context.Context, args []string) error {
 	cfgBuf.Str("vpp { enabled true; external true; api-socket ").Str(socket).Str("; lcp { enabled false; } }\n")
 	cfgBuf.Str("connected {}\n")
 	cfgBuf.Str("interface { backend vpp; dummy vpp-route0 { unit 0 { ipv4 { address [ 10.0.0.2/24 ]; } } } }\n")
+	// Include a NeedsDataPlane producer (`static`) so the engine would auto-load
+	// `fib-vpp` unless `fib { dummy { } }` declares ProgramsFIB and suppresses it.
+	cfgBuf.Str("static { table default { route 10.21.0.0/24 { next { hop 10.0.0.1 { } } } } }\n")
 	cfgBuf.Str("fib { dummy { } }\n")
 	cfg := cfgBuf.String()
 
 	cliEnv := miscEnvironment(map[string]string{
 		envConfigDir:      dir,
-		"XDG_DATA_HOME":   dir,
-		"ze.ssh.password": "testpass",
+		vppEnvXDGDataHome: dir,
+		"ze.ssh.password": valueTestPassword,
 	})
 	var initStdin textbuf.Buffer
-	initStdin.Str("admin\ntestpass\n127.0.0.1\n").Int(int64(sshPort)).Byte('\n')
+	initStdin.Str("admin\n" + valueTestPassword + "\n127.0.0.1\n").Int(int64(sshPort)).Byte('\n')
 	initCmd := exec.CommandContext(ctx, "ze", "init")
 	initCmd.Env = cliEnv
 	initCmd.Stdin = strings.NewReader(initStdin.String())
@@ -496,11 +504,11 @@ func vppFIBDummyDriver(ctx context.Context, args []string) error {
 
 	ze, err := startVPPZe(ctx, cfg, map[string]string{
 		envConfigDir:      dir,
-		"XDG_DATA_HOME":   dir,
+		vppEnvXDGDataHome: dir,
 		envLogVPP:         logLevelInfo,
 		envLogBGP:         logLevelInfo,
 		envTestBGPPort:    strconv.Itoa(bgpPort),
-		"ze.ssh.password": "testpass",
+		"ze.ssh.password": valueTestPassword,
 	})
 	if err != nil {
 		return err
@@ -517,7 +525,7 @@ func vppFIBDummyDriver(ctx context.Context, args []string) error {
 			return false
 		}
 		lastShow = stdout
-		return strings.Contains(stdout, prefixTenTwenty) && strings.Contains(stdout, `"programmed"`) && strings.Contains(stdout, `"no"`)
+		return strings.Contains(stdout, prefixTenTwenty) && strings.Contains(stdout, "10.21.0.0/24") && strings.Contains(stdout, `"programmed"`) && strings.Contains(stdout, `"no"`)
 	})
 	if !held {
 		return fmt.Errorf("fib-dummy did not hold %s; last show output: %s", prefixTenTwenty, lastShow)
@@ -531,7 +539,7 @@ func vppFIBDummyDriver(ctx context.Context, args []string) error {
 
 	code, pluginsOut, pluginsErr, runErr := runCaptured(ctx, cliEnv, "", "ze", "cli", "-c", "show system subsystem list | json")
 	if runErr != nil {
-		return fmt.Errorf("show system subsystem list failed (code=%d err=%v): %s", code, runErr, pluginsErr)
+		return fmt.Errorf("show system subsystem list failed (code=%d err=%w): %s", code, runErr, pluginsErr)
 	}
 	if code != 0 {
 		return fmt.Errorf("show system subsystem list failed (code=%d): %s", code, pluginsErr)
@@ -555,7 +563,7 @@ func vppFIBDummyDriver(ctx context.Context, args []string) error {
 		return errors.New("stub did not log sockclnt_create; VPP backend did not connect")
 	}
 	routeLogged, err := vppLogMatches(log, func(entry map[string]any) bool {
-		return entry["msg"] == "ip_route_add_del_v2"
+		return entry["msg"] == vppMsgIPRouteAddDelV2
 	})
 	if err != nil {
 		return err
