@@ -445,60 +445,64 @@ func routeServerReplay13(name, prefix string, seed bool) Driver {
 					return err
 				}
 			}
-			eorPeers := make(map[string]struct{})
-			forwardSeen := prefix == ""
-			idleTimeout := replayIdleTimeout13()
-			idle := time.NewTimer(idleTimeout)
-			defer idle.Stop()
-			statusTicker := time.NewTicker(250 * time.Millisecond)
-			defer statusTicker.Stop()
-			for len(eorPeers) < 2 || !forwardSeen {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-idle.C:
-					return fmt.Errorf("route server did not replay (eor peers=%d, prefix=%q seen=%v)", len(eorPeers), prefix, forwardSeen)
-				case <-statusTicker.C:
-					status := command13(ctx, plugin, "show bgp peer * detail")
-					for address, value := range peerRows13(status) {
-						row, ok := value.(map[string]any)
-						if ok && number13(row["eor-sent"]) >= 1 {
-							eorPeers[address] = struct{}{}
-						}
-					}
-				case event := <-events:
-					var root map[string]any
-					if json.Unmarshal([]byte(event), &root) != nil {
-						continue
-					}
-					bgp, _ := root["bgp"].(map[string]any)
-					message, _ := bgp["message"].(map[string]any)
-					if message["direction"] != directionSent {
-						continue
-					}
-					update, _ := bgp["update"].(map[string]any)
-					nlri, hasNLRI := update["nlri"]
-					if !hasNLRI || emptyNLRI13(nlri) {
-						peer, _ := bgp["peer"].(map[string]any)
-						remote, _ := peer["remote"].(map[string]any)
-						if address, _ := remote["address"].(string); address != "" {
-							eorPeers[address] = struct{}{}
-						}
-					} else if strings.Contains(event, prefix) {
-						forwardSeen = true
-					}
-					if !idle.Stop() {
-						select {
-						case <-idle.C:
-						default:
-						}
-					}
-					idle.Reset(idleTimeout)
-				}
-			}
-			return nil
+			return waitRouteServerReplay13(ctx, plugin, events, prefix)
 		}, true)
 	}
+}
+
+func waitRouteServerReplay13(ctx context.Context, plugin *sdk.Plugin, events <-chan string, prefix string) error {
+	eorPeers := make(map[string]struct{})
+	forwardSeen := prefix == ""
+	idleTimeout := replayIdleTimeout13()
+	idle := time.NewTimer(idleTimeout)
+	defer idle.Stop()
+	statusTicker := time.NewTicker(250 * time.Millisecond)
+	defer statusTicker.Stop()
+	for len(eorPeers) < 2 || !forwardSeen {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-idle.C:
+			return fmt.Errorf("route server did not replay (eor peers=%d, prefix=%q seen=%v)", len(eorPeers), prefix, forwardSeen)
+		case <-statusTicker.C:
+			status := command13(ctx, plugin, "show bgp peer * detail")
+			for address, value := range peerRows13(status) {
+				row, ok := value.(map[string]any)
+				if ok && number13(row["eor-sent"]) >= 1 {
+					eorPeers[address] = struct{}{}
+				}
+			}
+		case event := <-events:
+			var root map[string]any
+			if json.Unmarshal([]byte(event), &root) != nil {
+				continue
+			}
+			bgp, _ := root["bgp"].(map[string]any)
+			message, _ := bgp["message"].(map[string]any)
+			if message["direction"] != directionSent {
+				continue
+			}
+			update, _ := bgp["update"].(map[string]any)
+			nlri, hasNLRI := update["nlri"]
+			if !hasNLRI || emptyNLRI13(nlri) {
+				peer, _ := bgp["peer"].(map[string]any)
+				remote, _ := peer["remote"].(map[string]any)
+				if address, _ := remote["address"].(string); address != "" {
+					eorPeers[address] = struct{}{}
+				}
+			} else if strings.Contains(event, prefix) {
+				forwardSeen = true
+			}
+			if !idle.Stop() {
+				select {
+				case <-idle.C:
+				default:
+				}
+			}
+			idle.Reset(idleTimeout)
+		}
+	}
+	return nil
 }
 
 func rfc7606Withdraw13(ctx context.Context, args []string) error {

@@ -12,6 +12,7 @@ and system ID, runs the SDK lifecycle, and installs the PDU receive dispatcher.
 | Parsed runtime config and transaction validation | `config_tx.go` |
 | Event namespace and typed handles | `events.go` |
 | PDU dispatcher and engine circuit management | `server.go` |
+| Two-level SRv6 locator-originator snapshot publisher | `locator_origin.go` |
 | Config schema | `yang/ze-isis-conf.yang` |
 
 <!-- source: internal/plugins/isis/register.go -- the init registration and the SDK lifecycle hooks -->
@@ -298,3 +299,35 @@ only threads the registry through.
 
 <!-- source: internal/plugins/isis/register.go -- registerISISDoctor -->
 <!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->
+
+## Decision: SRv6 locator-originator snapshots cross the EventBus
+
+BGP-MUP Segment Discovery validation (`draft-ietf-bess-mup-safi` Sections 3.3.3
+and 3.3.6) must compare received MUP next hops and ISD addresses against the IGP
+originator of the SRv6 Prefix-SID locator without importing `internal/plugins/isis`
+or issuing synchronous RPCs on the BGP receive path. IS-IS therefore publishes
+its two-level SRv6 locator-to-originator map on the EventBus through
+`sdk.Plugin.EmitEvent` (`locator-origin:snapshot`) and replays the current
+snapshot on `locator-origin:snapshot-request`. Using the SDK emitter keeps
+internal (`DirectBridge`) and forked/external (`process separate`, TLS RPC)
+IS-IS instances on the exact same wire contract.
+
+Snapshot construction scans the configured IS-IS levels (`level`, L1 and/or L2)
+for TLV 27 (SRv6 Locator, RFC 9352 Section 7.1), applying RFC 9352 Section 6 and
+RFC 7794 Prefix Attribute Flags precedence (A-flag anycast marks the locator
+unresolved; R/X-flag re-advertisement resolves only through a matching IPv6
+Source Router ID sub-TLV 12; missing Prefix Attribute Flags sub-TLV 4 stays
+unresolved rather than guessing). Each resolved originator collects its own
+LSP's IPv6 addresses and local TLV 236 prefixes (excluding external, `UpDown`
+leaked, and sub-TLV 4 `R`-flagged entries) as well as IPv4 addresses and local
+prefixes (TLV 132, TLV 134, and local TLV 135 excluding `UpDown`, `R`, and `X`),
+flagging TLV 237 presence when undecoded MT IPv6 reachability prevents safe
+IPv6 mismatch proofs. On shutdown IS-IS emits an inactive snapshot (`Active: false`),
+and the BGP reactor registers a `RegisterProcessGenerationCleanup` hook so an
+abrupt forked IS-IS exit clears stale entries before any replacement incarnation
+starts.
+
+<!-- source: internal/plugins/isis/locator_origin.go -- startLocatorOrigin, stopLocatorOrigin, publishLocatorOrigin -->
+<!-- source: internal/core/locatororigin/snapshot.go -- Namespace, EventSnapshot, EventSnapshotRequest, SnapshotEvent, SnapshotRequest, Snapshot -->
+<!-- source: internal/core/locatororigin/index.go -- Index, ApplySnapshot, ClearSource, Resolve -->
+<!-- source: internal/component/bgp/reactor/register_locator_origin.go -- subscribeLocatorOrigins, requestLocatorOriginReplay, locatorOriginGenerationCleanup -->

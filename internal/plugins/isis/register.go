@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
+	"github.com/ze-software/ze/internal/core/locatororigin"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
@@ -48,7 +49,14 @@ func isisSends() []rpc.MessageSendDecl {
 		{Message: Namespace + ":" + EventLSPChange},
 		{Message: Namespace + ":" + redistevents.EventType},
 		{Message: Namespace + ":" + linkstateevents.EventType},
+		{Message: locatororigin.Namespace + ":" + locatororigin.EventSnapshot},
 		{Message: sysribevents.Namespace + ":" + sysribevents.EventRouteInstall},
+	}
+}
+
+func isisReceives() []rpc.MessageReceiveDecl {
+	return []rpc.MessageReceiveDecl{
+		{Message: locatororigin.Namespace + ":" + locatororigin.EventSnapshotRequest},
 	}
 }
 
@@ -202,6 +210,7 @@ func registerISIS() {
 		NeedsDataPlane: true,
 		RFCs:           []string{"1195", "5301", "5303", "5305", "5308", "5310"},
 		Sends:          isisSends(),
+		Receives:       isisReceives(),
 		RunEngine:      runISISEngine,
 		Commands:       commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -398,11 +407,22 @@ func runISISPlugin(p *sdk.Plugin, eng *engine) int {
 	})
 	tx.Register(p)
 
+	p.SetEnvelope(true)
+	p.OnEvent(func(jsonStr string) error {
+		eng.handleLocatorOriginEvent(jsonStr)
+		return nil
+	})
+	p.OnBye(func(_ string) error {
+		eng.stopLocatorOrigin()
+		return nil
+	})
+
 	// OnStarted: open a circuit per enabled interface via the spec-isis-3
 	// transport and launch the per-circuit workers (AC-1). A config with
 	// no NET leaves the engine idle (like LDP with no lsr-id).
 	p.OnStarted(func(_ context.Context) error {
 		eng.startBGPLS()
+		eng.startLocatorOrigin(p)
 		// Redistribution consumer + producer wiring (isis-11), done BEFORE the idle
 		// check so the `redistribute { destination isis { import ... } }` config has
 		// a consumer to dispatch to even when the engine is idle. The SINGLE config
@@ -442,12 +462,14 @@ func runISISPlugin(p *sdk.Plugin, eng *engine) int {
 		cfgMu.Unlock()
 		if !cfg.Present() {
 			log.Warn("isis: no net configured, engine idle")
+			eng.publishLocatorOrigin()
 			return nil
 		}
 		eng.setConfig(cfg)
 		if err := eng.openCircuits(); err != nil {
 			return fmt.Errorf("isis: opening circuits: %w", err)
 		}
+		eng.publishLocatorOrigin()
 		log.Info("isis: engine started",
 			"system-id", cfg.SystemID.String(),
 			"level", cfg.Level.String(),
@@ -501,6 +523,7 @@ func runISISPlugin(p *sdk.Plugin, eng *engine) int {
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
 		Sends:        isisSends(),
+		Receives:     isisReceives(),
 	})
 	if err != nil {
 		log.Error("isis engine failed", "error", err)

@@ -29,6 +29,7 @@ package reactor
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -236,8 +237,9 @@ func (s *Session) typedNLRIPlaceWithdrawals(
 // because the route is installed and relayed without them: a DSD route whose
 // Prefix-SID the RFC 8669 Section 4 EBGP rule discards arrives with no Prefix-SID,
 // and draft-ietf-bess-mup-safi Section 3.3.6 withdraws it.
-func typedNLRIUpdateAttrs(pathAttrs []byte, result *message.RFC7606ValidationResult) nlritype.UpdateAttrs {
+func typedNLRIUpdateAttrs(pathAttrs []byte, result *message.RFC7606ValidationResult, peer netip.Addr) nlritype.UpdateAttrs {
 	attrs := nlritype.NewUpdateAttrs(pathAttrs)
+	attrs.SetPeer(peer)
 	if result.Action != message.RFC7606ActionAttributeDiscard {
 		return attrs
 	}
@@ -317,6 +319,18 @@ func (s *Session) typedNLRIEdit(
 
 	addPath := addPathFor != nil && addPathFor(loc.AFI, loc.SAFI)
 	announce := code == uint8(attribute.AttrMPReachNLRI)
+	if announce {
+		if attrs != nil {
+			// RFC 4760 Section 3: AFI(2) + SAFI(1) + NextHopLen(1) + NextHop(n).
+			const mpReachNextHopOffset = 4
+			if len(value) >= mpReachNextHopOffset {
+				nhLen := int(value[3])
+				if mpReachNextHopOffset+nhLen <= len(value) {
+					attrs.SetMPReachNextHop(value[mpReachNextHopOffset : mpReachNextHopOffset+nhLen])
+				}
+			}
+		}
+	}
 	retained, err := nlritype.RetainUpdate(recognize, check, attrs, fam, value[start:], addPath, announce, s.typedNLRIKeyScratch[:])
 	kept, dropped := retained.Kept, retained.Discarded
 	if err != nil {

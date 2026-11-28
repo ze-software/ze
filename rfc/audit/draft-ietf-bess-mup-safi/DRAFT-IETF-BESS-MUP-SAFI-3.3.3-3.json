@@ -1,0 +1,19 @@
+{
+  "note": "Audited 2026-11-28 by an independent auditor (3c4d467c): Both mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw (IPv4/IPv6 MUP, ADD-PATH, and MP_UNREACH_NLRI exemption) and reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive drive absent and RFC 8669 EBGP-discarded Prefix-SID ISD updates through RetainUpdate and applyRFC7606 asserting exact MP_UNREACH_NLRI withdrawal, kept T2ST sibling, exact non-reset action (RFC7606ActionNone / RFC7606ActionAttributeDiscard), and byte-identical conforming ISD/T2ST preservation, backed end-to-end by test/plugin/mup-isd-without-prefix-sid-withdraw.ci.",
+  "requirement_sha": "5650cfc04ba79eac",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw": "882ac72efa44f38b",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw#2": "882ac72efa44f38b",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive": "80bb08cad484db59",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive#2": "80bb08cad484db59",
+    "test/plugin/mup-isd-without-prefix-sid-withdraw.ci": "612a7858fa2c8646"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw": "0f7e012a2d2b7b04",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw#2": "0f7e012a2d2b7b04",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive": "88f28fa5b17c1294",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive#2": "88f28fa5b17c1294",
+    "test/plugin/mup-isd-without-prefix-sid-withdraw.ci": "612a7858fa2c8646"
+  },
+  "verdict": "enforced"
+}

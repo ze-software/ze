@@ -864,6 +864,9 @@ func (r *Reactor) StartPeers() error {
 	// are protected from the first packet rather than from the first reload
 	// (gtsm.go).
 	r.publishGTSMKernelState()
+	// Ask any already-running internal or forked IGP source to replay its SRv6
+	// locator-originator snapshot before peers open (register_locator_origin.go).
+	r.requestLocatorOriginReplay()
 
 	// Lift the barrier and take the start set in one critical section: a peer
 	// AddPeer or a dynamic-group accept adds after this is started by that
@@ -1431,6 +1434,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	r.startAddressWatch()
 	r.subscribeDaemonSignals()
 	r.subscribeValidationGate()
+	r.subscribeLocatorOrigins()
 	// The neighbor table watch needs no event bus and no interface config:
 	// RFC 2545 Section 3's third-party Link-Local must follow the table in a
 	// BGP-only config, where no interface monitor runs.
@@ -1556,6 +1560,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// and refuses a second call, so the two sites cannot both arm one
 		// reactor (update_delay.go).
 		r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(peersToStart))
+		r.requestLocatorOriginReplay()
 
 		// Start all peers (passive peers wait for incoming connections). The
 		// start set is taken again as the barrier lifts: a dynamic member

@@ -8,8 +8,8 @@
     "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "7735bbf54b4c85d4",
     "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#3": "7735bbf54b4c85d4",
     "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go::TestMUPT1ST02TreatAsWithdraw": "c6a94527a0b0b859",
-    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "df57f3366b5bc5e8",
-    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "df57f3366b5bc5e8"
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw": "d4934286c19f683e",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2": "d4934286c19f683e"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go::TestMUPT1STFixedOctetsWithinLength": "f767978ea05479ee",

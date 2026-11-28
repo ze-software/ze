@@ -1,0 +1,15 @@
+{
+  "note": "Audited 2026-11-28 by an independent auditor (3c4d467c): TestMUPDSDNextHopLocatorMismatch asserts exact kept NLRIs with zero doctor-bgp-mup-locator-mismatch and zero doctor-bgp-mup-locator-unresolved warnings across TLV 140, TLV 232, host /128 TLV 236, 32-octet global-half, and covering IPv6 SourceRouterIDs matches (and exact DSD withdrawal on 16-, 32-link-local-only, and 4-octet mismatches for IPv4/IPv6 MUP + ADD-PATH), and test/plugin/mup-dsd-nexthop-locator-mismatch-withdraw.ci proves end-to-end wire MP_REACH_NLRI next-hop extraction under both internal and forked IS-IS.",
+  "requirement_sha": "7fdec81edaec3cd3",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch": "882ac72efa44f38b",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch#2": "882ac72efa44f38b",
+    "test/plugin/mup-dsd-nexthop-locator-mismatch-withdraw.ci": "1f3c368ce225e3d2"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch": "aa647cb8259dae50",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch#2": "aa647cb8259dae50",
+    "test/plugin/mup-dsd-nexthop-locator-mismatch-withdraw.ci": "1f3c368ce225e3d2"
+  },
+  "verdict": "enforced"
+}

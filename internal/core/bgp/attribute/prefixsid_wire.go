@@ -127,7 +127,72 @@ func PrefixSIDTLVSingleOccurrence(afi AFI, safi SAFI, tlvType uint8) bool {
 	return false
 }
 
-var errEmptyPrefixSIDAttribute = errors.New("prefix-sid: attribute carries no TLV")
+var (
+	errEmptyPrefixSIDAttribute = errors.New("prefix-sid: attribute carries no TLV")
+	errSRv6SIDFound            = errors.New("prefix-sid: first SRv6 service SID found")
+)
+
+// FirstSRv6ServiceSID returns the 16-octet SRv6 SID from the first SRv6 L3
+// (type 5) or SRv6 L2 (type 6) Service TLV carrying an SRv6 SID Information
+// Sub-TLV (type 1) inside raw Prefix-SID attribute value bytes. Zero-copy: it
+// walks data via forEachPrefixSIDTLV without allocating. Returns not-found on
+// empty, non-SRv6, or truncated TLVs.
+//
+// RFC 9252 Section 2: "The SRv6 L3 Service TLV is used for BGP-based L3
+// services" and "The SRv6 L2 Service TLV is used for BGP-based L2 services."
+// RFC 9252 Section 3.1: "SRv6 SID Value (16 octets): This field encodes an
+// SRv6 SID".
+// RFC 9252 Section 7: "If multiple instances of the SRv6 L3 Service TLV are
+// encountered, all but the first instance MUST be ignored." and "If multiple
+// instances of the SRv6 L2 Service TLV are encountered, all but the first
+// instance MUST be ignored."
+func FirstSRv6ServiceSID(data []byte) (netip.Addr, bool) {
+	if len(data) == 0 {
+		return netip.Addr{}, false
+	}
+	var (
+		sid    netip.Addr
+		found  bool
+		seenL3 bool
+		seenL2 bool
+	)
+	err := forEachPrefixSIDTLV("TLV", data, func(tlvType uint8, value []byte) error {
+		switch tlvType {
+		case PrefixSIDTLVSRv6L3Service:
+			if seenL3 {
+				return nil
+			}
+			seenL3 = true
+		case PrefixSIDTLVSRv6L2Service:
+			if seenL2 {
+				return nil
+			}
+			seenL2 = true
+		default:
+			return nil
+		}
+		if len(value) < srv6ServiceReservedLen {
+			return errEmptyPrefixSIDAttribute
+		}
+		return forEachPrefixSIDTLV("SRv6 sub-TLV", value[srv6ServiceReservedLen:], func(subType uint8, subValue []byte) error {
+			if subType != srv6SubTLVSIDInformation {
+				return nil
+			}
+			if len(subValue) < srv6SIDInfoLen {
+				return errEmptyPrefixSIDAttribute
+			}
+			sid = netip.AddrFrom16([16]byte(subValue[srv6SIDValueOffset:srv6SIDFlagsOffset]))
+			found = true
+			return errSRv6SIDFound
+		})
+	})
+	if err != nil {
+		if !errors.Is(err, errSRv6SIDFound) {
+			return netip.Addr{}, false
+		}
+	}
+	return sid, found
+}
 
 // PrefixSID is the BGP Prefix-SID attribute (RFC 8669, code 40).
 //
@@ -332,6 +397,7 @@ func appendPrefixSIDJSON(buf []byte, attr Attribute) []byte {
 			return appendSRv6ServiceJSON(&buf, `"l3-service":[`, value)
 		case PrefixSIDTLVSRv6L2Service:
 			return appendSRv6ServiceJSON(&buf, `"l2-service":[`, value)
+		// refuse-by-default: guards appendPrefixSIDUnknownTLVJSON -- unknown Prefix-SID TLVs are rendered verbatim as attribute-not-implemented-<N> hex rather than dropped (RFC 8669 Section 3)
 		default:
 			buf = appendPrefixSIDUnknownTLVJSON(buf, tlvType, value)
 			return nil

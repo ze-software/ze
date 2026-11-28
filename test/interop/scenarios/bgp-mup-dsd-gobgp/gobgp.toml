@@ -1,0 +1,19 @@
+# draft-ietf-bess-mup-safi Section 3.3.6 against GoBGP v4.11.0.
+# GoBGP originates an ipv4-mup Direct Segment Discovery route carrying an SRv6
+# Prefix-SID over eBGP, and Ze retains it unverified (with no IGP locator route)
+# while warning with doctor-bgp-mup-locator-unresolved.
+[global.config]
+  as = 65002
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-mup"

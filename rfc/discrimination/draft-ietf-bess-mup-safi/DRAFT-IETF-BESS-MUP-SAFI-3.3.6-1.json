@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch",
+    "unit-sha": "5028a888f4e4230d",
+    "claim-sha": "0805b84c5926dabf",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::checkDSDOriginator",
+    "producer-sha": "1817e2bb95b9f403",
+    "break": "body of checkDSDOriginator replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch",
+    "unit-sha": "5028a888f4e4230d",
+    "claim-sha": "c4ec7f95ae658d13",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::checkDSDOriginator",
+    "producer-sha": "1817e2bb95b9f403",
+    "break": "body of checkDSDOriginator replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

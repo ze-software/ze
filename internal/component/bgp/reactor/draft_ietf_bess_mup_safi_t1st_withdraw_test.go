@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -232,8 +233,12 @@ func TestMUPUnkeyableMalformedT1STDiscardedNotRelayed(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := nlriTypeTestSession()
+			s.settings.AcceptSRv6PrefixSID = true
+			prefixSID, err := hex.DecodeString(dsdPrefixSIDHex)
+			require.NoError(t, err)
 			nlri := append(append([]byte{}, tc.l...), tc.k...)
-			wu, action, validation := applyRFC7606Body(t, s, makeUpdateBody(nil, mpReachAttrs(tc.fam, nlri), nil))
+			attrs := append(mpReachAttrs(tc.fam, nlri), prefixSID...)
+			wu, action, validation := applyRFC7606Body(t, s, makeUpdateBody(nil, attrs, nil))
 			assert.Equal(t, message.RFC7606ActionNone, action)
 			kept, found := mpReachNLRIOf(t, wu.Payload())
 			require.True(t, found)

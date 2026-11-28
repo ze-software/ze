@@ -31,6 +31,7 @@ import (
 	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/locatororigin"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -89,6 +90,7 @@ func bgpBusSends() []rpc.MessageSendDecl {
 		{Message: bgpevents.Namespace + ":" + bgpevents.EventConnected},
 		{Message: bgpevents.Namespace + ":" + bgpevents.EventFSM},
 		{Message: bgpevents.Namespace + ":" + bgpevents.EventSignal},
+		{Message: locatororigin.Namespace + ":" + locatororigin.EventSnapshotRequest},
 	}
 }
 
@@ -97,6 +99,7 @@ func bgpBusReceives() []rpc.MessageReceiveDecl {
 		{Message: bgpevents.Namespace + ":" + bgpevents.SendUpdate},
 		{Message: bgpevents.Namespace + ":" + bgpevents.SendRefresh},
 		{Message: bgpevents.Namespace + ":" + bgpevents.SendRaw},
+		{Message: locatororigin.Namespace + ":" + locatororigin.EventSnapshot},
 	}
 }
 

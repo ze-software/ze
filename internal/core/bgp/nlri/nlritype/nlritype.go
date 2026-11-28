@@ -232,12 +232,21 @@ func RetainUpdate(
 		key = nlrisplit.GetPrefixKey(fam)
 	}
 
-	// One pass to count, so the common "nothing removed" answer costs no
-	// allocation and the rewrite below is sized exactly.
+	// One pass to count and record each NLRI's verdict, so the common
+	// "nothing removed" answer costs no allocation (up to 32 NLRIs on stack),
+	// the rewrite below is sized exactly, and judge/check runs strictly once
+	// per NLRI (preventing TOCTOU divergence and duplicate side effects).
 	var out Retained
 	keepBytes := 0
+	var verdictStack [32]Verdict
+	verdicts := verdictStack[:0]
+	if len(nlris) > len(verdictStack) {
+		verdicts = make([]Verdict, 0, len(nlris))
+	}
 	for _, one := range nlris {
-		switch judge(r, key, one, addPath, scratch) {
+		v := judge(r, key, one, addPath, scratch)
+		verdicts = append(verdicts, v)
+		switch v {
 		case Keep:
 			keepBytes += len(one)
 		case Withdraw:
@@ -256,8 +265,8 @@ func RetainUpdate(
 	if keepBytes > 0 {
 		out.Kept = make([]byte, 0, keepBytes)
 	}
-	for _, one := range nlris {
-		switch judge(r, key, one, addPath, scratch) {
+	for i, one := range nlris {
+		switch verdicts[i] {
 		case Keep:
 			out.Kept = append(out.Kept, one...)
 		case Withdraw:

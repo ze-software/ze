@@ -1,0 +1,251 @@
+# mup-dsd-nexthop-locator-mismatch-withdraw -- draft-ietf-bess-mup-safi Section 3.3.6
+# proven locator-originator next-hop mismatch -> treat-as-withdraw, verified with both
+# internal IS-IS and forked (process separate) IS-IS plus an external TLS-RPC
+# locator-origin:snapshot publisher.
+#
+# RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1 positive -- a DSD route whose wire MP_REACH_NLRI next hop matches the proven Prefix-SID locator originator is kept and relayed, while one whose wire MP_REACH_NLRI next hop mismatches is rejected.
+# RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4 positive -- a DSD route whose MP_REACH_NLRI next hop does not belong to the proven Prefix-SID locator originator is treated as withdrawn (MP_UNREACH_NLRI sent to peers and removed from Adj-RIB-In) while its sibling T2ST route is kept and relayed, with both internal and forked IS-IS.
+#
+# An external plugin publishes a known SRv6 locator-originator snapshot over TLS RPC
+# (`locator-origin:snapshot`, 2001:db8::/48 -> originator 0100.0000.0001, address
+# 2001:db8:140::1) and writes a readiness marker for option=await-file.
+#
+# 1. seq=1 announces DSD route D4 with Prefix-SID 2001:db8::1 and MATCHING IPv6 next
+#    hop 2001:db8:140::1 -> kept and relayed to receiver-peer.
+# 2. seq=2 announces D4 + sibling T2ST route T4 with Prefix-SID 2001:db8::1 and
+#    MISMATCHING IPv6 next hop 2001:db8:999::9 -> D4 is treated as withdrawn
+#    (MP_UNREACH_NLRI sent to receiver-peer, removed from Adj-RIB-In, Warn + error
+#    raised under doctor-bgp-mup-locator-mismatch) while T4 is kept and relayed.
+# 3. Run 1 runs IS-IS in-daemon; Run 2 runs IS-IS forked (`process separate`), proving
+#    process-boundary parity across DirectBridge and TLS connect-back.
+
+option=timeout:value=60s
+
+stdin=peer-int:terminator=EOF_PEER_INT
+option=tcp_connections:value=2
+option=timeout:value=25s
+option=bind:value=0.0.0.0
+option=linger:value=true
+option=conn_map:value=remote-ip
+option=await-file:path=peers1.ready
+
+# seq=1: DSD D4 with matching next hop 2001:db8:140::1 and Prefix-SID 2001:db8::1.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006B02000000544001010040020602010000FDE9800E250001551020010DB8014000000000000000000001000100020C0000FDE900000001C0000201C0281C050019000100150020010DB800000000000000000000000100001300
+# seq=2: DSD D4 + T2ST T4 with mismatching next hop 2001:db8:999::9 and Prefix-SID 2001:db8::1.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008002000000694001010040020602010000FDE9800E3A0001551020010DB8099900000000000000000009000100020C0000FDE900000001C0000201010004110000FDE90000000140C000020100000001C0281C050019000100150020010DB800000000000000000000000100001300
+# seq=3: IPv4 unicast fence 10.0.0.0/24.
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+
+expect=bgp:conn=2:seq=1:contains=0100020C0000FDE900000001C0000201
+expect=bgp:conn=2:seq=2:contains=0001550100020C0000FDE900000001C0000201
+expect=bgp:conn=2:seq=2:contains=010004110000FDE90000000140C000020100000001
+expect=bgp:conn=2:seq=3:announced=180A0000
+reject=bgp:conn=2:pattern=0100020C0000FDE900000001C0000201010004110000FDE90000000140C000020100000001
+
+EOF_PEER_INT
+
+stdin=peer-fork:terminator=EOF_PEER_FORK
+option=tcp_connections:value=2
+option=timeout:value=25s
+option=bind:value=0.0.0.0
+option=linger:value=true
+option=conn_map:value=remote-ip
+option=await-file:path=peers2.ready
+
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF006B02000000544001010040020602010000FDE9800E250001551020010DB8014000000000000000000001000100020C0000FDE900000001C0000201C0281C050019000100150020010DB800000000000000000000000100001300
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008002000000694001010040020602010000FDE9800E3A0001551020010DB8099900000000000000000009000100020C0000FDE900000001C0000201010004110000FDE90000000140C000020100000001C0281C050019000100150020010DB800000000000000000000000100001300
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+
+expect=bgp:conn=2:seq=1:contains=0100020C0000FDE900000001C0000201
+expect=bgp:conn=2:seq=2:contains=0001550100020C0000FDE900000001C0000201
+expect=bgp:conn=2:seq=2:contains=010004110000FDE90000000140C000020100000001
+expect=bgp:conn=2:seq=3:announced=180A0000
+reject=bgp:conn=2:pattern=0100020C0000FDE900000001C0000201010004110000FDE90000000140C000020100000001
+
+EOF_PEER_FORK
+
+stdin=ze-int:terminator=EOF_ZE_INT
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive { allow none; }
+		send { allow none; }
+	}
+	endpoint rs {
+		internal bgp-rs;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update { to none; }
+		}
+	}
+	endpoint locator-publisher {
+		external {
+			run "le test fixture plugin/mup-locator-origin-publisher locator1.ready";
+		}
+		encoding json;
+	}
+	endpoint mup-sd-observer {
+		external {
+			run "le test fixture plugin/mup-segment-discovery-observer --wait-file=locator1.ready --ready-file=peers1.ready --keep=010004110000fde90000000140c000020100000001 --absent=0100020c0000fde900000001c0000201 --expect-error=doctor-bgp-mup-locator-mismatch";
+		}
+		encoding json;
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	interfaces {
+		interface lo {
+			passive true
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.1; accept false }
+		}
+		session {
+			rs-client true;
+			asn { local 65000; remote 65001 }
+			router-id 1.2.3.4
+			accept-srv6-prefix-sid true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/mup { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+	peer receiver-peer {
+		connection {
+			remote { ip 127.0.0.2 }
+			local { ip 127.0.0.2; accept false }
+		}
+		session {
+			rs-client true;
+			asn { local 65000; remote 65002 }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/mup { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+}
+EOF_ZE_INT
+
+stdin=ze-fork:terminator=EOF_ZE_FORK
+bus {
+	endpoint bgp-rib {
+		internal bgp-rib;
+		receive { allow none; }
+		send { allow none; }
+	}
+	endpoint rs {
+		internal bgp-rs;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update { to none; }
+		}
+	}
+	endpoint isis {
+		internal isis;
+		process separate;
+	}
+	endpoint locator-publisher {
+		external {
+			run "le test fixture plugin/mup-locator-origin-publisher locator2.ready";
+		}
+		encoding json;
+	}
+	endpoint mup-sd-observer {
+		external {
+			run "le test fixture plugin/mup-segment-discovery-observer --wait-file=locator2.ready --ready-file=peers2.ready --keep=010004110000fde90000000140c000020100000001 --absent=0100020c0000fde900000001c0000201 --expect-error=doctor-bgp-mup-locator-mismatch";
+		}
+		encoding json;
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	interfaces {
+		interface lo {
+			passive true
+		}
+	}
+}
+bgp {
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer source-peer {
+		connection {
+			remote { ip 127.0.0.1; port $PORT2 }
+			local { ip 127.0.0.1; accept false }
+		}
+		session {
+			rs-client true;
+			asn { local 65000; remote 65001 }
+			router-id 1.2.3.4
+			accept-srv6-prefix-sid true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/mup { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+	peer receiver-peer {
+		connection {
+			remote { ip 127.0.0.2; port $PORT2 }
+			local { ip 127.0.0.2; accept false }
+		}
+		session {
+			rs-client true;
+			asn { local 65000; remote 65002 }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/mup { prefix { maximum 10000; } }
+			}
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+}
+EOF_ZE_FORK
+
+# Run 1: internal IS-IS + external TLS-RPC locator-origin publisher.
+cmd=background:seq=1:name=peer1:exec=le test peer --port $PORT:stdin=peer-int
+cmd=foreground:seq=2:exec=ze -:stdin=ze-int:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=doctor-bgp-mup-locator-mismatch
+reject=stderr:pattern=doctor-internal-defect
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:timeout=25s
+cmd=stop:seq=4:name=peer1
+
+# Run 2: forked IS-IS (process separate) + external TLS-RPC locator-origin publisher.
+cmd=background:seq=5:name=peer2:exec=le test peer --port $PORT2:stdin=peer-fork
+cmd=foreground:seq=6:exec=env ze_test_bgp_port=$PORT2 ze -:stdin=ze-fork:timeout=25s
+expect=exit:code=0
+expect=stderr:contains=doctor-bgp-mup-locator-mismatch
+reject=stderr:pattern=doctor-internal-defect
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

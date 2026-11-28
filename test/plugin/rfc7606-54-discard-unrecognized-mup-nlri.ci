@@ -37,10 +37,12 @@ option=conn_map:value=remote-ip
 #     NLRI 2: 01 0005 04 CAFEBABE       arch 1, route type 5        -- no such route type
 #     NLRI 3: 01 0004 11, RD 65001:1, endpoint length 64, 198.51.100.1,
 #             TEID 01020304, no TLVs (Sections 3.1.4 and 3.1.4.1).
-# The recognized bodies are complete routes, not just well-framed envelopes.
+# The recognized bodies are complete routes, not just well-framed envelopes; a valid
+# Prefix-SID attribute (type 40) is included because draft-ietf-bess-mup-safi Section 3.3.3
+# requires ISD routes to carry one.
 # The unrecognized route sits BETWEEN two implemented ones on purpose: a fix that gave up on
 # the first unfamiliar type would take the third with it, and the assertion below would fail.
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005D02000000464001010040020602010000FDE9800E360001550401010101000100010C0000FDE90000000118C0000201000504CAFEBABE010004110000FDE90000000140C633640101020304
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007C02000000654001010040020602010000FDE9800E360001550401010101000100010C0000FDE90000000118C0000201000504CAFEBABE010004110000FDE90000000140C633640101020304C0281C050019000100150020010DB800000000000000000000000100001300
 
 # An ordinary IPv4 route follows the MUP UPDATE on the same source connection.
 # The receiver must observe that fence too; a sent-event observer alone cannot
@@ -98,6 +100,7 @@ bgp {
 				remote 65001
 			}
 			router-id 1.2.3.4
+			accept-srv6-prefix-sid true
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 				ipv4/mup { prefix { maximum 10000; } }

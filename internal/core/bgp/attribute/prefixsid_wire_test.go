@@ -2,6 +2,7 @@ package attribute
 
 import (
 	"encoding/hex"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -295,6 +296,49 @@ func TestPrefixSIDTLVSingleOccurrenceByFamily(t *testing.T) {
 			assert.True(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, PrefixSIDTLVSRv6L2Service), "SRv6 L2 Service")
 			assert.False(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, prefixSIDTLVOriginatorSRGB), "Originator SRGB")
 			assert.False(t, PrefixSIDTLVSingleOccurrence(f.afi, f.safi, 9), "unknown type 9")
+		})
+	}
+}
+
+// TestPrefixSIDFirstSRv6SID verifies zero-copy extraction of the first SRv6 L3
+// or L2 Service TLV's 16-octet SID from raw Prefix-SID attribute value bytes.
+//
+// VALIDATES: L3 and L2 Service TLVs yield their first 16-octet SRv6 SID, non-SRv6
+// TLVs before an SRv6 Service TLV are skipped, duplicate SRv6 Service TLVs are
+// ignored per RFC 9252 Section 7, and empty/non-SRv6/truncated TLVs return
+// not-found without panicking.
+// PREVENTS: MUP receive validation copying Prefix-SID bytes, reading an ignored
+// duplicate TLV, or panicking on malformed peer TLV framing.
+func TestPrefixSIDFirstSRv6SID(t *testing.T) {
+	t.Parallel()
+
+	l3SID := "05001900" + "01001500" + "20010db8000000000000000000000001" + "00001300"
+	l2SID := "06001900" + "01001500" + "20010db8000000000000000000000002" + "00000500"
+	labelIndex := "01000700000000000309"
+	emptyL3 := "05000100"
+
+	cases := []struct {
+		name   string
+		hexVal string
+		want   netip.Addr
+		ok     bool
+	}{
+		{"SRv6 L3 Service TLV", l3SID, netip.MustParseAddr("2001:db8::1"), true},
+		{"SRv6 L2 Service TLV", l2SID, netip.MustParseAddr("2001:db8::2"), true},
+		{"Label-Index followed by SRv6 L3 Service TLV", labelIndex + l3SID, netip.MustParseAddr("2001:db8::1"), true},
+		{"duplicate L3 after empty first L3 ignored per RFC 9252", emptyL3 + l3SID, netip.Addr{}, false},
+		{"empty attribute value", "", netip.Addr{}, false},
+		{"non-SRv6 Label-Index TLV only", labelIndex, netip.Addr{}, false},
+		{"truncated top-level TLV header", "0500", netip.Addr{}, false},
+		{"truncated SRv6 service TLV missing reserved octet", "050000", netip.Addr{}, false},
+		{"truncated SID Information sub-TLV", "05000800" + "0100040020010d", netip.Addr{}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := FirstSRv6ServiceSID(mustHex(t, tc.hexVal))
+			assert.Equal(t, tc.ok, ok)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

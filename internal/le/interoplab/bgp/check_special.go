@@ -67,6 +67,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	scenarioVPNFRR:                             checkVPNFRR,
 	"bgp-rfc7606-relay-shape-frr":              checkRFC7606MixedUpdate,
 	"bgp-rfc7606-typed-nlri-discard":           checkRFC7606TypedNLRIDiscard,
+	mupDSDGoBGPScenario:                        checkMUPDSDGoBGP,
 	"bgp-rfc7999-blackhole-frr":                checkRFC7999Blackhole,
 	"bgp-role-otc-withdraw-frr":                checkOTCWithdrawal,
 	// The same FRR assertions with bgp-role forked: only ze.conf's plugin block

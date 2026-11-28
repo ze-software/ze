@@ -13,6 +13,8 @@ import (
 )
 
 func init() {
+	registerMUPDiagnosticCodes()
+
 	// RFC 7606 Section 5.4: BGP-MUP is a typed address family and
 	// draft-ietf-bess-mup-safi states no deviation, so a route whose architecture and
 	// route type ze does not implement must be discarded. draft-ietf-bess-mup-safi
@@ -24,10 +26,11 @@ func init() {
 		if err := nlritype.RegisterBodyRecognizer(fam, recognizerFor(fam.AFI)); err != nil {
 			panic("BUG: mup: RFC 7606 Section 5.4 recognizer registration failed: " + err.Error())
 		}
-		// draft-ietf-bess-mup-safi Section 3.3.6: a DSD route announced with no
-		// Prefix-SID attribute is treated as withdrawn (CheckDSDPrefixSID).
-		if err := nlritype.RegisterUpdateCheck(fam, CheckDSDPrefixSID); err != nil {
-			panic("BUG: mup: draft-ietf-bess-mup-safi Section 3.3.6 check registration failed: " + err.Error())
+		// draft-ietf-bess-mup-safi Sections 3.3.3 and 3.3.6: ISD and DSD routes
+		// without a Prefix-SID attribute, or whose Address/next hop mismatches
+		// the known locator originator, are treated as withdrawn.
+		if err := nlritype.RegisterUpdateCheck(fam, updateCheckFor(fam.AFI)); err != nil {
+			panic("BUG: mup: draft-ietf-bess-mup-safi segment discovery check registration failed: " + err.Error())
 		}
 	}
 

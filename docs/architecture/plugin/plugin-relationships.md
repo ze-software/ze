@@ -41,12 +41,14 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | `bgp/update` | UPDATE sent or received |
 | `bgp/congestion` | Forward path congestion state change |
 | `bgp/listener/ready` | Listener bound to address |
+| `locator-origin/snapshot-request` | Requests active IGP locator-originator sources to replay their current SRv6 locator snapshot on startup |
 
 **Bus subscribes:**
 
 | Prefix | Reacts to |
 |--------|-----------|
 | `interface/` | `addr/added` (start listener), `addr/removed` (stop listener) |
+| `locator-origin/snapshot` | Updates the read-locked in-daemon SRv6 locator-originator index consulted by BGP-MUP receive checks |
 
 ---
 
@@ -433,6 +435,10 @@ mpls-fib/
   replay-request           fib-kernel, fib-vpp, fib-dummy -> ldp, rsvp-te, ospf, bgp-epe
   writer-stopped           plugin server -> fib-kernel, fib-vpp
 
+locator-origin/
+  snapshot                 isis -> bgp (in-daemon SRv6 locator-originator index)
+  snapshot-request         bgp -> isis (startup replay request)
+
 fib/
   external-change          fib-kernel -> (monitoring)
 
@@ -465,10 +471,15 @@ startup dependencies in the `Dependencies` field.
 | fib-dummy | `system-rib/best-change` | rib | Holds selected routes in memory and programs none |
 | fib-dummy | `mpls-fib/entry` | ldp, rsvp-te, ospf, bgp-epe | Refuses every addressed label batch so label protocols never advertise unforwarded labels |
 | bgp-rr, bgp-rs | `bgp-gr/retention` | bgp-gr | Records retained families only for an owned state lifetime opened by UP; every DOWN consumes its verdict and closes admission. Global verdicts for unrelated or already-down peers create no record. gr emits before answering DOWN and receives state events before rr/rs (reverse dependency order), so FIFO delivery puts the verdict ahead of its owning DOWN on both transports |
+| BGP reactor | `locator-origin/snapshot` | isis | Replaces that source's SRv6 locator-to-originator entries in `internal/core/locatororigin` (zero RPC on the BGP receive hot path); `RegisterProcessGenerationCleanup` clears entries if a forked source exits abruptly |
+| isis | `locator-origin/snapshot-request` | bgp | Replays the current two-level IS-IS SRv6 locator-originator snapshot over `sdk.Plugin.EmitEvent` (identical across DirectBridge and TLS RPC) |
 
 <!-- source: internal/component/bgp/retention/retention.go -- Namespace, EventType, Ledger -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- emitRetention -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- AddStartupSubscriptionsIn -->
+<!-- source: internal/core/locatororigin/snapshot.go -- SnapshotEvent, SnapshotRequest -->
+<!-- source: internal/plugins/isis/locator_origin.go -- startLocatorOrigin, publishLocatorOrigin -->
+<!-- source: internal/component/bgp/reactor/register_locator_origin.go -- subscribeLocatorOrigins, requestLocatorOriginReplay, locatorOriginGenerationCleanup -->
 
 ---
 

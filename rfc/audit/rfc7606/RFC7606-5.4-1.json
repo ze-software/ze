@@ -1,8 +1,8 @@
 {
-  "note": "Re-judged 2026-11-14 by an independent auditor who authored none of the change. RFC 7606 Section 5.4: \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" The only edit to the tagged unit checkRFC7606TypedNLRIDiscard since the last judgement is 96ead494aa, which rewrites the comment above assertion 2; the code is unchanged and still calls requireSpeakerEVPNDiscard on the speaker's report. In the same commit requireSpeakerEVPNDiscard (check_rfc_predicate.go) gained a final requireTypedEVPNWire check after its oracle, Established, route-bearing UPDATE, decoded EVPN NLRI and PASS checks, so the carrier now also requires the wire capture to hold exactly the fixture's assigned type-2 NLRI and no other EVPN announcement or withdrawal: stronger, not weaker. Every other tagged Go unit and .ci file is byte-identical to the last judgement. Verdict unchanged: enforced. This is a source rejudgment; no runtime or producer-break result is claimed.",
+  "note": "Re-judged 2026-11-28 by an independent auditor (3c4d467c): After adding a valid Prefix-SID attribute and accept-srv6-prefix-sid true so the flanking ISD route satisfies Section 3.3.3, test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci has exact wire framing (124B UPDATE, 101B attrs, 54B MP_REACH_NLRI carrying ISD + unknown RT 5 + T2ST, 28B Prefix-SID) and still proves ISD and T2ST arrive adjacent while RT 5 never reaches the peer in any framing and the session survives; TestRecognizeNLRIRejectsUnimplementedTypes and all other tagged EVPN/MVPN/BGP-LS units remain unchanged.",
   "requirement_sha": "9f4d0f6f62749d2a",
   "tests": {
-    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "a20a0f7a7ea7dd16",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "882ac72efa44f38b",
     "internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "a372fdc4a42df1c1",
     "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "4839b4c5f38ba71f",
     "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "4839b4c5f38ba71f",
@@ -14,9 +14,9 @@
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "470773810c685ca2",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "470773810c685ca2",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "7aa0ef34755a56dc",
-    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "5e4675419a58a505",
-    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "ed1705a77ef4b70d",
-    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "dc7bf87ff6f0f097"
+    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "e6ca0060490a95d4",
+    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "a8ed5c217c2c9672",
+    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "098ac67024d1a865"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "2d10edf2bd416f64",
@@ -31,9 +31,9 @@
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "23850caca330dc1a",
     "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d3d62cdd889ef0c3",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "5a7803b2d085d18c",
-    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "5e4675419a58a505",
-    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "ed1705a77ef4b70d",
-    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "dc7bf87ff6f0f097"
+    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "e6ca0060490a95d4",
+    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "a8ed5c217c2c9672",
+    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "098ac67024d1a865"
   },
   "verdict": "enforced"
 }

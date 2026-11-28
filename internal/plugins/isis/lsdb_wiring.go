@@ -778,6 +778,7 @@ func (e *engine) emitLSPChange(level, lspID string, sequence uint32, action stri
 // counted, and its first one logged, by noteLSPChangeRefused (events.go).
 func (e *engine) publishLSPChange(level, lspID string, sequence uint32, action string) {
 	e.publishBGPLS()
+	e.publishLocatorOrigin()
 	bus := getEventBus()
 	if bus == nil {
 		return

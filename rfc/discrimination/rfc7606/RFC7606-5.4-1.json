@@ -3,7 +3,7 @@
     "rid": "RFC7606-5.4-1",
     "polarity": "positive",
     "unit": "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci",
-    "unit-sha": "d11ef20d90d832b8",
+    "unit-sha": "edae30619337505a",
     "claim-sha": "0cec02bf7889b63c",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",

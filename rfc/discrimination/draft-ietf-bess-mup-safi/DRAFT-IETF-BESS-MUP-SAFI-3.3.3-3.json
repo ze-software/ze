@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw",
+    "unit-sha": "084cfb5b353ebdbd",
+    "claim-sha": "0e4fd21389747cee",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::checkSegmentDiscovery",
+    "producer-sha": "4b515a8949f1325b",
+    "break": "body of checkSegmentDiscovery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDWithoutPrefixSIDTreatAsWithdraw",
+    "unit-sha": "084cfb5b353ebdbd",
+    "claim-sha": "ee975630fa180d5c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::checkSegmentDiscovery",
+    "producer-sha": "4b515a8949f1325b",
+    "break": "body of checkSegmentDiscovery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive",
+    "unit-sha": "8472379271c601c3",
+    "claim-sha": "d4fcea5ebe8dc227",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::checkSegmentDiscovery",
+    "producer-sha": "4b515a8949f1325b",
+    "break": "body of checkSegmentDiscovery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPISDWithoutPrefixSIDOnReceive",
+    "unit-sha": "8472379271c601c3",
+    "claim-sha": "4be7c7b2255deddf",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::checkSegmentDiscovery",
+    "producer-sha": "4b515a8949f1325b",
+    "break": "body of checkSegmentDiscovery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

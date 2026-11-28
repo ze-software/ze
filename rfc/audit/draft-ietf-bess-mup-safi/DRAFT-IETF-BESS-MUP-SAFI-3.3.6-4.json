@@ -1,9 +1,17 @@
 {
-  "code": {
-    "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "2e774acc4f219e3f",
-    "internal/component/bgp/plugins/nlri/mup/rfc7606.go::recognizerFor": "4f1047ee816a9ce4"
-  },
-  "note": "Re-judged 2026-10-14 (independent auditor) after the receive recognizer changed. recognizerFor (mup/rfc7606.go) now runs RecognizeNLRI then ValidateNLRI, which checks the NLRI body alone: Retain hands it one NLRI and no path attributes, and no code in internal/component/bgp reads a Prefix-SID SRv6 locator or compares it with a DSD MP_REACH next hop, so a DSD route whose next hop and locator differ is still stored rather than treated as withdrawn. The {gap} annotation's phrase \"reads the architecture and route type alone\" is now out of date (the body is also validated), but its conclusion holds.",
+  "note": "Re-judged 2026-11-28 by an independent auditor (3c4d467c): Replaces unimplemented; TestMUPDSDNextHopLocatorMismatch proves IPv4/IPv6 MUP + ADD-PATH DSD mismatch withdrawal (keeping sibling T2ST) and conforming DSD preservation with zero warnings, TestRejectedMUPWithdrawDispatch proves applyRFC7606 and processValidatedMessage withdrawal dispatch beside existing MP_UNREACH_NLRI and all-rejected shapes, and test/plugin/mup-dsd-nexthop-locator-mismatch-withdraw.ci proves end-to-end wire MP_UNREACH_NLRI withdrawal, sibling T2ST relay, and doctor-bgp-mup-locator-mismatch under both internal and forked IS-IS.",
   "requirement_sha": "7cdee95c209f5c36",
-  "verdict": "unimplemented"
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch": "882ac72efa44f38b",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch#2": "882ac72efa44f38b",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestRejectedMUPWithdrawDispatch": "80bb08cad484db59",
+    "test/plugin/mup-dsd-nexthop-locator-mismatch-withdraw.ci": "1f3c368ce225e3d2"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch": "aa647cb8259dae50",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPDSDNextHopLocatorMismatch#2": "aa647cb8259dae50",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestRejectedMUPWithdrawDispatch": "a1f01f20e7c275c9",
+    "test/plugin/mup-dsd-nexthop-locator-mismatch-withdraw.ci": "1f3c368ce225e3d2"
+  },
+  "verdict": "enforced"
 }

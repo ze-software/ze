@@ -174,10 +174,11 @@ func (d *dispatcher) dropped() uint64 {
 // engine is the running IS-IS instance: config, transport, dispatcher, the
 // adjacency circuits, and the per-circuit goroutine lifecycle.
 type engine struct {
-	transport *transport.Transport
-	dispatch  *dispatcher
-	log       *slog.Logger
-	bgpls     bgplsSource
+	transport     *transport.Transport
+	dispatch      *dispatcher
+	log           *slog.Logger
+	bgpls         bgplsSource
+	locatorOrigin locatorOriginSource
 
 	mu      sync.Mutex
 	cfg     Config
@@ -797,6 +798,7 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 	// routes still need to be withdrawn.
 	e.triggerSPF()
 	e.publishBGPLS()
+	e.publishLocatorOrigin()
 	return res
 }
 
@@ -874,6 +876,7 @@ func circuitNeedsRebuild(have, want InterfaceConfig) bool {
 // shutdown stops all circuit goroutines, the receive loop, and the transport,
 // then waits for the goroutines to exit (no leak on reload or stop).
 func (e *engine) shutdown() {
+	e.stopLocatorOrigin()
 	e.stopBGPLS()
 	e.cancel()
 	// Forward-remove every IS-IS route from the Loc-RIB so a stopped engine

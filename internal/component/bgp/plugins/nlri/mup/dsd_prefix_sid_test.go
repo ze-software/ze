@@ -1,6 +1,7 @@
 package mup
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +10,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
+	"github.com/ze-software/ze/internal/core/locatororigin"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // These tests drive the UPDATE-level check this plugin's init registers, through
@@ -33,12 +36,17 @@ var dsdAttrsPrefixSID = append(append([]byte{}, dsdAttrsNoPrefixSID...),
 // MP_REACH_NLRI attribute update message with a Direct Segment Discovery route without
 // a prefix SID attribute, than it MUST be treated as if it contained a malformed prefix
 // SID attribute and the "Treat-as-withdraw procedure of [RFC7606] is applied." The DSD
-// route of an announcement with no Prefix-SID is withdrawn and its ISD, T1ST and T2ST
+// route of an announcement with no Prefix-SID is withdrawn and its T1ST and T2ST
 // siblings are kept; with a Prefix-SID every route is kept; a Prefix-SID that
 // attribute-discard removes counts as absent. Both families, with and without ADD-PATH.
 // PREVENTS: a DSD route with no Prefix-SID being installed and relayed, and the check
-// reaching a route type the sentence does not name.
+// reaching a route type neither Section 3.3.3 nor Section 3.3.6 names.
 func TestMUPDSDWithoutPrefixSIDTreatAsWithdraw(t *testing.T) {
+	t.Cleanup(locatororigin.ResetForTest)
+	t.Cleanup(report.ResetForTest)
+	locatororigin.ResetForTest()
+	report.ResetForTest()
+
 	cases := []struct {
 		name     string
 		fam      Family
@@ -46,10 +54,10 @@ func TestMUPDSDWithoutPrefixSIDTreatAsWithdraw(t *testing.T) {
 		siblings [][]byte
 	}{
 		{"IPv4", IPv4MUP, dsdRoute(192, 0, 2, 1), [][]byte{
-			isdRoute(24, 10, 0, 0), t1stRoute(nil, teid1, endpoint4NoSource...), t2stRoute(64, 192, 0, 2, 1, 0, 0, 0, 1),
+			t1stRoute(nil, teid1, endpoint4NoSource...), t2stRoute(64, 192, 0, 2, 1, 0, 0, 0, 1),
 		}},
 		{"IPv6", IPv6MUP, dsdRoute(ipv6Addr...), [][]byte{
-			isdRoute(32, 0x20, 0x01, 0x0d, 0xb8), t2stRoute(160, append(append([]byte{}, ipv6Addr...), 0, 0, 0, 1)...),
+			t2stRoute(160, append(append([]byte{}, ipv6Addr...), 0, 0, 0, 1)...),
 		}},
 	}
 	for _, tc := range cases {
@@ -102,4 +110,65 @@ func TestMUPDSDWithoutPrefixSIDTreatAsWithdraw(t *testing.T) {
 			})
 		}
 	}
+}
+
+// VALIDATES: 16-octet and 32-octet IPv4-mapped IPv6 next hops (::ffff:x.x.x.x)
+// against a proven locator originator withdraw the DSD route even when the
+// originating LSP carries undecoded TLV 237, and keep the route with warning
+// when the originator is unresolved.
+// PREVENTS: ::ffff:x.x.x.x being misclassified as a native IPv6 address and
+// slipping through as ReasonUndecodedTLV237 instead of MatchMismatch.
+func TestMUPDSDIPv4MappedIPv6NextHopMismatch(t *testing.T) {
+	peer := netip.MustParseAddr("192.0.2.55")
+	nh16Mapped := netip.MustParseAddr("::ffff:192.0.2.1").AsSlice()
+	nh32Mapped := append(append([]byte(nil), nh16Mapped...), netip.MustParseAddr("fe80::1").AsSlice()...)
+	dsd := dsdRoute(192, 0, 2, 1)
+	sibling := t2stRoute(64, 192, 0, 2, 1, 0, 0, 0, 1)
+	section := concatNLRI(dsd, sibling)
+	recognize, check := nlritype.Rulings(IPv4MUP)
+	require.NotNil(t, recognize)
+	require.NotNil(t, check)
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+
+	cases := []struct {
+		name      string
+		nh        []byte
+		hasTLV237 bool
+	}{
+		{name: "16-octet IPv4-mapped without TLV 237", nh: nh16Mapped, hasTLV237: false},
+		{name: "16-octet IPv4-mapped with TLV 237", nh: nh16Mapped, hasTLV237: true},
+		{name: "32-octet IPv4-mapped global half without TLV 237", nh: nh32Mapped, hasTLV237: false},
+		{name: "32-octet IPv4-mapped global half with TLV 237", nh: nh32Mapped, hasTLV237: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			capture, _ := setupMUPOriginTestEnv(t)
+			seedMUPOriginSnapshot(locatororigin.LocatorEntry{
+				Prefix:             netip.MustParsePrefix("2001:db8::/48"),
+				Known:              true,
+				Originator:         "0100.0000.0001",
+				Addresses:          []netip.Addr{netip.MustParseAddr("2001:db8:140::1")},
+				HasUndecodedTLV237: tc.hasTLV237,
+			})
+			attrs := mupTestUpdateAttrs(dsdAttrsPrefixSID, peer, tc.nh)
+			r, err := nlritype.RetainUpdate(recognize, check, &attrs, IPv4MUP, section, false, true, scratch[:])
+			require.NoError(t, err)
+			assert.Equal(t, sibling, r.Kept)
+			assert.Equal(t, dsd, r.Withdrawn)
+			assert.Zero(t, r.Discarded)
+			assert.Equal(t, 1, capture.countByCode(codeDoctorBGPMUPLocatorMismatch))
+			assert.Equal(t, 0, capture.countByCode(codeDoctorBGPMUPLocatorUnresolved))
+		})
+	}
+
+	t.Run("unresolved originator keeps 16-octet IPv4-mapped next hop with warning", func(t *testing.T) {
+		capture, _ := setupMUPOriginTestEnv(t)
+		attrs := mupTestUpdateAttrs(dsdAttrsPrefixSID, peer, nh16Mapped)
+		r, err := nlritype.RetainUpdate(recognize, check, &attrs, IPv4MUP, dsd, false, true, scratch[:])
+		require.NoError(t, err)
+		assert.Equal(t, dsd, r.Kept)
+		assert.False(t, r.Removed())
+		assert.Equal(t, 1, capture.countByCode(codeDoctorBGPMUPLocatorUnresolved))
+	})
 }

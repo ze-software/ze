@@ -159,3 +159,112 @@ func TestRetainUpdateVerdictAllocatesNothing(t *testing.T) {
 		t.Fatalf("judge allocated %v times", n)
 	}
 }
+
+// VALIDATES: RetainUpdate invokes recognize and check strictly once per NLRI
+// even when NLRIs are withdrawn or discarded, for both <=32 (stack) and >32
+// (heap) NLRI sections.
+// PREVENTS: pass-2 re-evaluation causing TOCTOU divergence against concurrent
+// index updates or duplicate warning/report side effects.
+func TestRetainUpdateInvokesJudgeOncePerNLRI(t *testing.T) {
+	cases := []struct {
+		name  string
+		count int
+	}{
+		{name: "stack verdict buffer (<=32)", count: 8},
+		{name: "heap verdict buffer (>32)", count: 40},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var section []byte
+			var wantKept []byte
+			var wantWithdrawn []byte
+			var wantUnkeyable []byte
+			wantDiscarded := 0
+			wantWithdrawnCount := 0
+			wantUnkeyableCount := 0
+			wantCheckCalls := 0
+
+			for i := range tc.count {
+				var nlri []byte
+				switch i % 4 {
+				case 0:
+					nlri = mupISD([]byte{10, 0, byte(i)})
+					wantKept = append(wantKept, nlri...)
+					wantCheckCalls++
+				case 1:
+					nlri = mupISD([]byte{10, 1, byte(i)})
+					wantWithdrawn = append(wantWithdrawn, nlri...)
+					wantWithdrawnCount++
+					wantCheckCalls++
+				case 2:
+					nlri = mupISD([]byte{10, 2, byte(i)})
+					wantDiscarded++
+				case 3:
+					nlri = mupISD([]byte{10, 3, byte(i)}, 0xff)
+					wantUnkeyable = append(wantUnkeyable, nlri...)
+					wantDiscarded++
+					wantUnkeyableCount++
+					wantCheckCalls++
+				}
+				section = append(section, nlri...)
+			}
+
+			recognizeCalls := 0
+			checkCalls := 0
+			recognize := func(nlriBytes []byte, _ bool) Verdict {
+				recognizeCalls++
+				if recognizeCalls > tc.count {
+					t.Errorf("recognizer called more than once per NLRI (%d > %d)", recognizeCalls, tc.count)
+				}
+				// Prefix byte 1 is at offset 4 (header) + 8 (RD) + 1 (prefixLen) + 1 = 14.
+				if nlriBytes[14] == 2 {
+					return Discard
+				}
+				return Keep
+			}
+			check := func(nlriBytes []byte, _ bool, _ *UpdateAttrs) Verdict {
+				checkCalls++
+				if checkCalls > wantCheckCalls {
+					t.Errorf("check called more than once per kept NLRI (%d > %d)", checkCalls, wantCheckCalls)
+					return Keep
+				}
+				if nlriBytes[14] == 0 {
+					return Keep
+				}
+				return Withdraw
+			}
+
+			attrs := NewUpdateAttrs(prefixSIDAttrs)
+			var scratch [nlrisplit.PrefixKeyScratchSize]byte
+			r, err := RetainUpdate(recognize, check, &attrs, mupFamily, section, false, true, scratch[:])
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if recognizeCalls != tc.count {
+				t.Fatalf("recognize called %d times, want %d", recognizeCalls, tc.count)
+			}
+			if checkCalls != wantCheckCalls {
+				t.Fatalf("check called %d times, want %d", checkCalls, wantCheckCalls)
+			}
+			if !bytes.Equal(r.Kept, wantKept) {
+				t.Fatalf("Kept mismatch: got %x, want %x", r.Kept, wantKept)
+			}
+			if !bytes.Equal(r.Withdrawn, wantWithdrawn) {
+				t.Fatalf("Withdrawn mismatch: got %x, want %x", r.Withdrawn, wantWithdrawn)
+			}
+			if !bytes.Equal(r.Unkeyable, wantUnkeyable) {
+				t.Fatalf("Unkeyable mismatch: got %x, want %x", r.Unkeyable, wantUnkeyable)
+			}
+			if r.WithdrawnCount != wantWithdrawnCount {
+				t.Fatalf("WithdrawnCount = %d, want %d", r.WithdrawnCount, wantWithdrawnCount)
+			}
+			if r.Discarded != wantDiscarded {
+				t.Fatalf("Discarded = %d, want %d", r.Discarded, wantDiscarded)
+			}
+			if r.UnkeyableCount != wantUnkeyableCount {
+				t.Fatalf("UnkeyableCount = %d, want %d", r.UnkeyableCount, wantUnkeyableCount)
+			}
+		})
+	}
+}

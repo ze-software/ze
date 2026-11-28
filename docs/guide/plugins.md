@@ -1500,6 +1500,19 @@ NLRI plugins register address family support at init time via `family.MustRegist
 <!-- source: internal/core/bgp/nlri/bgpls/types.go -- BGP-LS family types -->
 <!-- source: internal/core/family/registry.go -- family registry -->
 
+`bgp-nlri-mup` also registers receive-side validation for Direct Segment
+Discovery (`draft-ietf-bess-mup-safi` Section 3.3.6) and Interwork Segment
+Discovery (Section 3.3.3) routes: routes arriving without a Prefix-SID attribute
+(including after RFC 8669 Section 4 EBGP discard when `accept-srv6-prefix-sid`
+is off) or whose next hop / ISD Address disagrees with the IS-IS SRv6 locator
+originator published over `locator-origin:snapshot` are treated as withdrawn
+(`doctor-bgp-mup-locator-mismatch`). When no IGP locator originator can be
+resolved (for example, when IS-IS is not running or has no covering locator),
+`bgp-nlri-mup` keeps the route unverified and warns with
+`doctor-bgp-mup-locator-unresolved` (`ze show warnings` / `ze show doctor`).
+<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- updateCheckFor, checkSegmentDiscovery -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/codes.go -- codeDoctorBGPMUPLocatorUnresolved, codeDoctorBGPMUPLocatorMismatch -->
+
 ## Hub Configuration
 
 For external or separate-process endpoints that connect over TLS, configure the bus hub:

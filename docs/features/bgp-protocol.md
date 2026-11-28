@@ -404,7 +404,7 @@ plugin out removes both the advertisement and the obligation.
 |--------|--------|
 | `l2vpn/evpn` | Discard an unrecognized route type |
 | `ipv4/mvpn`, `ipv6/mvpn` | Discard an unrecognized route type (RFC 6514 Section 4 framing) |
-| `ipv4/mup`, `ipv6/mup` | Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1). Treat a Direct Segment Discovery route announced with no Prefix-SID attribute as withdrawn (Section 3.3.6) |
+| `ipv4/mup`, `ipv6/mup` | Discard an unrecognized route type (draft-ietf-bess-mup-safi Section 3.1 framing). Treat a malformed route of an implemented type as withdrawn (Section 3.1.3.1). Treat a Direct Segment Discovery (Section 3.3.6) or Interwork Segment Discovery (Section 3.3.3) route announced with no Prefix-SID attribute, or whose next hop / ISD Address disagrees with the IS-IS SRv6 locator originator, as withdrawn |
 | `bgp-ls/bgp-ls`, `bgp-ls/bgp-ls-vpn` | No discard. RFC 9552 Section 5.2 requires an unknown Link-State NLRI type to be preserved and propagated |
 | Every other family | No discard. A family nobody has ruled on discards nothing |
 
@@ -439,12 +439,25 @@ Restart, is emptied by one that does not, and an End-of-RIB drops the
 generations of its family the new session did not announce again.
 
 A family can also register an UPDATE-level check beside its recognizer, for a
-rule that judges a route by the UPDATE carrying it. BGP-MUP registers one for
-draft-ietf-bess-mup-safi Section 3.3.6: a Direct Segment Discovery route in an
+rule that judges a route by the UPDATE carrying it. `nlritype.UpdateAttrs`
+exposes the post-discard attribute raw values (`RawValue`), the `MP_REACH_NLRI`
+next hop (`MPReachNextHop`), and the peer address (`Peer`) to the check. BGP-MUP
+registers one for draft-ietf-bess-mup-safi Sections 3.3.3 (Interwork Segment
+Discovery) and 3.3.6 (Direct Segment Discovery): an ISD or DSD route in an
 MP_REACH_NLRI whose UPDATE carries no Prefix-SID attribute is withdrawn the same
 way, and the other routes of the UPDATE are kept. A Prefix-SID that RFC 7606
-attribute-discard removes counts as absent, so a DSD route from an EBGP peer not
-configured to accept the Prefix-SID (RFC 8669 Section 4) is withdrawn too.
+attribute-discard removes counts as absent, so an ISD or DSD route from an EBGP
+peer not configured with `accept-srv6-prefix-sid true` (RFC 8669 Section 4) is
+withdrawn too. When a Prefix-SID is present, BGP-MUP extracts its first SRv6
+Service SID and resolves the locator originator from the read-locked in-daemon
+IGP locator-originator index (`internal/core/locatororigin`, fed by IS-IS over
+`locator-origin:snapshot`): a proven mismatch against the DSD `MP_REACH_NLRI`
+next hop (Section 3.3.6) or the ISD NLRI Address field (Section 3.3.3, ignoring
+the `MP_REACH_NLRI` next hop) treats that route as withdrawn and raises
+`doctor-bgp-mup-locator-mismatch`, whereas an unresolved locator (no active IGP
+source, no covering locator, anycast, re-advertised without Source Router ID, or
+undecoded TLV 237) keeps the route unverified and warns with
+`doctor-bgp-mup-locator-unresolved` (`ze show isis database`).
 
 When the length fields do not agree with the section the NLRI boundaries are
 unknowable, so no decision is made rather than one being guessed, and RFC 7606
@@ -454,7 +467,8 @@ Section 5.3 resets the session.
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
-<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, CheckDSDPrefixSID -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- recognizerFor, updateCheckFor, checkSegmentDiscovery, checkDSDOriginator, checkISDOriginator -->
+<!-- source: internal/core/locatororigin/index.go -- Resolve -->
 <!-- source: internal/core/bgp/nlri/nlritype/update_check.go -- RegisterUpdateCheck, UpdateAttrs -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- applyTypedNLRIDiscard, typedNLRIUpdateAttrs -->
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype_held.go -- typedNLRIHold, typedNLRIWithdrawable, typedNLRIWithdrawBodies, typedNLRIHeldRoutes -->

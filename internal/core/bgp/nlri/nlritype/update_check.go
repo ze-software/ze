@@ -18,6 +18,7 @@ package nlritype
 
 import (
 	"fmt"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
@@ -30,12 +31,15 @@ import (
 // The receive path judges the NLRIs before it rewrites the attribute section for
 // attribute-discard, so a discarded attribute is still in the bytes here. A check
 // that asked the bytes alone would see an attribute the UPDATE no longer carries.
-// Discarding records those codes, and Has answers absent for them.
+// Discarding records those codes, and Has / RawValue answer absent for them.
 //
 // The zero value holds no attributes. Not safe for concurrent mutation.
 type UpdateAttrs struct {
-	section    []byte
-	discarding [256 / 8]byte // one bit per attribute type code
+	section           []byte
+	discarding        [256 / 8]byte // one bit per attribute type code
+	mpReachNextHop    []byte
+	hasMPReachNextHop bool
+	peer              netip.Addr
 }
 
 // NewUpdateAttrs wraps section, the UPDATE's path attribute section, without copying it.
@@ -49,14 +53,74 @@ func (a *UpdateAttrs) Discarding(code attribute.AttributeCode) {
 	a.discarding[code/8] |= 1 << (code % 8)
 }
 
+// SetPeer records the remote BGP peer address that sent this UPDATE.
+func (a *UpdateAttrs) SetPeer(peer netip.Addr) {
+	a.peer = peer
+}
+
+// Peer returns the remote BGP peer address that sent this UPDATE, or an invalid
+// netip.Addr when unset.
+func (a *UpdateAttrs) Peer() netip.Addr {
+	if a == nil {
+		return netip.Addr{}
+	}
+	return a.peer
+}
+
+// SetMPReachNextHop caches the borrowed MP_REACH_NLRI next-hop bytes without
+// copying so per-NLRI checks do not rescan section.
+func (a *UpdateAttrs) SetMPReachNextHop(nh []byte) {
+	a.mpReachNextHop = nh
+	a.hasMPReachNextHop = true
+}
+
 // Has reports whether the UPDATE carries an attribute of type code once
 // attribute-discard has run.
 func (a *UpdateAttrs) Has(code attribute.AttributeCode) bool {
-	if a.discarding[code/8]&(1<<(code%8)) != 0 {
-		return false
-	}
-	_, _, _, found := attribute.AttrFind(a.section, code)
+	_, found := a.RawValue(code)
 	return found
+}
+
+// RawValue returns the borrowed attribute value bytes for code once RFC 7606
+// attribute-discard has run, or (nil, false) when absent or discarded.
+func (a *UpdateAttrs) RawValue(code attribute.AttributeCode) ([]byte, bool) {
+	if a == nil {
+		return nil, false
+	}
+	if a.discarding[code/8]&(1<<(code%8)) != 0 {
+		return nil, false
+	}
+	_, _, value, found := attribute.AttrFind(a.section, code)
+	if !found {
+		return nil, false
+	}
+	return value, true
+}
+
+// MPReachNextHop returns the borrowed MP_REACH_NLRI next-hop bytes (RFC 4760
+// Section 3: AFI(2) SAFI(1) NextHopLen(1) NextHop(n) ...) without copying, or
+// (nil, false) when no well-formed MP_REACH_NLRI is present.
+func (a *UpdateAttrs) MPReachNextHop() ([]byte, bool) {
+	if a == nil {
+		return nil, false
+	}
+	if a.hasMPReachNextHop {
+		return a.mpReachNextHop, true
+	}
+	value, ok := a.RawValue(attribute.AttrMPReachNLRI)
+	if !ok {
+		return nil, false
+	}
+	// RFC 4760 Section 3: AFI(2) + SAFI(1) + NextHopLen(1) precedes NextHop.
+	const mpReachNextHopOffset = 4
+	if len(value) < mpReachNextHopOffset {
+		return nil, false
+	}
+	nhLen := int(value[3])
+	if mpReachNextHopOffset+nhLen > len(value) {
+		return nil, false
+	}
+	return value[mpReachNextHopOffset : mpReachNextHopOffset+nhLen], true
 }
 
 // UpdateCheck judges one carved announced NLRI against the UPDATE carrying it.

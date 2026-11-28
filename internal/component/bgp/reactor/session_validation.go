@@ -135,7 +135,7 @@ func (s *Session) applyRFC7606(wu *wireu.WireUpdate, validation *rfc7606Validati
 	// the wire-visible half of Section 5.4 the filter exists to close, and it made the
 	// symmetry the design claims for withdrawals untrue on this one path.
 	if result.Action != message.RFC7606ActionSessionReset {
-		attrs := typedNLRIUpdateAttrs(pathAttrs, result)
+		attrs := typedNLRIUpdateAttrs(pathAttrs, result, s.settings.Address)
 		var outcome typedNLRIOutcome
 		var unparseable []byte
 		wu, pathAttrs, outcome, validation.typedWithdrawBodies, unparseable = s.applyTypedNLRIDiscard(

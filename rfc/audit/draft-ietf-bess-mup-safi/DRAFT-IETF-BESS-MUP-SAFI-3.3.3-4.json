@@ -1,0 +1,17 @@
+{
+  "note": "Audited 2026-11-28 by an independent auditor (3c4d467c): TestMUPISDOriginatorMismatch covers IPv6 and IPv4 ISD Address mismatch withdrawal (keeping sibling) and conforming ISD preservation (zero warnings despite differing next hop), TestRejectedMUPWithdrawDispatch proves applyRFC7606 and processValidatedMessage withdrawal dispatch across existing-MP_UNREACH_NLRI and all-rejected shapes, and test/plugin/mup-isd-originator-mismatch-withdraw.ci proves end-to-end wire MP_UNREACH_NLRI withdrawal of the mismatched ISD, sibling T2ST relay, and conforming ISD preservation despite differing next hop.",
+  "requirement_sha": "f65a0304114e72ba",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch": "882ac72efa44f38b",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch#2": "882ac72efa44f38b",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestRejectedMUPWithdrawDispatch": "80bb08cad484db59",
+    "test/plugin/mup-isd-originator-mismatch-withdraw.ci": "da21c86dd9c88e17"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch": "ef78a0357582c1c0",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch#2": "ef78a0357582c1c0",
+    "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestRejectedMUPWithdrawDispatch": "a1f01f20e7c275c9",
+    "test/plugin/mup-isd-originator-mismatch-withdraw.ci": "da21c86dd9c88e17"
+  },
+  "verdict": "enforced"
+}

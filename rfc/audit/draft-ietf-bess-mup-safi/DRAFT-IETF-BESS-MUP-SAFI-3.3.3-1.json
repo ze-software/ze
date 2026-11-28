@@ -1,0 +1,13 @@
+{
+  "note": "Audited 2026-11-28 by an independent auditor (3c4d467c): TestMUPISDOriginatorMismatch exercises the registered updateCheckFor -> checkISDOriginator -> MatchPrefix path across IPv6 /128 & /64 and IPv4 /32 & /24 ISD routes, proving matching NLRI Addresses stay kept with zero mismatch and zero unresolved warnings even when MP_REACH_NLRI next hop differs while mismatching NLRI Addresses withdraw with field=\"address\" even when MP_REACH_NLRI next hop matches.",
+  "requirement_sha": "8eee07751fbed247",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch": "882ac72efa44f38b",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch#2": "882ac72efa44f38b"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch": "ef78a0357582c1c0",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestMUPISDOriginatorMismatch#2": "ef78a0357582c1c0"
+  },
+  "verdict": "enforced"
+}
