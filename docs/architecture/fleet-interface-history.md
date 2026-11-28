@@ -1,6 +1,6 @@
 # Fleet interface traffic history
 
-The post-release device Interfaces tab will show received and transmitted traffic for one named interface over time. Fleet-8 supplies the first-release whole-device traffic totals. Fleet UI-4 owns the additional per-interface collection, storage, query and panel. [Device tabs design](../../plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md)
+The post-release device Interfaces tab will show received and transmitted traffic and packet drops (`rx-octets`, `tx-octets`, `rx-dropped`, `tx-dropped`) for one named interface over time. Fleet-8 supplies the first-release whole-device traffic totals. Fleet UI-4 owns the additional per-interface collection, storage, query and panel. [Device tabs design](../../plan/post-release/features/spec-fleet-ui-4-device-tabs-and-console.md)
 
 ## Design decisions
 

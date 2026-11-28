@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Scope | web, fleet |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
@@ -10,7 +10,7 @@
 | Depends | spec-fleet-ui-2-estate-tree-and-device-tables.md, spec-fleet-9-device-command-relay.md, spec-fleet-4-inventory-health (closed 2026-11-26; documented in `docs/architecture/fleet-config.md`, "Inventory and health reporting"), spec-fleet-8-metric-history (closed 2026-11-27; documented in `docs/architecture/fleet-config.md`, "Device metric sampling and hub-side history") |
 | Phase | 4/9 of plan/post-release/features/spec-fleet-ui-0-umbrella.md |
 | Handoff | - |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -69,18 +69,18 @@ tab is built here over commands.
 
 One table: name, type, administrative state, link state, addresses, speed,
 MTU, traffic in and out as rates, errors and drops. The row's side panel shows
-the full counters and a traffic chart from the hub's history. Refreshed every 5
+the full counters and a traffic and drop chart from the hub's history. Refreshed every 5
 seconds. Row actions are the device's registered related tools for an interface
 (counters detail, ping from the interface), run through the relay and shown in
 an overlay that leaves the table in place.
 
 ### Interface history after the first release
 
-Collect independently of browser sessions. Extend Fleet-8's negotiated sample report with an optional bounded interface block only when both peers advertise support. Record interface identity, transmitted and received octets, device observation time and counter-generation identity. A first observation establishes a baseline. Consecutive observations from the same generation yield rates in bits per second; a reset, rename, disconnect, missing interval or counter decrease starts a new baseline and leaves a gap. Unsupported peers continue to send their existing whole-device totals.
+Collect independently of browser sessions. Extend Fleet-8's negotiated sample report with an optional bounded interface block only when both peers advertise support. Record interface identity, transmitted and received octets (`rx-octets`, `tx-octets`), transmitted and received packet drops (`rx-dropped`, `tx-dropped`), device observation time and counter-generation identity. A first observation establishes a baseline. Consecutive observations from the same generation yield traffic rates in bits per second and drop rates in packets per second (alongside drop deltas); a reset, rename, disconnect, missing interval or counter decrease on any counter starts a new baseline and leaves a gap. Unsupported peers continue to send their existing whole-device totals.
 
 Proposal for sign-off: admit at most 64 explicitly selected interfaces per device, at most one report per normal sample interval, and at most seven days. Reject a configuration that selects more interfaces than the limit and identify the device. Use the history store's charged byte budget, an independent interface allocation ceiling per device and across the hub, and the existing history checkpoint. Reserve the first-release device series budget first. Evict the oldest interface buckets under pressure, report the shortened coverage, and reject a new series if even its minimum state cannot fit. Bound names and encoded frames before allocation. Device removal drops its interface series; a new interface generation never inherits its predecessor's counters.
 
-The hub's registered per-interface series command authorizes the device before looking up the interface, restricts range and output count, and returns source timestamps, gaps and units. The tab passes the caller and interface selector through the same operation. Test retained history after restart with two interfaces whose rates differ and the tab closed during collection.
+The hub's registered per-interface series command authorizes the device before looking up the interface, restricts range and output count, and returns source timestamps, gaps and units for both octet traffic and packet drops. The tab passes the caller and interface selector through the same operation. Test retained history after restart with two interfaces whose traffic and drop rates differ and the tab closed during collection.
 
 ### Routing tab
 
@@ -161,7 +161,7 @@ profile the device grants to relayed commands.
 | AC-5 | A command typed in the Console tab | It runs on that device, its output appears in the terminal, and it is audited on both sides with the hub user's name | Configuration mode is refused with a link to the Config tab, because the console routes operational commands and the Config tab owns hub-side edits |
 | AC-6 | The operator leaves a tab | Its refresh timers and relayed streams stop | None |
 | AC-7 | An offline device | Relayed sections show the offline state with the last-seen time; the Console shows no terminal | Hub-held inventory remains shown, marked with its age |
-| AC-9 | Two selected interfaces have different rates while the panel is closed. Reopen after a hub restart. | The panel matches the authorized per-interface query for each interface. It returns retained points with distinct rates, a gap after a counter reset, and no samples from any other interface. | An unsupported peer or evicted interval shows its actual coverage. |
+| AC-9 | Two selected interfaces have different traffic and drop rates (`rx-octets`, `tx-octets`, `rx-dropped`, `tx-dropped`) while the panel is closed. Reopen after a hub restart. | The panel matches the authorized per-interface query for each interface. It returns retained points with distinct octet and drop rates, a gap after a counter reset, and no samples from any other interface. | An unsupported peer or evicted interval shows its actual coverage. |
 | AC-10 | Add a 65th selected interface or fill the charged byte budget | The invalid selection is refused. Under byte pressure the hub stays within both interface budgets; a shortened series reports its coverage and the whole-device history survives. | None. |
 
 ### Moved in (owner ruling 2026-11-23)
@@ -261,6 +261,20 @@ their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 | `docs/architecture/core-design.md` | Design decisions | anchored to internal/component/plugin/types.go | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | The device reads observations from the configured forwarding plane. A read cannot install a filter, change route attributes or bypass backend compatibility checks. |
 | `docs/architecture/core-design.md` | Design decisions | anchored to internal/component/plugin/types.go | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | The device reads observations from the configured forwarding plane. A read cannot install a filter, change route attributes or bypass backend compatibility checks. |
 | `docs/architecture/core-design.md` | Design decisions | anchored to internal/component/plugin/types.go | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | The device reads observations from the configured forwarding plane. A read cannot install a filter, change route attributes or bypass backend compatibility checks. |
+| `docs/architecture/core-design.md` | Design decisions | anchored to internal/component/plugin/types.go | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Per-interface history collection and device tabs never prevent `ze start` from booting. |
+| `docs/architecture/core-design.md` | Design decisions | anchored to internal/component/plugin/types.go | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Interface observations read from the configured backend and never alter daemon startup refusal policy. |
+| `docs/architecture/fleet-alarms.md` | Configuration | anchored to `ze-managed-cmd.yang`, `ze-plugin-conf.yang`, `loader_extract.go`, `plugin/types.go` | "Alarm delays, resource thresholds, software-behind threshold, and episode retention live under `bus { hub { alarms { ... } } }`." | agrees | Per-interface selected-interface configuration lives beside hub history settings without altering alarm thresholds or retention. |
+| `docs/architecture/fleet-alarms.md` | Design decisions | anchored to `ze-managed-cmd.yang`, `ze-plugin-conf.yang`, `loader_extract.go`, `plugin/types.go` | "For a declared device that has never connected, Thomas chose “After the configured offline grace period from declaration”." | agrees | Offline grace-period alarm behavior is untouched by per-interface traffic and drop history. |
+| `docs/architecture/pki/tls-listeners.md` | Design decisions | anchored to `internal/component/config/loader_extract.go` | "A certificate that cannot be presented never stops ze from starting. A web server whose certificate name does not resolve is not started. The looking glass is judged one `server` entry at a time: an entry that says `tls true` with no certificate to present stays down, every entry that asks for TLS stays down when the named certificate does not resolve, and the other entries serve. Each is reported with its fix by an error line in the log under a doctor code and by `ze doctor`. A reload whose config cannot be served stays refused. This supersedes the start half of the row of 2026-11-23 above, which says a `tls true` entry "is refused at start": at start that entry stays down and the others serve, and at reload the config is still refused. Thomas's words, as voice-transcribed: "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; "reload stay refused"; "Should only that endpoint stay down while the others serve: yes"" | agrees | Managed TLS listener startup and reload policy are untouched. |
+| `docs/architecture/api/process-protocol.md` | Design decisions | the // Design: page of `internal/component/plugin/types.go` | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | Every new managed history query declares its message and runs under caller authorization. |
+| `docs/architecture/api/process-protocol.md` | Design decisions | the // Design: page of `internal/component/plugin/types.go` | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | Per-interface sampling does not change engine-to-plugin event delivery guarantees. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | Managed bus participant registration is unchanged. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | Bus `send > to` routing semantics are unchanged. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | Bus `receive > from` filtering semantics are unchanged. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | Bus message allow-list enforcement is unchanged. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | Bus participant filter compilation is unchanged. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | Bus participant arbitration policy is unchanged. |
+| `docs/architecture/api/architecture.md` | Design decisions | anchored to `internal/component/plugin/types.go` | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | Bus display behavior is unchanged. |
 
 ## Data Flow (MANDATORY)
 
@@ -314,8 +328,8 @@ their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 - `internal/component/plugin/server/managed.go` advertises acceptance of the extension on this session.
 - `internal/component/managed/client.go` negotiates the supported extension on its normal fetch.
 - `internal/component/managed/sample.go` collects the selected observations only on supported sessions.
-- `internal/component/iface/fleet_samples.go` supplies per-interface byte counters, sample times and counter generation at the interface owner.
-- `internal/component/plugin/server/managed_history.go` admits bounded series and checkpoints retained buckets and gaps.
+- `internal/component/iface/fleet_samples.go` supplies per-interface byte and drop counters (`rx-octets`, `tx-octets`, `rx-dropped`, `tx-dropped`), sample times and counter generation at the interface owner.
+- `internal/component/plugin/server/managed_history.go` admits bounded octet and drop series and checkpoints retained buckets and gaps.
 - `internal/component/managed/cmd_history.go` authorizes and answers the query for one named device and interface.
 - `internal/component/managed/yang/ze-managed-cmd.yang` declares that query and its bounds.
 - `internal/component/managed/register.go` registers the query with the shared dispatcher.
@@ -348,7 +362,7 @@ their web pages and views come after the first release (`ai/META-DECISIONS.md`,
 
 ### What changes
 
-Use hub-held reports for inventory and a caller-scoped relay for current device data. The interface panel reads retained per-interface history collected even when the tab is closed. Return finite console results and streamed output through the existing terminal view.
+Use hub-held reports for inventory and a caller-scoped relay for current device data. The interface panel reads retained per-interface traffic and packet-drop history (`rx-octets`, `tx-octets`, `rx-dropped`, `tx-dropped`) collected even when the tab is closed. Return finite console results and streamed output through the existing terminal view.
 
 ### Before and after
 
@@ -364,7 +378,7 @@ A direct browser connection cannot reach devices behind NAT. Buffering an entire
 
 ### Choices for Thomas
 
-Thomas chose “Add bounded per-interface history in the post-release design” on 2026-11-25. The proposed 64-interface ceiling limits collection and storage; the implementation must measure the full charged size at this bound.
+Thomas chose “Add bounded per-interface history in the post-release design” on 2026-11-25, and on 2026-11-28 requested amending the bounded per-interface history block to also record `rx-dropped` and `tx-dropped` counters alongside `rx-octets` and `tx-octets`. The proposed 64-interface ceiling limits collection and storage; the implementation must measure the full charged size at this bound.
 
 ## Implementation Steps
 
