@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P1 |
 | Release reason | Shipped YANG enumerations and the Go vocabularies that parse them disagree in both directions (`environment/log/backend` omits `kmsg`, `add-path/direction` has dead arm `receive/send`, `diag` capture raw `protocol` omits `bfd`), and the existing enumeration gate misses extra Go values and all 2-value enums. These are defects in shipped config/command surfaces, so they belong before the first release. |
