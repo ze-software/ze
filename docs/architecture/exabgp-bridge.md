@@ -109,16 +109,16 @@ format across all matching external endpoints (`fmtCache` in
 `internal/component/bgp/server/events.go`). In `ze_bgp` builds, each
 `ze exabgp plugin` endpoint requests `format=base64` at Stage 5 `ready`, so
 BGP UPDATEs travel inside pooled `WriteBatchFrame` `deliver-batch` frames as
-quote-free positional counted `upd` lines while low-frequency control and
+quote-free positional space-delimited `upd` lines while low-frequency control and
 session events (`state`, `negotiated`, `open`, `notification`, `keepalive`,
 `refresh`) remain JSON. Because each ExaBGP script runs as its own
 `ze exabgp plugin` endpoint process (E-1), TLS delivery, positional `upd`
-parsing (`ReadRawB64Update`, avoiding `json.Unmarshal`), direct unicast
+parsing (`ReadBase64Update`, avoiding `json.Unmarshal`), direct unicast
 `[]byte` rendering (`Sessions.RenderRawUpdate`), and wire-backed `Event`
 fallback for non-unicast families and split/decode errors happen once per
 script process rather than once across a shared fleet. The measured cost of 1,
 5, and 20 full-table scripts is recorded in [Measured per-script cost (Q-E7)](#measured-per-script-cost-q-e7).
-<!-- source: internal/exabgp/bridge/bridge_raw_b64.go -- ReadRawB64Update, Sessions.RenderRawUpdate -->
+<!-- source: internal/exabgp/bridge/bridge_base64.go -- ReadBase64Update, Sessions.RenderRawUpdate -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Broadcast -->
 
 The ExaBGP side is an external contract. An operator writes a script against
@@ -854,7 +854,7 @@ the packet JSON, which writes `0x`, as ExaBGP does.
 The bytes come from the engine: in `ze_bgp` builds, the wrapper requests
 `base64` (`FormatBase64`, `docs/architecture/api/json-format.md`) whenever its
 compiled filter admits `bgp:update` (carrying wire UPDATE bytes directly on
-positional counted `upd` lines and `"raw": {"message": "<hex>"}` on non-UPDATE
+positional `upd` lines and `"raw": {"message": "<hex>"}` on non-UPDATE
 JSON events, so AS_PATH segments, extended community values, unknown attribute
 flags, and packet forms all come from wire bytes — see "Three UPDATE members
 come from the wire bytes" in `docs/exabgp/exabgp-differences.md`). In
@@ -865,7 +865,7 @@ subscribes `parsed` so the engine does not encode wire bytes for nothing. The
 wrapper derives the header from the body length and the type. An OPERATIONAL
 message has no producer, so neither form is written for one.
 <!-- source: internal/plugins/exabgp/bridgerun/forms.go -- EventFormat -->
-<!-- source: internal/exabgp/bridge/bridge_raw_b64.go -- SupportsRawWire -->
+<!-- source: internal/exabgp/bridge/bridge_base64.go -- SupportsRawWire -->
 <!-- source: internal/exabgp/bridge/bridge_event_packets.go -- NeedsBytes, FormsFor -->
 
 Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
@@ -1332,7 +1332,7 @@ none; }`). Every run completed with `0` lost routes.
 <!-- source: internal/component/plugin/process/delivery.go -- DeliverContext, deliveryLoop -->
 <!-- source: internal/component/plugin/process/event_queue.go -- eventQueue, eventDeliveryBatchMax -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- deliverChan -->
-<!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
+<!-- source: internal/component/bgp/format/base64.go -- appendBase64Update -->
 <!-- source: internal/exabgp/bridge/bridge_raw_render.go -- RenderRawUpdate -->
 
 ## Design decisions

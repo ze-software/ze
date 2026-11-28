@@ -1,6 +1,6 @@
 // Design: docs/architecture/exabgp-bridge.md -- ExaBGP v4/v6 JSON and text buffer emitters for direct base64 unicast UPDATEs.
 // Related: bridge_raw_render.go -- direct unicast plan builder and attribute/NLRI validation.
-// Related: bridge_raw_b64.go -- ReadRawB64Update, RenderRawUpdate, and wire-backed Event fallback.
+// Related: bridge_base64.go -- ReadBase64Update, RenderRawUpdate, and wire-backed Event fallback.
 // Related: bridge_event_json.go -- marshalExabgpJSON spacing contract.
 // Related: bridge_event_text.go -- AppendText and appendOneline sanitization.
 

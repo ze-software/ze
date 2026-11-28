@@ -32,7 +32,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestExabgpRawB64EndToEnd exercises the full base64 wiring path from
+// TestExabgpBase64EndToEnd exercises the full base64 wiring path from
 // bridgerun.EventFormat through format.AppendMessage, MuxConn.CallBatchRPC,
 // Fleet.Broadcast, and script stdin delivery for a received IPv4 unicast UPDATE.
 //
@@ -41,7 +41,7 @@ import (
 // dispatch, and ExaBGP JSON output on script stdin.
 // PREVENTS: disconnected format selection, unimplemented formatter or bridge
 // dispatch, or broken MuxConn batch delivery along the base64 transport path.
-func TestExabgpRawB64EndToEnd(t *testing.T) {
+func TestExabgpBase64EndToEnd(t *testing.T) {
 	filter := &rpc.BusParticipantFilter{
 		ReceiveRules: []rpc.BusFilterRule{{
 			Message:   "bgp:update",

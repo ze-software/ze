@@ -1,7 +1,7 @@
 // Design: docs/architecture/exabgp-bridge.md -- differential byte-identity and hot-path allocation proofs for base64 direct rendering.
 // Related: bridge_raw_render.go -- renderRawUpdateDirect direct buffer renderer.
-// Related: bridge_raw_b64.go -- ReadRawB64Update, resolveRawContextID, RenderRawUpdate.
-// Related: bridge_raw_b64_test.go -- parser and Sessions.noteRaw unit tests.
+// Related: bridge_base64.go -- ReadBase64Update, resolveRawContextID, RenderRawUpdate.
+// Related: bridge_base64_test.go -- parser and Sessions.noteRaw unit tests.
 
 //go:build ze_bgp
 
@@ -201,7 +201,7 @@ func runRawDifferentialCheck(t *testing.T, tc rawDiffCase, outFormat Format, for
 	log := slog.New(slog.DiscardHandler)
 	want := legacyEvent.Lines(outFormat, forms, log)
 
-	// New path: FormatBase64 -> ReadRawB64Update -> Sessions.RenderRawUpdate.
+	// New path: FormatBase64 -> ReadBase64Update -> Sessions.RenderRawUpdate.
 	rawContent := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatBase64}
 	var rawBuf []byte
 	if tc.sent {
@@ -210,8 +210,8 @@ func runRawDifferentialCheck(t *testing.T, tc rawDiffCase, outFormat Format, for
 		rawBuf = bgpformat.AppendMessage(nil, tc.peer, msg, rawContent)
 	}
 	var scratch [4096]byte
-	rawUpdate, err := ReadRawB64Update(string(rawBuf), scratch[:0])
-	require.NoError(t, err, "ReadRawB64Update failed for line: %q", rawBuf)
+	rawUpdate, err := ReadBase64Update(string(rawBuf), scratch[:0])
+	require.NoError(t, err, "ReadBase64Update failed for line: %q", rawBuf)
 
 	var rawSessions Sessions
 	if tc.noteNegotiated {
@@ -243,7 +243,7 @@ func runRawDifferentialCheck(t *testing.T, tc rawDiffCase, outFormat Format, for
 	}
 }
 
-// TestRawB64Differential_MatchesFormatFull proves byte-identical ExaBGP v4/v6
+// TestBase64Differential_MatchesFormatFull proves byte-identical ExaBGP v4/v6
 // JSON and text output between legacy FormatFull JSON and FormatBase64 across
 // all unicast features, all forms/grants/directions, all 10 non-unicast
 // families, and unsplit/undecoded NLRI warning paths.
@@ -256,7 +256,7 @@ func runRawDifferentialCheck(t *testing.T, tc rawDiffCase, outFormat Format, for
 // PREVENTS: formatting drift in spacing, key order, text attribute order,
 // community sorting, ADD-PATH formatting, or warning logs between FormatFull
 // and FormatBase64.
-func TestRawB64Differential_MatchesFormatFull(t *testing.T) {
+func TestBase64Differential_MatchesFormatFull(t *testing.T) {
 	peer := makeDiffPeer(true)
 	dynPeer := makeDiffPeer(false)
 
@@ -536,7 +536,7 @@ func TestRawB64Differential_MatchesFormatFull(t *testing.T) {
 	})
 }
 
-// TestRawB64DirectRender_HotPathNoMapAndContextReuse proves that hot IPv4 and
+// TestBase64DirectRender_HotPathNoMapAndContextReuse proves that hot IPv4 and
 // IPv6 unicast UPDATEs take the direct []byte buffer renderer without map
 // allocations or json.Marshal reflection, and that resolveRawContextID reuses
 // cached ContextIDs across 10,000 UPDATEs.
@@ -546,7 +546,7 @@ func TestRawB64Differential_MatchesFormatFull(t *testing.T) {
 // reuse across 10,000 iterations without growing bgpctx.Registry.
 // PREVENTS: silent regression onto the map[string]any fallback on hot unicast
 // routes or per-UPDATE bgpctx.Registry exhaustion.
-func TestRawB64DirectRender_HotPathNoMapAndContextReuse(t *testing.T) {
+func TestBase64DirectRender_HotPathNoMapAndContextReuse(t *testing.T) {
 	var sessions Sessions
 	neg := ReadEvent(makeDiffNegotiatedEvent(true))
 	sessions.Note(&neg)
@@ -568,7 +568,7 @@ func TestRawB64DirectRender_HotPathNoMapAndContextReuse(t *testing.T) {
 	v6Attrs = append(v6Attrs, packWireAttr(0x40, 2, []byte{2, 1, 0, 0, 0xfd, 0xe9})...)
 	v6Body := buildWireUpdateBody(nil, v6Attrs, nil)
 
-	flags := rawB64FlagHasASN4 | rawB64FlagASN4 | rawB64FlagHasRemoteAS
+	flags := base64FlagHasASN4 | base64FlagASN4 | base64FlagHasRemoteAS
 	rawV4 := RawUpdate{
 		Peer:     testDiffPeerIP,
 		Local:    testDiffLocalIP,

@@ -963,7 +963,7 @@ func (p PluginConfig) RunsForked() bool {
 // Format constants for process output formatting.
 const (
 	FormatHex     = "hex"     // Wire bytes as hex string
-	FormatBase64  = "base64"  // Positional counted base64 UPDATE lines beside JSON control events.
+	FormatBase64  = "base64"  // Positional space-delimited base64 UPDATE lines beside JSON control events.
 	FormatParsed  = "parsed"  // Decoded/interpreted fields only (default)
 	FormatRaw     = "raw"     // Wire bytes only (hex) - alias for FormatHex
 	FormatFull    = "full"    // Both parsed content AND raw bytes

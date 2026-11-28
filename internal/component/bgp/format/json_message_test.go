@@ -63,7 +63,7 @@ func TestJSONEncoderMessageFull(t *testing.T) {
 	}
 }
 
-// TestJSONEncoderMessage_RawB64AttachesRaw proves that OPEN, NOTIFICATION,
+// TestJSONEncoderMessage_Base64AttachesRaw proves that OPEN, NOTIFICATION,
 // KEEPALIVE, and ROUTE-REFRESH events under plugin.FormatBase64 carry the exact
 // same "raw":{"message":"<hex>"} member as plugin.FormatFull, while
 // FormatParsed, FormatRaw, and FormatHex omit it.
@@ -72,7 +72,7 @@ func TestJSONEncoderMessageFull(t *testing.T) {
 // identically to FormatFull and omit it for parsed/raw/hex.
 // PREVENTS: ExaBGP --form packets|consolidate losing OPEN, NOTIFICATION,
 // KEEPALIVE, or ROUTE-REFRESH wire bytes after opting into FormatBase64.
-func TestJSONEncoderMessage_RawB64AttachesRaw(t *testing.T) {
+func TestJSONEncoderMessage_Base64AttachesRaw(t *testing.T) {
 	t.Parallel()
 
 	peer := plugin.PeerInfo{
@@ -101,14 +101,14 @@ func TestJSONEncoderMessage_RawB64AttachesRaw(t *testing.T) {
 		raw := bgptypes.RawMessage{Type: tc.kind, RawBytes: tc.body, Direction: rpc.DirectionReceived}
 
 		fullEnc := NewJSONEncoder("")
-		rawB64Enc := NewJSONEncoder("")
+		b64Enc := NewJSONEncoder("")
 		fullDoc := fullEnc.Message(&peer, raw, plugin.FormatFull)
-		rawB64Doc := rawB64Enc.Message(&peer, raw, plugin.FormatBase64)
-		if rawB64Doc != fullDoc {
-			t.Errorf("%s base64 differs from full:\ngot:  %s\nwant: %s", tc.name, rawB64Doc, fullDoc)
+		b64Doc := b64Enc.Message(&peer, raw, plugin.FormatBase64)
+		if b64Doc != fullDoc {
+			t.Errorf("%s base64 differs from full:\ngot:  %s\nwant: %s", tc.name, b64Doc, fullDoc)
 		}
 
-		bgp := decodeBGP(t, rawB64Doc)
+		bgp := decodeBGP(t, b64Doc)
 		member, ok := bgp[jsonKeyRaw].(map[string]any)
 		if !ok {
 			t.Fatalf("%s base64: no raw member in %v", tc.name, bgp)

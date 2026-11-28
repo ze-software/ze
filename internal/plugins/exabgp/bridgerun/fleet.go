@@ -251,12 +251,12 @@ func (f *Fleet) Broadcast(event string) {
 	}
 }
 
-// broadcastRawUpdate parses one positional counted `base64` UPDATE line and
+// broadcastRawUpdate parses one positional space-delimited `base64` UPDATE line and
 // queues the rendered ExaBGP line(s) for each script in this Fleet, caching
 // per (grant, forms, format) slot identically to Broadcast.
 func (f *Fleet) broadcastRawUpdate(event string) {
 	var scratch [4096]byte
-	raw, err := bridge.ReadRawB64Update(event, scratch[:0])
+	raw, err := bridge.ReadBase64Update(event, scratch[:0])
 	if err != nil {
 		f.log.Warn("exabgp-bridge: invalid base64 update event", "code", codeDoctorInvalidBase64Update, "error", err)
 		return

@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestUpdateEnvelopeWrap_RawB64QuotesPayload proves that updateEnvelopeCache.wrap
+// TestUpdateEnvelopeWrap_Base64QuotesPayload proves that updateEnvelopeCache.wrap
 // JSON-quotes positional `base64` UPDATE lines when SetEnvelope(true) is active
 // under EncodingJSON, while preserving JSON-object embedding for FormatParsed
 // and string quoting for EncodingText.
@@ -29,7 +29,7 @@ import (
 // with FormatParsed JSON and EncodingText regression controls intact.
 // PREVENTS: json.Marshal failing on bare `upd ...` payloads and silently
 // dropping UPDATE events for enveloped base64 subscribers.
-func TestUpdateEnvelopeWrap_RawB64QuotesPayload(t *testing.T) {
+func TestUpdateEnvelopeWrap_Base64QuotesPayload(t *testing.T) {
 	t.Parallel()
 
 	peer := &plugin.PeerInfo{
@@ -47,26 +47,26 @@ func TestUpdateEnvelopeWrap_RawB64QuotesPayload(t *testing.T) {
 	var cache updateEnvelopeCache
 
 	// 1. EncodingJSON + FormatBase64: must JSON-quote the positional upd line.
-	rawB64Proc := process.NewProcess(plugin.PluginConfig{Name: "base64-enveloped"})
-	rawB64Proc.SetEnvelope(true)
-	rawB64Proc.SetEncoding(plugin.EncodingJSON)
-	rawB64Proc.SetFormat(plugin.FormatBase64)
+	b64Proc := process.NewProcess(plugin.PluginConfig{Name: "base64-enveloped"})
+	b64Proc.SetEnvelope(true)
+	b64Proc.SetEncoding(plugin.EncodingJSON)
+	b64Proc.SetFormat(plugin.FormatBase64)
 
-	const rawB64Line = "upd 14 65000 65001 42 8:10.0.0.1 8:10.0.0.2 7:1.1.1.1 0: 8:AAAAAA==\n"
-	wrappedRawB64, err := cache.wrap(peer, msg, rawB64Proc, rawB64Line)
+	const b64Line = "upd 14 65000 65001 42 10.0.0.1 10.0.0.2 1.1.1.1 - 8:AAAAAA==\n"
+	wrappedB64, err := cache.wrap(peer, msg, b64Proc, b64Line)
 	require.NoError(t, err)
 
-	var rawB64Env rpc.EventEnvelope
-	require.NoError(t, json.Unmarshal([]byte(wrappedRawB64), &rawB64Env))
-	assert.Equal(t, bgpevents.Namespace, rawB64Env.Namespace)
-	assert.Equal(t, bgpevents.EventUpdate, rawB64Env.Event)
+	var b64Env rpc.EventEnvelope
+	require.NoError(t, json.Unmarshal([]byte(wrappedB64), &b64Env))
+	assert.Equal(t, bgpevents.Namespace, b64Env.Namespace)
+	assert.Equal(t, bgpevents.EventUpdate, b64Env.Event)
 
 	var gotRawLine string
-	require.NoError(t, json.Unmarshal(rawB64Env.Payload, &gotRawLine))
-	assert.Equal(t, rawB64Line, gotRawLine)
+	require.NoError(t, json.Unmarshal(b64Env.Payload, &gotRawLine))
+	assert.Equal(t, b64Line, gotRawLine)
 
 	var receipt bgptypes.UpdateReceipt
-	require.NoError(t, json.Unmarshal(rawB64Env.Metadata, &receipt))
+	require.NoError(t, json.Unmarshal(b64Env.Metadata, &receipt))
 	assert.Equal(t, peer.Address, receipt.Peer)
 	assert.Equal(t, peer.PeerOwner, receipt.PeerOwner)
 	assert.Equal(t, msg.MessageID, receipt.MessageID)

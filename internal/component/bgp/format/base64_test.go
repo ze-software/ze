@@ -1,5 +1,5 @@
-// Design: docs/architecture/api/json-format.md -- base64 positional counted UPDATE line.
-// Related: raw_b64.go -- encoder under test.
+// Design: docs/architecture/api/json-format.md -- base64 positional space-delimited UPDATE line.
+// Related: base64.go -- encoder under test.
 
 package format
 
@@ -23,7 +23,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-type parsedRawB64Line struct {
+type parsedBase64Line struct {
 	flags        uint8
 	localAS      uint32
 	remoteAS     uint32
@@ -36,7 +36,7 @@ type parsedRawB64Line struct {
 	decodedBody  []byte
 }
 
-func parseTestRawB64Line(t *testing.T, line string) parsedRawB64Line {
+func parseTestBase64Line(t *testing.T, line string) parsedBase64Line {
 	t.Helper()
 
 	require.True(t, strings.HasSuffix(line, "\n"), "line must end with single newline: %q", line)
@@ -46,8 +46,8 @@ func parseTestRawB64Line(t *testing.T, line string) parsedRawB64Line {
 	assert.NotContains(t, body, `"`, "line must contain zero double quotes")
 	assert.NotContains(t, body, `\`, "line must contain zero backslashes")
 
-	require.True(t, strings.HasPrefix(body, rawB64KindPrefix), "line must start with %q, got %q", rawB64KindPrefix, body)
-	rest := body[len(rawB64KindPrefix):]
+	require.True(t, strings.HasPrefix(body, base64KindPrefix), "line must start with %q, got %q", base64KindPrefix, body)
+	rest := body[len(base64KindPrefix):]
 
 	flagsVal, rest := cutTestNumber(t, rest, "flags")
 	require.LessOrEqual(t, flagsVal, uint64(63), "flags must fit in 6 bits")
@@ -55,17 +55,17 @@ func parseTestRawB64Line(t *testing.T, line string) parsedRawB64Line {
 	remoteASVal, rest := cutTestNumber(t, rest, "remote-as")
 	connIDVal, rest := cutTestNumber(t, rest, "conn-id")
 
-	peer, rest := cutTestCountedText(t, rest, "peer", true)
-	local, rest := cutTestCountedText(t, rest, "local", true)
-	routerID, rest := cutTestCountedText(t, rest, "router-id", true)
-	extraAddPath, rest := cutTestCountedText(t, rest, "extra-addpath", true)
-	b64Body, rest := cutTestCountedText(t, rest, "b64-body", false)
+	peer, rest := cutTestToken(t, rest, "peer")
+	local, rest := cutTestToken(t, rest, "local")
+	routerID, rest := cutTestToken(t, rest, "router-id")
+	extraAddPath, rest := cutTestToken(t, rest, "extra-addpath")
+	b64Body, rest := cutTestCountedText(t, rest, "b64-body")
 	require.Empty(t, rest, "unexpected trailing bytes after b64-body: %q", rest)
 
 	decoded, err := base64.StdEncoding.DecodeString(b64Body)
 	require.NoError(t, err, "b64-body must be valid standard base64")
 
-	return parsedRawB64Line{
+	return parsedBase64Line{
 		flags:        uint8(flagsVal),
 		localAS:      uint32(localASVal),
 		remoteAS:     uint32(remoteASVal),
@@ -88,24 +88,28 @@ func cutTestNumber(t *testing.T, s, field string) (uint64, string) {
 	return val, rest
 }
 
-func cutTestCountedText(t *testing.T, s, field string, expectSpace bool) (string, string) {
+func cutTestToken(t *testing.T, s, field string) (string, string) {
+	t.Helper()
+	tok, rest, ok := strings.Cut(s, " ")
+	require.True(t, ok, "missing trailing space after %s in %q", field, s)
+	require.NotEmpty(t, tok, "empty %s token in %q", field, s)
+	if tok == "-" {
+		return "", rest
+	}
+	return tok, rest
+}
+
+func cutTestCountedText(t *testing.T, s, field string) (string, string) {
 	t.Helper()
 	lenStr, afterColon, ok := strings.Cut(s, ":")
 	require.True(t, ok, "missing ':' in %s: %q", field, s)
 	n, err := strconv.ParseUint(lenStr, 10, 64)
 	require.NoError(t, err, "invalid length in %s: %q", field, lenStr)
 	require.LessOrEqual(t, int(n), len(afterColon), "%s length %d exceeds remaining %d bytes", field, n, len(afterColon))
-	val := afterColon[:n]
-	rest := afterColon[n:]
-	if expectSpace {
-		require.NotEmpty(t, rest, "missing trailing space after %s", field)
-		require.Equal(t, byte(' '), rest[0], "expected space after %s, got %q", field, rest)
-		rest = rest[1:]
-	}
-	return val, rest
+	return afterColon[:n], afterColon[n:]
 }
 
-func registerTestRawB64Ctx(t *testing.T, asn4 bool, dir bgpctx.Direction, addPath map[family.Family]capability.AddPathMode) bgpctx.ContextID {
+func registerTestBase64Ctx(t *testing.T, asn4 bool, dir bgpctx.Direction, addPath map[family.Family]capability.AddPathMode) bgpctx.ContextID {
 	t.Helper()
 	ec := bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{
 		ASN4:        asn4,
@@ -116,17 +120,17 @@ func registerTestRawB64Ctx(t *testing.T, asn4 bool, dir bgpctx.Direction, addPat
 	return id
 }
 
-// TestAppendRawB64Update_FieldsAndFlags verifies positional counted `base64`
-// UPDATE formatting across received/sent directions, ASN4/unknown contexts,
-// dynamic peers, absent peer fields, unicast and non-unicast ADD-PATH flags,
-// EOR markers, and malformed UPDATE bodies.
+// TestAppendBase64Update_FieldsAndFlags verifies positional space-delimited
+// `base64` UPDATE formatting across received/sent directions, ASN4/unknown
+// contexts, dynamic peers, absent peer fields, unicast and non-unicast
+// ADD-PATH flags, EOR markers, and malformed UPDATE bodies.
 //
 // VALIDATES: AC-1 -- every positional field, all 6 flag bits, deterministic
 // extra-addpath sorting, exact base64 body encoding, single newline, zero
 // quotes/backslashes, and bypass of bgpfilter.ApplyToUpdate on malformed wire.
 // PREVENTS: missing flag bits, nil-context panics, dropped malformed UPDATEs,
 // or non-deterministic extra-addpath wire output.
-func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
+func TestAppendBase64Update_FieldsAndFlags(t *testing.T) {
 	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatBase64,
@@ -156,13 +160,13 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 		0x18, 0xc0, 0x00, 0x02,
 	}
 
-	ctxASN4True := registerTestRawB64Ctx(t, true, bgpctx.DirectionRecv, nil)
-	ctxASN4False := registerTestRawB64Ctx(t, false, bgpctx.DirectionRecv, nil)
-	ctxUnicastAP := registerTestRawB64Ctx(t, true, bgpctx.DirectionRecv, map[family.Family]capability.AddPathMode{
+	ctxASN4True := registerTestBase64Ctx(t, true, bgpctx.DirectionRecv, nil)
+	ctxASN4False := registerTestBase64Ctx(t, false, bgpctx.DirectionRecv, nil)
+	ctxUnicastAP := registerTestBase64Ctx(t, true, bgpctx.DirectionRecv, map[family.Family]capability.AddPathMode{
 		family.IPv4Unicast: capability.AddPathReceive,
 		family.IPv6Unicast: capability.AddPathBoth,
 	})
-	ctxExtraAP := registerTestRawB64Ctx(t, true, bgpctx.DirectionSend, map[family.Family]capability.AddPathMode{
+	ctxExtraAP := registerTestBase64Ctx(t, true, bgpctx.DirectionSend, map[family.Family]capability.AddPathMode{
 		family.IPv4Unicast:   capability.AddPathSend,
 		family.IPv6Multicast: capability.AddPathSend,
 		family.IPv4Multicast: capability.AddPathBoth,
@@ -179,8 +183,8 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction:  rpc.DirectionReceived,
 			WireUpdate: &wu,
 		}
-		got := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
-		assert.Equal(t, rawB64FlagHasASN4|rawB64FlagASN4|rawB64FlagHasRemoteAS, got.flags)
+		got := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
+		assert.Equal(t, base64FlagHasASN4|base64FlagASN4|base64FlagHasRemoteAS, got.flags)
 		assert.Equal(t, uint32(65000), got.localAS)
 		assert.Equal(t, uint32(65001), got.remoteAS)
 		assert.Equal(t, uint64(42), got.connID)
@@ -200,8 +204,8 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction:  rpc.DirectionUnspecified,
 			WireUpdate: &wu,
 		}
-		got := parseTestRawB64Line(t, string(AppendSentMessage(nil, basePeer, msg, content)))
-		assert.Equal(t, rawB64FlagSent|rawB64FlagHasASN4|rawB64FlagASN4|rawB64FlagHasRemoteAS, got.flags)
+		got := parseTestBase64Line(t, string(AppendSentMessage(nil, basePeer, msg, content)))
+		assert.Equal(t, base64FlagSent|base64FlagHasASN4|base64FlagASN4|base64FlagHasRemoteAS, got.flags)
 		assert.Equal(t, sampleUpdate, got.decodedBody)
 	})
 
@@ -214,8 +218,8 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction:  rpc.DirectionReceived,
 			WireUpdate: &wu,
 		}
-		got := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
-		assert.Equal(t, rawB64FlagHasASN4|rawB64FlagHasRemoteAS, got.flags)
+		got := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
+		assert.Equal(t, base64FlagHasASN4|base64FlagHasRemoteAS, got.flags)
 	})
 
 	t.Run("unknown_encoding_context", func(t *testing.T) {
@@ -227,8 +231,8 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction:  rpc.DirectionReceived,
 			WireUpdate: &wu,
 		}
-		got := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
-		assert.Equal(t, rawB64FlagHasRemoteAS, got.flags)
+		got := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
+		assert.Equal(t, base64FlagHasRemoteAS, got.flags)
 		assert.Empty(t, got.extraAddPath)
 
 		msgNoWire := bgptypes.RawMessage{
@@ -236,8 +240,8 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			RawBytes:  sampleUpdate,
 			Direction: rpc.DirectionReceived,
 		}
-		gotNoWire := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, msgNoWire, content)))
-		assert.Equal(t, rawB64FlagHasRemoteAS, gotNoWire.flags)
+		gotNoWire := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, msgNoWire, content)))
+		assert.Equal(t, base64FlagHasRemoteAS, gotNoWire.flags)
 		assert.Empty(t, gotNoWire.extraAddPath)
 	})
 
@@ -253,7 +257,7 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			RawBytes:  sampleUpdate,
 			Direction: rpc.DirectionReceived,
 		}
-		got := parseTestRawB64Line(t, string(AppendMessage(nil, dynPeer, msg, content)))
+		got := parseTestBase64Line(t, string(AppendMessage(nil, dynPeer, msg, content)))
 		assert.Equal(t, uint8(0), got.flags)
 		assert.Equal(t, uint32(65100), got.localAS)
 		assert.Equal(t, uint32(0), got.remoteAS)
@@ -263,7 +267,7 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 		assert.Empty(t, got.routerID)
 		assert.Empty(t, got.extraAddPath)
 
-		gotNilPeer := parseTestRawB64Line(t, string(AppendMessage(nil, nil, msg, content)))
+		gotNilPeer := parseTestBase64Line(t, string(AppendMessage(nil, nil, msg, content)))
 		assert.Equal(t, uint8(0), gotNilPeer.flags)
 		assert.Equal(t, uint32(0), gotNilPeer.localAS)
 		assert.Equal(t, uint32(0), gotNilPeer.remoteAS)
@@ -282,9 +286,9 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction:  rpc.DirectionReceived,
 			WireUpdate: &wu,
 		}
-		got := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
-		wantFlags := rawB64FlagHasASN4 | rawB64FlagASN4 | rawB64FlagHasRemoteAS |
-			rawB64FlagAddPathIPv4Unicast | rawB64FlagAddPathIPv6Unicast
+		got := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, msg, content)))
+		wantFlags := base64FlagHasASN4 | base64FlagASN4 | base64FlagHasRemoteAS |
+			base64FlagAddPathIPv4Unicast | base64FlagAddPathIPv6Unicast
 		assert.Equal(t, wantFlags, got.flags)
 		assert.Empty(t, got.extraAddPath)
 	})
@@ -298,9 +302,9 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction:  rpc.DirectionSent,
 			WireUpdate: &wu,
 		}
-		got := parseTestRawB64Line(t, string(AppendSentMessage(nil, basePeer, msg, content)))
-		wantFlags := rawB64FlagSent | rawB64FlagHasASN4 | rawB64FlagASN4 |
-			rawB64FlagHasRemoteAS | rawB64FlagAddPathIPv4Unicast
+		got := parseTestBase64Line(t, string(AppendSentMessage(nil, basePeer, msg, content)))
+		wantFlags := base64FlagSent | base64FlagHasASN4 | base64FlagASN4 |
+			base64FlagHasRemoteAS | base64FlagAddPathIPv4Unicast
 		assert.Equal(t, wantFlags, got.flags)
 		assert.Equal(t, "ipv4/multicast,ipv6/multicast", got.extraAddPath)
 	})
@@ -309,7 +313,7 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 		ipv4EOR := []byte{0x00, 0x00, 0x00, 0x00}
 		var wuIPv4 wireu.WireUpdate
 		wireu.InitWireUpdate(&wuIPv4, ipv4EOR, ctxASN4True)
-		gotIPv4 := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, bgptypes.RawMessage{
+		gotIPv4 := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, bgptypes.RawMessage{
 			Type:       msgtype.TypeUPDATE,
 			RawBytes:   ipv4EOR,
 			Direction:  rpc.DirectionReceived,
@@ -321,7 +325,7 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 		mpEOR := []byte{0x00, 0x00, 0x00, 0x06, 0x80, 0x0f, 0x03, 0x00, 0x02, 0x01}
 		var wuMP wireu.WireUpdate
 		wireu.InitWireUpdate(&wuMP, mpEOR, ctxASN4True)
-		gotMP := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, bgptypes.RawMessage{
+		gotMP := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, bgptypes.RawMessage{
 			Type:       msgtype.TypeUPDATE,
 			RawBytes:   mpEOR,
 			Direction:  rpc.DirectionReceived,
@@ -329,7 +333,7 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 		}, content)))
 		assert.Equal(t, mpEOR, gotMP.decodedBody)
 
-		gotEmpty := parseTestRawB64Line(t, string(AppendMessage(nil, basePeer, bgptypes.RawMessage{
+		gotEmpty := parseTestBase64Line(t, string(AppendMessage(nil, basePeer, bgptypes.RawMessage{
 			Type:      msgtype.TypeUPDATE,
 			RawBytes:  nil,
 			Direction: rpc.DirectionReceived,
@@ -348,7 +352,36 @@ func TestAppendRawB64Update_FieldsAndFlags(t *testing.T) {
 			Direction: rpc.DirectionReceived,
 		}
 		var scratch [4096]byte
-		got := parseTestRawB64Line(t, string(AppendMessage(scratch[:0], basePeer, msg, content)))
+		got := parseTestBase64Line(t, string(AppendMessage(scratch[:0], basePeer, msg, content)))
 		assert.Equal(t, malformed, got.decodedBody)
+	})
+
+	t.Run("cached_address_strings_and_zero_alloc_append", func(t *testing.T) {
+		cachedPeer := &plugin.PeerInfo{
+			Address:         netip.MustParseAddr(testPeerIP),
+			LocalAddress:    netip.MustParseAddr(testLocalIP),
+			AddressStr:      testPeerIP,
+			LocalAddressStr: testLocalIP,
+			LocalAS:         65000,
+			PeerAS:          rpc.RemoteASOf(65001),
+			RouterID:        0x01010101,
+			ConnectionID:    42,
+		}
+		var wu wireu.WireUpdate
+		wireu.InitWireUpdate(&wu, sampleUpdate, ctxASN4True)
+		msg := bgptypes.RawMessage{
+			Type:       msgtype.TypeUPDATE,
+			RawBytes:   sampleUpdate,
+			Direction:  rpc.DirectionReceived,
+			WireUpdate: &wu,
+		}
+		var scratch [4096]byte
+		allocs := testing.AllocsPerRun(100, func() {
+			out := AppendMessage(scratch[:0], cachedPeer, msg, content)
+			if len(out) == 0 {
+				t.FailNow()
+			}
+		})
+		assert.Equal(t, 0.0, allocs, "AppendMessage with FormatBase64 and stack scratch must allocate 0 times")
 	})
 }

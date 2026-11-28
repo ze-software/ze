@@ -4,7 +4,9 @@
 package textbuf
 
 import (
+	"encoding/binary"
 	"math"
+	"net/netip"
 	"strings"
 	"testing"
 	"unsafe"
@@ -28,7 +30,7 @@ func TestBufferAdoptAndParseCounted(t *testing.T) {
 
 	var writer Buffer
 	writer.Reset().
-		Str("upd ").
+		Str("row ").
 		Uint(42).Byte(' ').
 		CountedBytes([]byte("10.0.0.1")).Byte(' ').
 		CountedBytes(nil).Byte(' ').
@@ -53,7 +55,7 @@ func TestBufferAdoptAndParseCounted(t *testing.T) {
 
 	verb, ok := rb.ReadWord4()
 	require.True(t, ok)
-	assert.Equal(t, MakeWord4("upd"), verb)
+	assert.Equal(t, MakeWord4("row"), verb)
 	assert.Equal(t, Word4Width, rb.Pos())
 
 	seq, err := rb.ReadUintSpace()
@@ -90,7 +92,7 @@ func TestBufferAdoptAndParseCounted(t *testing.T) {
 
 	verb, ok = rs.ReadWord4()
 	require.True(t, ok)
-	assert.Equal(t, MakeWord4("upd"), verb)
+	assert.Equal(t, MakeWord4("row"), verb)
 
 	seq, err = rs.ReadUintSpace()
 	require.NoError(t, err)
@@ -178,6 +180,14 @@ func TestBufferReadFreezesAgainstWrites(t *testing.T) {
 		{name: "ReadWord4", data: "upd ", read: func(b *Buffer) { _, _ = b.ReadWord4() }},
 		{name: "ReadUint", data: "123", read: func(b *Buffer) { _, _ = b.ReadUint() }},
 		{name: "ReadUintSpace", data: "123 ", read: func(b *Buffer) { _, _ = b.ReadUintSpace() }},
+		{name: "ReadIPv4", data: "10.0.0.1", read: func(b *Buffer) { _, _ = b.ReadIPv4() }},
+		{name: "ReadIPv4Space", data: "10.0.0.1 ", read: func(b *Buffer) { _, _ = b.ReadIPv4Space() }},
+		{name: "ReadTokenBytes", data: "10.0.0.1", read: func(b *Buffer) { _, _ = b.ReadTokenBytes() }},
+		{name: "ReadTokenBytesSpace", data: "10.0.0.1 ", read: func(b *Buffer) { _, _ = b.ReadTokenBytesSpace() }},
+		{name: "ReadTokenBytesEnd", data: "10.0.0.1", read: func(b *Buffer) { _, _ = b.ReadTokenBytesEnd() }},
+		{name: "ReadTokenString", data: "10.0.0.1", read: func(b *Buffer) { _, _ = b.ReadTokenString() }},
+		{name: "ReadTokenStringSpace", data: "10.0.0.1 ", read: func(b *Buffer) { _, _ = b.ReadTokenStringSpace() }},
+		{name: "ReadTokenStringEnd", data: "10.0.0.1", read: func(b *Buffer) { _, _ = b.ReadTokenStringEnd() }},
 		{name: "ReadSpace", data: " ", read: func(b *Buffer) { _ = b.ReadSpace() }},
 		{name: "PeekCountedHeader", data: "3:abc", read: func(b *Buffer) { _, _, _ = b.PeekCountedHeader() }},
 		{name: "ReadCountedBytes", data: "3:abc", read: func(b *Buffer) { _, _ = b.ReadCountedBytes() }},
@@ -214,6 +224,9 @@ func TestBufferReadFreezesAgainstWrites(t *testing.T) {
 		assert.PanicsWithValue(t, readOnlyPanicMsg, func() { _, _ = b.ReadCountedBytes() })
 		assert.PanicsWithValue(t, readOnlyPanicMsg, func() { _, _ = b.ReadCountedBytesSpace() })
 		assert.PanicsWithValue(t, readOnlyPanicMsg, func() { _, _ = b.ReadCountedBytesEnd() })
+		assert.PanicsWithValue(t, readOnlyPanicMsg, func() { _, _ = b.ReadTokenBytes() })
+		assert.PanicsWithValue(t, readOnlyPanicMsg, func() { _, _ = b.ReadTokenBytesSpace() })
+		assert.PanicsWithValue(t, readOnlyPanicMsg, func() { _, _ = b.ReadTokenBytesEnd() })
 	})
 
 	t.Run("FromStringRejectsMutableBytes", func(t *testing.T) {
@@ -527,7 +540,7 @@ func TestBufferReadCountedBoundaries(t *testing.T) {
 // field views on the hot parse path.
 func TestBufferParseZeroAlloc(t *testing.T) {
 	verbUpd := MakeWord4("upd")
-	lineStr := "upd 42 1 1700000000 7 8:10.0.0.1 11:10.0.0.0/24 0: 8:deadbeef 5:attrs"
+	lineStr := "upd 14 65000 65001 42 10.0.0.1 10.0.0.2 1.1.1.1 - 40:AAAbQAEBAAJAAgAEAAH96EADAQoAAAEAAhgKAAA="
 	lineBytes := []byte(lineStr)
 
 	var sink uint64
@@ -558,19 +571,19 @@ func TestBufferParseZeroAlloc(t *testing.T) {
 		if err != nil {
 			t.FailNow()
 		}
-		c1, err := b.ReadCountedBytesSpace()
+		c1, err := b.ReadTokenBytesSpace()
 		if err != nil {
 			t.FailNow()
 		}
-		c2, err := b.ReadCountedBytesSpace()
+		c2, err := b.ReadTokenBytesSpace()
 		if err != nil {
 			t.FailNow()
 		}
-		c3, err := b.ReadCountedBytesSpace()
+		c3, err := b.ReadTokenBytesSpace()
 		if err != nil {
 			t.FailNow()
 		}
-		c4, err := b.ReadCountedBytesSpace()
+		c4, err := b.ReadTokenBytesSpace()
 		if err != nil {
 			t.FailNow()
 		}
@@ -609,19 +622,19 @@ func TestBufferParseZeroAlloc(t *testing.T) {
 		if err != nil {
 			t.FailNow()
 		}
-		c1, err := b.ReadCountedStringSpace()
+		c1, err := b.ReadTokenStringSpace()
 		if err != nil {
 			t.FailNow()
 		}
-		c2, err := b.ReadCountedStringSpace()
+		c2, err := b.ReadTokenStringSpace()
 		if err != nil {
 			t.FailNow()
 		}
-		c3, err := b.ReadCountedStringSpace()
+		c3, err := b.ReadTokenStringSpace()
 		if err != nil {
 			t.FailNow()
 		}
-		c4, err := b.ReadCountedStringSpace()
+		c4, err := b.ReadTokenStringSpace()
 		if err != nil {
 			t.FailNow()
 		}
@@ -640,17 +653,18 @@ func TestBufferParseZeroAlloc(t *testing.T) {
 // PREVENTS: out-of-bounds slicing, integer overflow, or unsafe slice panics
 // on untrusted wire input.
 func FuzzBufferParseCounted(f *testing.F) {
-	f.Add([]byte("upd 42 1 1700000000 7 8:10.0.0.1 11:10.0.0.0/24 0: 8:deadbeef 5:attrs\n"))
+	f.Add([]byte("upd 14 65000 65001 42 10.0.0.1 10.0.0.2 1.1.1.1 - 8:AAAAAA==\n"))
+	f.Add([]byte("row 42 1 1700000000 7 8:10.0.0.1 11:10.0.0.0/24 0: 8:deadbeef 5:attrs\n"))
 	f.Add([]byte(""))
 	f.Add([]byte("\n"))
 	f.Add([]byte("upd "))
-	f.Add([]byte("upd 18446744073709551615 0: 1:a"))
-	f.Add([]byte("upd 18446744073709551616 18446744073709551615:a"))
+	f.Add([]byte("row 18446744073709551615 0: 1:a"))
+	f.Add([]byte("row 18446744073709551616 18446744073709551615:a"))
 	f.Add([]byte("000000000000000000001:abc"))
 	f.Add([]byte("5:ab"))
 	f.Add([]byte(":"))
 	f.Add([]byte("5hello"))
-	f.Add([]byte("upd 5:notnum 0:"))
+	f.Add([]byte("row 5:notnum 0:"))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		var bb Buffer
@@ -660,6 +674,11 @@ func FuzzBufferParseCounted(f *testing.F) {
 		_, _ = bb.ReadWord4()
 		_, _ = bb.ReadUintSpace()
 		_, _ = bb.ReadUint()
+		_, _ = bb.ReadIPv4Space()
+		_, _ = bb.ReadIPv4()
+		_, _ = bb.ReadTokenBytesSpace()
+		_, _ = bb.ReadTokenBytes()
+		_, _ = bb.ReadTokenBytesEnd()
 		_ = bb.ReadSpace()
 		_, _, _ = bb.PeekCountedHeader()
 		_, _ = bb.ReadCountedBytesSpace()
@@ -680,6 +699,11 @@ func FuzzBufferParseCounted(f *testing.F) {
 		_, _ = bs.ReadWord4()
 		_, _ = bs.ReadUintSpace()
 		_, _ = bs.ReadUint()
+		_, _ = bs.ReadIPv4Space()
+		_, _ = bs.ReadIPv4()
+		_, _ = bs.ReadTokenStringSpace()
+		_, _ = bs.ReadTokenString()
+		_, _ = bs.ReadTokenStringEnd()
 		_ = bs.ReadSpace()
 		_, _, _ = bs.PeekCountedHeader()
 		_, _ = bs.ReadCountedStringSpace()
@@ -698,7 +722,7 @@ func FuzzBufferParseCounted(f *testing.F) {
 // BenchmarkBufferParseUpdLineBytes measures positional upd line parsing via Adopt([]byte).
 func BenchmarkBufferParseUpdLineBytes(b *testing.B) {
 	verbUpd := MakeWord4("upd")
-	line := []byte("upd 42 1 1700000000 7 8:10.0.0.1 11:10.0.0.0/24 0: 8:deadbeef 5:attrs")
+	line := []byte("upd 14 65000 65001 42 10.0.0.1 10.0.0.2 1.1.1.1 - 40:AAAbQAEBAAJAAgAEAAH96EADAQoAAAEAAhgKAAA=")
 	b.ReportAllocs()
 	b.SetBytes(int64(len(line)))
 
@@ -729,19 +753,19 @@ func BenchmarkBufferParseUpdLineBytes(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		c1, err := buf.ReadCountedBytesSpace()
+		c1, err := buf.ReadTokenBytesSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
-		c2, err := buf.ReadCountedBytesSpace()
+		c2, err := buf.ReadTokenBytesSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
-		c3, err := buf.ReadCountedBytesSpace()
+		c3, err := buf.ReadTokenBytesSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
-		c4, err := buf.ReadCountedBytesSpace()
+		c4, err := buf.ReadTokenBytesSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -759,7 +783,7 @@ func BenchmarkBufferParseUpdLineBytes(b *testing.B) {
 // BenchmarkBufferParseUpdLineString measures positional upd line parsing via AdoptString(string).
 func BenchmarkBufferParseUpdLineString(b *testing.B) {
 	verbUpd := MakeWord4("upd")
-	line := "upd 42 1 1700000000 7 8:10.0.0.1 11:10.0.0.0/24 0: 8:deadbeef 5:attrs"
+	line := "upd 14 65000 65001 42 10.0.0.1 10.0.0.2 1.1.1.1 - 40:AAAbQAEBAAJAAgAEAAH96EADAQoAAAEAAhgKAAA="
 	b.ReportAllocs()
 	b.SetBytes(int64(len(line)))
 
@@ -790,19 +814,19 @@ func BenchmarkBufferParseUpdLineString(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		c1, err := buf.ReadCountedStringSpace()
+		c1, err := buf.ReadTokenStringSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
-		c2, err := buf.ReadCountedStringSpace()
+		c2, err := buf.ReadTokenStringSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
-		c3, err := buf.ReadCountedStringSpace()
+		c3, err := buf.ReadTokenStringSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
-		c4, err := buf.ReadCountedStringSpace()
+		c4, err := buf.ReadTokenStringSpace()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -851,4 +875,261 @@ func TestBufferReadOnlyStringAfterTrimToEmpty(t *testing.T) {
 	assert.Equal(t, "", pb.String())
 	assert.Equal(t, 0, cap(pb.b), "pooled buffer must not retain read-only string capacity across Release")
 	pb.Release()
+}
+
+// VALIDATES: ReadIPv4 and ReadIPv4Space parse dotted-quad IPv4 addresses into
+// big-endian uint32 in one pass with zero allocations, reject leading zeros,
+// out-of-range octets, wrong dot counts, and non-digit bytes without moving
+// the cursor, and match netip.ParseAddr across all valid boundary values.
+// PREVENTS: octal ambiguity, silent acceptance of truncated or overflowing
+// octets, or heap allocations when parsing IPv4 fields on hot wire paths.
+func TestBufferReadIPv4(t *testing.T) {
+	t.Parallel()
+
+	validCases := []struct {
+		input string
+		want  uint32
+	}{
+		{"0.0.0.0", 0x00000000},
+		{"1.1.1.1", 0x01010101},
+		{"10.0.0.1", 0x0a000001},
+		{"127.0.0.1", 0x7f000001},
+		{"192.168.0.255", 0xc0a800ff},
+		{"255.255.255.255", 0xffffffff},
+	}
+	for _, tc := range validCases {
+		t.Run("EOF_"+tc.input, func(t *testing.T) {
+			t.Parallel()
+			var b Buffer
+			b.AdoptString(tc.input)
+			got, err := b.ReadIPv4()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+			assert.True(t, b.EOF())
+		})
+		t.Run("Space_"+tc.input, func(t *testing.T) {
+			t.Parallel()
+			var b Buffer
+			b.AdoptString(tc.input + " rest")
+			got, err := b.ReadIPv4Space()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, "rest", b.RestString())
+		})
+	}
+
+	// Chained reads across multiple IPv4 fields.
+	var chain Buffer
+	chain.AdoptString("10.0.0.1 10.0.0.2 1.1.1.1")
+	p1, err := chain.ReadIPv4Space()
+	require.NoError(t, err)
+	p2, err := chain.ReadIPv4Space()
+	require.NoError(t, err)
+	p3, err := chain.ReadIPv4()
+	require.NoError(t, err)
+	assert.Equal(t, uint32(0x0a000001), p1)
+	assert.Equal(t, uint32(0x0a000002), p2)
+	assert.Equal(t, uint32(0x01010101), p3)
+	assert.True(t, chain.EOF())
+
+	// Missing trailing space leaves cursor unchanged.
+	var noSpace Buffer
+	noSpace.AdoptString("10.0.0.1")
+	_, err = noSpace.ReadIPv4Space()
+	require.ErrorIs(t, err, ErrMissingSpace)
+	assert.Equal(t, 0, noSpace.Pos())
+
+	invalidInputs := []string{
+		"",
+		" ",
+		"1",
+		"1.2.3",
+		"1.2.3 ",
+		"1.2.3.",
+		"1.2.3.4.",
+		"1.2.3.4.5",
+		".1.2.3",
+		"1..2.3",
+		"256.0.0.1",
+		"1.256.0.1",
+		"1.2.256.1",
+		"1.2.3.256",
+		"999.0.0.1",
+		"01.0.0.1",
+		"1.00.0.1",
+		"1.2.3.04",
+		"10.0.0.1a",
+		"-1.0.0.1",
+		"10.0.0.1\t",
+		"2001:db8::1",
+	}
+	for _, bad := range invalidInputs {
+		t.Run("Invalid_"+bad, func(t *testing.T) {
+			t.Parallel()
+			var b Buffer
+			b.AdoptString(bad)
+			_, err := b.ReadIPv4()
+			require.ErrorIs(t, err, ErrInvalidIPv4)
+			assert.Equal(t, 0, b.Pos(), "ReadIPv4 must not move cursor on error")
+
+			var bs Buffer
+			bs.AdoptString(bad)
+			_, err = bs.ReadIPv4Space()
+			require.ErrorIs(t, err, ErrInvalidIPv4)
+			assert.Equal(t, 0, bs.Pos(), "ReadIPv4Space must not move cursor on error")
+		})
+	}
+}
+
+// VALIDATES: ReadIPv4 allocates zero bytes on the heap per call.
+// PREVENTS: accidental escape of Buffer or temporary slices during IPv4 parsing.
+func TestBufferReadIPv4ZeroAlloc(t *testing.T) {
+	const input = "192.168.100.200 10.0.0.1"
+	var sink uint32
+	allocs := testing.AllocsPerRun(100, func() {
+		var b Buffer
+		b.AdoptString(input)
+		a, err := b.ReadIPv4Space()
+		if err != nil {
+			t.FailNow()
+		}
+		c, err := b.ReadIPv4()
+		if err != nil {
+			t.FailNow()
+		}
+		sink = a ^ c
+	})
+	assert.Equal(t, 0.0, allocs)
+	assert.NotZero(t, sink)
+}
+
+// VALIDATES: ReadTokenBytes* and ReadTokenString* parse space-delimited tokens
+// zero-copy with 3-index slice cap isolation, reject empty tokens, control
+// bytes, missing spaces, and trailing bytes without advancing the cursor.
+// PREVENTS: cross-field slice overwrites, control-byte injection, or silent
+// acceptance of double spaces on positional token wire lines.
+func TestBufferReadToken(t *testing.T) {
+	t.Parallel()
+
+	raw := []byte("10.0.0.1 2001:db8::1 - AAAbQAE=")
+	var rb Buffer
+	rb.Adopt(raw)
+
+	tok1, err := rb.ReadTokenBytesSpace()
+	require.NoError(t, err)
+	assert.Equal(t, []byte("10.0.0.1"), tok1)
+	assert.Same(t, &raw[0], &tok1[0])
+	assert.Equal(t, len(tok1), cap(tok1))
+	tok1 = append(tok1, '!')
+	assert.Equal(t, byte(' '), raw[len("10.0.0.1")], "append must not overwrite following space")
+
+	tok2, err := rb.ReadTokenBytesSpace()
+	require.NoError(t, err)
+	assert.Equal(t, []byte("2001:db8::1"), tok2)
+
+	tok3, err := rb.ReadTokenBytesSpace()
+	require.NoError(t, err)
+	assert.Equal(t, []byte("-"), tok3)
+
+	tok4, err := rb.ReadTokenBytesEnd()
+	require.NoError(t, err)
+	assert.Equal(t, []byte("AAAbQAE="), tok4)
+	assert.True(t, rb.EOF())
+
+	// ReadTokenString* on immutable string.
+	line := "10.0.0.1 2001:db8::1 - AAAbQAE="
+	var rs Buffer
+	rs.AdoptString(line)
+	s1, err := rs.ReadTokenStringSpace()
+	require.NoError(t, err)
+	assert.Equal(t, "10.0.0.1", s1)
+	assert.Same(t, unsafe.StringData(line), unsafe.StringData(s1))
+	s2, err := rs.ReadTokenStringSpace()
+	require.NoError(t, err)
+	assert.Equal(t, "2001:db8::1", s2)
+	s3, err := rs.ReadTokenStringSpace()
+	require.NoError(t, err)
+	assert.Equal(t, "-", s3)
+	s4, err := rs.ReadTokenStringEnd()
+	require.NoError(t, err)
+	assert.Equal(t, "AAAbQAE=", s4)
+	assert.True(t, rs.EOF())
+
+	// ReadTokenString stops before space without consuming it.
+	var peek Buffer
+	peek.AdoptString("abc def")
+	head, err := peek.ReadTokenString()
+	require.NoError(t, err)
+	assert.Equal(t, "abc", head)
+	assert.Equal(t, " def", peek.RestString())
+
+	// Error cases leave cursor unchanged.
+	errCases := []struct {
+		name  string
+		input string
+		call  func(b *Buffer) error
+		want  error
+	}{
+		{"empty_eof", "", func(b *Buffer) error { _, err := b.ReadTokenString(); return err }, ErrEmptyToken},
+		{"leading_space", " abc", func(b *Buffer) error { _, err := b.ReadTokenStringSpace(); return err }, ErrEmptyToken},
+		{"missing_space", "abc", func(b *Buffer) error { _, err := b.ReadTokenStringSpace(); return err }, ErrMissingSpace},
+		{"trailing_bytes", "abc def", func(b *Buffer) error { _, err := b.ReadTokenStringEnd(); return err }, ErrTrailingBytes},
+		{"trailing_space_on_end", "abc ", func(b *Buffer) error { _, err := b.ReadTokenStringEnd(); return err }, ErrTrailingBytes},
+		{"embedded_tab", "ab\tc", func(b *Buffer) error { _, err := b.ReadTokenString(); return err }, ErrInvalidTokenByte},
+		{"embedded_cr", "ab\rc", func(b *Buffer) error { _, err := b.ReadTokenString(); return err }, ErrInvalidTokenByte},
+		{"embedded_lf", "ab\nc", func(b *Buffer) error { _, err := b.ReadTokenString(); return err }, ErrInvalidTokenByte},
+		{"embedded_del", "ab\x7fc", func(b *Buffer) error { _, err := b.ReadTokenString(); return err }, ErrInvalidTokenByte},
+	}
+	for _, tc := range errCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var b Buffer
+			b.AdoptString(tc.input)
+			err := tc.call(&b)
+			require.ErrorIs(t, err, tc.want)
+			assert.Equal(t, 0, b.Pos())
+		})
+	}
+}
+
+// FuzzBufferReadIPv4 verifies ReadIPv4 agrees with netip.ParseAddr on every
+// single-token input without spaces and never panics on arbitrary bytes.
+func FuzzBufferReadIPv4(f *testing.F) {
+	f.Add("0.0.0.0")
+	f.Add("10.0.0.1")
+	f.Add("255.255.255.255")
+	f.Add("01.0.0.1")
+	f.Add("256.0.0.1")
+	f.Add("1.2.3")
+	f.Add("1.2.3.4.5")
+	f.Add("2001:db8::1")
+	f.Add("")
+
+	f.Fuzz(func(t *testing.T, input string) {
+		var b Buffer
+		b.AdoptString(input)
+		got, err := b.ReadIPv4()
+		if strings.ContainsRune(input, ' ') {
+			return
+		}
+		addr, stdErr := netip.ParseAddr(input)
+		stdOK := stdErr == nil && addr.Is4()
+		if !stdOK {
+			if err == nil {
+				t.Fatalf("ReadIPv4(%q) accepted non-IPv4 input as %#08x", input, got)
+			}
+			return
+		}
+		if err != nil {
+			t.Fatalf("ReadIPv4(%q) rejected valid IPv4: %v", input, err)
+		}
+		if !b.EOF() {
+			t.Fatalf("ReadIPv4(%q) did not reach EOF: pos=%d len=%d", input, b.Pos(), len(input))
+		}
+		b4 := addr.As4()
+		want := binary.BigEndian.Uint32(b4[:])
+		if got != want {
+			t.Fatalf("ReadIPv4(%q) = %#08x, want %#08x", input, got, want)
+		}
+	})
 }

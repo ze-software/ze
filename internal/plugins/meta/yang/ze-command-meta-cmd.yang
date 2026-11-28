@@ -90,7 +90,7 @@ parseable; text is more compact.";
             config false;
             ze:command "ze-meta:bgp-plugin-format";
             ze:rpc "ze-bgp-api:plugin-format";
-            description "hex carries wire bytes in hex. base64 emits positional counted base64
+            description "hex carries wire bytes in hex. base64 emits positional base64
 UPDATE lines beside JSON control events carrying wire bytes. parsed decodes attributes
 into structured fields. full includes both wire bytes and parsed content.";
             ze:help "Choose how BGP message bytes appear in events.";

@@ -421,18 +421,25 @@ the event state.
 
 Under `format=base64`, BGP UPDATEs (including End-of-RIB markers) skip JSON
 formatting and attribute/NLRI parsing altogether and are emitted as one
-quote-free positional counted ASCII line following Ze's Answer Protocol counted
-grammar:
+quote-free positional space-delimited ASCII line:
 
 ```
-upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>
+upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>
 ```
 
-Each line ends with a single `\n`, writes `0:` for any absent counted field,
+Each line ends with a single `\n`, writes `-` for any absent metadata token and
+`0:` for an empty body,
 packs direction, ASN4, remote-AS presence, and IPv4/IPv6 unicast ADD-PATH state
 into the 6-bit `<flags>` bitmask, lists any non-unicast ADD-PATH families in
 `<extra-addpath>`, and carries the raw BGP UPDATE body (after the 19-octet
-header) in standard base64. Low-frequency control and session events (`state`,
+header) as a byte-counted standard base64 payload. Because the metadata tokens
+are short, bounded, and whitespace-free, they omit `<n>:` prefixes: the writer
+appends cached peer address strings directly into the output buffer and the
+reader slices each token zero-copy (`textbuf.Buffer.ReadTokenStringSpace`).
+The base64 body keeps its `<n>:` length prefix (`ReadCountedStringEnd`) because
+an RFC 8654 extended UPDATE can reach 65,516 octets (~87 KiB encoded), letting
+readers pre-size buffers and skip scanning the payload.
+Low-frequency control and session events (`state`,
 `negotiated`, `open`, `notification`, `keepalive`, `refresh`) remain JSON
 objects. In `ze_bgp` builds, `ze exabgp plugin` subscribes `base64` whenever a
 script receives an UPDATE (keeping `full` for `!ze_bgp` builds and for
@@ -442,7 +449,7 @@ values and unknown attribute flags directly off the wire bytes
 (`docs/architecture/exabgp-bridge.md`).
 
 <!-- source: internal/component/bgp/format/json_message.go -- JSONEncoder.Message -->
-<!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
+<!-- source: internal/component/bgp/format/base64.go -- appendBase64Update -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendEORUpdateJSON -->
 <!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendFullFromResult -->

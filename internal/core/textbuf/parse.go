@@ -39,6 +39,12 @@ var (
 	ErrCountOutOfBounds = errors.New("textbuf: counted field length exceeds remaining buffer")
 	// ErrTrailingBytes reports unexpected bytes remaining after a field expected to end the buffer.
 	ErrTrailingBytes = errors.New("textbuf: unexpected trailing bytes")
+	// ErrEmptyToken reports a space-delimited token field with zero bytes before its delimiter.
+	ErrEmptyToken = errors.New("textbuf: empty token field")
+	// ErrInvalidTokenByte reports a control character inside a space-delimited token field.
+	ErrInvalidTokenByte = errors.New("textbuf: invalid byte in token field")
+	// ErrInvalidIPv4 reports a malformed dotted-quad IPv4 address field.
+	ErrInvalidIPv4 = errors.New("textbuf: invalid IPv4 address")
 )
 
 // Word4 is a 4-byte wire verb word packing a 3-byte token and trailing space
@@ -211,6 +217,209 @@ func (b *Buffer) ReadSpace() error {
 	}
 	b.pos++
 	return nil
+}
+
+func (b *Buffer) readIPv4() (uint32, int, error) {
+	b.done = true
+	data := b.b
+	n := len(data)
+	start := b.pos
+	var ip uint32
+	var octet uint32
+	dots := 0
+	digits := 0
+	for i := start; i < n; i++ {
+		c := data[i]
+		d := c - '0'
+		if d <= 9 {
+			if digits == 1 {
+				if octet == 0 {
+					return 0, start, ErrInvalidIPv4
+				}
+			}
+			octet = octet*10 + uint32(d)
+			if octet > 255 {
+				return 0, start, ErrInvalidIPv4
+			}
+			digits++
+			continue
+		}
+		if c == '.' {
+			if digits == 0 {
+				return 0, start, ErrInvalidIPv4
+			}
+			if dots >= 3 {
+				return 0, start, ErrInvalidIPv4
+			}
+			ip = (ip << 8) | octet
+			octet = 0
+			digits = 0
+			dots++
+			continue
+		}
+		if c == ' ' {
+			if digits == 0 {
+				return 0, start, ErrInvalidIPv4
+			}
+			if dots != 3 {
+				return 0, start, ErrInvalidIPv4
+			}
+			return (ip << 8) | octet, i, nil
+		}
+		return 0, start, ErrInvalidIPv4
+	}
+	if digits == 0 {
+		return 0, start, ErrInvalidIPv4
+	}
+	if dots != 3 {
+		return 0, start, ErrInvalidIPv4
+	}
+	return (ip << 8) | octet, n, nil
+}
+
+// ReadIPv4 freezes the buffer and parses a dotted-quad IPv4 address at the
+// cursor into a big-endian uint32 in one pass, stopping at a space or end of
+// buffer without consuming the space. Leaves the cursor unchanged on error.
+func (b *Buffer) ReadIPv4() (uint32, error) {
+	ip, end, err := b.readIPv4()
+	if err != nil {
+		return 0, err
+	}
+	b.pos = end
+	return ip, nil
+}
+
+// ReadIPv4Space freezes the buffer, parses a dotted-quad IPv4 address
+// terminated by a single space into a big-endian uint32, and consumes the
+// trailing space. Leaves the cursor unchanged on error.
+func (b *Buffer) ReadIPv4Space() (uint32, error) {
+	ip, end, err := b.readIPv4()
+	if err != nil {
+		return 0, err
+	}
+	if end >= len(b.b) {
+		return 0, ErrMissingSpace
+	}
+	b.pos = end + 1
+	return ip, nil
+}
+
+func (b *Buffer) readTokenSpan() (int, int, error) {
+	b.done = true
+	data := b.b
+	n := len(data)
+	start := b.pos
+	for i := start; i < n; i++ {
+		c := data[i]
+		if c == ' ' {
+			if i == start {
+				return 0, 0, ErrEmptyToken
+			}
+			b.pos = i
+			return start, i, nil
+		}
+		if c < 0x20 {
+			return 0, 0, ErrInvalidTokenByte
+		}
+		if c == 0x7f {
+			return 0, 0, ErrInvalidTokenByte
+		}
+	}
+	if start >= n {
+		return 0, 0, ErrEmptyToken
+	}
+	b.pos = n
+	return start, n, nil
+}
+
+// ReadTokenBytes freezes the buffer and reads a non-empty space-delimited
+// token at the cursor into a 3-index byte slice sharing buffer memory, stopping
+// at a space or end of buffer without consuming the space. Panics on a
+// read-only string buffer. Leaves the cursor unchanged on error.
+func (b *Buffer) ReadTokenBytes() ([]byte, error) {
+	b.mustBeMutable()
+	start, end, err := b.readTokenSpan()
+	if err != nil {
+		return nil, err
+	}
+	return b.b[start:end:end], nil
+}
+
+// ReadTokenBytesSpace reads a non-empty space-delimited byte token followed by
+// a single space separator and consumes the trailing space. Panics on a
+// read-only string buffer. Leaves the cursor unchanged on error.
+func (b *Buffer) ReadTokenBytesSpace() ([]byte, error) {
+	b.mustBeMutable()
+	saved := b.pos
+	start, end, err := b.readTokenSpan()
+	if err != nil {
+		return nil, err
+	}
+	if err := b.ReadSpace(); err != nil {
+		b.pos = saved
+		return nil, err
+	}
+	return b.b[start:end:end], nil
+}
+
+// ReadTokenBytesEnd reads a non-empty space-delimited byte token and requires
+// the cursor to reach the end of the buffer. Panics on a read-only string
+// buffer. Leaves the cursor unchanged on error.
+func (b *Buffer) ReadTokenBytesEnd() ([]byte, error) {
+	b.mustBeMutable()
+	saved := b.pos
+	start, end, err := b.readTokenSpan()
+	if err != nil {
+		return nil, err
+	}
+	if !b.EOF() {
+		b.pos = saved
+		return nil, ErrTrailingBytes
+	}
+	return b.b[start:end:end], nil
+}
+
+// ReadTokenString freezes the buffer and reads a non-empty space-delimited
+// token at the cursor into a zero-copy string view, stopping at a space or end
+// of buffer without consuming the space. Leaves the cursor unchanged on error.
+func (b *Buffer) ReadTokenString() (string, error) {
+	start, end, err := b.readTokenSpan()
+	if err != nil {
+		return "", err
+	}
+	return b.stringSpan(start, end), nil
+}
+
+// ReadTokenStringSpace reads a non-empty space-delimited string token followed
+// by a single space separator and consumes the trailing space. Leaves the
+// cursor unchanged on error.
+func (b *Buffer) ReadTokenStringSpace() (string, error) {
+	saved := b.pos
+	start, end, err := b.readTokenSpan()
+	if err != nil {
+		return "", err
+	}
+	if err := b.ReadSpace(); err != nil {
+		b.pos = saved
+		return "", err
+	}
+	return b.stringSpan(start, end), nil
+}
+
+// ReadTokenStringEnd reads a non-empty space-delimited string token and
+// requires the cursor to reach the end of the buffer. Leaves the cursor
+// unchanged on error.
+func (b *Buffer) ReadTokenStringEnd() (string, error) {
+	saved := b.pos
+	start, end, err := b.readTokenSpan()
+	if err != nil {
+		return "", err
+	}
+	if !b.EOF() {
+		b.pos = saved
+		return "", ErrTrailingBytes
+	}
+	return b.stringSpan(start, end), nil
 }
 
 // PeekCountedHeader freezes the buffer and parses a counted field's "<n>:"

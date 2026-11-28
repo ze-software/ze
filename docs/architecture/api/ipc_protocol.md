@@ -976,7 +976,7 @@ This fence does not delay Ze's independently owned End-of-RIB.
 
 Format relationship:
 - `encoding text` → always parsed (human readable)
-- `encoding json` → format applies (`hex`, `base64`, `parsed`, or `full`; under `base64`, BGP UPDATEs use the positional counted `upd` wire line below while low-frequency control/session events stay JSON with `raw.message`)
+- `encoding json` → format applies (`hex`, `base64`, `parsed`, or `full`; under `base64`, BGP UPDATEs use the positional space-delimited `upd` wire line below while low-frequency control/session events stay JSON with `raw.message`)
 
 | Format | Wire Bytes | Parsed Fields | Use Case |
 |--------|------------|---------------|----------|
@@ -985,19 +985,19 @@ Format relationship:
 | `parsed` | ❌ | ✅ | Most plugins (default) |
 | `full` | ✅ as hex | ✅ | Debugging + analysis |
 
-**Positional counted `base64` UPDATE line:**
+**Positional `base64` UPDATE line:**
 
 ```
-upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>
+upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>
 ```
 
-Following Ze's Answer Protocol counted grammar, each line uses zero key names, a
-4-byte `"upd "` kind prefix, decimal integers (`<flags>` packing direction,
-`has-asn4`, `asn4`, `has-remote-as`, and IPv4/IPv6 unicast ADD-PATH bits),
-`<byte-len>:<bytes>` counted fields (`0:` when absent), standard base64 of the
-UPDATE body after the 19-octet header (up to RFC 8654's 65,516 octets), zero
-quotes or backslashes, and one trailing `\n`.
-<!-- source: internal/component/bgp/format/raw_b64.go -- appendRawB64Update -->
+Each line uses zero key names, a 4-byte `"upd "` kind prefix, decimal integers
+(`<flags>` packing direction, `has-asn4`, `asn4`, `has-remote-as`, and
+IPv4/IPv6 unicast ADD-PATH bits), plain space-delimited metadata tokens (`-`
+when absent), a byte-counted `<n>:<b64-body>` payload (`0:` when empty) carrying
+standard base64 of the UPDATE body after the 19-octet header (up to RFC 8654's
+65,516 octets), zero quotes or backslashes, and one trailing `\n`.
+<!-- source: internal/component/bgp/format/base64.go -- appendBase64Update -->
 
 **Timing:** Encoding applies at event delivery time. Subscribe first, configure encoding later—events use current encoding when delivered.
 

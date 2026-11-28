@@ -188,7 +188,7 @@ The value takes effect for that process alone.";
     rpc plugin-format {
         description "The format governs how the BGP wire bytes are rendered inside each event.
 'parsed' carries the decoded fields alone and is the default. 'hex' carries wire
-bytes in hexadecimal. 'base64' emits positional counted base64 UPDATE lines beside
+bytes in hexadecimal. 'base64' emits positional base64 UPDATE lines beside
 JSON control events carrying wire bytes. 'full' carries the decoded fields and the
 wire bytes together.";
         ze:help "Set wire format (hex|base64|parsed|full).";
@@ -198,7 +198,7 @@ wire bytes together.";
                 mandatory true;
                 description "How the BGP wire bytes are rendered inside each event the calling process
 receives. 'parsed' is the default, 'full' carries decoded fields and wire bytes together,
-and 'base64' emits positional counted base64 UPDATE lines beside JSON control events.";
+and 'base64' emits positional base64 UPDATE lines beside JSON control events.";
                 ze:help "Wire format";
             }
         }

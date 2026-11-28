@@ -1,5 +1,5 @@
-// Design: docs/architecture/exabgp-bridge.md -- positional counted base64 UPDATE parser and wire-backed renderer.
-// Related: bridge_raw_b64_stub.go -- non-ze_bgp build stub.
+// Design: docs/architecture/exabgp-bridge.md -- positional space-delimited base64 UPDATE parser and wire-backed renderer.
+// Related: bridge_base64_stub.go -- non-ze_bgp build stub.
 // Related: bridge_wire_json.go -- existing ze_bgp wire-to-ExaBGP helper.
 // Related: bridge_negotiated.go -- Sessions.noteRaw session state and cached negotiated JSON bytes.
 
@@ -9,7 +9,6 @@ package bridge
 
 import (
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -35,42 +34,43 @@ import (
 // rawWireBuildEnabled records whether this build carries the BGP wire engine.
 const rawWireBuildEnabled = true
 
-// Positional flag bitmask constants matching internal/component/bgp/format/raw_b64.go.
+// Positional flag bitmask constants matching internal/component/bgp/format/base64.go.
 // Six bits are defined (0..63); bits 6 and 7 are reserved and rejected if set.
 const (
-	rawB64FlagSent               uint8 = 1 << 0
-	rawB64FlagHasASN4            uint8 = 1 << 1
-	rawB64FlagASN4               uint8 = 1 << 2
-	rawB64FlagHasRemoteAS        uint8 = 1 << 3
-	rawB64FlagAddPathIPv4Unicast uint8 = 1 << 4
-	rawB64FlagAddPathIPv6Unicast uint8 = 1 << 5
-	rawB64FlagsMax               uint8 = (1 << 6) - 1
+	base64FlagSent               uint8 = 1 << 0
+	base64FlagHasASN4            uint8 = 1 << 1
+	base64FlagASN4               uint8 = 1 << 2
+	base64FlagHasRemoteAS        uint8 = 1 << 3
+	base64FlagAddPathIPv4Unicast uint8 = 1 << 4
+	base64FlagAddPathIPv6Unicast uint8 = 1 << 5
+	base64FlagsMax               uint8 = (1 << 6) - 1
 )
 
 // Positional grammar constants and RFC 8654 wire bounds for `base64` UPDATE lines.
 const (
-	rawB64KindPrefix = "upd "
+	base64KindPrefix  = "upd "
+	base64AbsentToken = "-"
 	// rawUpdateBodyMax is RFC 8654 Section 3's extended BGP message maximum
 	// (65,535 octets) minus the 19-octet BGP message header.
 	rawUpdateBodyMax = 65535 - 19
-	// rawB64SrcStackMax is base64.StdEncoding.EncodedLen(4096), keeping standard
+	// base64SrcStackMax is base64.StdEncoding.EncodedLen(4096), keeping standard
 	// RFC 4271 UPDATE base64 decoding on the stack with zero heap allocations.
-	rawB64SrcStackMax = 5464
+	base64SrcStackMax = 5464
 	// rawContextCacheMax caps cached (asn4, addPath) -> ContextID entries.
 	rawContextCacheMax = 1024
 )
 
-// rawB64KindWord packs the 3-byte `upd` kind token and trailing space for
-// single-instruction Word4 dispatch in ReadRawB64Update.
-var rawB64KindWord = textbuf.MakeWord4(rawB64KindPrefix[:3])
+// base64KindWord packs the 3-byte `upd` kind token and trailing space for
+// single-instruction Word4 dispatch in ReadBase64Update.
+var base64KindWord = textbuf.MakeWord4(base64KindPrefix[:3])
 
 var (
-	errRawB64CarriageReturn = errors.New("exabgp-bridge: base64 line contains carriage return")
-	errRawB64InvalidPrefix  = errors.New("exabgp-bridge: base64 line does not start with 'upd '")
-	errRawB64UnknownFlags   = errors.New("exabgp-bridge: base64 flags has unknown high bits (> 63)")
-	errRawB64ASNOverflow    = errors.New("exabgp-bridge: base64 AS number exceeds uint32")
-	errRawB64BodyTooLarge   = errors.New("exabgp-bridge: base64 UPDATE body exceeds RFC 8654 maximum (65516 bytes)")
-	errRawB64InvalidBase64  = errors.New("exabgp-bridge: base64 UPDATE body is not valid base64")
+	errBase64CarriageReturn = errors.New("exabgp-bridge: base64 line contains carriage return")
+	errBase64InvalidPrefix  = errors.New("exabgp-bridge: base64 line does not start with 'upd '")
+	errBase64UnknownFlags   = errors.New("exabgp-bridge: base64 flags has unknown high bits (> 63)")
+	errBase64ASNOverflow    = errors.New("exabgp-bridge: base64 AS number exceeds uint32")
+	errBase64BodyTooLarge   = errors.New("exabgp-bridge: base64 UPDATE body exceeds RFC 8654 maximum (65516 bytes)")
+	errBase64InvalidBase64  = errors.New("exabgp-bridge: base64 UPDATE body is not valid base64")
 )
 
 // RawUpdate holds the parsed positional fields and decoded BGP UPDATE wire
@@ -88,7 +88,7 @@ type RawUpdate struct {
 }
 
 // Direction reports the ExaBGP event direction ("receive" or "send") derived
-// from rawB64FlagSent.
+// from base64FlagSent.
 func (r RawUpdate) Direction() string {
 	if r.isSent() {
 		return modeSend
@@ -98,35 +98,35 @@ func (r RawUpdate) Direction() string {
 
 // isSent reports whether this UPDATE was sent by Ze rather than received.
 func (r RawUpdate) isSent() bool {
-	return r.Flags&rawB64FlagSent != 0
+	return r.Flags&base64FlagSent != 0
 }
 
 // hasASN4 reports whether the UPDATE carried an explicit negotiated ASN4 bit.
 func (r RawUpdate) hasASN4() bool {
-	return r.Flags&rawB64FlagHasASN4 != 0
+	return r.Flags&base64FlagHasASN4 != 0
 }
 
 // asn4 reports the 4-byte ASN width bit (valid when hasASN4 is true).
 func (r RawUpdate) asn4() bool {
-	return r.Flags&rawB64FlagASN4 != 0
+	return r.Flags&base64FlagASN4 != 0
 }
 
 // hasRemoteAS reports whether the peer's remote AS was known (false for dynamic
 // peers with `peer-as auto` before OPEN negotiation).
 func (r RawUpdate) hasRemoteAS() bool {
-	return r.Flags&rawB64FlagHasRemoteAS != 0
+	return r.Flags&base64FlagHasRemoteAS != 0
 }
 
 // addPathIPv4Unicast reports whether IPv4 unicast ADD-PATH is active for this
 // UPDATE's direction.
 func (r RawUpdate) addPathIPv4Unicast() bool {
-	return r.Flags&rawB64FlagAddPathIPv4Unicast != 0
+	return r.Flags&base64FlagAddPathIPv4Unicast != 0
 }
 
 // addPathIPv6Unicast reports whether IPv6 unicast ADD-PATH is active for this
 // UPDATE's direction.
 func (r RawUpdate) addPathIPv6Unicast() bool {
-	return r.Flags&rawB64FlagAddPathIPv6Unicast != 0
+	return r.Flags&base64FlagAddPathIPv6Unicast != 0
 }
 
 // rawContextKey identifies one encoding context shape decoded from a base64
@@ -154,40 +154,41 @@ func SupportsRawWire() bool {
 	return rawWireBuildEnabled
 }
 
-// ReadRawB64Update parses one positional counted `upd` line and base64-decodes
-// its UPDATE body into scratch (spilling to a fresh slice for jumbo RFC 8654
-// UPDATEs larger than cap(scratch)).
+// ReadBase64Update parses one positional `upd` line and base64-decodes its
+// counted UPDATE body into scratch (spilling to a fresh slice for jumbo RFC
+// 8654 UPDATEs larger than cap(scratch)).
 //
-// Wire grammar (internal/component/bgp/format/raw_b64.go):
+// Wire grammar (internal/component/bgp/format/base64.go):
 //
-//	upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>[\n]
+//	upd <flags> <local-as> <remote-as> <conn-id> <peer> <local> <router-id> <extra-addpath> <n>:<b64-body>[\n]
 //
+// Absent metadata tokens are represented as `-` and an empty body as `0:`.
 // Returns an error without panicking on any malformed input or body past RFC
 // 8654's 65,516-byte limit.
-func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
+func ReadBase64Update(line string, scratch []byte) (RawUpdate, error) {
 	var b textbuf.Buffer
 	b.AdoptString(line)
 	b.TrimTrailingLF()
 	if b.Remaining() > 0 {
 		if line[b.Remaining()-1] == '\r' {
-			return RawUpdate{}, errRawB64CarriageReturn
+			return RawUpdate{}, errBase64CarriageReturn
 		}
 	}
 
 	word, ok := b.ReadWord4()
 	if !ok {
-		return RawUpdate{}, errRawB64InvalidPrefix
+		return RawUpdate{}, errBase64InvalidPrefix
 	}
-	if word != rawB64KindWord {
-		return RawUpdate{}, errRawB64InvalidPrefix
+	if word != base64KindWord {
+		return RawUpdate{}, errBase64InvalidPrefix
 	}
 
 	flagsVal, err := b.ReadUintSpace()
 	if err != nil {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 flags: %w", err)
 	}
-	if flagsVal > uint64(rawB64FlagsMax) {
-		return RawUpdate{}, errRawB64UnknownFlags
+	if flagsVal > uint64(base64FlagsMax) {
+		return RawUpdate{}, errBase64UnknownFlags
 	}
 
 	localASVal, err := b.ReadUintSpace()
@@ -195,7 +196,7 @@ func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 local-as: %w", err)
 	}
 	if localASVal > math.MaxUint32 {
-		return RawUpdate{}, errRawB64ASNOverflow
+		return RawUpdate{}, errBase64ASNOverflow
 	}
 
 	remoteASVal, err := b.ReadUintSpace()
@@ -203,7 +204,7 @@ func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 remote-as: %w", err)
 	}
 	if remoteASVal > math.MaxUint32 {
-		return RawUpdate{}, errRawB64ASNOverflow
+		return RawUpdate{}, errBase64ASNOverflow
 	}
 
 	connID, err := b.ReadUintSpace()
@@ -211,19 +212,19 @@ func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 conn-id: %w", err)
 	}
 
-	peer, err := b.ReadCountedStringSpace()
+	peerTok, err := b.ReadTokenStringSpace()
 	if err != nil {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 peer: %w", err)
 	}
-	local, err := b.ReadCountedStringSpace()
+	localTok, err := b.ReadTokenStringSpace()
 	if err != nil {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 local: %w", err)
 	}
-	routerID, err := b.ReadCountedStringSpace()
+	routerIDTok, err := b.ReadTokenStringSpace()
 	if err != nil {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 router-id: %w", err)
 	}
-	extraAddPath, err := b.ReadCountedStringSpace()
+	extraAddPathTok, err := b.ReadTokenStringSpace()
 	if err != nil {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 extra-addpath: %w", err)
 	}
@@ -232,16 +233,16 @@ func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
 		return RawUpdate{}, fmt.Errorf("exabgp-bridge: base64 body: %w", err)
 	}
 
-	body, err := decodeRawB64Body(b64Body, scratch)
+	body, err := decodeBase64Body(b64Body, scratch)
 	if err != nil {
 		return RawUpdate{}, err
 	}
 
 	return RawUpdate{
-		Peer:         peer,
-		Local:        local,
-		RouterID:     routerID,
-		ExtraAddPath: extraAddPath,
+		Peer:         base64OptionalToken(peerTok),
+		Local:        base64OptionalToken(localTok),
+		RouterID:     base64OptionalToken(routerIDTok),
+		ExtraAddPath: base64OptionalToken(extraAddPathTok),
 		ConnID:       connID,
 		LocalAS:      uint32(localASVal),
 		RemoteAS:     uint32(remoteASVal),
@@ -250,20 +251,27 @@ func ReadRawB64Update(line string, scratch []byte) (RawUpdate, error) {
 	}, nil
 }
 
-// decodeRawB64Body decodes a base64-encoded BGP UPDATE body into scratch when
+func base64OptionalToken(tok string) string {
+	if tok == base64AbsentToken {
+		return ""
+	}
+	return tok
+}
+
+// decodeBase64Body decodes a base64-encoded BGP UPDATE body into scratch when
 // it fits, or into a fresh slice up to rawUpdateBodyMax (RFC 8654).
-func decodeRawB64Body(b64Body string, scratch []byte) ([]byte, error) {
+func decodeBase64Body(b64Body string, scratch []byte) ([]byte, error) {
 	if b64Body == "" {
 		return nil, nil //nolint:nilnil // empty base64 body is a valid zero-byte payload
 	}
 	if len(b64Body) > base64.StdEncoding.EncodedLen(rawUpdateBodyMax) {
-		return nil, errRawB64BodyTooLarge
+		return nil, errBase64BodyTooLarge
 	}
 	if strings.IndexByte(b64Body, '\r') >= 0 {
-		return nil, errRawB64InvalidBase64
+		return nil, errBase64InvalidBase64
 	}
 	if strings.IndexByte(b64Body, '\n') >= 0 {
-		return nil, errRawB64InvalidBase64
+		return nil, errBase64InvalidBase64
 	}
 
 	maxDecoded := base64.StdEncoding.DecodedLen(len(b64Body))
@@ -274,7 +282,7 @@ func decodeRawB64Body(b64Body string, scratch []byte) ([]byte, error) {
 		dst = make([]byte, maxDecoded)
 	}
 
-	var srcStack [rawB64SrcStackMax]byte
+	var srcStack [base64SrcStackMax]byte
 	var src []byte
 	if len(b64Body) <= len(srcStack) {
 		copy(srcStack[:], b64Body)
@@ -285,10 +293,10 @@ func decodeRawB64Body(b64Body string, scratch []byte) ([]byte, error) {
 
 	n, err := base64.StdEncoding.Decode(dst, src)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRawB64InvalidBase64, err)
+		return nil, fmt.Errorf("%w: %w", errBase64InvalidBase64, err)
 	}
 	if n > rawUpdateBodyMax {
-		return nil, errRawB64BodyTooLarge
+		return nil, errBase64BodyTooLarge
 	}
 	return dst[:n], nil
 }
@@ -368,7 +376,7 @@ func buildRawEncodingContext(key rawContextKey) *bgpctx.EncodingContext {
 }
 
 // parseRawAddPathFamily resolves a canonical `<afi>/<safi>` family token (or
-// numeric fallback `afi-<N>/safi-<M>`) emitted by appendRawB64ExtraAddPath.
+// numeric fallback `afi-<N>/safi-<M>`) emitted by appendBase64ExtraAddPath.
 func parseRawAddPathFamily(token string) (family.Family, bool) {
 	if fam, ok := family.LookupFamily(token); ok {
 		return fam, true
@@ -533,9 +541,10 @@ func buildRawPeerInfo(raw RawUpdate) *plugin.PeerInfo {
 		peer.PeerAS = rpc.RemoteASOf(raw.RemoteAS)
 	}
 	if raw.RouterID != "" {
-		if addr, err := netip.ParseAddr(raw.RouterID); err == nil && addr.Is4() {
-			b4 := addr.As4()
-			peer.RouterID = binary.BigEndian.Uint32(b4[:])
+		var rb textbuf.Buffer
+		rb.AdoptString(raw.RouterID)
+		if rid, err := rb.ReadIPv4(); err == nil && rb.EOF() {
+			peer.RouterID = rid
 		}
 	}
 	return peer

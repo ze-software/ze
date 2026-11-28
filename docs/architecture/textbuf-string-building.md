@@ -154,6 +154,9 @@ are heap constructors returning `*Buffer`, parallel to `New`.
 | `RestString()` | Freeze buffer and return the unread tail as a zero-copy `string` view |
 | `PeekWord4()`, `ReadWord4()` | Freeze buffer and peek or consume a 4-byte `Word4` (3 ASCII bytes plus trailing space) at the cursor. Returns `(Word4, bool)` |
 | `ReadUint()`, `ReadUintSpace()` | Freeze buffer and parse a base-10 `uint64` in one pass. `ReadUint` stops at space or EOF without consuming the space; `ReadUintSpace` requires and consumes the trailing space. Cursor unchanged on error |
+| `ReadIPv4()`, `ReadIPv4Space()` | Freeze buffer and parse a dotted-quad IPv4 address into a big-endian `uint32` in one pass (base-10 octet accumulator, `<< 8` on `.`, strict leading-zero and `<= 255` checks). `ReadIPv4` stops at space or EOF; `ReadIPv4Space` consumes the trailing space. Cursor unchanged on error |
+| `ReadTokenBytes()`, `ReadTokenBytesSpace()`, `ReadTokenBytesEnd()` | Freeze buffer and read a non-empty whitespace-free space-delimited token into a 3-index `[]byte` (`b.b[start:end:end]`). `*Space` consumes a trailing space; `*End` requires `EOF()`. Panics on read-only buffers. Cursor unchanged on error |
+| `ReadTokenString()`, `ReadTokenStringSpace()`, `ReadTokenStringEnd()` | Freeze buffer and read a non-empty whitespace-free space-delimited token into a zero-copy `string` view. `*Space` consumes a trailing space; `*End` requires `EOF()`. Safe on read-only buffers. Cursor unchanged on error |
 | `ReadSpace()` | Freeze buffer and consume one ASCII space byte at the cursor; returns `ErrMissingSpace` otherwise |
 | `PeekCountedHeader()` | Freeze buffer and parse a `<n>:` length prefix without advancing the cursor or requiring payload bytes to be present. Returns `(size, headerWidth, err)` |
 | `ReadCountedBytes()`, `ReadCountedBytesSpace()`, `ReadCountedBytesEnd()` | Freeze buffer and parse `<n>:<bytes>` into a 3-index `[]byte` (`b.b[start:end:end]`). `*Space` consumes a trailing space; `*End` requires `EOF()`. Panics on read-only buffers. Cursor unchanged on error |
@@ -253,7 +256,7 @@ buffer or allocating intermediate slices.
   stack `Buffer`'s inline array stay valid only until `Reset()`, `Adopt()`,
   `Release()`, or function return, matching `Slice()` and `Bytes()`.
 
-`parse.go` implements the three positional wire primitives shared by ExaBGP
+`parse.go` implements the positional wire primitives shared by ExaBGP
 `base64` UPDATE lines and the RPC Answer Protocol:
 
 1. **4-byte `Word4` (`MakeWord4`, `ReadWord4`, `PeekWord4`):** packs a 3-byte
@@ -262,14 +265,25 @@ buffer or allocating intermediate slices.
    `top `, `row `, `bad `, `end `, `wrn `, `nay `). `MakeWord4` panics if
    `len(token) != 3`.
 2. **Fused single-pass decimal `uint64` (`ReadUint`, `ReadUintSpace`,
-   `ReadSpace`):** plain decimal digits closed by a space or end of buffer,
-   never length-prefixed. Accumulates the value in one pass, refuses `:`
+   `ReadSpace`) and IPv4 (`ReadIPv4`, `ReadIPv4Space`):** plain decimal fields
+   closed by a space or end of buffer, never length-prefixed. `ReadUint*`
+   accumulates `val = val*10 + digit` in one pass, refuses `:`
    (`ErrNumberHasColon`), widths past `Uint64DigitsMax` (`ErrNumberTooWide`),
-   and `uint64` overflow (`ErrNumberOverflow`), and leaves the cursor unchanged
-   on error.
-3. **Length-prefixed `<n>:<bytes>` counted fields (`ReadCountedBytes*`,
+   and `uint64` overflow (`ErrNumberOverflow`). `ReadIPv4*` accumulates each
+   base-10 octet (`0..255`, rejecting leading zeros) and shifts `(ip << 8) | oct`
+   on each `.` and at the terminator, returning a big-endian `uint32` in one
+   pass. Both leave the cursor unchanged on error.
+3. **Space-delimited tokens (`ReadTokenBytes*`, `ReadTokenString*`):**
+   zero-copy views for non-empty whitespace-free tokens (IPv4/IPv6 addresses,
+   family names, `-` absent markers, base64 bodies on `upd` lines) where a
+   `<n>:` length prefix adds overhead without solving delimiter ambiguity.
+   Rejects empty tokens and control bytes (`< 0x20`, `0x7f`) and caps mutable
+   byte slices with a 3-index slice (`b.b[start:end:end]`).
+4. **Length-prefixed `<n>:<bytes>` counted fields (`ReadCountedBytes*`,
    `ReadCountedString*`, `PeekCountedHeader`, plus writers `CountedBytes`,
-   `CountedStr`):** `<n>` is a byte count closed by `:` (`0:` for empty).
+   `CountedStr`):** `<n>` is a byte count closed by `:` (`0:` for empty), used
+   when a payload may contain spaces, quotes, or raw newlines (such as Answer
+   Protocol JSON rows and error messages).
    `ReadCountedBytes*` caps capacity with a 3-index slice (`b.b[start:end:end]`)
    so `append` on one field cannot overwrite following fields.
    `PeekCountedHeader` parses `<n>:` without advancing the cursor or requiring
@@ -307,7 +321,7 @@ if err != nil {
 msg, err := b.ReadCountedBytesEnd() // 3-index slice; valid until Reset/return
 ```
 <!-- source: internal/core/textbuf/textbuf.go -- Buffer, Adopt, AdoptString, FromBytes, FromString -->
-<!-- source: internal/core/textbuf/parse.go -- Word4, MakeWord4, ReadWord4, ReadUint, ReadUintSpace, PeekCountedHeader, ReadCountedBytes, ReadCountedString, CountedBytes, CountedStr -->
+<!-- source: internal/core/textbuf/parse.go -- Word4, MakeWord4, ReadWord4, ReadUint, ReadUintSpace, ReadIPv4, ReadIPv4Space, ReadTokenBytes, ReadTokenString, PeekCountedHeader, ReadCountedBytes, ReadCountedString, CountedBytes, CountedStr -->
 
 ## Standalone functions
 

@@ -137,7 +137,7 @@ func TestEventFormatAsksForBytesWheneverAScriptReadsThem(t *testing.T) {
 	}
 }
 
-// TestEventFormat_SelectsRawB64 proves AC-4 format selection: `base64` when
+// TestEventFormat_SelectsBase64 proves AC-4 format selection: `base64` when
 // bridge.SupportsRawWire() is true and `bgp:update` is allowed (or filter is
 // unscoped), `parsed` when `bgp:update` is denied with no packet form, and
 // `full` for non-update packet-only filters or non-`ze_bgp` builds.
@@ -145,7 +145,7 @@ func TestEventFormatAsksForBytesWheneverAScriptReadsThem(t *testing.T) {
 // VALIDATES: AC-4 -- EventFormat selection across base64, full, and parsed.
 // PREVENTS: requesting FormatFull for live UPDATEs in ze_bgp builds, or
 // requesting FormatBase64 when bgp:update is disallowed.
-func TestEventFormat_SelectsRawB64(t *testing.T) {
+func TestEventFormat_SelectsBase64(t *testing.T) {
 	wantUpdate := plugin.FormatFull
 	if bridge.SupportsRawWire() {
 		wantUpdate = plugin.FormatBase64
@@ -246,11 +246,11 @@ func TestParsedScriptIsWrittenTheWireASPath(t *testing.T) {
 		}
 		b64Body := base64.StdEncoding.EncodeToString(wireBytes)
 		// Flags 14 = hasASN4(2) | asn4(4) | hasRemoteAS(8).
-		updLine := "upd 14 65002 65001 0 8:10.0.0.1 8:10.0.0.2 0: 0: " +
+		updLine := "upd 14 65002 65001 0 10.0.0.1 10.0.0.2 - - " +
 			strconv.Itoa(len(b64Body)) + ":" + b64Body
-		raw, parseErr := bridge.ReadRawB64Update(updLine, nil)
+		raw, parseErr := bridge.ReadBase64Update(updLine, nil)
 		if parseErr != nil {
-			t.Fatalf("ReadRawB64Update: %v", parseErr)
+			t.Fatalf("ReadBase64Update: %v", parseErr)
 		}
 		rendered = sessions.RenderRawUpdate(raw, bridge.FormatV4JSON, forms, false, slog.New(slog.DiscardHandler))
 	} else {

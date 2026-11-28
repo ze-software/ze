@@ -105,7 +105,7 @@ func TestMuxConn_CallBatchRPC_PooledAndSplit(t *testing.T) {
 		mux := NewMuxConn(NewConn(clientEnd, clientEnd))
 		defer closeMux(t, mux)
 
-		ev1 := []byte(`"upd 14 65000 65001 1 8:10.0.0.1 8:10.0.0.2 7:1.1.1.1 0: 8:AAAAAA=="`)
+		ev1 := []byte(`"upd 14 65000 65001 1 10.0.0.1 10.0.0.2 1.1.1.1 - 8:AAAAAA=="`)
 		ev2 := []byte(`{"type":"bgp","bgp":{"message":{"type":"keepalive"}}}`)
 		_, err := mux.CallBatchRPC(ctx, [][]byte{ev1, ev2})
 		require.NoError(t, err)
@@ -311,7 +311,7 @@ func TestMuxConn_CallBatchRPC_PooledAndSplit(t *testing.T) {
 
 			go func(id int) {
 				defer wg.Done()
-				ev := []byte(`"upd 14 65000 65001 ` + strconv.Itoa(id) + ` 8:10.0.0.1 8:10.0.0.2 7:1.1.1.1 0: 8:AAAAAA=="`)
+				ev := []byte(`"upd 14 65000 65001 ` + strconv.Itoa(id) + ` 10.0.0.1 10.0.0.2 1.1.1.1 - 8:AAAAAA=="`)
 				for range rounds {
 					raw, callErr := mux.CallBatchRPC(ctx, [][]byte{ev, ev})
 					if callErr != nil {

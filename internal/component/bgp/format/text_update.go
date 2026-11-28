@@ -161,7 +161,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 
 	if content.Format == plugin.FormatBase64 {
 		if msg.Type == msgtype.TypeUPDATE {
-			return appendRawB64Update(buf, peer, msg, direction)
+			return appendBase64Update(buf, peer, msg, direction)
 		}
 	}
 

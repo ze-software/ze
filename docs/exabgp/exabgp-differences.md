@@ -252,7 +252,7 @@ types, the numeric value beside each extended community, and the flag octet in
 the unknown attribute's `attribute-0xCC-0xFF` name. In `ze_bgp` builds, live
 `ze exabgp plugin` endpoints subscribe at `FormatBase64` whenever a script
 receives UPDATEs, in any form, `parsed` included, so every UPDATE arrives as a
-positional counted `upd` wire line carrying the base64 UPDATE body directly
+positional space-delimited `upd` wire line carrying the base64 UPDATE body directly
 (non-`ze_bgp` builds and standalone JSON inputs continue using `FormatFull` and
 `raw.update`). `Sessions.RenderRawUpdate` decodes those three members straight
 off the wire path attributes on both the direct unicast buffer renderer and the
@@ -281,7 +281,7 @@ and non-transitive, differing by one bit of the type octet. Ze states that bit
 in the text instead, since it carries every extended community in one flat list
 and has no `scope` block to put it in.
 <!-- source: internal/exabgp/bridge/bridge_event_wire.go -- overlayWire, overlayASPath, overlayCommunityWidth, overlayUnknownAttributes -->
-<!-- source: internal/exabgp/bridge/bridge_raw_b64.go -- ReadRawB64Update, Sessions.RenderRawUpdate -->
+<!-- source: internal/exabgp/bridge/bridge_base64.go -- ReadBase64Update, Sessions.RenderRawUpdate -->
 <!-- source: internal/exabgp/bridge/bridge_wire_json.go -- WireUpdateToExabgpJSON -->
 <!-- source: internal/exabgp/bridge/bridge_negotiated.go -- Sessions.Note, sessionAttrContext -->
 
