@@ -108,3 +108,39 @@ Facts behind these, for whoever presents them:
 - The launcher must start the real `ze` with an absolute path whose last element is `ze`: the binary picks its personality from that name, starts its plugins from it, and re-executes it on restart.
 - `ze version` today ignores every word after it and exits 0, so `ze version list` already "works" and prints the version line.
 - The write hook for a spec edit takes about 26 seconds under load on this server, against its 30-second limit, and timed out twice. Hook defect, reported to Thomas in the server pane.
+
+
+## Decisions Thomas made with the Mac session, 2026-11-28 (second round)
+
+Written by the Mac session after the server session hit the weekly usage limit, so that the
+answers relayed into its pane survive it. His words are voice-transcribed; read them for meaning.
+These supersede the "Open questions" table above and answer N-1 to N-5.
+
+| Id | Decision | His words |
+|----|----------|-----------|
+| C-1 | Ze only ever starts its own VPP. The 2026-11-19 fallback to an operator-installed /usr/bin/vpp is withdrawn | "No, the only start is on VPP." |
+| C-2, L-3 | The real ze lives inside the Ze folder with its VPP beside it, and the entry in the bin directory is a launcher script, never a symbolic link. One shape for packages and /usr/local | "Neither, like B, but the /usr/bin/ze is a script, not a symlink." |
+| C-3 | Not asked: a self-update installs a new version directory (ze plus its VPP) | - |
+| C-4 | Every Ze patch is ported to VPP v26.06, and v26.06 is the one VPP used everywhere: bundle, labs, generated bindings, vendored reference, docs | "Oh, we should port all our patches to version 26 and use that version everywhere. C" |
+| C-5 | Every appliance image carries the VPP bundle, with no field to leave it out. The design adds a size check of the image root | "A" |
+| L-1, N-1 | No marker, neither file nor link. The launcher runs the latest installed version by version order, unless the environment variable names another installed version; a value naming no installed version is refused with the list. This replaced his first answer (a current marker) | "It should be the latest one, unless an environment value is set in the shell running it setting another version in the list of valid options." |
+| L-2 | The unit written by ze install systemd runs the launcher. A running daemon keeps its version until restarted | "A" |
+| L-4 | Uninstall refuses only a version a running daemon is using, and names the commands that work. Rollback is: stop the service, uninstall the bad latest release, start. This replaced his first answer (refuse the selected version too) | "A" |
+| L-5 | One explicit command removes a /usr/local Ze completely: every version directory, the launcher and the service unit. It refuses while the service runs and leaves /etc/ze alone. Package installs are removed by apt or rpm | "a" |
+| L-6 | The version commands take the grammar's spelling (ai/rules/cli.md), not "ze version list / uninstall". Approved behaviour stands: list shows installed versions and which one runs; removal takes one version and removes its whole directory. Owed to him before building: the final spellings | "a" |
+| L-7 | nFPM stays. The package follows Debian Policy. The APT and DNF repository stays after the first release | "a" |
+| N-2 | A package install uses the same layout: launcher in /usr/bin, /usr/lib/ze/<release>/ze and /usr/lib/ze/<release>/vpp/. Listing shows the one version; uninstall is refused with the apt or dnf command | "a" |
+| N-3 | Ze does not require root. It runs as the ze user with the capabilities its programs need, and that user can install a version directory, so auto-apply works unattended. This departs from the root-owned rule in nativePath and trustedExecutable. Mac session's reading, to be shown to him, not yet confirmed: owner is root or the service user only, no group or world write | "C We do not require root users to run Ze. It could be run as a Ze user, provided the capability required to run the programs is available." |
+| Scope of N-3 | All of the version-directory, launcher and self-update design is for plain Linux. The appliance is immutable: one version in the read-only image, no launcher, updated only by replacing the image | "The automatic update should only be for Linux, for the appliance it should be immutable infrastructure." |
+| N-4, version form | Release form YY.MM.DD with a dot-separated same-day counter .N from 1 (never .0), zero-padded month and day, numeric comparison part by part, a missing counter counting as zero. This REVERSES the four-digit ruling of 2026-09-28 in spec-release-build.md. Version directories are named by it; a development build is refused as a version. dpkg --compare-versions on this server confirmed the order, and that X and X.0 differ | "I thought we had settled on a Calver but adding effectively the day counter", "We want only two characters for the year." |
+| Go modules | Go's module version rules are no constraint on the product version | "Ze is not a library, it does not matter." |
+| N-5 | No install.sh. The Linux tarball stays, with member paths that are the final locations, so extracting at the root puts every file in place. The ze launcher script carries the install and uninstall functions itself, as ./le does. This REVERSES install.sh as an approved artifact | "I don't think we need an install.sh; we just need a tar with absolute path for installation, and people can get directly files in the right location.", "I don't want an install.sh , That way we have a script for ze so that can be built inside of it." |
+
+Not his, do not record as decisions: the Mac session's suggestions for where install.sh's other jobs go
+(signature and hash verification, creating the ze user). He objected to them as things he never asked
+for. Put any such gap to him as a question with an example.
+
+Still owed to him: the exact wording of every new design-decision row, the final command spellings,
+an independent design judge run, then his approval from his own terminal. No product code before that.
+The design gate stands: asked whether he also waived it, he answered "No, let's go for the design."
+The two-machine rule (ai/owner/machines.md) is set aside for this work: "We do not have a system yet for remote development setup."
