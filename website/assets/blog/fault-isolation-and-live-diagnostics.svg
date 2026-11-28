@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1200 675">
+  <title id="title">Contain the fault. Keep the evidence.</title>
+  <desc id="desc">Ze contains faults through taskguard recovery boundaries and optional separate plugin processes, captures bad packets and recovered or fatal crashes into bounded storage, and keeps live diagnostics reachable through leaf locks, a 2-second watchdog, and non-destructive plugin inspection.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f5f3fc"/>
+      <stop offset="0.5" stop-color="#edf7ff"/>
+      <stop offset="1" stop-color="#eefbf7"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" x2="1">
+      <stop offset="0" stop-color="#7c4de6"/>
+      <stop offset="0.5" stop-color="#0086cc"/>
+      <stop offset="1" stop-color="#13a688"/>
+    </linearGradient>
+    <filter id="shadow" x="-16%" y="-20%" width="132%" height="148%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#122841" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow-sky" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#0086cc"/>
+    </marker>
+    <style>
+      text { font-family: Lato, "Avenir Next", sans-serif; fill: #152538; }
+      .eyebrow { font-family: Poppins, Avenir, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 1.8px; fill: #4a627a; }
+      .headline { font-family: Poppins, Avenir, sans-serif; font-size: 40px; font-weight: 800; letter-spacing: -1px; }
+      .step { font-family: Poppins, Avenir, sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; }
+      .card-title { font-family: Poppins, Avenir, sans-serif; font-size: 21px; font-weight: 800; }
+      .body { font-size: 14.5px; font-weight: 700; fill: #485e75; }
+      .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 13px; font-weight: 700; }
+      .mono-sm { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 12.5px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" rx="40" fill="url(#bg)"/>
+  <circle cx="1090" cy="108" r="150" fill="#dcc8ff" opacity="0.4"/>
+  <circle cx="110" cy="590" r="170" fill="#bfe3ff" opacity="0.4"/>
+
+  <g filter="url(#shadow)">
+    <rect x="54" y="48" width="1092" height="579" rx="34" fill="#ffffff" stroke="#d0deec" stroke-width="2"/>
+    <rect x="54" y="48" width="1092" height="10" rx="5" fill="url(#rail)"/>
+  </g>
+
+  <text x="90" y="96" class="eyebrow">FAULT ISOLATION · BOUNDED DIAGNOSTICS</text>
+  <text x="90" y="148" class="headline">Contain the fault. Keep the evidence.</text>
+
+  <!-- Stage 1: Isolation Boundaries -->
+  <g transform="translate(86 186)">
+    <rect width="310" height="296" rx="22" fill="#f5f0ff" stroke="#8c5ce8" stroke-width="2.5"/>
+    <text x="22" y="34" class="step" fill="#6b3cd6">1 · ISOLATION BOUNDARIES</text>
+    <text x="22" y="66" class="card-title">Limit the blast radius</text>
+    <text x="22" y="92" class="body">ExaBGP try/except → Go</text>
+
+    <rect x="22" y="114" width="266" height="44" rx="11" fill="#ffffff" stroke="#c8b2f5" stroke-width="1.5"/>
+    <text x="36" y="141" class="mono" fill="#5b2ec2">taskguard per peer / loop</text>
+
+    <rect x="22" y="172" width="266" height="44" rx="11" fill="#ffffff" stroke="#c8b2f5" stroke-width="1.5"/>
+    <text x="36" y="199" class="mono" fill="#5b2ec2">process separate; over RPC</text>
+
+    <rect x="22" y="230" width="266" height="44" rx="11" fill="#ffffff" stroke="#c8b2f5" stroke-width="1.5"/>
+    <text x="36" y="257" class="mono" fill="#485e75">restart · ignore · fatal</text>
+  </g>
+
+  <path d="M402 334 H438" fill="none" stroke="#0086cc" stroke-width="4.5" stroke-linecap="round" marker-end="url(#arrow-sky)"/>
+
+  <!-- Stage 2: Always-On Capture -->
+  <g transform="translate(445 186)">
+    <rect width="310" height="296" rx="22" fill="#ecf6fe" stroke="#0086cc" stroke-width="2.5"/>
+    <text x="22" y="34" class="step" fill="#0069b4">2 · ALWAYS-ON CAPTURE</text>
+    <text x="22" y="66" class="card-title">Record before closing</text>
+    <text x="22" y="92" class="body">Zero alloc on normal traffic</text>
+
+    <rect x="22" y="114" width="266" height="44" rx="11" fill="#ffffff" stroke="#a6d4f5" stroke-width="1.5"/>
+    <text x="36" y="141" class="mono" fill="#005d99">badpacket ring (16 × 4 KiB)</text>
+
+    <rect x="22" y="172" width="266" height="44" rx="11" fill="#ffffff" stroke="#a6d4f5" stroke-width="1.5"/>
+    <text x="36" y="199" class="mono" fill="#005d99">crash-*-recovered.log pool</text>
+
+    <rect x="22" y="230" width="266" height="44" rx="11" fill="#ffffff" stroke="#a6d4f5" stroke-width="1.5"/>
+    <text x="36" y="257" class="mono" fill="#005d99">SetCrashOutput (gokrazy)</text>
+  </g>
+
+  <path d="M761 334 H797" fill="none" stroke="#0086cc" stroke-width="4.5" stroke-linecap="round" marker-end="url(#arrow-sky)"/>
+
+  <!-- Stage 3: Live Introspection -->
+  <g transform="translate(804 186)">
+    <rect width="310" height="296" rx="22" fill="#e8faf4" stroke="#13a688" stroke-width="2.5"/>
+    <text x="22" y="34" class="step" fill="#0a6d59">3 · REACHABLE UNDER LOCK</text>
+    <text x="22" y="66" class="card-title">Inspect without killing</text>
+    <text x="22" y="92" class="body">Never waits on config lock</text>
+
+    <rect x="22" y="114" width="266" height="44" rx="11" fill="#ffffff" stroke="#6ed4be" stroke-width="1.5"/>
+    <text x="36" y="141" class="mono" fill="#0a6d59">leaf locks + 2s watchdog</text>
+
+    <rect x="22" y="172" width="266" height="44" rx="11" fill="#d8f5ec" stroke="#13a688" stroke-width="1.5"/>
+    <text x="36" y="199" class="mono" fill="#0a6d59">| plugin &lt;name&gt; worker</text>
+
+    <rect x="22" y="230" width="266" height="44" rx="11" fill="#fff4d6" stroke="#c97d00" stroke-width="1.5"/>
+    <text x="36" y="257" class="mono" fill="#8c5400">fallback: /proc + 32 stderr</text>
+  </g>
+
+  <!-- Bottom Bar: Hard Bounds -->
+  <g transform="translate(86 504)">
+    <rect width="1028" height="92" rx="18" fill="#fff8e6" stroke="#c97d00" stroke-width="2"/>
+    <text x="22" y="28" class="step" fill="#8c5400">BOUNDED BY DESIGN · NEVER FILLS DISK, EXHAUSTS RAM OR STALLS ROUTING</text>
+
+    <rect x="22" y="42" width="316" height="36" rx="10" fill="#ffffff" stroke="#e0b25c" stroke-width="1.5"/>
+    <text x="180" y="65" text-anchor="middle" class="mono-sm" fill="#7a4800">64 KiB packets · 4 MiB relay</text>
+
+    <rect x="356" y="42" width="316" height="36" rx="10" fill="#ffffff" stroke="#e0b25c" stroke-width="1.5"/>
+    <text x="514" y="65" text-anchor="middle" class="mono-sm" fill="#7a4800">ze.crash.keep · no file logs</text>
+
+    <rect x="690" y="42" width="316" height="36" rx="10" fill="#ffffff" stroke="#e0b25c" stroke-width="1.5"/>
+    <text x="848" y="65" text-anchor="middle" class="mono-sm" fill="#7a4800">60s cmd · 5s drift · 16 jumps</text>
+  </g>
+</svg>
