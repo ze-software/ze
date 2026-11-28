@@ -3,6 +3,7 @@
 package dataplane
 
 import (
+	"errors"
 	"testing"
 
 	"go.fd.io/govpp/binapi/ipsec_types"
@@ -86,5 +87,17 @@ func TestVPPKeyDataTruncation(t *testing.T) {
 	k := vppKey(key)
 	if k.Length != 128 {
 		t.Errorf("vppKey length = %d, want 128 (truncated)", k.Length)
+	}
+}
+
+// VALIDATES: vppBackend implements SACounterChecker and refuses with ErrNotSupported
+// because VPP does not expose per-SA byte/packet counters through ListSAs.
+// PREVENTS: committing esp-group life-bytes or life-packets on VPP only to have them
+// silently ignored at runtime.
+func TestVPPSACountersSupportedRefuses(t *testing.T) {
+	var checker SACounterChecker = &vppBackend{}
+	err := checker.SACountersSupported()
+	if !errors.Is(err, ErrNotSupported) {
+		t.Fatalf("vppBackend.SACountersSupported() = %v, want ErrNotSupported", err)
 	}
 }

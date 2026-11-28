@@ -1,0 +1,356 @@
+# Functional test: volume-based Child SA rekey (life-bytes and life-packets) on REAL Linux XFRM.
+# Spec: spec-ipsec-lifetime-volume (AC-1, AC-2, AC-3, AC-4, AC-6)
+#
+# ONE QUESTION THIS TEST ANSWERS:
+# Does configuring `life-bytes` or `life-packets` alongside a long time `lifetime 3600`
+# cause Ze's established SA loop to sample live Linux XFRM counters via `dp.ListSAs` and
+# drive a real make-before-break `CREATE_CHILD_SA` Child SA rekey (rotating kernel SPIs
+# and resetting counters on the new SA) long before time expiry? A unit test uses a fake
+# dataplane and cannot prove real kernel XFRM `BytesCurrent`/`PacketsCurrent` accounting
+# reaches `sampleChildVolume` and completes a real rekey.
+#
+# VALIDATES:
+# - `ze config validate` accepts `18446744073709551615` (uint64 max) for both `life-bytes`
+#   and `life-packets` and rejects sub-minimum `65535` bytes, `99` packets, and `uint64`
+#   overflow `18446744073709551616` without wrapping.
+# - Case 1 (BYTES): `esp-bytes` sets `lifetime 3600` + `life-bytes 131072` on peer-a;
+#   real outbound UDP packets matching peer-a's XFRM policy advance kernel `BytesCurrent`
+#   into the soft rekey band, triggering a real `CREATE_CHILD_SA` rekey with SPI rotation,
+#   old-SA retirement, policy stability, and reset counters on the replacement SA.
+# - Case 2 (PACKETS): `esp-packets` sets `lifetime 3600` + `life-packets 200` on peer-a;
+#   real outbound UDP packets advance kernel `PacketsCurrent` into the soft rekey band,
+#   triggering a real `CREATE_CHILD_SA` rekey with SPI rotation, old-SA retirement, policy
+#   stability, and reset counters on the replacement SA.
+# PREVENTS:
+# - `lifetimeState.softBytes` / `softPackets` remaining unfed on Linux XFRM;
+# - 32-bit truncation or signed overflow rejecting `uint64` max in YANG validation;
+# - hard teardown firing instead of make-before-break soft volume rekey.
+#
+# WHY ONE DATAPLANE AND NOT TWO. Both ends of a negotiated Child SA are the same two kernel
+# states, so a second `XfrmStateAdd` answers `EEXIST`. peer-a runs the real `xfrm` backend
+# and peer-b runs `noop`; every kernel counter and SPI assertion reads peer-a.
+#
+# WHY THESE PREFIXES. The policies are node-wide for the life of the test, so they use four
+# disjoint /26 quarters of 198.18.240.0/24 (RFC 2544 benchmark space), unused by any other
+# test in `test/ipsec/`.
+#
+# bpf: the default `vpn ipsec application-override deny` loads a cgroup setsockopt guard.
+option=needs-linux:caps=net-admin,bpf
+# Serialize against every other real-XFRM ipsec test: `ip xfrm state` and `ip xfrm policy`
+# are node-wide.
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=180s
+option=env:var=ze_log_ike:value=info
+
+# ── Config validation boundary checks (AC-4, AC-6) ──
+
+stdin=valid-max:terminator=EOF_VALID_MAX
+vpn {
+	ipsec {
+		esp-group esp-max {
+			lifetime 3600
+			life-bytes 18446744073709551615
+			life-packets 18446744073709551615
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+	}
+}
+EOF_VALID_MAX
+
+stdin=bad-bytes-low:terminator=EOF_BAD_BYTES_LOW
+vpn {
+	ipsec {
+		esp-group esp-low-bytes {
+			lifetime 3600
+			life-bytes 65535
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+	}
+}
+EOF_BAD_BYTES_LOW
+
+stdin=bad-packets-low:terminator=EOF_BAD_PACKETS_LOW
+vpn {
+	ipsec {
+		esp-group esp-low-packets {
+			lifetime 3600
+			life-packets 99
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+	}
+}
+EOF_BAD_PACKETS_LOW
+
+stdin=bad-bytes-overflow:terminator=EOF_BAD_BYTES_OVERFLOW
+vpn {
+	ipsec {
+		esp-group esp-overflow {
+			lifetime 3600
+			life-bytes 18446744073709551616
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+	}
+}
+EOF_BAD_BYTES_OVERFLOW
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=bad-bytes-low:exit=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=life-bytes
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=bad-packets-low:exit=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=life-packets
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=bad-bytes-overflow:exit=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=life-bytes
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=valid-max:exit=0
+expect=stdout:contains=configuration valid
+
+# ── Case 1 (BYTES): peer-b-bytes (noop, 127.0.0.2) <-> peer-a-bytes (REAL xfrm, 127.0.0.1) ──
+stdin=peer-b-bytes:terminator=EOF_PEER_B_BYTES
+vpn {
+	ipsec {
+		esp-group esp-long {
+			lifetime 3600
+			pfs disable
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-bytes {
+				ike-group ike-default
+				esp-group esp-long
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.18.240.64/26
+					}
+					remote {
+						prefix 198.18.240.0/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-vol-bytes
+				}
+			}
+		}
+	}
+}
+EOF_PEER_B_BYTES
+
+stdin=peer-a-bytes:terminator=EOF_PEER_A_BYTES
+vpn {
+	ipsec {
+		esp-group esp-bytes {
+			lifetime 3600
+			life-bytes 131072
+			pfs disable
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-bytes {
+				ike-group ike-default
+				esp-group esp-bytes
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.18.240.0/26
+					}
+					remote {
+						prefix 198.18.240.64/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-vol-bytes
+				}
+			}
+		}
+	}
+}
+EOF_PEER_A_BYTES
+
+# ── Case 2 (PACKETS): peer-b-packets (noop, 127.0.0.4) <-> peer-a-packets (REAL xfrm, 127.0.0.3) ──
+stdin=peer-b-packets:terminator=EOF_PEER_B_PACKETS
+vpn {
+	ipsec {
+		esp-group esp-long {
+			lifetime 3600
+			pfs disable
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-packets {
+				ike-group ike-default
+				esp-group esp-long
+				connection-type respond
+				local-address 127.0.0.4
+				remote-address 127.0.0.3
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.18.240.192/26
+					}
+					remote {
+						prefix 198.18.240.128/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-vol-pkts
+				}
+			}
+		}
+	}
+}
+EOF_PEER_B_PACKETS
+
+stdin=peer-a-packets:terminator=EOF_PEER_A_PACKETS
+vpn {
+	ipsec {
+		esp-group esp-packets {
+			lifetime 3600
+			life-packets 200
+			pfs disable
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-packets {
+				ike-group ike-default
+				esp-group esp-packets
+				connection-type initiate
+				local-address 127.0.0.3
+				remote-address 127.0.0.4
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 198.18.240.128/26
+					}
+					remote {
+						prefix 198.18.240.192/26
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-vol-pkts
+				}
+			}
+		}
+	}
+}
+EOF_PEER_A_PACKETS
+
+cmd=background:seq=5:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b-bytes:name=peer-b-bytes
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+
+cmd=background:seq=6:exec=ze -:stdin=peer-a-bytes:name=peer-a-bytes
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=hard lifetime expired
+
+cmd=foreground:seq=7:exec=le test fixture ipsec/life-volume bytes:timeout=90s:exit=0
+expect=stdout:contains=BYTES-INSTALLED:
+expect=stdout:contains=BYTES-TRAFFIC:
+expect=stdout:contains=BYTES-REKEYED:
+expect=stdout:contains=BYTES-RETIRED:
+expect=stdout:contains=BYTES-COUNTER-RESET:
+expect=stdout:contains=BYTES-POLICY-STABLE:
+reject=stdout:pattern=POLICY-MOVED
+reject=stdout:pattern=CLEANUP-FAILED
+
+# signal=term so peer-a-bytes releases its node-wide XFRM policies before Case 2 starts.
+cmd=stop:seq=8:name=peer-a-bytes:signal=term
+cmd=stop:seq=9:name=peer-b-bytes:signal=term
+
+cmd=background:seq=10:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b-packets:name=peer-b-packets
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+
+cmd=background:seq=11:exec=ze -:stdin=peer-a-packets:name=peer-a-packets
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=hard lifetime expired
+
+cmd=foreground:seq=12:exec=le test fixture ipsec/life-volume packets:timeout=90s:exit=0
+expect=stdout:contains=PACKETS-INSTALLED:
+expect=stdout:contains=PACKETS-TRAFFIC:
+expect=stdout:contains=PACKETS-REKEYED:
+expect=stdout:contains=PACKETS-RETIRED:
+expect=stdout:contains=PACKETS-COUNTER-RESET:
+expect=stdout:contains=PACKETS-POLICY-STABLE:
+reject=stdout:pattern=POLICY-MOVED
+reject=stdout:pattern=CLEANUP-FAILED
+
+cmd=stop:seq=13:name=peer-a-packets:signal=term
+cmd=stop:seq=14:name=peer-b-packets:signal=term
+expect=exit:code=0

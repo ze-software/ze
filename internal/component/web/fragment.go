@@ -504,9 +504,9 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 		meta.Pattern = `^[0-9a-fA-F.:]+/\d{1,3}$`
 	case config.TypeString, config.TypeBool, config.TypeInt,
 		config.TypeIPv6, config.TypeIP, config.TypeDuration, config.TypeEmpty,
-		config.TypeASN, config.TypeDecimal64:
-		// No extra metadata needed. An ASN carries no Min or Max because the
-		// asdot form (1.10) is not a number the browser can range check.
+		config.TypeASN, config.TypeDecimal64, config.TypeUint64:
+		// No extra metadata needed. ASN carries no Min/Max for asdot, and
+		// uint64 exceeds browser IEEE-754 number-input integer precision.
 	}
 
 	if len(leaf.Enums) > 0 {
@@ -531,6 +531,8 @@ func valueTypeToFieldType(vt config.ValueType) string {
 		return "uint16"
 	case config.TypeUint32:
 		return "uint32"
+	case config.TypeUint64:
+		return "uint64"
 	case config.TypeInt:
 		return "int"
 	case config.TypeIPv4, config.TypeIPv6, config.TypeIP:

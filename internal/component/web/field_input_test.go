@@ -25,6 +25,7 @@ var fieldEditorMarkers = map[string]string{
 	"string":   `type="text"`,
 	"uint16":   `type="number"`,
 	"uint32":   `type="number"`,
+	"uint64":   `type="text"`,
 	"int":      `type="number"`,
 	"ip":       `type="text"`,
 	"prefix":   `type="text"`,

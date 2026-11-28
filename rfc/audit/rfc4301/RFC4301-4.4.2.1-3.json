@@ -1,9 +1,13 @@
 {
-  "code": {
-    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "3a70817ac9f487ff",
-    "internal/component/ike/engine/rekey.go::newLifetimeState": "ec8a5aaeb7223f1e"
-  },
-  "note": "Re-judged 2026-11-25 by an independent agent after commit 1f82b2727d reworded comments in xfrmStateFromParams (netlink to netlink library). RFC 4301 Section 4.4.2.1: \"Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren't doing things the same way.\" xfrmStateFromParams still sets no byte limit in state.Limits and newLifetimeState (engine/rekey.go, unchanged) still sets a time lifetime only, so no byte-count lifetime exists whose end counters could get out of synch. The gap stands; no test is tagged.",
+  "note": "Independent re-judgment from unimplemented against RFC 4301 Section 4.4.2.1(a): \"Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren't doing things the same way.\" TestVolumeRekeyOutOfSyncCounters proves: (1) when peer A reaches softBytes while peer B holds a lower counter and higher ceiling, initiateChildRekey -> respondChildRekey -> applyChildRekeyResponse completes with rotated, cross-matching SPIs; (2) when a peer rekeys first while local maintainSA is below initialLT softBytes (999/1000), maintainSA accepts the rekey, rotates ChildSA SPI, resets childLT via newChildLifetimeState, polls ListSAs at 1500 bytes (catching a nil-reset), and passes rtxExpectSilence (catching a missed reset); and (3) simultaneous volume rekey collision in handleCreateChildSAOwned resolves via localNonceIsLower, abandoning pendingRekey and freeing requestOutstanding on the lower nonce while keeping pendingRekey and rejecting the peer's colliding Child SA (outHigh.newChild == nil) on the higher nonce.",
   "requirement_sha": "c34a4dddcbd80efb",
-  "verdict": "unimplemented"
+  "tests": {
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestVolumeRekeyOutOfSyncCounters": "6c267c45928cb52b",
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestVolumeRekeyOutOfSyncCounters#2": "6c267c45928cb52b"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestVolumeRekeyOutOfSyncCounters": "68f51fcd525659ea",
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestVolumeRekeyOutOfSyncCounters#2": "68f51fcd525659ea"
+  },
+  "verdict": "enforced"
 }

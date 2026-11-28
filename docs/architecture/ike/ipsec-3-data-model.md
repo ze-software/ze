@@ -48,6 +48,20 @@ spec-path-mtu-diagnostic removed.
 <!-- source: internal/component/ike/engine/responder.go -- selectResponderESP -->
 <!-- source: internal/component/ike/engine/reconcile.go -- PeerInfo, Info -->
 
+**`ESPGroup` carries 64-bit volume lifetimes beside its time lifetime.**
+`ESPGroup.LifeBytes` and `ESPGroup.LifePackets` map directly to the `life-bytes`
+and `life-packets` leaves under `vpn ipsec esp-group` in `ze-ipsec-conf.yang`.
+Both use `uint64` end to end so high-throughput byte ceilings never truncate at
+32 bits. `0` disables the respective limit (the default, matching `lifetime 0`).
+Non-zero minimums (`65536` bytes and `100` packets) are enforced in both the
+YANG `range` constraint and `parseESPVolumeLimit` up to `18446744073709551615`
+(`uint64` max), preventing rekey storms from tiny ceilings. Both fields sit
+directly on `ESPGroup`, so `ESPGroup.Equal` (`reflect.DeepEqual`) detects edits
+on reload without a field list.
+
+<!-- source: internal/component/ike/ipsec/types.go -- ESPGroup, ESPGroup.Equal -->
+<!-- source: internal/component/ike/ipsec/config.go -- parseESPGroup, parseESPVolumeLimit -->
+
 **The DH group is a `uint8` with a range check, not an enum.** RFC 7296 Section
 3.3.2 identifies Diffie-Hellman groups by number, so a new group must not
 require a code change. The range is 1 to 31.

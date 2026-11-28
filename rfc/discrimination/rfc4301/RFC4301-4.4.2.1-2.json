@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestLifetimeSimultaneousFirstLimitWins",
+    "unit-sha": "507ec86db73695aa",
+    "claim-sha": "69dfaa880086f990",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::softExpired",
+    "producer-sha": "0f1b6a05e8073fd6",
+    "break": "body of softExpired replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestLifetimeSimultaneousFirstLimitWins",
+    "unit-sha": "507ec86db73695aa",
+    "claim-sha": "171f60d0943b91a0",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::softExpired",
+    "producer-sha": "0f1b6a05e8073fd6",
+    "break": "body of softExpired replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

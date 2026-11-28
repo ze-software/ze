@@ -85,8 +85,10 @@ vpn {
         }
 
         esp-group site-b-esp {
-            lifetime 3600;
-            pfs      enable;
+            lifetime     3600;
+            life-bytes   1073741824;
+            life-packets 1000000;
+            pfs          enable;
             proposal 1 { encryption aes256gcm; }
         }
 
@@ -1243,7 +1245,7 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Encapsulation | Tunnel mode by default; `mode transport` negotiates transport mode per RFC 7296 Section 1.3.1 |
 | Connection | `connection-type initiate` starts the exchange; `connection-type respond` waits for the peer |
 | Replay protection | Anti-replay window on the inbound SA, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default; the outbound SA carries none |
-| Lifetime | Time-based rekeying, from the ESP group's `lifetime` in seconds. Ze carries no byte lifetime, so RFC 4301 Section 4.4.2.1's simultaneous use of both is not met |
+| Lifetime | Simultaneous time and volume rekeying from the ESP group's `lifetime` (seconds, default `3600`, `0` disables), `life-bytes` (`0` or `65536..18446744073709551615`, default `0`), and `life-packets` (`0` or `100..18446744073709551615`, default `0`). Whichever soft limit hits first triggers a make-before-break `CREATE_CHILD_SA` rekey with a 5% to 10% randomized volume lead on `max(out, in)` XFRM counters. Whichever hard ceiling hits first stops the Child SA unconditionally (RFC 4301 Section 4.4.2.1, RFC 7296 Section 2.8). Commit refuses non-zero volume lifetimes on dataplane backends that do not expose SA counters (such as VPP) |
 | Policy order | `policy-priority` ranks this peer's SPD entries, lower first. See SPD ordering below |
 | DF bit | `df-bit copy` (default), `clear` or `set`: what the tunnel header carries in its DF bit. See DF bit of the tunnel header below |
 | Tunnel DSCP | `dscp-map copy` (default) or a value 0 to 63 for every tunnel header. See DSCP of the tunnel header below |

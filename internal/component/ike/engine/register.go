@@ -1348,6 +1348,20 @@ func raiseSPDUndoIssue(policy, dir string, err error, log *slog.Logger) slog.Att
 	})
 }
 
+func raiseVolumeCounterReadIssue(peer string, err error, log *slog.Logger) slog.Attr {
+	p := ikeIssuePeerName(peer)
+
+	var msg textbuf.Buffer
+	msg.Str("IPsec could not read Child SA volume counters for peer ").Str(p).Str(": ").Err(err).
+		Str(". Volume-based rekey cannot advance until dataplane SA counter reads succeed.")
+
+	return raiseIKEIssueCoalesced(codeDoctorIPsecVolumeCounterReadFailed, p, msg.String(), fixShowIPsecDataplaneSA, func(sendErr error) {
+		log.Warn("ike: could not record Child SA volume counter read failure on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecVolumeCounterReadFailed, "peer", p,
+			"error", sendErr, "fix", fixShowIPsecDataplaneSA)
+	})
+}
+
 type ikeSendRunKey struct {
 	peer string
 	ispi [8]byte

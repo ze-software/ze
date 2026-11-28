@@ -46,6 +46,14 @@ func (b *xfrmBackend) SAOptionsSupported(_ SAOptions) error {
 	return nil
 }
 
+// SACountersSupported judges no counter path: off Linux InstallSA answers
+// ErrNotSupported for every SA, so the engine keeps each Child SA degraded whatever
+// its lifetime carries, and a refusal here would refuse configs on non-Linux hosts
+// where no dataplane runs.
+func (b *xfrmBackend) SACountersSupported() error {
+	return nil
+}
+
 func (b *xfrmBackend) InstallPolicy(_ SPParams) error {
 	return fmt.Errorf("%w: xfrm not available on %s", ErrNotSupported, runtime.GOOS)
 }

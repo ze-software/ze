@@ -292,6 +292,13 @@ func (b *vppBackend) SAOptionsSupported(o SAOptions) error {
 	return nil
 }
 
+// SACountersSupported refuses: the VPP backend does not enumerate the SAD or expose
+// per-SA byte and packet counters through ListSAs, so volume lifetimes cannot be
+// enforced on VPP.
+func (b *vppBackend) SACountersSupported() error {
+	return fmt.Errorf("%w: the vpp backend does not expose SA byte or packet counters", ErrNotSupported)
+}
+
 // vppSAEndpoints checks the pair that becomes the SAD entry's tunnel.
 //
 // ip_types.NewAddress turns a nil into the unspecified address of a family it picks

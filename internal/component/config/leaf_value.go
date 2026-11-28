@@ -298,7 +298,7 @@ func parseNumericRangeValue(typ ValueType, value string) (*big.Int, error) {
 			return nil, fmt.Errorf("invalid uint16: %q", value)
 		}
 		return new(big.Int).SetUint64(v), nil
-	case TypeUint32:
+	case TypeUint32, TypeUint64:
 		v, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid uint: %q", value)

@@ -5,43 +5,44 @@ package engine
 import "github.com/ze-software/ze/internal/core/diagnostic"
 
 const (
-	codeDoctorIPsecIface                 = "doctor-ipsec-iface"
-	codeDoctorIPsecUDPEncap              = "doctor-ipsec-udp-encap"
-	codeDoctorIPsecCertURL               = "doctor-ipsec-cert-url"
-	codeDoctorIPsecCertURLDenied         = "doctor-ipsec-cert-url-denied"
-	codeDoctorIPsecCookieThreshold       = "doctor-ipsec-cookie-threshold"
-	codeDoctorIPsecImplicitDiscard       = "doctor-ipsec-implicit-discard"
-	codeDoctorIPsecNoPMTUDisc            = "doctor-ipsec-no-pmtu-disc"
-	codeDoctorIPsecOverrideGuard         = "doctor-ipsec-override-guard"
-	codeDoctorIPsecSocketPolicy          = "doctor-ipsec-socket-policy"
-	codeDoctorIPsecESPFormOffload        = "doctor-ipsec-esp-form-offload"
-	codeDoctorIPsecESPFormOffloadUnknown = "doctor-ipsec-esp-form-offload-unknown"
-	codeDoctorIPsecForwardDefault        = "doctor-ipsec-forward-default"
-	codeDoctorIPsecStateScope            = "doctor-ipsec-state-scope"
-	codeDoctorIPsecRedistributionSource  = "doctor-ipsec-redistribution-source"
-	codeDoctorIPsecChildInstallRefused   = "doctor-ipsec-child-install-refused"
-	codeDoctorIPsecSPDInstallRefused     = "doctor-ipsec-spd-install-refused"
-	codeDoctorIPsecSPDCatchAllMissing    = "doctor-ipsec-spd-catch-all-missing"
-	codeDoctorIPsecSPDExemptionMissing   = "doctor-ipsec-spd-exemption-missing"
-	codeDoctorIPsecSourceGuardMissing    = "doctor-ipsec-source-guard-missing"
-	codeDoctorIPsecSPDForwardBypass      = "doctor-ipsec-spd-forward-bypass" //nolint:gosec // G101: a doctor diagnostic code, not a credential
-	codeDoctorIPsecSPDUndoIncomplete     = "doctor-ipsec-spd-undo-incomplete"
-	codeDoctorIPsecSPDWriter             = "doctor-ipsec-spd-writer"
-	codeDoctorIPsecSPDWriterUnknown      = "doctor-ipsec-spd-writer-unknown"
-	codeDoctorIPsecVirtualIPPool         = "doctor-ipsec-virtual-ip-pool"
-	codeDoctorIPsecUnauthenticatedInput  = "doctor-ipsec-unauthenticated-input"
-	codeDoctorIPsecPeerMalformedMessage  = "doctor-ipsec-peer-malformed-message"
-	codeDoctorIPsecInterfaceAddress      = "doctor-ipsec-interface-address"
-	codeDoctorIPsecXFRMUnavailable       = "doctor-ipsec-xfrm-unavailable"
-	codeDoctorIPsecXFRMUnknown           = "doctor-ipsec-xfrm-unknown"
-	codeDoctorIPsecMOBIKESocketNotShared = "doctor-ipsec-mobike-socket-not-shared"
-	codeDoctorIPsecEAPTLSIdentity        = "doctor-ipsec-eap-tls-identity"
-	codeDoctorIPsecCertURLFetchFailed    = "doctor-ipsec-cert-url-fetch-failed"
-	codeDoctorIPsecChildRemoveFailed     = "doctor-ipsec-child-remove-failed"
-	codeDoctorIPsecMessageBuildFailed    = "doctor-ipsec-message-build-failed"
-	codeDoctorIPsecSendFailed            = "doctor-ipsec-send-failed"
-	codeDoctorIPsecEventEmitFailed       = "doctor-ipsec-event-emit-failed"
-	exampleDoctorJSON                    = "ze doctor --json"
+	codeDoctorIPsecIface                   = "doctor-ipsec-iface"
+	codeDoctorIPsecUDPEncap                = "doctor-ipsec-udp-encap"
+	codeDoctorIPsecCertURL                 = "doctor-ipsec-cert-url"
+	codeDoctorIPsecCertURLDenied           = "doctor-ipsec-cert-url-denied"
+	codeDoctorIPsecCookieThreshold         = "doctor-ipsec-cookie-threshold"
+	codeDoctorIPsecImplicitDiscard         = "doctor-ipsec-implicit-discard"
+	codeDoctorIPsecNoPMTUDisc              = "doctor-ipsec-no-pmtu-disc"
+	codeDoctorIPsecOverrideGuard           = "doctor-ipsec-override-guard"
+	codeDoctorIPsecSocketPolicy            = "doctor-ipsec-socket-policy"
+	codeDoctorIPsecESPFormOffload          = "doctor-ipsec-esp-form-offload"
+	codeDoctorIPsecESPFormOffloadUnknown   = "doctor-ipsec-esp-form-offload-unknown"
+	codeDoctorIPsecForwardDefault          = "doctor-ipsec-forward-default"
+	codeDoctorIPsecStateScope              = "doctor-ipsec-state-scope"
+	codeDoctorIPsecRedistributionSource    = "doctor-ipsec-redistribution-source"
+	codeDoctorIPsecChildInstallRefused     = "doctor-ipsec-child-install-refused"
+	codeDoctorIPsecSPDInstallRefused       = "doctor-ipsec-spd-install-refused"
+	codeDoctorIPsecSPDCatchAllMissing      = "doctor-ipsec-spd-catch-all-missing"
+	codeDoctorIPsecSPDExemptionMissing     = "doctor-ipsec-spd-exemption-missing"
+	codeDoctorIPsecSourceGuardMissing      = "doctor-ipsec-source-guard-missing"
+	codeDoctorIPsecSPDForwardBypass        = "doctor-ipsec-spd-forward-bypass" //nolint:gosec // G101: a doctor diagnostic code, not a credential
+	codeDoctorIPsecSPDUndoIncomplete       = "doctor-ipsec-spd-undo-incomplete"
+	codeDoctorIPsecSPDWriter               = "doctor-ipsec-spd-writer"
+	codeDoctorIPsecSPDWriterUnknown        = "doctor-ipsec-spd-writer-unknown"
+	codeDoctorIPsecVirtualIPPool           = "doctor-ipsec-virtual-ip-pool"
+	codeDoctorIPsecUnauthenticatedInput    = "doctor-ipsec-unauthenticated-input"
+	codeDoctorIPsecPeerMalformedMessage    = "doctor-ipsec-peer-malformed-message"
+	codeDoctorIPsecInterfaceAddress        = "doctor-ipsec-interface-address"
+	codeDoctorIPsecXFRMUnavailable         = "doctor-ipsec-xfrm-unavailable"
+	codeDoctorIPsecXFRMUnknown             = "doctor-ipsec-xfrm-unknown"
+	codeDoctorIPsecMOBIKESocketNotShared   = "doctor-ipsec-mobike-socket-not-shared"
+	codeDoctorIPsecEAPTLSIdentity          = "doctor-ipsec-eap-tls-identity"
+	codeDoctorIPsecCertURLFetchFailed      = "doctor-ipsec-cert-url-fetch-failed"
+	codeDoctorIPsecChildRemoveFailed       = "doctor-ipsec-child-remove-failed"
+	codeDoctorIPsecMessageBuildFailed      = "doctor-ipsec-message-build-failed"
+	codeDoctorIPsecSendFailed              = "doctor-ipsec-send-failed"
+	codeDoctorIPsecEventEmitFailed         = "doctor-ipsec-event-emit-failed"
+	codeDoctorIPsecVolumeCounterReadFailed = "doctor-ipsec-volume-counter-read-failed"
+	exampleDoctorJSON                      = "ze doctor --json"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -491,6 +492,16 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"`ze show doctor`.",
 		Examples: []string{exampleDoctorJSON, fixShowIPsecSA, "ze show diagnostic doctor-ipsec-event-emit-failed"},
 	},
+	{
+		Code:  codeDoctorIPsecVolumeCounterReadFailed,
+		Title: "IPsec Child SA volume counters could not be read from the dataplane",
+		Description: "The IKE engine could not read per-SA byte and packet counters from the dataplane " +
+			"while enforcing a configured `life-bytes` or `life-packets` Child SA volume lifetime. " +
+			"Until counter reads succeed, volume-based soft rekey and hard teardown cannot advance " +
+			"for that Child SA, leaving only the time-based `lifetime` active. Inspect the dataplane " +
+			"SAD with `ze show vpn ipsec dataplane sa` and verify the active dataplane exposes SA counters.",
+		Examples: []string{exampleDoctorJSON, fixShowIPsecDataplaneSA, "ze show diagnostic doctor-ipsec-volume-counter-read-failed"},
+	},
 }
 
 func init() {
@@ -516,5 +527,8 @@ func init() {
 	}
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecEventEmitFailed}); err != nil {
 		panic("BUG: engine: event emit failed event code registration refused: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDoctorIPsecVolumeCounterReadFailed}); err != nil {
+		panic("BUG: engine: volume counter read failed event code registration refused: " + err.Error())
 	}
 }

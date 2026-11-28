@@ -2565,6 +2565,8 @@ vpn {
 
         esp-group ESP-RW {
             lifetime 86400
+            life-bytes 1073741824
+            life-packets 1000000
             pfs disable
             proposal 10 {
                 encryption aes128gcm
@@ -2616,6 +2618,15 @@ Encryption algorithms: `aes128`, `aes256`, `aes128gcm`, `aes256gcm`, and the AES
 `aes128ccm8`, `aes256ccm8`, `aes128ccm12`, `aes256ccm12`, `aes128ccm16` and `aes256ccm16`.
 The number after `ccm` is the ICV size in octets, which RFC 5282 Section 7.2 gives its own
 Transform ID. Section 7.2 recommends the 16 octet ICV for IKE.
+
+ESP group lifetimes support simultaneous time and volume limits (RFC 4301 Section 4.4.2.1):
+`lifetime` (0..86400 seconds, default `3600`), `life-bytes` (`0` or
+`65536..18446744073709551615` bytes, default `0`), and `life-packets` (`0` or
+`100..18446744073709551615` packets, default `0`). Setting a leaf to `0` disables that
+limit. When multiple limits are active, whichever soft threshold hits first triggers a
+`CREATE_CHILD_SA` rekey with a randomized 5% to 10% volume lead. Whichever hard ceiling
+hits first stops the Child SA unconditionally. Commit refuses non-zero `life-bytes` or
+`life-packets` on dataplane backends without SA counter readback (such as VPP).
 
 The AES CCM set is for an `ike-group` only. An `esp-group` proposal that names one is
 refused at commit, because no dataplane backend installs an AES CCM Security Association.

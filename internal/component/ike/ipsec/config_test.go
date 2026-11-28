@@ -1,6 +1,7 @@
 package ipsec
 
 import (
+	"math"
 	"net"
 	"strings"
 	"testing"
@@ -1460,4 +1461,145 @@ func TestVirtualIPPoolCommitRefusals(t *testing.T) {
 			}
 		})
 	}
+}
+
+// makeESPVolumeTree builds a valid esp-group config tree with optional life-bytes and
+// life-packets leaves. Empty values leave the corresponding leaf unset.
+func makeESPVolumeTree(name, lifeBytes, lifePackets string) *config.Tree {
+	tree := config.NewTree()
+	ipsecNode := tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
+	espEntry := config.NewTree()
+	if lifeBytes != "" {
+		espEntry.Set("life-bytes", lifeBytes)
+	}
+	if lifePackets != "" {
+		espEntry.Set("life-packets", lifePackets)
+	}
+	prop := config.NewTree()
+	prop.Set("encryption", "aes128gcm")
+	espEntry.AddListEntry("proposal", "1", prop)
+	ipsecNode.AddListEntry("esp-group", name, espEntry)
+	return tree
+}
+
+// VALIDATES: esp-group life-bytes and life-packets parse as uint64 with defaults of 0,
+// enforce minimums (65536 bytes, 100 packets) and uint64 max (18446744073709551615) in
+// both parseESPGroup and ze-ipsec-conf.yang, reject sub-minimum, negative, and overflow
+// values without wrapping, and are observed by ESPGroup.Equal.
+// PREVENTS: 32-bit truncation of large byte limits, silent rekey-storm thresholds, or
+// YANG/Go validation drift between ze config validate and parseESPGroup.
+func TestESPGroupVolumeParse(t *testing.T) {
+	t.Run("defaults are zero", func(t *testing.T) {
+		tree := makeESPVolumeTree("ESP-DEF", "", "")
+		if refusals := referenceRefusals(t, tree); refusals != "" {
+			t.Fatalf("YANG refused default esp-group: %s", refusals)
+		}
+		cfg, err := ParseIPsecConfig(tree)
+		if err != nil {
+			t.Fatalf("ParseIPsecConfig: %v", err)
+		}
+		g := cfg.ESPGroups["ESP-DEF"]
+		if g.LifeBytes != 0 {
+			t.Errorf("default LifeBytes = %d, want 0", g.LifeBytes)
+		}
+		if g.LifePackets != 0 {
+			t.Errorf("default LifePackets = %d, want 0", g.LifePackets)
+		}
+	})
+
+	validCases := []struct {
+		name        string
+		lifeBytes   string
+		lifePackets string
+		wantBytes   uint64
+		wantPackets uint64
+	}{
+		{"explicit zero both", "0", "0", 0, 0},
+		{"minimum non-zero both", "65536", "100", 65536, 100},
+		{"typical volume limits", "1073741824", "1000000", 1073741824, 1000000},
+		{"beyond uint32 max", "5000000000", "5000000000", 5000000000, 5000000000},
+		{"uint64 max both", "18446744073709551615", "18446744073709551615", math.MaxUint64, math.MaxUint64},
+	}
+	for _, tc := range validCases {
+		t.Run("valid/"+tc.name, func(t *testing.T) {
+			tree := makeESPVolumeTree("ESP-OK", tc.lifeBytes, tc.lifePackets)
+			if refusals := referenceRefusals(t, tree); refusals != "" {
+				t.Fatalf("YANG validation refused valid config: %s", refusals)
+			}
+			cfg, err := ParseIPsecConfig(tree)
+			if err != nil {
+				t.Fatalf("ParseIPsecConfig: %v", err)
+			}
+			g := cfg.ESPGroups["ESP-OK"]
+			if g.LifeBytes != tc.wantBytes {
+				t.Errorf("LifeBytes = %d, want %d", g.LifeBytes, tc.wantBytes)
+			}
+			if g.LifePackets != tc.wantPackets {
+				t.Errorf("LifePackets = %d, want %d", g.LifePackets, tc.wantPackets)
+			}
+		})
+	}
+
+	invalidCases := []struct {
+		name        string
+		lifeBytes   string
+		lifePackets string
+		wantLeaf    string
+		wantValue   string
+		wantMin     string
+	}{
+		{"life-bytes 1 below minimum", "1", "", "life-bytes", "1", "65536"},
+		{"life-bytes 65535 below minimum", "65535", "", "life-bytes", "65535", "65536"},
+		{"life-bytes negative", "-1", "", "life-bytes", "-1", "65536"},
+		{"life-bytes uint64 overflow", "18446744073709551616", "", "life-bytes", "18446744073709551616", "65536"},
+		{"life-bytes non-numeric", "1gib", "", "life-bytes", "1gib", "65536"},
+		{"life-packets 1 below minimum", "", "1", "life-packets", "1", "100"},
+		{"life-packets 99 below minimum", "", "99", "life-packets", "99", "100"},
+		{"life-packets negative", "", "-1", "life-packets", "-1", "100"},
+		{"life-packets uint64 overflow", "", "18446744073709551616", "life-packets", "18446744073709551616", "100"},
+		{"life-packets non-numeric", "", "many", "life-packets", "many", "100"},
+	}
+	for _, tc := range invalidCases {
+		t.Run("invalid/"+tc.name, func(t *testing.T) {
+			tree := makeESPVolumeTree("ESP-BAD", tc.lifeBytes, tc.lifePackets)
+			refusals := referenceRefusals(t, tree)
+			if refusals == "" {
+				t.Errorf("YANG validation accepted invalid %s=%q", tc.wantLeaf, tc.wantValue)
+			}
+			_, err := ParseIPsecConfig(tree)
+			if err == nil {
+				t.Fatalf("ParseIPsecConfig accepted invalid %s=%q", tc.wantLeaf, tc.wantValue)
+			}
+			for _, want := range []string{`"ESP-BAD"`, tc.wantLeaf, tc.wantValue, tc.wantMin} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("parse error %q does not contain %q", err, want)
+				}
+			}
+		})
+	}
+
+	t.Run("ESPGroup.Equal detects volume lifetime edits", func(t *testing.T) {
+		base := ESPGroup{
+			Name:        "ESP-EQ",
+			Lifetime:    3600,
+			LifeBytes:   1048576,
+			LifePackets: 1000,
+			PFS:         PFSEnable,
+			Proposals:   []ESPProposal{{Number: 1, Encryption: EncryptionAES128GCM}},
+		}
+		same := base
+		if !base.Equal(same) {
+			t.Error("identical ESPGroups compared unequal")
+		}
+		diffBytes := base
+		diffBytes.LifeBytes = 2097152
+		if base.Equal(diffBytes) {
+			t.Error("ESPGroup.Equal missed a LifeBytes change")
+		}
+		diffPackets := base
+		diffPackets.LifePackets = 2000
+		if base.Equal(diffPackets) {
+			t.Error("ESPGroup.Equal missed a LifePackets change")
+		}
+	})
 }

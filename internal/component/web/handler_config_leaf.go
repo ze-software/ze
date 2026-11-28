@@ -65,8 +65,9 @@ func buildLeafField(name string, leaf *config.LeafNode, value string, configured
 // leafInputType returns the HTML input attributes for a given ValueType.
 func leafInputType(vt config.ValueType) LeafField {
 	switch vt {
-	case config.TypeString, config.TypeDecimal64:
-		// A decimal64 leaf is typed as text: the parser judges its digits.
+	case config.TypeString, config.TypeDecimal64, config.TypeUint64:
+		// decimal64 and uint64 leaves are typed as text so browsers do not
+		// truncate 64-bit precision in float64 number inputs; the parser judges digits.
 		return LeafField{InputType: leafInputText}
 
 	case config.TypeBool:

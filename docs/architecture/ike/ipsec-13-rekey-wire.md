@@ -129,9 +129,26 @@ branches and on message-ID exhaustion, never on the two `hardExpired` branches.
 RFC 7296 Section 2.8 is unconditional, so an in-flight rekey does not extend a
 hard lifetime.
 
-<!-- source: internal/component/ike/engine/rekey.go -- newLifetimeState, rekeyLead, lifetimeJitter -->
+**Volume soft lead and unconditional hard volume expiry.** Child SA lifetimes
+come from `newChildLifetimeState`. That helper tracks time (`lifetime`), byte
+(`life-bytes`), and packet (`life-packets`) limits together, or volume alone
+when `lifetime` is `0`. For each volume ceiling, `volumeSoftThreshold` places
+the soft trigger 5% to 10% below the hard ceiling using `crypto/rand` and
+`big.Int.SetUint64`. Using `big.Int.SetUint64` avoids signed `int64` wrap up to
+`uint64` max.
+
+The 5% floor leaves headroom for a make-before-break `CREATE_CHILD_SA` exchange
+before hard expiry, while the 5%–10% spread desynchronizes peers. Whichever
+soft limit (time, bytes, or packets) expires first raises
+`serviceChildRekeyTrigger`. Whichever hard limit expires first causes
+`hardExpiryReason` (`"time"`, `"bytes"`, or `"packets"`) to remove the Child SA
+unconditionally, even with a rekey in flight. When peer counters drift out of
+sync (RFC 4301 Section 4.4.2.1), `respondChildRekey` accepts the peer's rekey
+and resets `childLT` to zero. Simultaneous collisions resolve by lowest nonce.
+
+<!-- source: internal/component/ike/engine/rekey.go -- newLifetimeState, newChildLifetimeState, volumeSoftThreshold, softExpired, hardExpiryReason, rekeyLead, lifetimeJitter -->
 <!-- source: internal/component/ike/engine/fsm.go -- maxRetransmissions -->
-<!-- source: internal/component/ike/engine/established.go -- maintainSA, rekeyRetransmitTimeout -->
+<!-- source: internal/component/ike/engine/established.go -- maintainSA, sampleChildVolume, rekeyRetransmitTimeout -->
 
 **The wire answer against the installed policy.** RFC 7296 Section 2.9 makes the
 TS payloads of a rekey response a statement about the SA that was installed: "TS
@@ -233,6 +250,14 @@ completed from a responder-role Ze.
 with Ze as the connection initiator. strongSwan parses the REKEY_SA request,
 installs the new Child SA, and receives the Delete for the old SA.
 
+`test/interop-ipsec/scenarios/child-rekey-life-bytes` sets both `lifetime 3600`
+and `life-bytes 131072` on Ze against strongSwan with volume limits disabled.
+Bidirectional tunnel traffic advances Ze's Linux XFRM counters into the soft
+band. Ze then starts a `CREATE_CHILD_SA` rekey long before time expiry.
+strongSwan installs matching replacement SPIs and receives the old-SA Delete,
+and tunnel traffic continues cleanly.
+<!-- source: internal/le/interoplab/ipsec/lifevolume.go -- checkChildRekeyLifeBytes -->
+
 `test/interop-ipsec/scenarios/responder-raises-child-rekey` runs the other
 direction. strongSwan dials, so Ze is the original responder, and Ze's short ESP
 lifetime makes Ze raise the CREATE_CHILD_SA. It is the only scenario where a
@@ -240,8 +265,7 @@ responder-role Ze speaks first, so it is what proves the two counters are
 independent. With the old counter write restored, strongSwan parses no REKEY_SA
 request at all.
 
-Both scenarios gate their dataplane assertions on XFRM being available, because
-a Docker host without XFRM or ESP still proves the control plane.
+`child-rekey` and `responder-raises-child-rekey` gate their dataplane assertions on XFRM being available, because a Docker host without XFRM or ESP still proves the control plane. `child-rekey-life-bytes` requires Linux XFRM counters because kernel byte counts drive the soft rekey threshold.
 
 `test/ipsec/ipsec-child-rekey-xfrm.ci` reads the kernel directly, between two Ze
 daemons on the real XFRM backend, with the exchange role crossed against the IKE

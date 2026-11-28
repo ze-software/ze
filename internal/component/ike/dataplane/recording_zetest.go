@@ -126,6 +126,10 @@ func (d *recordingDataplane) GathersForwardFragments() (bool, error) { return fa
 // packet, so no option is left unapplied.
 func (d *recordingDataplane) SAOptionsSupported(SAOptions) error { return nil }
 
+// SACountersSupported answers yes, as every other capability of this test-only
+// backend does, so unprivileged control-plane fixtures can commit volume lifetimes.
+func (d *recordingDataplane) SACountersSupported() error { return nil }
+
 // AttachOverrideGuard records the guard as attached, so a .ci can read the state the
 // engine asked for through doctor.
 func (d *recordingDataplane) AttachOverrideGuard() error {

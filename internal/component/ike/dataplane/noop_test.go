@@ -67,3 +67,18 @@ func TestNoopListNotSupported(t *testing.T) {
 		t.Fatalf("ListPolicies entries = %v, want nil", policies)
 	}
 }
+
+// VALIDATES: xfrmBackend and noopDataplane implement SACounterChecker and report
+// SACountersSupported() == nil so Linux XFRM and control-plane test fixtures accept
+// esp-group volume lifetimes at commit verify.
+// PREVENTS: accidental fail-closed refusal of volume lifetimes on Linux XFRM or noop.
+func TestSACountersSupported(t *testing.T) {
+	var xfrmChecker SACounterChecker = &xfrmBackend{}
+	if err := xfrmChecker.SACountersSupported(); err != nil {
+		t.Errorf("xfrmBackend.SACountersSupported() = %v, want nil", err)
+	}
+	var noopChecker SACounterChecker = noopDataplane{}
+	if err := noopChecker.SACountersSupported(); err != nil {
+		t.Errorf("noopDataplane.SACountersSupported() = %v, want nil", err)
+	}
+}

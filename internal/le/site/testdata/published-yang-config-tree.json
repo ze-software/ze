@@ -31228,6 +31228,22 @@
           {
             "children": [
               {
+                "description": "Maximum encrypted bytes per direction before the Child SA is torn down\nunconditionally (RFC 7296 Section 2.8, RFC 4301 Section 4.4.2.1). Ze reads\n64-bit inbound and outbound SA byte counters from the dataplane on its\n1-second tick, takes the larger of the two directions, and initiates a\nmake-before-break CREATE_CHILD_SA rekey at a randomized soft threshold 5 to\n10 percent below this ceiling. Active simultaneously with lifetime and\nlife-packets; whichever limit expires first takes precedence. The minimum\nnon-zero value is 65536 bytes (64 KiB) to prevent rekey storms. The value 0\ndisables byte-based expiry. Commit refuses non-zero values on dataplane\nbackends that do not expose SA counters (such as VPP).",
+                "kind": "leaf",
+                "name": "life-bytes",
+                "short-help": "Child SA byte lifetime before rekey and expiry. 0 disables.",
+                "source": "config",
+                "type": "uint64"
+              },
+              {
+                "description": "Maximum encrypted packets per direction before the Child SA is torn down\nunconditionally (RFC 7296 Section 2.8, RFC 4301 Section 4.4.2.1). Ze reads\n64-bit inbound and outbound SA packet counters from the dataplane on its\n1-second tick, takes the larger of the two directions, and initiates a\nmake-before-break CREATE_CHILD_SA rekey at a randomized soft threshold 5 to\n10 percent below this ceiling. Active simultaneously with lifetime and\nlife-bytes; whichever limit expires first takes precedence. The minimum\nnon-zero value is 100 packets to prevent rekey storms. The value 0 disables\npacket-based expiry. Commit refuses non-zero values on dataplane backends\nthat do not expose SA counters (such as VPP).",
+                "kind": "leaf",
+                "name": "life-packets",
+                "short-help": "Child SA packet lifetime before rekey and expiry. 0 disables.",
+                "source": "config",
+                "type": "uint64"
+              },
+              {
                 "description": "The Child SA rekey trigger sits ahead of the lifetime by the larger of a\nrandom 10 percent and one retransmit budget. That lead is capped at half the\nlifetime. RFC 7296 Section 2.8 states the rule. 'When the lifetime of a\nSecurity Association expires, the Security Association MUST NOT be used.' Ze\ntherefore tears the SA down at that point, even when a rekey is still in\nflight. The value 0 starts no rekey and no expiry.",
                 "kind": "leaf",
                 "name": "lifetime",

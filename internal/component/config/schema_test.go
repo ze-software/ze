@@ -163,8 +163,14 @@ func TestSchemaValidateValue(t *testing.T) {
 	}{
 		{TypeUint32, "65000", true},
 		{TypeUint32, "4294967295", true},
+		{TypeUint32, "4294967296", false},
 		{TypeUint32, "-1", false},
 		{TypeUint32, "abc", false},
+		{TypeUint64, "0", true},
+		{TypeUint64, "18446744073709551615", true},
+		{TypeUint64, "18446744073709551616", false},
+		{TypeUint64, "-1", false},
+		{TypeUint64, "abc", false},
 		{TypeUint16, "179", true},
 		{TypeUint16, "65536", false},
 		{TypeBool, "true", true},
@@ -383,6 +389,32 @@ func TestASNFilterTypedefMapsToTypeASNAndAcceptsAS0(t *testing.T) {
 	for _, value := range []string{"65536.0", "4294967296", "peer"} {
 		if err := ValidateLeafValue(leaf, nil, value); err == nil {
 			t.Errorf("ValidateLeafValue(%q) accepted invalid ASN", value)
+		}
+	}
+}
+
+// TestUint64LeafRangeAcceptsMaxUint64 proves YANG uint64 maps to TypeUint64 so
+// values above uint32 max up to 18446744073709551615 pass type and range checks
+// while 18446744073709551616 is refused without wrapping.
+func TestUint64LeafRangeAcceptsMaxUint64(t *testing.T) {
+	if got := yangTypeToValueType(&gyang.YangType{Name: "uint64", Kind: gyang.Yuint64}); got != TypeUint64 {
+		t.Fatalf("yangTypeToValueType(\"uint64\") = %v, want TypeUint64", got)
+	}
+	leaf := &LeafNode{
+		Type: TypeUint64,
+		Ranges: []NumericRange{
+			{Min: "0", Max: "0"},
+			{Min: "65536", Max: "18446744073709551615"},
+		},
+	}
+	for _, value := range []string{"0", "65536", "4294967296", "18446744073709551615"} {
+		if err := ValidateLeafValue(leaf, []string{"life-bytes"}, value); err != nil {
+			t.Errorf("ValidateLeafValue(%q): unexpected error %v", value, err)
+		}
+	}
+	for _, value := range []string{"1", "65535", "18446744073709551616", "-1"} {
+		if err := ValidateLeafValue(leaf, []string{"life-bytes"}, value); err == nil {
+			t.Errorf("ValidateLeafValue(%q) accepted out-of-range uint64", value)
 		}
 	}
 }

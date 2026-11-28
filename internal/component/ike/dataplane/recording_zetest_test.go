@@ -119,3 +119,13 @@ func TestRecordingBackendListsTheCatchAllICMPErrorYield(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: recordingDataplane implements SACounterChecker and answers nil so zetest
+// fixtures can commit esp-group volume lifetimes.
+// PREVENTS: recordingDataplane refusing volume lifetimes during commit verify in tests.
+func TestRecordingSACountersSupported(t *testing.T) {
+	var checker SACounterChecker = &recordingDataplane{}
+	if err := checker.SACountersSupported(); err != nil {
+		t.Errorf("recordingDataplane.SACountersSupported() = %v, want nil", err)
+	}
+}

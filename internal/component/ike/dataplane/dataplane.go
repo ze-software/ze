@@ -861,6 +861,20 @@ type CatchAllInstaller interface {
 	CatchAllSupported() error
 }
 
+// SACounterChecker is implemented by a backend that states, ahead of any install,
+// whether it exposes per-SA byte and packet counters through ListSAs. Config verify
+// asks this question before it accepts non-zero esp-group life-bytes or life-packets
+// (engine verifyVolumeLifetimes), so volume lifetimes on a counterless backend (such
+// as VPP) are refused at commit rather than silently ignored at runtime.
+//
+// A backend that does not implement the interface has declared nothing, and the
+// engine treats that as unable: non-zero volume lifetimes are refused until it answers.
+type SACounterChecker interface {
+	// SACountersSupported returns nil when the backend reports per-SA byte and packet
+	// counters through ListSAs, and an error wrapping ErrNotSupported when it does not.
+	SACountersSupported() error
+}
+
 // ErrTunnelMigrationLost means rollback could not restore the live SA pair.
 // Protective policies remain owned until the caller tears down the Child SA.
 var ErrTunnelMigrationLost = errors.New("dataplane: tunnel lost during migration")

@@ -45,6 +45,7 @@ type scenarioCheck struct {
 
 var scenarioCheckers = map[string]scenarioCheck{
 	"child-rekey":                      {run: checkChildRekey},
+	"child-rekey-life-bytes":           {run: checkChildRekeyLifeBytes},
 	"child-rekey-narrowing":            {run: checkChildRekeyNarrowing},
 	"child-rekey-refused-keeps-the-sa": {run: checkChildRekeyRefusedKeepsTheSA},
 	"childless-ike-sa-ze-initiator":    {run: checkChildlessIKESAZeInitiator},

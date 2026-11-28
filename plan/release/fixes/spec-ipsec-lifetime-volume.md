@@ -136,7 +136,7 @@ Add ESP-group volume-based lifetimes (`life-bytes` and `life-packets`) so a Chil
 6. **Per-tick counter sampling:** On each 1-second tick of `maintainSA`, if `childLT != nil && childLT.hasVolumeLimits()` and `child := ps.getChildSA(); child != nil`:
    - `sampleChildVolume` calls `dp.ListSAs(child.IfID)` and looks up both directional identities of the active Child SA: outbound `IdentityOf(child.OutboundSPI, child.RemoteAddr, ProtoESP, child.IfID)` and inbound `IdentityOf(child.InboundSPI, child.LocalAddr, ProtoESP, child.IfID)`.
    - Computes `bytes = max(outBytes, inBytes)` and `packets = max(outPackets, inPackets)` and calls `childLT.recordVolume(bytes, packets)` (monotonically updating `byteCount` and `packetCount` so a transient missing lookup cannot move counts backward).
-   - If `dp == nil`, leaves counts unchanged. If `ListSAs` returns `ErrNotSupported`, logs once per Child SA at debug (`counterReadWarned`) and leaves counts unchanged. On a transient error, logs at debug and keeps the previous sample.
+   - If `dp == nil`, leaves counts unchanged. If `ListSAs` returns `ErrNotSupported` or another error, logs once per Child SA / failure streak at `log.Warn` (`counterReadWarned` / `counterReadFailWarned`) and leaves counts unchanged.
    - When `childLT == nil || !childLT.hasVolumeLimits()`, `ListSAs` is NOT called at all.
 7. **Soft rekey trigger and hard teardown:**
    - `serviceChildRekeyTrigger` checks `childLT.softExpired(now)` (true if time OR `softBytes` OR `softPackets` reached) and initiates `CREATE_CHILD_SA` via `startChildRekey` -> `initiateChildRekey`.
@@ -184,10 +184,10 @@ Add ESP-group volume-based lifetimes (`life-bytes` and `life-packets`) so a Chil
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `dataplane.Dataplane.ListSAs(ifID)` returns live 64-bit `BytesCurrent` and `PacketsCurrent` for both inbound and outbound Child SA states on Linux XFRM | `internal/component/ike/dataplane/xfrm_linux.go::saInfoFromState`, `xfrm_readback_linux_test.go::TestListSAsCountersBeyond32Bits`, `test/ipsec/ipsec-show-sa-counters.ci` | Volume counters would remain zero and rekey would never trigger | `test/ipsec/ipsec-life-volume.ci` and `child-rekey-life-bytes` interop scenario | unvalidated |
-| A-2 | `uint64` end-to-end (YANG `uint64`, `strconv.ParseUint(..., 64)`, `ESPGroup`, `lifetimeState`, `SAInfo`) handles values up to `18446744073709551615` without truncation or signed wrap in jitter math | `ze-ipsec-conf.yang`, `rekey.go`, `big.Int.SetUint64` | Large byte/packet limits truncate or panic in `rand.Int` | `TestESPGroupVolumeParse` and `TestVolumeSoftThresholdNearUint64Max` | unvalidated |
-| A-3 | Using `max(outBytes, inBytes)` and `max(outPackets, inPackets)` matches RFC 4301 per-unidirectional-SA volume limits and prevents overflow from summing two `uint64` counters | RFC 4301 §4.4.2.1 (each unidirectional SA carries its own key and lifetime); Linux XFRM counts per unidirectional state | Bidirectional sum would rekey at half the per-key limit and risk `uint64` wrap | `TestSampleChildVolumeUsesMaxDirection` and strongSwan interop | unvalidated |
-| A-4 | On a single-host real-XFRM `.ci` fixture (`peer-a` real XFRM, `peer-b` noop), outbound packets matching `peer-a`'s XFRM policy increment `peer-a`'s outbound XFRM state `BytesCurrent`/`PacketsCurrent` enough to trigger a real `CREATE_CHILD_SA` rekey | Linux XFRM encrypts outbound packets matched by an installed OUT policy + state regardless of whether the remote drops ESP | `.ci` fixture would need network namespaces or veth to exercise real XFRM counters | Wiring phase proof of `test/ipsec/ipsec-life-volume.ci` in QEMU | unvalidated |
+| A-1 | `dataplane.Dataplane.ListSAs(ifID)` returns live 64-bit `BytesCurrent` and `PacketsCurrent` for both inbound and outbound Child SA states on Linux XFRM | `internal/component/ike/dataplane/xfrm_linux.go::saInfoFromState`, `xfrm_readback_linux_test.go::TestListSAsCountersBeyond32Bits`, `test/ipsec/ipsec-show-sa-counters.ci` | Volume counters would remain zero and rekey would never trigger | `test/ipsec/ipsec-life-volume.ci` and `child-rekey-life-bytes` interop scenario | confirmed |
+| A-2 | `uint64` end-to-end (YANG `uint64`, `strconv.ParseUint(..., 64)`, `ESPGroup`, `lifetimeState`, `SAInfo`) handles values up to `18446744073709551615` without truncation or signed wrap in jitter math | `ze-ipsec-conf.yang`, `rekey.go`, `big.Int.SetUint64` | Large byte/packet limits truncate or panic in `rand.Int` | `TestESPGroupVolumeParse`, `TestUint64LeafRangeAcceptsMaxUint64`, `TestVolumeSoftThresholdNearUint64Max`, and `test/ipsec/ipsec-life-volume.ci` | confirmed (fixed config schema `TypeUint64` truncation along the way) |
+| A-3 | Using `max(outBytes, inBytes)` and `max(outPackets, inPackets)` matches RFC 4301 per-unidirectional-SA volume limits and prevents overflow from summing two `uint64` counters | RFC 4301 §4.4.2.1 (each unidirectional SA carries its own key and lifetime); Linux XFRM counts per unidirectional state | Bidirectional sum would rekey at half the per-key limit and risk `uint64` wrap | `TestSampleChildVolumeUsesMaxDirection` and strongSwan interop | confirmed |
+| A-4 | On a single-host real-XFRM `.ci` fixture (`peer-a` real XFRM, `peer-b` noop), outbound packets matching `peer-a`'s XFRM policy increment `peer-a`'s outbound XFRM state `BytesCurrent`/`PacketsCurrent` enough to trigger a real `CREATE_CHILD_SA` rekey | Linux XFRM encrypts outbound packets matched by an installed OUT policy + state regardless of whether the remote drops ESP | `.ci` fixture would need network namespaces or veth to exercise real XFRM counters | Wiring phase proof of `test/ipsec/ipsec-life-volume.ci` in QEMU | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -470,18 +470,181 @@ Add `// RFC 4301 Section 4.4.2.1: "<quoted requirement>"` and `// RFC 7296 Secti
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| 1 | ISSUE | Caught `dp.ListSAs` errors logged at `log.Debug` instead of `log.Warn` | `internal/component/ike/engine/established.go:740` | fixed: log once per failure streak at `log.Warn` (`counterReadFailWarned`) |
+| 2 | ISSUE | `And` in 3 test names (`TestLifetimeStateSoftAndHardBytes`, `TestLifetimeStateSoftAndHardPackets`) | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go` | fixed: renamed to `TestLifetimeStateBytesThresholds` and `TestLifetimeStatePacketsThresholds` |
+| 3 | ISSUE | Stale "Both scenarios" prose in `ipsec-13-rekey-wire.md` | `docs/architecture/ike/ipsec-13-rekey-wire.md:268` | fixed: updated to reflect all 3 strongSwan rekey scenarios |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- `internal/component/ike/engine/established.go`: switched `sampleChildVolume` caught `dp.ListSAs` errors to `log.Warn` via `readFailed := err != nil; childLT.counterReadFailWarned = readFailed` (avoiding `state-from-literal` lint).
+- `internal/component/ike/engine/rfc4301_volume_lifetime_test.go`: renamed tests to remove `And`, added standalone time-only and byte-only subtests inside `TestLifetimeSimultaneousFirstLimitWins` (per `ze-rfc-audit`), and switched 2 `errors.As` calls to `errors.AsType[*opererr.Error]` (per lint).
+- `internal/component/config/{schema.go,yang_schema.go,leaf_value.go,schema_test.go}` and `internal/component/web/{handler_config_leaf.go,fragment.go,field_input_test.go}`: added `TypeUint64` so `ze config validate` accepts `uint64` up to `18446744073709551615` without 32-bit truncation (discovered in QEMU).
+- `internal/test/fixture/{register_ipsec_life_volume.go,tunnel_fixture_ipsec_life_volume.go}` and `test/ipsec/ipsec-life-volume.ci`: split `BYTES` and `PACKETS` into sequential single-peer daemon pairs so each daemon binds one local IKE socket cleanly, and placed `:exit=0` `valid-max` last.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| R2 | ISSUE | `gofmt` in `rekey.go`, `state-from-literal` on `counterReadFailWarned` | `internal/component/ike/engine/{rekey.go,established.go}` | fixed before Round 3 |
+| R3 | CLEAN | 0 BLOCKER, 0 ISSUE, 0 NOTE | all `ike/*`, `interoplab/ipsec/*`, `docs/*`, `rfc/*` | cleared |
+| R4 | CLEAN | 0 BLOCKER, 0 ISSUE (3 NOTEs: stale draft path in `register_ipsec_life_volume.go:3` fixed; `fragment.go:28` comment; `tunnel_fixture_ipsec_life_volume.go` arg parse order) | `config/*`, `web/*`, `fixture/*`, `test/ipsec/ipsec-life-volume.ci` | cleared |
+| R5 | CLEAN | 0 BLOCKER, 0 ISSUE, 0 NOTE (`doctor-ipsec-volume-counter-read-failed` added for `sampleChildVolume` warnings) | `engine/{register_doctor_codes.go,register.go,established.go}` | cleared |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Added `life-bytes` (`uint64`, range `0 | 65536..18446744073709551615`, default `0`) and `life-packets` (`uint64`, range `0 | 100..18446744073709551615`, default `0`) to `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang`, `ESPGroup` (`internal/component/ike/ipsec/types.go:427-428`), and `parseESPVolumeLimit` (`internal/component/ike/ipsec/config.go:269-283,322`).
+- Added `SACounterChecker` (`internal/component/ike/dataplane/dataplane.go:872`) across Linux XFRM (`xfrm_linux.go:604`), non-Linux XFRM (`xfrm_other.go`), VPP (`vpp.go:298`, returning `ErrNotSupported`), noop (`noop.go`), and recording (`recording_zetest.go`), enforced at commit verify by `verifyVolumeLifetimes` (`internal/component/ike/engine/config_verify_commit.go:50,87`).
+- Extended `lifetimeState` in `internal/component/ike/engine/rekey.go` (`newChildLifetimeState:1034`, `volumeSoftThreshold:1068` using `big.Int.SetUint64`, `hasVolumeLimits:1091`, `recordVolume:1109`, `softExpired:1156`, `hardExpiryReason:1185`, `hardExpired:1208`) and wired `sampleChildVolume` (`internal/component/ike/engine/established.go:635,740`) on `maintainSA`'s 1-second tick using `max(out, in)` from `dp.ListSAs(child.IfID)` only when `childLT.hasVolumeLimits()` is true.
+- Added real-XFRM functional test `test/ipsec/ipsec-life-volume.ci` with compiled Go fixture `internal/test/fixture/{register_ipsec_life_volume.go,tunnel_fixture_ipsec_life_volume.go,tunnel_fixture_ipsec_life_volume_test.go}` and strongSwan interop scenario `test/interop-ipsec/scenarios/child-rekey-life-bytes/{ze.conf,swanctl.conf}` with checker `internal/le/interoplab/ipsec/{lifevolume.go,lifevolume_test.go,checkers.go}`.
+- Recorded discrimination records and independent `ze-rfc-audit` **`enforced`** verdicts for `RFC4301-4.4.2.1-2` and `RFC4301-4.4.2.1-3`, and refreshed `internal/le/site/testdata/published-{configuration.md,yang-config-tree.json}`.
+
+### Bugs Found/Fixed
+- **YANG `uint64` 32-bit truncation in config parser:** `internal/component/config/yang_schema.go` mapped `gyang.Yuint64` to `TypeUint32`, causing `ze config validate` to reject `18446744073709551615` (`uint64` max, AC-4) as out of range. Fixed by adding `config.TypeUint64` in `internal/component/config/{schema.go,yang_schema.go,leaf_value.go}` and `internal/component/web/{handler_config_leaf.go,fragment.go}`, covered by `TestSchemaValidateValue`, `TestUint64LeafRangeAcceptsMaxUint64`, `TestFieldInputRegistryAnswersEachType`, and `test/ipsec/ipsec-life-volume.ci` (`valid-max`).
+- **Missing standalone time-only / byte-only cases in `RFC4301-4.4.2.1-2`:** Independent `ze-rfc-audit` noted the requirement mandates supporting each lifetime type individually as well as simultaneously; added standalone subtests to `TestLifetimeSimultaneousFirstLimitWins` and re-audited `enforced`.
+
+### Documentation Updates
+- Updated `docs/architecture/ike/ipsec-3-data-model.md`, `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/ike/ipsec-13-rekey-wire.md`, `docs/guide/ipsec.md`, `docs/guide/configuration.md`, `features/ipsec-data-model.md`, `rfc/short/rfc4301.md`, `rfc/short/rfc7296.md`, and `internal/le/site/testdata/published-{configuration.md,yang-config-tree.json}`.
+
+### Deviations from Plan
+- Added `config.TypeUint64` (+ web `FieldMeta`/`leafInputType` support) because real `ze config validate` testing in QEMU revealed that `gyang.Yuint64` had previously collapsed into `TypeUint32`, blocking AC-4.
+- Split `test/ipsec/ipsec-life-volume.ci` into sequential `BYTES` and `PACKETS` daemon pairs (with optional `"bytes"`/`"packets"` argument on `le test fixture ipsec/life-volume`) because each `ze` daemon binds one local IKE UDP socket address.
+- Renamed unit tests `TestLifetimeStateSoftAndHardBytes` / `TestLifetimeStateSoftAndHardPackets` to `TestLifetimeStateBytesThresholds` / `TestLifetimeStatePacketsThresholds` to comply with `ai/rules/go-standards.md` (no `And` in function names), and logged caught `dp.ListSAs` failures at `log.Warn` instead of `log.Debug`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Assumed `ze config validate` already accepted `uint64` up to `18446744073709551615` via YANG `uint64` | `yangTypeToValueType` in `internal/component/config/yang_schema.go` mapped `gyang.Yuint64` to `TypeUint32` (`ParseUint(..., 32)`) | Live QEMU run of `test/draft/ipsec/ipsec-life-volume.ci` | Added `config.TypeUint64`, updated `web` field metadata, added `TestUint64LeafRangeAcceptsMaxUint64`, re-verified in QEMU |
+| approach | First `.ci` draft placed both `127.0.0.1` and `127.0.0.3` peers on one `peer-a` daemon | `UDPTransport` binds one concrete local address per daemon and refuses sends from a second source address | Live QEMU run (`transport: source address differs from socket address`) | Split `.ci` into sequential `BYTES` and `PACKETS` daemon pairs; both passed cleanly in 11.8s |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `RFC4301-4.4.2.1-2` simultaneous time and volume lifetimes (`life-bytes`, `life-packets`) | Done | `ze-ipsec-conf.yang`, `ipsec/{types.go:427-428,config.go:269-283}`, `engine/{rekey.go:1034-1208,established.go:254,560,567,635,740}` | Audited `enforced` (`rfc/audit/rfc4301/RFC4301-4.4.2.1-2.json`) |
+| `RFC4301-4.4.2.1-3` out-of-sync counters between peers | Done | `engine/{rekey.go:1068,established.go:567,rfc4301_volume_lifetime_test.go:827}` | Audited `enforced` (`rfc/audit/rfc4301/RFC4301-4.4.2.1-3.json`) + strongSwan interop |
+| Refuse volume limits on counterless dataplane backends (VPP) at commit verify | Done | `dataplane/{dataplane.go:872,vpp.go:298,xfrm_linux.go:604}`, `engine/config_verify_commit.go:50,87` | Returns structured `opererr` naming group, backend, reason, and fix |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLifetimeStateBytesThresholds`, `test/ipsec/ipsec-life-volume.ci` (`BYTES`), strongSwan `child-rekey-life-bytes` | Real XFRM counter increment -> `CREATE_CHILD_SA` rekey -> SPI rotation & counter reset |
+| AC-2 | Done | `TestLifetimeStatePacketsThresholds`, `test/ipsec/ipsec-life-volume.ci` (`PACKETS`) | Real XFRM packet counter -> `CREATE_CHILD_SA` rekey -> SPI rotation & counter reset |
+| AC-3 | Done | `TestLifetimeSimultaneousFirstLimitWins`, `test/ipsec/ipsec-life-volume.ci`, `child-rekey-life-bytes` | Standalone time/byte + simultaneous time/byte/packet first-limit-wins soft & hard expiry |
+| AC-4 | Done | `TestESPGroupVolumeParse`, `TestUint64LeafRangeAcceptsMaxUint64`, `TestVolumeSoftThresholdNearUint64Max`, `test/ipsec/ipsec-life-volume.ci` (`valid-max`, `bad-bytes-overflow`) | Full `uint64` max accepted without wrap; `18446744073709551616` rejected |
+| AC-5 | Done | `TestSampleChildVolumeUsesMaxDirection` (time-only zero `ListSAs` subtest) | Zero `ListSAs` calls per tick when `LifeBytes == 0 && LifePackets == 0` |
+| AC-6 | Done | `TestESPGroupVolumeParse`, `TestVerifyVolumeLifetimesRefusesUnsupportedBackend`, `TestVPPSACountersSupportedRefuses`, `test/ipsec/ipsec-life-volume.ci` (`bad-bytes-low`, `bad-packets-low`) | Sub-minimum and VPP commits refused with `opererr` |
+| AC-7 | Done | `TestVolumeRekeyOutOfSyncCounters`, strongSwan `child-rekey-life-bytes` | Out-of-sync local/peer rekeys and simultaneous collision tie-break clean |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestESPGroupVolumeParse` | Done | `internal/component/ike/ipsec/config_test.go:1491` | PASS |
+| `TestLifetimeStateBytesThresholds` | Done | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go:278` | Renamed from `TestLifetimeStateSoftAndHardBytes`; PASS |
+| `TestLifetimeStatePacketsThresholds` | Done | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go:340` | Renamed from `TestLifetimeStateSoftAndHardPackets`; PASS |
+| `TestLifetimeSimultaneousFirstLimitWins` | Done | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go:405` | PASS (`RFC4301-4.4.2.1-2` pos+neg + standalone subtests) |
+| `TestSampleChildVolumeUsesMaxDirection` | Done | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go:655` | PASS |
+| `TestVolumeRekeyOutOfSyncCounters` | Done | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go:827` | PASS (`RFC4301-4.4.2.1-3` pos+neg) |
+| `TestVerifyVolumeLifetimesRefusesUnsupportedBackend` | Done | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go:112` | PASS |
+| `TestVPPSACountersSupportedRefuses` | Done | `internal/component/ike/dataplane/vpp_test.go:97` | PASS (+ `noop_test.go:75`, `recording_zetest_test.go:126`) |
+| `TestUint64LeafRangeAcceptsMaxUint64` | Done | `internal/component/config/schema_test.go:389` | Added for `TypeUint64` fix; PASS |
+| `test/ipsec/ipsec-life-volume.ci` | Done | `test/ipsec/ipsec-life-volume.ci` | PASS in QEMU (`11.8s`, `ALL PHASES PASSED`) |
+| `child-rekey-life-bytes` | Done | `test/interop-ipsec/scenarios/child-rekey-life-bytes/` | PASS against strongSwan 5.9.14 (`30s`, `PASS 1 scenario(s)`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 22 modified + 7 created files in plan | Done | Plus `config/{schema.go,yang_schema.go,leaf_value.go,schema_test.go}`, `web/{handler_config_leaf.go,fragment.go,field_input_test.go}`, `dataplane/{noop_test.go,recording_zetest_test.go}`, `fixture/tunnel_fixture_ipsec_life_volume_test.go`, `interoplab/ipsec/lifevolume_test.go`, `internal/le/site/testdata/published-{configuration.md,yang-config-tree.json}`, `rfc/{audit,discrimination}/rfc4301/RFC4301-4.4.2.1-{2,3}.json` |
+
+### Audit Summary
+- **Total items:** 21 (3 requirements, 7 ACs, 11 tests)
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Simultaneous time + byte/packet Child SA rekey on real Linux XFRM (`RFC4301-4.4.2.1-2`) | functional test (QEMU real XFRM) + unit tests + RFC audit | `./le test qemu ci test test/ipsec/ipsec-life-volume.ci` -> `11.8s 1/1 PASS 37 ipsec-life-volume`, `ALL PHASES PASSED`; `rfc/audit/rfc4301/RFC4301-4.4.2.1-2.json` = `enforced` |
+| Out-of-sync counters interop against strongSwan (`RFC4301-4.4.2.1-3`) | interop test (Docker strongSwan 5.9.14) + unit tests + RFC audit | `IPSEC_INTEROP_SCENARIO=child-rekey-life-bytes ./le --name ipsec-vol-interop test integration interop-ipsec` -> `child-rekey-life-bytes: pass (30s)`, `PASS 1 scenario(s)`; `rfc/audit/rfc4301/RFC4301-4.4.2.1-3.json` = `enforced` |
+| Commit-time refusal on counterless dataplane backends (VPP) and full `uint64` validation | unit tests + functional config validate | `TestVerifyVolumeLifetimesRefusesUnsupportedBackend`, `TestVPPSACountersSupportedRefuses`, `TestESPGroupVolumeParse`, `TestUint64LeafRangeAcceptsMaxUint64`, and `test/ipsec/ipsec-life-volume.ci` steps 1-4 all PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Volume lifetimes on VPP dataplane | Explicitly out of scope per Known Limitations: `vppBackend.ListSAs` returns `ErrNotSupported`, so commit verify refuses volume lifetimes on VPP fail-closed until VPP SAD readback exists | VPP SAD readback work (future, outside this spec's scope) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | Recorded via `CLAUDE_CODE_SESSION_ID=c6e50005-5555-4000-8000-000000000005 ./le spec review record` before Commit A |
+| `./le spec review check` | Verified clean over all files in Commit A |
+| Rounds | 5 (Rounds 1-3 cleared core IKE/interop/docs/RFC; Round 4 cleared post-QEMU `TypeUint64` + fixture + promoted `.ci` delta; Round 5 cleared `doctor-ipsec-volume-counter-read-failed` registration: `CLEAN: 0 BLOCKER, 0 ISSUE, 0 NOTE`) |
+| Reviewer lenses used | logic+wiring, security+edge-cases, Go standards, `ValueType` switch audit, real-XFRM `.ci` verification |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Caught `dp.ListSAs` errors logged at `log.Debug` | `internal/component/ike/engine/established.go:740` | Logged at `log.Warn` once per failure streak via `readFailed := err != nil` |
+| 2 | ISSUE | `And` in unit test names | `internal/component/ike/engine/rfc4301_volume_lifetime_test.go` | Renamed to `TestLifetimeStateBytesThresholds` / `TestLifetimeStatePacketsThresholds` |
+| 3 | ISSUE | Stale strongSwan scenario count in architecture doc | `docs/architecture/ike/ipsec-13-rekey-wire.md:268` | Updated prose to include `child-rekey-life-bytes` |
+| 4 | ISSUE | `gofmt` and `state-from-literal` lint | `internal/component/ike/engine/{rekey.go,established.go}` | Formatted and derived bool from condition |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/rfc4301_volume_lifetime_test.go` | Yes | `git status --short`: `?? internal/component/ike/engine/rfc4301_volume_lifetime_test.go` |
+| `internal/test/fixture/register_ipsec_life_volume.go` | Yes | `git status --short`: `?? internal/test/fixture/register_ipsec_life_volume.go` |
+| `internal/test/fixture/tunnel_fixture_ipsec_life_volume.go` | Yes | `git status --short`: `?? internal/test/fixture/tunnel_fixture_ipsec_life_volume.go` |
+| `test/ipsec/ipsec-life-volume.ci` | Yes | `git status --short`: `?? test/ipsec/ipsec-life-volume.ci` |
+| `internal/le/interoplab/ipsec/lifevolume.go` | Yes | `git status --short`: `?? internal/le/interoplab/ipsec/lifevolume.go` |
+| `test/interop-ipsec/scenarios/child-rekey-life-bytes/{ze.conf,swanctl.conf}` | Yes | `git status --short`: both untracked files present |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Byte volume rekey on real XFRM + strongSwan | `./le test qemu ci test test/ipsec/ipsec-life-volume.ci` PASS (`11.8s`); `interop-ipsec` `child-rekey-life-bytes` PASS (`30s`) |
+| AC-2 | Packet volume rekey on real XFRM | `./le test qemu ci test test/ipsec/ipsec-life-volume.ci` PASS (`PACKETS-*` markers verified) |
+| AC-3 | Simultaneous time + volume first-limit-wins | `ike/engine` unit suite PASS (`4.85s`); `RFC4301-4.4.2.1-2` audited `enforced` |
+| AC-4 | Full `uint64` max accepted, overflow rejected | `config` `TestSchemaValidateValue|TestUint64LeafRangeAcceptsMaxUint64` PASS (`7.4s`); `ipsec-life-volume.ci` `valid-max`/`bad-bytes-overflow` PASS |
+| AC-5 | Time-only zero `ListSAs` overhead | `TestSampleChildVolumeUsesMaxDirection` PASS (`established.go:635` gated on `childLT.hasVolumeLimits()`) |
+| AC-6 | Sub-minimum and VPP commit refusals | `TestESPGroupVolumeParse`, `TestVerifyVolumeLifetimesRefusesUnsupportedBackend`, `TestVPPSACountersSupportedRefuses` PASS |
+| AC-7 | Out-of-sync counters interop | `TestVolumeRekeyOutOfSyncCounters` PASS; `RFC4301-4.4.2.1-3` audited `enforced`; strongSwan `child-rekey-life-bytes` PASS (`30s`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `vpn ipsec esp-group <name> life-bytes N` + real XFRM | `test/ipsec/ipsec-life-volume.ci` | Yes — read full file and ran live in QEMU (`11.8s 1/1 PASS 37 ipsec-life-volume`) |
+| `vpn ipsec esp-group <name> life-packets P` + real XFRM | `test/ipsec/ipsec-life-volume.ci` | Yes — read full file and ran live in QEMU (`PACKETS-REKEYED` + `PACKETS-COUNTER-RESET`) |
+| `life-bytes` against strongSwan 5.9.14 | `test/interop-ipsec/scenarios/child-rekey-life-bytes/` | Yes — ran live via `interop-ipsec` (`child-rekey-life-bytes: pass (30s)`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `test/ipsec/ipsec-life-volume.ci` and `child-rekey-life-bytes` observed live 64-bit XFRM counters via `ListSAs` |
+| A-2 | confirmed | `TestUint64LeafRangeAcceptsMaxUint64`, `TestVolumeSoftThresholdNearUint64Max`, and `ipsec-life-volume.ci` (`18446744073709551615` valid, `18446744073709551616` refused) |
+| A-3 | confirmed | `TestSampleChildVolumeUsesMaxDirection` and strongSwan `child-rekey-life-bytes` passed |
+| A-4 | confirmed | `test/ipsec/ipsec-life-volume.ci` passed in QEMU (`11.8s`, `ALL PHASES PASSED`) |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Architecture docs (`ipsec-3`, `ipsec-8`, `ipsec-13`) | Match `ESPGroup.LifeBytes/LifePackets`, `sampleChildVolume`, `SACounterChecker`, and `volumeSoftThreshold` | Yes |
+| User guides (`docs/guide/ipsec.md`, `docs/guide/configuration.md`, `features/ipsec-data-model.md`) | Updated to match `ze-ipsec-conf.yang` leaves and bounds | Yes |
+| RFC summaries (`rfc/short/rfc4301.md`, `rfc/short/rfc7296.md`) | Updated with passing test links; `./le rfc check` shows zero issues for `RFC4301-4.4.2.1-{2,3}` | Yes |
+| Site config snapshots (`published-configuration.md`, `published-yang-config-tree.json`) | `./le test unit pkg path ./internal/le/site/ run TestTheConfiguration` PASS (`19.7s`) | Yes |
 
 ## Checklist
 

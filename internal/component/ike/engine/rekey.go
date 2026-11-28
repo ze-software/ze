@@ -995,12 +995,19 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 	return child
 }
 
-// lifetimeState tracks SA lifetime for time-based and byte-based expiry.
+// lifetimeState tracks SA lifetime for time-based, byte-based, and packet-based expiry.
+// NOT safe for concurrent use; owned solely by the maintainSA goroutine.
 type lifetimeState struct {
-	softTime  time.Time
-	hardTime  time.Time
-	softBytes uint64
-	byteCount uint64
+	softTime              time.Time
+	hardTime              time.Time
+	softBytes             uint64
+	hardBytes             uint64
+	byteCount             uint64
+	softPackets           uint64
+	hardPackets           uint64
+	packetCount           uint64
+	counterReadWarned     bool
+	counterReadFailWarned bool
 }
 
 func newLifetimeState(lifetimeSec uint32) *lifetimeState {
@@ -1015,6 +1022,96 @@ func newLifetimeState(lifetimeSec uint32) *lifetimeState {
 		softTime: soft,
 		hardTime: hard,
 	}
+}
+
+// newChildLifetimeState builds a Child SA lifetimeState from an ESP group's time, byte,
+// and packet limits. It returns nil only when all three limits are 0 (disabled).
+//
+// RFC 4301 Section 4.4.2.1: "This may be expressed as a time or byte count, or a
+// simultaneous use of both with the first lifetime to expire taking precedence.  A
+// compliant implementation MUST support both types of lifetimes, and MUST support a
+// simultaneous use of both."
+func newChildLifetimeState(g ipsec.ESPGroup) *lifetimeState {
+	if g.Lifetime == 0 {
+		if g.LifeBytes == 0 {
+			if g.LifePackets == 0 {
+				return nil
+			}
+		}
+	}
+	ls := &lifetimeState{}
+	if g.Lifetime > 0 {
+		lifetime := time.Duration(g.Lifetime) * time.Second
+		now := time.Now()
+		ls.hardTime = now.Add(lifetime)
+		ls.softTime = now.Add(lifetime - rekeyLead(lifetime))
+	}
+	if g.LifeBytes > 0 {
+		ls.hardBytes = g.LifeBytes
+		ls.softBytes = volumeSoftThreshold(g.LifeBytes)
+	}
+	if g.LifePackets > 0 {
+		ls.hardPackets = g.LifePackets
+		ls.softPackets = volumeSoftThreshold(g.LifePackets)
+	}
+	return ls
+}
+
+// volumeSoftThreshold places a soft byte or packet rekey trigger 5% to 10% below hard,
+// randomized via crypto/rand to desynchronize peers and leave headroom for a
+// make-before-break CREATE_CHILD_SA exchange before hard expiry. Uses big.Int.SetUint64
+// so ceilings above math.MaxInt64 (up to math.MaxUint64) never wrap negative.
+//
+// RFC 7296 Section 2.8: "Enough time should elapse between the time the new SA is
+// established and the old one becomes unusable so that traffic can be switched over to
+// the new SA."
+func volumeSoftThreshold(hard uint64) uint64 {
+	if hard <= 1 {
+		return 0
+	}
+	minLead := hard / 20
+	maxLead := hard / 10
+	if minLead == 0 {
+		minLead = 1
+	}
+	maxLead = max(maxLead, minLead)
+	span := maxLead - minLead
+	limit := new(big.Int).SetUint64(span + 1)
+	n, err := rand.Int(rand.Reader, limit)
+	lead := minLead + span/2
+	if err == nil {
+		lead = minLead + n.Uint64()
+	}
+	return hard - lead
+}
+
+// hasVolumeLimits reports whether this lifetime enforces a byte or packet ceiling.
+// maintainSA checks this before polling dp.ListSAs so time-only tunnels execute zero
+// netlink dumps per tick.
+func (ls *lifetimeState) hasVolumeLimits() bool {
+	if ls == nil {
+		return false
+	}
+	if ls.softBytes > 0 {
+		return true
+	}
+	if ls.hardBytes > 0 {
+		return true
+	}
+	if ls.softPackets > 0 {
+		return true
+	}
+	return ls.hardPackets > 0
+}
+
+// recordVolume updates the observed maximum byte and packet counts for the Child SA.
+// Monotonic max prevents a transient missing lookup from moving counts backward.
+func (ls *lifetimeState) recordVolume(bytes, packets uint64) {
+	if ls == nil {
+		return
+	}
+	ls.byteCount = max(ls.byteCount, bytes)
+	ls.packetCount = max(ls.packetCount, packets)
 }
 
 // rekeyLead is how far before the hard time the soft (rekey) trigger sits.
@@ -1052,26 +1149,64 @@ func lifetimeJitter(lifetime time.Duration) time.Duration {
 	return time.Duration(n.Int64())
 }
 
-// softExpired reports whether the soft (rekey trigger) lifetime has passed.
+// softExpired reports whether any configured soft (rekey trigger) lifetime has passed.
+//
+// RFC 4301 Section 4.4.2.1: "This may be expressed as a time or byte count, or a
+// simultaneous use of both with the first lifetime to expire taking precedence."
 func (ls *lifetimeState) softExpired(now time.Time) bool {
 	if ls == nil {
 		return false
 	}
-	if !ls.softTime.IsZero() && !now.Before(ls.softTime) {
-		return true
+	if !ls.softTime.IsZero() {
+		if !now.Before(ls.softTime) {
+			return true
+		}
 	}
-	if ls.softBytes > 0 && ls.byteCount >= ls.softBytes {
-		return true
+	if ls.softBytes > 0 {
+		if ls.byteCount >= ls.softBytes {
+			return true
+		}
+	}
+	if ls.softPackets > 0 {
+		if ls.packetCount >= ls.softPackets {
+			return true
+		}
 	}
 	return false
 }
 
-// hardExpired reports whether the hard (delete) lifetime has passed.
-func (ls *lifetimeState) hardExpired(now time.Time) bool {
+// hardExpiryReason reports which hard lifetime ceiling ("time", "bytes", or "packets")
+// has been reached, or "" when no hard limit has expired.
+//
+// RFC 7296 Section 2.8: "When the lifetime of a Security Association expires, the
+// Security Association MUST NOT be used."
+// RFC 4301 Section 4.4.2.1: "This may be expressed as a time or byte count, or a
+// simultaneous use of both with the first lifetime to expire taking precedence."
+func (ls *lifetimeState) hardExpiryReason(now time.Time) string {
 	if ls == nil {
-		return false
+		return ""
 	}
-	return !ls.hardTime.IsZero() && !now.Before(ls.hardTime)
+	if !ls.hardTime.IsZero() {
+		if !now.Before(ls.hardTime) {
+			return "time"
+		}
+	}
+	if ls.hardBytes > 0 {
+		if ls.byteCount >= ls.hardBytes {
+			return "bytes"
+		}
+	}
+	if ls.hardPackets > 0 {
+		if ls.packetCount >= ls.hardPackets {
+			return "packets"
+		}
+	}
+	return ""
+}
+
+// hardExpired reports whether any configured hard (delete) lifetime has passed.
+func (ls *lifetimeState) hardExpired(now time.Time) bool {
+	return ls.hardExpiryReason(now) != ""
 }
 
 // ikeSPIFromSA extracts the 8-byte IKE SPI from the first IKE proposal.

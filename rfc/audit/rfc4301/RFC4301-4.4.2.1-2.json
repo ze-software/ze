@@ -1,0 +1,13 @@
+{
+  "note": "Independent first audit against RFC 4301 Section 4.4.2.1: \"This may be expressed as a time or byte count, or a simultaneous use of both with the first lifetime to expire taking precedence. A compliant implementation MUST support both types of lifetimes, and MUST support a simultaneous use of both.\" Read against newChildLifetimeState, volumeSoftThreshold, softExpired, hardExpired, hardExpiryReason (internal/component/ike/engine/rekey.go) and sampleChildVolume, maintainSA (internal/component/ike/engine/established.go). TestLifetimeSimultaneousFirstLimitWins covers all three obligations with distinct positive and negative polarities: (1) standalone time-only (lifetime 3600, volume disabled) fires softExpired at softTime (not softTime-1s) and hardExpiryReason \"time\" at hardTime; (2) standalone byte-only (lifetime 0, life-bytes 131072) keeps softTime zero and fires softExpired at softBytes and hardExpiryReason \"bytes\" at hardBytes; (3) simultaneous time (3600s), byte (131072), and packet (1000) limits fire whichever threshold is reached first (bytes-first, packets-first, and time-first) with exact hardExpiryReason values while the other limits remain; (4) negative subtest verifies that with all three simultaneous limits active and time, byte count (softBytes-1), and packet count (softPackets-1) all below soft thresholds, neither softExpired nor hardExpired fires; and (5) two maintainSA subtests drive the 1s tick over volumeSampleDP with simultaneous time and byte limits, proving byte soft expiry (OutboundSPI) triggers CREATE_CHILD_SA while 3600s remain without terminating, and byte hard expiry (InboundSPI) removes the Child SA, sends no rekey, and returns errTimeout while hours remain. Scope disclosure: maintainSA subtests use the fake volumeSampleDP rather than live kernel XFRM counter readback (linux xfrmBackend.ListSAs reads XfrmState.Statistics.Bytes/Packets; VPP is refused fail-closed at commit by verifyVolumeLifetimes and vpn ipsec targets kernel XFRM). Source-only audit; ./le rfc audit-stamp, discrimination record refresh, and ./le rfc check remain owed in the main thread.",
+  "requirement_sha": "c77335ab88707fd2",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestLifetimeSimultaneousFirstLimitWins": "6c267c45928cb52b",
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestLifetimeSimultaneousFirstLimitWins#2": "6c267c45928cb52b"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestLifetimeSimultaneousFirstLimitWins": "c0838f4411659f16",
+    "internal/component/ike/engine/rfc4301_volume_lifetime_test.go::TestLifetimeSimultaneousFirstLimitWins#2": "c0838f4411659f16"
+  },
+  "verdict": "enforced"
+}

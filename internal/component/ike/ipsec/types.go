@@ -422,10 +422,12 @@ type ESPProposal struct {
 
 // ESPGroup is a named set of ESP proposals with shared lifetime and PFS settings.
 type ESPGroup struct {
-	Name      string
-	Lifetime  uint32
-	PFS       PFSMode
-	Proposals []ESPProposal
+	Name        string
+	Lifetime    uint32
+	LifeBytes   uint64
+	LifePackets uint64
+	PFS         PFSMode
+	Proposals   []ESPProposal
 }
 
 // IKEProposal is a single IKE crypto proposal, ordered by Number.

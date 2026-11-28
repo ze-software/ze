@@ -486,6 +486,42 @@ module ze-ipsec-conf {
                     ze:help "SA lifetime in seconds. 0 disables expiry.";
                 }
 
+                leaf life-bytes {
+                    type uint64 {
+                        range "0 | 65536..18446744073709551615";
+                    }
+                    default 0;
+                    description "Maximum encrypted bytes per direction before the Child SA is torn down
+                        unconditionally (RFC 7296 Section 2.8, RFC 4301 Section 4.4.2.1). Ze reads
+                        64-bit inbound and outbound SA byte counters from the dataplane on its
+                        1-second tick, takes the larger of the two directions, and initiates a
+                        make-before-break CREATE_CHILD_SA rekey at a randomized soft threshold 5 to
+                        10 percent below this ceiling. Active simultaneously with lifetime and
+                        life-packets; whichever limit expires first takes precedence. The minimum
+                        non-zero value is 65536 bytes (64 KiB) to prevent rekey storms. The value 0
+                        disables byte-based expiry. Commit refuses non-zero values on dataplane
+                        backends that do not expose SA counters (such as VPP).";
+                    ze:help "Child SA byte lifetime before rekey and expiry. 0 disables.";
+                }
+
+                leaf life-packets {
+                    type uint64 {
+                        range "0 | 100..18446744073709551615";
+                    }
+                    default 0;
+                    description "Maximum encrypted packets per direction before the Child SA is torn down
+                        unconditionally (RFC 7296 Section 2.8, RFC 4301 Section 4.4.2.1). Ze reads
+                        64-bit inbound and outbound SA packet counters from the dataplane on its
+                        1-second tick, takes the larger of the two directions, and initiates a
+                        make-before-break CREATE_CHILD_SA rekey at a randomized soft threshold 5 to
+                        10 percent below this ceiling. Active simultaneously with lifetime and
+                        life-bytes; whichever limit expires first takes precedence. The minimum
+                        non-zero value is 100 packets to prevent rekey storms. The value 0 disables
+                        packet-based expiry. Commit refuses non-zero values on dataplane backends
+                        that do not expose SA counters (such as VPP).";
+                    ze:help "Child SA packet lifetime before rekey and expiry. 0 disables.";
+                }
+
                 leaf pfs {
                     type enumeration {
                         enum enable {

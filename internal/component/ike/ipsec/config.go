@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -35,6 +36,8 @@ const (
 	defaultDPDTimeout  uint16 = 120
 
 	maxLifetime    uint32 = 86400
+	minLifeBytes   uint64 = 65536
+	minLifePackets uint64 = 100
 	maxDPDValue    uint16 = 3600
 	maxProposalNum uint16 = 65535
 	maxNameLen            = 255
@@ -261,6 +264,24 @@ func parseESPGroup(name string, t *config.Tree) (ESPGroup, error) {
 		g.Lifetime = uint32(n)
 	}
 
+	// RFC 4301 Section 4.4.2.1
+	if v, ok := t.Get("life-bytes"); ok {
+		n, err := parseESPVolumeLimit(name, "life-bytes", v, minLifeBytes)
+		if err != nil {
+			return g, err
+		}
+		g.LifeBytes = n
+	}
+
+	// RFC 4301 Section 4.4.2.1
+	if v, ok := t.Get("life-packets"); ok {
+		n, err := parseESPVolumeLimit(name, "life-packets", v, minLifePackets)
+		if err != nil {
+			return g, err
+		}
+		g.LifePackets = n
+	}
+
 	if v, ok := t.Get("pfs"); ok {
 		pfs, valid := parsePFSMode(v)
 		if !valid {
@@ -291,6 +312,27 @@ func parseESPGroup(name string, t *config.Tree) (ESPGroup, error) {
 	})
 
 	return g, nil
+}
+
+// parseESPVolumeLimit parses an ESP group's life-bytes or life-packets leaf as uint64
+// and enforces its non-zero minimum ceiling. Zero disables the respective limit.
+//
+// RFC 4301 Section 4.4.2.1: "A compliant implementation MUST support both types of
+// lifetimes, and MUST support a simultaneous use of both."
+func parseESPVolumeLimit(groupName, leaf, raw string, minVal uint64) (uint64, error) {
+	n, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("ipsec esp-group %q %s %q: invalid value (valid: 0 or %d..%d): %w",
+			groupName, leaf, raw, minVal, uint64(math.MaxUint64), err)
+	}
+	if n == 0 {
+		return 0, nil
+	}
+	if n < minVal {
+		return 0, fmt.Errorf("ipsec esp-group %q %s: %d is below minimum %d (valid: 0 or %d..%d)",
+			groupName, leaf, n, minVal, minVal, uint64(math.MaxUint64))
+	}
+	return n, nil
 }
 
 func parseESPProposal(groupName, numStr string, t *config.Tree) (ESPProposal, error) {

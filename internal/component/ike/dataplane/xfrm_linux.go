@@ -599,6 +599,10 @@ func (b *xfrmBackend) CatchAllSupported() error {
 	return nil
 }
 
+// SACountersSupported reports that Linux XFRM exposes 64-bit per-SA byte and packet
+// counters through ListSAs (XfrmState.Statistics.Bytes and Packets).
+func (b *xfrmBackend) SACountersSupported() error { return nil }
+
 // RequiresForwardPolicy reports Linux's separate SPD-I lookup for transit traffic.
 // A tunnel packet for a protected host reaches XFRM_POLICY_FWD, not XFRM_POLICY_IN.
 func (b *xfrmBackend) RequiresForwardPolicy() bool { return true }

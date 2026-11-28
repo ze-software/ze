@@ -250,7 +250,8 @@ func (ps *PeerSession) runEstablished(
 		emitChildUp(bus, ps.peerName, child, log)
 		emitRouteAdd(bus, child, log)
 		guardTunnelRoute(true, ps.peerName, child, log)
-		childLT = newLifetimeState(ps.getESPGroup().Lifetime)
+		// RFC 4301 Section 4.4.2.1
+		childLT = newChildLifetimeState(ps.getESPGroup())
 	}
 
 	// RFC 9190 Section 5.4: "EAP-TLS peer implementations MUST also support
@@ -555,13 +556,15 @@ func (ps *PeerSession) maintainSA(
 			// and is announced as a Child SA coming up, not as a rekey.
 			if out.createdChild != nil {
 				ps.childCreate.stop()
-				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
+				// RFC 4301 Section 4.4.2.1
+				childLT = newChildLifetimeState(ps.getESPGroup())
 				emitChildUp(bus, ps.peerName, out.createdChild, log)
 				emitRouteAdd(bus, out.createdChild, log)
 				guardTunnelRoute(true, ps.peerName, out.createdChild, log)
 			}
 			if out.newChild != nil {
-				childLT = newLifetimeState(ps.getESPGroup().Lifetime)
+				// RFC 4301 Section 4.4.2.1
+				childLT = newChildLifetimeState(ps.getESPGroup())
 				ps.incRekeyCount()
 				emitChildRekey(bus, ps.peerName, out.newChild, log)
 				rekeyTunnelRoutes(bus, ps.peerName, out.retiredChild, out.newChild, log)
@@ -626,6 +629,13 @@ func (ps *PeerSession) maintainSA(
 				sendDPD(sa, tr, dpd, log)
 			}
 
+			if childLT != nil {
+				if childLT.hasVolumeLimits() {
+					// RFC 4301 Section 4.4.2.1
+					ps.sampleChildVolume(childLT, dp, log)
+				}
+			}
+
 			ps.serviceChildRekeyTrigger(sa, childLT, now, tr, log)
 
 			ps.serviceChildCreate(sa, tr, now, log)
@@ -641,8 +651,8 @@ func (ps *PeerSession) maintainSA(
 			// gets its room BEFORE the hard time instead -- newLifetimeState places the
 			// soft trigger at least a full retransmit budget earlier -- so a rekey that
 			// is still unanswered here has already exhausted that room.
-			if childLT != nil && childLT.hardExpired(now) {
-				log.Warn("child-sa: hard lifetime expired", "peer", ps.peerName)
+			if reason := childLT.hardExpiryReason(now); reason != "" {
+				log.Warn("child-sa: hard lifetime expired", "peer", ps.peerName, "reason", reason)
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
 			}
@@ -718,6 +728,66 @@ const rekeyRefusedWait = 15 * time.Second
 // instant means no answer has ever held it.
 func rekeyHeld(until, now time.Time) bool {
 	return !until.IsZero() && now.Before(until)
+}
+
+// sampleChildVolume reads the active Child SA's inbound and outbound byte and packet
+// counters from the dataplane via dp.ListSAs(child.IfID) and feeds max(out, in) into
+// childLT. Each unidirectional SA carries its own cryptographic key, so taking the
+// maximum across directions enforces per-SA limits without uint64 sum overflow.
+//
+// RFC 4301 Section 4.4.2.1: "A compliant implementation MUST support both types of
+// lifetimes, and MUST support a simultaneous use of both."
+func (ps *PeerSession) sampleChildVolume(childLT *lifetimeState, dp dataplane.Dataplane, log *slog.Logger) {
+	if childLT == nil {
+		return
+	}
+	if !childLT.hasVolumeLimits() {
+		return
+	}
+	if dp == nil {
+		return
+	}
+	child := ps.getChildSA()
+	if child == nil {
+		return
+	}
+	sas, err := dp.ListSAs(child.IfID)
+	readFailed := err != nil
+	if readFailed {
+		if unsupported := errors.Is(err, dataplane.ErrNotSupported); unsupported {
+			if !childLT.counterReadWarned {
+				childLT.counterReadWarned = unsupported
+				log.Warn("child-sa: dataplane does not expose SA counters for volume lifetime",
+					"code", codeDoctorIPsecVolumeCounterReadFailed, "peer", ps.peerName,
+					"error", err, "fix", fixShowIPsecDataplaneSA,
+					raiseVolumeCounterReadIssue(ps.peerName, err, log))
+			}
+			return
+		}
+		if !childLT.counterReadFailWarned {
+			childLT.counterReadFailWarned = readFailed
+			log.Warn("child-sa: failed to read SA volume counters",
+				"code", codeDoctorIPsecVolumeCounterReadFailed, "peer", ps.peerName,
+				"error", err, "fix", fixShowIPsecDataplaneSA,
+				raiseVolumeCounterReadIssue(ps.peerName, err, log))
+		}
+		return
+	}
+	childLT.counterReadFailWarned = readFailed
+	outID := dataplane.IdentityOf(child.OutboundSPI, child.RemoteAddr, dataplane.ProtoESP, child.IfID)
+	inID := dataplane.IdentityOf(child.InboundSPI, child.LocalAddr, dataplane.ProtoESP, child.IfID)
+	var maxBytes, maxPackets uint64
+	for i := range sas {
+		id := dataplane.IdentityOf(sas[i].SPI, sas[i].Dst, sas[i].Proto, sas[i].IfID)
+		if id != outID {
+			if id != inID {
+				continue
+			}
+		}
+		maxBytes = max(maxBytes, sas[i].BytesCurrent)
+		maxPackets = max(maxPackets, sas[i].PacketsCurrent)
+	}
+	childLT.recordVolume(maxBytes, maxPackets)
 }
 
 // serviceChildRekeyTrigger raises a Child SA rekey from the owner tick. Two level

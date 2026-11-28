@@ -37,6 +37,7 @@ const (
 	TypeBool
 	TypeUint16
 	TypeUint32
+	TypeUint64
 	TypeIPv4
 	TypeIPv6
 	TypeIP       // IPv4 or IPv6
@@ -66,6 +67,8 @@ func (t ValueType) String() string {
 		return "uint16"
 	case TypeUint32:
 		return "uint32"
+	case TypeUint64:
+		return "uint64"
 	case TypeIPv4:
 		return "ipv4"
 	case TypeIPv6:
@@ -915,6 +918,13 @@ func ValidateValue(typ ValueType, value string) error {
 		_, err := strconv.ParseUint(value, 10, 32)
 		if err != nil {
 			return fmt.Errorf("invalid uint32: %q", value)
+		}
+		return nil
+
+	case TypeUint64:
+		_, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid uint64: %q", value)
 		}
 		return nil
 

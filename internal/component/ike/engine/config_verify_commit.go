@@ -7,8 +7,13 @@ package engine
 
 import (
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/core/opererr"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -37,6 +42,14 @@ func verifyIPsecCommit(state *ikeEngineState, staging *ikeConfigStaging, section
 	if err := verifyPeerSAOptions(dp, dpName, cfg); err != nil {
 		return err
 	}
+	// RFC 4301 Section 4.4.2.1: volume lifetimes (life-bytes, life-packets) depend on
+	// per-SA counter readback from the loaded dataplane. A backend that cannot report
+	// SA counters (such as VPP) is refused here at commit rather than silently leaving
+	// volume limits unenforced. Its refusal is already an operator error naming the
+	// esp-group, backend, and fix, so it passes through unwrapped.
+	if err := verifyVolumeLifetimes(dp, dpName, cfg); err != nil {
+		return err
+	}
 	// RFC 4301 Section 7.4: a bypass with a port that forwarded traffic can match is
 	// refused at commit on a dataplane with a forward lookup that runs before
 	// reassembly, because no such bypass reaches that lookup there; on Ze's kernel,
@@ -59,4 +72,67 @@ func verifyIPsecCommit(state *ikeEngineState, staging *ikeConfigStaging, section
 	}
 	staging.stage(cfg)
 	return nil
+}
+
+// verifyVolumeLifetimes refuses any esp-group that configures non-zero life-bytes or
+// life-packets when the loaded dataplane backend does not declare SA counter support
+// through dataplane.SACounterChecker (for example, VPP).
+//
+// RFC 4301 Section 4.4.2.1: "A compliant implementation MUST support both types of
+// lifetimes, and MUST support a simultaneous use of both."
+//
+// A backend that does not implement dataplane.SACounterChecker has declared nothing, so
+// non-zero volume lifetimes fail closed on it. dpName is the loaded backend name from
+// dataplane.GetNamed.
+func verifyVolumeLifetimes(dp dataplane.Dataplane, dpName string, cfg *ipsec.IPsecConfig) error {
+	// refuse-by-default: guards installChildTolerant -- with no dataplane loaded every
+	// Child SA is kept without ESP and reported so, and there is no backend to judge.
+	if dp == nil {
+		return nil
+	}
+	checker, declares := dp.(dataplane.SACounterChecker)
+	for _, name := range slices.Sorted(maps.Keys(cfg.ESPGroups)) {
+		g := cfg.ESPGroups[name]
+		if !espGroupHasVolumeLimits(g) {
+			continue
+		}
+		fix := volumeLifetimeFixCommand(name, g)
+		if declares {
+			if err := checker.SACountersSupported(); err != nil {
+				return opererr.Wrap(err,
+					"ipsec esp-group "+strconv.Quote(name)+": the "+strconv.Quote(dpName)+
+						" dataplane backend does not support volume lifetimes (life-bytes / life-packets)",
+					"the backend does not expose per-SA byte or packet counters, so volume-based rekey and expiry would never fire",
+					fix)
+			}
+			continue
+		}
+		return opererr.New(
+			"ipsec esp-group "+strconv.Quote(name)+": the "+strconv.Quote(dpName)+
+				" dataplane backend does not declare SA counter support for volume lifetimes",
+			"a backend that cannot report per-SA byte or packet counters would silently leave volume limits unenforced",
+			fix)
+	}
+	return nil
+}
+
+// espGroupHasVolumeLimits reports whether g configures a byte or packet volume ceiling.
+func espGroupHasVolumeLimits(g ipsec.ESPGroup) bool {
+	if g.LifeBytes > 0 {
+		return true
+	}
+	return g.LifePackets > 0
+}
+
+// volumeLifetimeFixCommand returns the delete command that removes the unsupported
+// volume lifetime leaf (or leaves) from esp-group groupName.
+func volumeLifetimeFixCommand(groupName string, g ipsec.ESPGroup) string {
+	switch {
+	case g.LifeBytes > 0 && g.LifePackets > 0:
+		return "delete vpn ipsec esp-group " + groupName + " life-bytes; delete vpn ipsec esp-group " + groupName + " life-packets"
+	case g.LifeBytes > 0:
+		return "delete vpn ipsec esp-group " + groupName + " life-bytes"
+	default:
+		return "delete vpn ipsec esp-group " + groupName + " life-packets"
+	}
 }

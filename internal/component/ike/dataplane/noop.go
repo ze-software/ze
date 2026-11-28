@@ -42,6 +42,10 @@ func (noopDataplane) GathersForwardFragments() (bool, error) { return false, nil
 // does: it carries no packet, so no option is left unapplied.
 func (noopDataplane) SAOptionsSupported(SAOptions) error { return nil }
 
+// SACountersSupported answers yes, as every other capability of this test-only
+// backend does, so unprivileged control-plane fixtures can commit volume lifetimes.
+func (noopDataplane) SACountersSupported() error { return nil }
+
 // AttachOverrideGuard and DetachOverrideGuard accept, as every other write of this
 // test-only backend does.
 func (noopDataplane) AttachOverrideGuard() error { return nil }

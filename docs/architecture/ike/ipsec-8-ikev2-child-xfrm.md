@@ -80,6 +80,28 @@ precision costs nothing and removes a goroutine per SA.
 
 <!-- source: internal/component/ike/engine/dpd.go -- dead peer detection state and probe -->
 
+**Volume lifetimes reuse that 1-second ticker and `ListSAs`, and refuse
+counterless backends at commit.** When an `esp-group` sets `life-bytes` or
+`life-packets`, `maintainSA` calls `sampleChildVolume` on its 1-second tick.
+That helper calls `dp.ListSAs(child.IfID)` and matches outbound and inbound
+states by `dataplane.IdentityOf`. It reads `SAInfo.BytesCurrent` and
+`SAInfo.PacketsCurrent`, then feeds `max(out, in)` per counter monotonically
+into `lifetimeState`.
+
+Each unidirectional SA holds its own key and RFC 4301 SAD counters. Taking the
+maximum avoids halving symmetric key limits and avoids `uint64` sum overflow.
+Time-only tunnels (`!childLT.hasVolumeLimits()`) skip `ListSAs` completely.
+Backends declare counter readback support through `dataplane.SACounterChecker`.
+During `verifyIPsecCommit`, `verifyVolumeLifetimes` refuses non-zero
+`life-bytes` or `life-packets` with an `opererr` when `SACountersSupported`
+returns an error (such as VPP) or when the backend does not implement
+`SACounterChecker`.
+
+<!-- source: internal/component/ike/engine/established.go -- sampleChildVolume, maintainSA -->
+<!-- source: internal/component/ike/engine/config_verify_commit.go -- verifyIPsecCommit, verifyVolumeLifetimes -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- SACounterChecker -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- SACountersSupported -->
+
 **Transport-mode NAT substitution changes the selectors, not the outer addresses.**
 `createFirstChildSA` normally takes `LocalAddr` and `RemoteAddr` from the operator's
 `local-address` and `remote-address`. A negotiated MOBIKE tunnel instead uses its
