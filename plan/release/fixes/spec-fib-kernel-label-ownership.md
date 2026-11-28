@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Incorrect shipped behavior in routing: `fib-kernel` (and `fib-vpp`) had two competing IP-table writers (`sysrib` and `mpls-fib` table-0 pushes) so a label push could clobber a better route or delete it on withdraw, and a new `fib-kernel` refused and never swept or flushed the `AF_MPLS` label entries its own previous run left (`plan/README.md`, `release/fixes/`: routing and lifecycle defects). Routing table-0 pushes through `locrib`/`sysrib` gives every data plane one IP arbiter that replaces a route only when the new route is better, and persistent `AF_MPLS` source ownership fixes restart reclaim, sweep and stop flush |
