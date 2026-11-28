@@ -35,4 +35,7 @@ func TestIPsecDoctorCodesRegistered(t *testing.T) {
 	if checks == 0 || codes == 0 {
 		t.Fatalf("the ike registration answered %d doctor checks and %d codes, so nothing was judged", checks, codes)
 	}
+	if diagnostic.Lookup(codeDoctorIPsecChildHardLifetimeExpired) == nil {
+		t.Errorf("event doctor code %q is not registered in diagnostic.Lookup", codeDoctorIPsecChildHardLifetimeExpired)
+	}
 }

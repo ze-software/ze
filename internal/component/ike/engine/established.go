@@ -652,7 +652,10 @@ func (ps *PeerSession) maintainSA(
 			// soft trigger at least a full retransmit budget earlier -- so a rekey that
 			// is still unanswered here has already exhausted that room.
 			if reason := childLT.hardExpiryReason(now); reason != "" {
-				log.Warn("child-sa: hard lifetime expired", "peer", ps.peerName, "reason", reason)
+				log.Warn("child-sa: hard lifetime expired",
+					"code", codeDoctorIPsecChildHardLifetimeExpired,
+					"peer", ps.peerName, "reason", reason, "fix", fixShowIPsecSA,
+					raiseChildHardLifetimeExpiredIssue(ps.peerName, reason, log))
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
 			}

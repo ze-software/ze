@@ -1362,6 +1362,21 @@ func raiseVolumeCounterReadIssue(peer string, err error, log *slog.Logger) slog.
 	})
 }
 
+func raiseChildHardLifetimeExpiredIssue(peer, reason string, log *slog.Logger) slog.Attr {
+	p := ikeIssuePeerName(peer)
+
+	var msg textbuf.Buffer
+	msg.Str("IPsec Child SA hard lifetime expired for peer ").Str(p).
+		Str(" (reason: ").Str(reason).
+		Str(") before rekey completed; tore down expired Child SA per RFC 7296 Section 2.8.")
+
+	return raiseIKEIssueCoalesced(codeDoctorIPsecChildHardLifetimeExpired, p, msg.String(), fixShowIPsecSA, func(sendErr error) {
+		log.Warn("ike: could not record Child SA hard lifetime expiry on the report bus; only the log keeps it",
+			"code", codeDoctorIPsecChildHardLifetimeExpired, "peer", p, "reason", reason,
+			"error", sendErr, "fix", fixShowIPsecSA)
+	})
+}
+
 type ikeSendRunKey struct {
 	peer string
 	ispi [8]byte
