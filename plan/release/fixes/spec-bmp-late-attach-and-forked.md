@@ -2,17 +2,19 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | protocol |
 | Priority | P1 |
-| Release reason | A BMP collector must be told of every monitored peer that is Established, and a bgp-bmp that runs forked must work or refuse to start. |
+| Release reason | A BMP collector must be told of every monitored Established peer (carrying its real OPEN PDUs, Adj-RIB snapshot, and End-of-RIB) regardless of when `bgp-bmp` attached or restarted, and a forked `bgp-bmp` must monitor identically to an in-process one over the RPC/event rail. |
 | RFC gaps | RFC7854-x-16, RFC7854-x-17 |
-| Depends | Related: `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` (the other BMP RFC 7854 defects, and the owner of `message-for-a-peer-never-announced` 2026-10-13, which shares `recordPeerUp`). No ordering between the two is established yet |
+| Depends | `plan/release/fixes/spec-bmp-locrib-dump-end-of-rib-before-routes.md` (`ready`: adds JSON `replay-id` on `bgp-rib:best-change` and `bgp-rib:replay-complete` so forked `bgp-bmp` closes Loc-RIB dumps over the same event rail); related: `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` (`design`: owns `message-for-a-peer-never-announced`, `notifyCache` removal, and closing-NOTIFICATION `data` on state-down events — both specs share `bmp_events.go` and `text_json.go` with non-overlapping additive fields) |
 | Phase | - |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-24 |
+| Updated | 2026-11-26 |
+
+Scope is protocol: the wire change reaches BMP collectors (RFC 7854 Peer Up, Route Monitoring, End-of-RIB, Peer Down, Route Mirroring; RFC 8671 Adj-RIB-Out; RFC 9069 Loc-RIB) and the plugin RPC/JSON event boundary. This spec stays as one unit across the BGP engine, BGP plugins, plugin infrastructure, and interop tooling doors because D1 and D2 share the same `bgp-bmp` reconciliation/event pipeline and both close against the same RFC 7854 Section 3.1/3.3 collector contract (`ai/META-DECISIONS.md`).
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -24,41 +26,47 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Two defects in the BMP sender, found on 2026-11-11 by a design pass on
-`plan/release/fixes/spec-single-owner-lifecycle.md` and read at the producer
-the same day. Neither was run.
+Two defects in `bgp-bmp`, found on 2026-11-11 during a design pass on `plan/release/fixes/spec-single-owner-lifecycle.md` and re-verified at HEAD on 2026-11-26 (neither D1 nor D2 is fixed at HEAD):
 
-| ID | Defect | Goal |
-|----|--------|------|
-| D1 | A BGP peer that was Established before bgp-bmp observed its OPEN exchange is never announced to a collector: no Peer Up and no Adj-RIB-In dump | A collector is told of every monitored peer in the Established state and receives its Adj-RIB-In, whenever the plugin came to monitor it |
-| D2 | bgp-bmp run as a forked process receives no event and sends no Peer Up and no Route Monitoring, with no refusal and no error | A forked bgp-bmp either monitors as the in-process one does, or refuses to start with a message naming the fix |
-
-These two rows were first offered to `spec-bmp-sflow-export-rfc-defects`. The
-spec-edit gate refused that edit because the older spec lacks
-`## Existing Mechanisms` and needs source and doors unrelated to these rows, so
-they are homed here.
+| ID | Defect at HEAD | Goal |
+|----|----------------|------|
+| D1 | A BGP peer that was Established before `bgp-bmp` observed its OPEN exchange (late bus attach via reload, reload auto-load of `bgp-bmp`, plugin restart via failure policy or `request plugin restart`, or a peer binding omitting `bgp:open`) is never announced to a collector: `recordPeerUp` silently returns on `openCache` miss, nothing reconciles the peer's Adj-RIB-In or Adj-RIB-Out snapshot, and attaching `bgp-bmp` via reload currently triggers `gainedOpen` / `feedCatchUpImpossible` in `peer_derived_bindings.go` and bounces the BGP session. | A collector receives a Peer Up carrying the two real BGP OPEN PDUs (RFC 7854 Section 4.10), the peer's Adj-RIB-In and post-policy Adj-RIB-Out routes as Route Monitoring, and End-of-RIB per family (RFC 7854 Sections 3.1, 3.3, 5) for every monitored Established peer without bouncing the BGP session, whether `bgp-bmp` attached late via reload, auto-loaded on reload, or restarted. |
+| D2 | `bgp-bmp` run as a forked process (`bus { endpoint ... { external { run ...; } } }`) registers only `OnStructuredEvent` and no `OnEvent`, so every BGP event hits the SDK's default no-op handler and is silently dropped; JSON state/pre-policy-out events omit `local-port`, `remote-port`, `fsm-event`, `update-pre-policy-out` type, and `pre-policy-next-hop-unknown`; `locrib_runtime.go` refuses `loc-rib true` when `getEventBus() == nil`; and `bmp_locrib.go` calls `report.RaiseError` directly in-process instead of `sdk.Plugin.RaiseIssue` via `issuequeue`. | Per DQ-3 (2026-11-24), a forked `bgp-bmp` monitors BGP peers, pre-policy/post-policy Adj-RIB-Out, Route Mirroring, Loc-RIB (RFC 9069), and the BMP receiver identically to an in-process `bgp-bmp` over the RPC/event rail, with full bus `Sends`/`Receives` declarations and `issuequeue` report-bus parity. |
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `ai/doors/system.md` - the process boundary
-  → Constraint: "Code that only works internal is broken." A forked plugin reaches another unit over the EventBus, DirectBridge's RPC form, or a text command.
-- [ ] `ai/doors/bgp-plugins.md` - what a BGP plugin may rely on
-  → Constraint: "Every one can run in another process."
-  → Constraint: "A subscription delivers future events only. A late subscriber queries and reconciles. There is no replay."
-  → Constraint: "Replay on reconnect is selective, never bulk".
-- [ ] `ai/doors/plugin-infra.md` - the SDK and the two transports
-  → Constraint: "Every feature works over both transports." A forked plugin "never gets `DirectBridge`".
-- [ ] `docs/guide/bmp.md` - what the operator is told today
-  → Constraint: the page states D1 as an instruction: "Attach BMP before establishing that BGP session, because replay depends on observing the OPEN exchange and subsequent updates. Adding the attachment to an already established peer requires that BGP peer to reconnect before it can be monitored." It is true today and it is a gap against RFC 7854 Sections 3.1 (Peer Up) and 3.3 (Peer Up and dump), never an intended limit. The fix edits this passage.
+- [ ] `ai/doors/system.md` - platform contracts, `pkg/` public API, and the process boundary
+  → Constraint: "Code that only works internal is broken." Cross-boundary values are self-contained copies, never pointers into pooled read buffers.
+- [ ] `ai/doors/bgp-engine.md` - BGP engine boundaries (`reactor/`, `server/`, `format/`)
+  → Decision: `Session` captures immutable copies of the sent and received OPEN bodies once at OPEN exchange (cold path, documented in `docs/architecture/buffer-architecture.md`); the reactor never names `bgp-bmp` and decides hot-attach solely from a generic registration flag (`SelfReconcilesOnAttach`).
+  → Constraint: additive JSON fields in `format/` must preserve existing `ExaBGP` bridge behavior (`internal/exabgp/bridge/bridge_event_state.go`) and be documented on `docs/architecture/api/json-format.md`.
+- [ ] `ai/doors/bgp-plugins.md` - BGP plugin contracts (`bmp`, `rib`, `cmd/peer`)
+  → Decision: follow "A subscription delivers future events only. A late subscriber queries and reconciles. There is no replay." `bgp-bmp` queries the engine (`show bgp peer open`, bus-scoped to the caller's `bgp:state` grants) for Established peers' real OPEN PDUs and queries `bgp-rib` (`request bgp rib peer-snapshot`, paged under `ribevents.ReplayPageBudget`) for each peer's Adj-RIB-In and post-policy Adj-RIB-Out.
+  → Constraint: `bgp-bmp` never imports `reactor/`, `fsm/`, or another plugin's implementation; keep `ze_bgp,ze_bmp` build-tag isolation intact.
+- [ ] `ai/doors/plugin-infra.md` - SDK, Stage 1 registration, RPC/event rail, and `issuequeue`
+  → Decision: move Loc-RIB event delivery onto Stage 1 `Receives` (`bgp-rib:best-change`, `bgp-rib:replay-complete`) + enveloped `OnEvent` + `sdk.Plugin.EmitEvent` (`bgp-rib:replay-request`), retiring `ConfigureEventBus` and `locrib_runtime.go` so internal and forked `bgp-bmp` share one Loc-RIB transport; declare `SelfReconcilesOnAttach` in both `registry.Registration` and Stage 1 `rpc.DeclareRegistrationInput` so external plugins can opt in too.
+  → Constraint: replace direct `report.RaiseError` in `bmp_locrib.go` with `issuequeue.Queue` backed by `sdk.Plugin.RaiseIssue` so error events cross the process boundary without blocking locks or hot loops.
+- [ ] `ai/doors/core.md` - leaf packages under `internal/core/`
+  → Constraint: shared peer-snapshot wire types in `internal/core/bgp/ribevents/` stay pure value types with zero upward imports into `internal/component/`.
+- [ ] `ai/doors/le-tooling.md` - functional `.ci` tests and `pmacct` interop lab
+  → Constraint: new functional tests live under `test/plugin/*.ci` and `test/reload/*.ci` asserting state (never sleep); the new interop scenario `bmp-late-attach-pmacct` lives under `test/interop/scenarios/bmp-late-attach-pmacct/` and registers in `internal/le/interoplab/bgp/{names.go,checkers.go,check_extras.go}`.
+- [ ] `docs/architecture/core-design.md` - Ze always starts (2026-11-26) and replay architecture
+  → Constraint: no new configuration refusal may exit `ze start`; removing `validateLocRIBRuntimeConfig` aligns with this rule, and runtime query failures degrade per-peer via `issuequeue` + structured warning rather than terminating the daemon.
+- [ ] `docs/guide/bmp.md` - current operator documentation
+  → Constraint: currently states D1 as an operator instruction ("Attach BMP before establishing that BGP session... Adding the attachment to an already established peer requires that BGP peer to reconnect before it can be monitored.") and states D2's Loc-RIB external refusal as a transport limitation. Both passages are updated in the same change.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc7854.md` - rows RFC7854-x-16 and RFC7854-x-17 quote the Section 3.3 sentences below, at level SHOULD, unticked. RFC7854-3.3-1 is the End-of-RIB MUST.
-  → Constraint: the summary already carries the rows. This spec writes no new summary row.
+- [ ] `rfc/short/rfc7854.md` - BMP v3 session lifecycle (Sections 3.1, 3.3), Peer Down (Section 4.9), Peer Up (Section 4.10), Route Monitoring & End-of-RIB (Section 5)
+  → Constraint: rows `RFC7854-x-16` and `RFC7854-x-17` already exist in `rfc/short/rfc7854.md` at level SHOULD; `RFC7854-3.3-1` is the End-of-RIB MUST. This spec adds no new summary row and proves both unticked rows with unit, functional, and `pmacct` interop tests.
+- [ ] `rfc/short/rfc8671.md` - BMP Adj-RIB-Out monitoring (Section 5.2 pre-policy Adj-RIB-Out)
+  → Constraint: JSON `format=full` must preserve `update-pre-policy-out` event identity and `pre-policy-next-hop-unknown` so forked `bgp-bmp` applies the exact same RFC 8671 Section 5.2 normalization as in-process `bgp-bmp`.
+- [ ] `rfc/short/rfc9069.md` - BMP Loc-RIB monitoring (Sections 5.1, 5.2, 5.4)
+  → Constraint: forked `bgp-bmp` with `loc-rib true` must deliver Loc-RIB Peer Up, Route Monitoring, and End-of-RIB identically to in-process `bgp-bmp`.
 
 ### RFC text read (verbatim, `rfc/full/rfc7854.txt`)
 
-Line breaks of the text file are joined. The hyphenated break "Adj-" / "RIBs-In" at line 320 is joined to "Adj-RIBs-In".
+Line breaks of the text file are joined; the hyphenated break "Adj-" / "RIBs-In" at line 320 is joined to "Adj-RIBs-In".
 
 | Section | Lines | Quote |
 |---------|-------|-------|
@@ -67,8 +75,7 @@ Line breaks of the text file are joined. The hyphenated break "Adj-" / "RIBs-In"
 | 3.3 | 320-322 | "It follows by sending the contents of its Adj-RIBs-In (pre-policy, post-policy, or both, see Section 5) encapsulated in Route Monitoring messages." |
 | 3.3 | 322-325 | "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer; when End-of-RIB has been sent for each monitored peer, the initial table dump has completed." |
 | 3.3 | 333-334 | "If any new monitored BGP peer becomes Established, a corresponding Peer Up message is sent." |
-
-The Peer Up and dump sentences carry no RFC 2119 keyword. Only the End-of-RIB sentence says MUST.
+| 4.10 Peer Up Notification | 674-677 | "Sent OPEN Message: The full OPEN message transmitted by the monitored router to its peer." / "Received OPEN Message: The full OPEN message received by the monitored router from its peer." |
 
 ### Reference implementations read
 
@@ -79,156 +86,525 @@ The Peer Up and dump sentences carry no RFC 2119 keyword. Only the End-of-RIB se
 | BIRD v3.2.1, `proto/bmp/bmp.c` | `bmp_startup` | On BMP session up, sends Initiation, subscribes to protocol state changes, then loads the current protocol states |
 | BIRD v3.2.1, `proto/bmp/bmp.c` | `bmp_add_table` | Subscribes to the routing table's export (`rt_export_subscribe`), which feeds the table's current routes |
 
-Both read the live peer and table state. Neither depends on having watched the session come up.
-
 **Key insights:**
-- D1 is a late subscriber that never reconciles: the door's rule is that such a subscriber queries.
-- The engine already tells a newly attached process that the peer is up (reason `attached`). bgp-bmp drops that event.
-- D2 is one callback registered for one transport only.
+- D1 has two causes at HEAD: (a) `bgp-bmp` never reconciles Established peers on `OnAllPluginsReady` or `openCache` miss (`ReasonAttached`), and (b) `peer_derived_bindings.go` forces a BGP peer restart whenever a reload grants `bgp:open` or sent/non-refresh `bgp:update` to an endpoint because no registration tells the reactor that a receive-only plugin self-reconciles.
+- `Session` already retains parsed `proposal` and `peerOpen`, but not the verbatim sent/received wire OPEN bodies; cloning each body once at OPEN exchange (cold path) gives exact RFC 7854 Section 4.10 PDUs with zero hot-path cost.
+- `bgp-rib` auto-loads whenever `bgp {}` is configured (`ConfigRoots: []string{configRootBGP}`) and already stores both `bgpPeers` (per-peer Adj-RIB-In, with `IterateFamilyWire` + `reconstructWireAttrs`) and `ribOut` (per-peer post-policy Adj-RIB-Out, with `pool.RibOut` + `NativeNLRI`/CIDR). `bgp-adj-rib-in` does not auto-load unless `bgp-rs` or `bgp-rr` is present, so `bgp-rib` is the single reliable store for D1 snapshots.
+- D2 has four concrete gaps at HEAD: missing `OnEvent` + `SetEnvelope(true)` decoder in `bgp-bmp`; missing optional fields (`local-port`, `remote-port`, `fsm-event`, `update-pre-policy-out` type, `pre-policy-next-hop-unknown`) on the JSON event rail in `internal/component/bgp/format/`; `locrib_runtime.go` refusing external Loc-RIB because `bmp_locrib.go` uses in-process `getEventBus().Subscribe` instead of Stage 1 `Receives` + `sdk.Plugin.EmitEvent`; and direct `report.RaiseError` in `bmp_locrib.go` bypassing the process boundary.
+- The BMP receiver (`receiver.go`, `bmp.go::handleSession`, `processRouteMonitoring`, `processPeerDown`, `processTermination`) and system identity (`system_identity.go`) already use `InjectWireRoute`, `DispatchCommandArgs`, and config/OS calls that work over forked RPC.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (2026-11-11, read not run)
-- [ ] `internal/component/bgp/plugins/bmp/bmp_events.go` - `recordPeerUp` runs on every `SessionStateUp` event, reads the two OPEN PDUs from `openCache`, and returns with no log line when either is missing. `handleStructuredEvent` fills `openCache` only from OPEN events. `handleSenderUpdate` streams Route Monitoring without consulting `peerUps`. `primeSender` announces and replays only the peers in `peerUps`.
-- [ ] `internal/component/bgp/plugins/bmp/bmp_replay.go` - `cacheAdjUpdate` returns nil when the peer has no `peerUps` entry, and nil when `se.RawMessage` is not a `*bgptypes.RawMessage`. The per-peer snapshot is fed by live UPDATE events only; nothing queries the RIB for a peer's Adj-RIB-In.
-- [ ] `internal/component/bgp/plugins/bmp/bmp.go` - `runBMPPlugin` and `registerCallbacks`: the plugin registers `OnStructuredEvent` and no `OnEvent`, and holds no `IsInternal` check.
-- [ ] `internal/component/bgp/plugins/bmp/bmp_locrib.go` - `startLocRIB` warns "loc-rib monitoring enabled but no event bus is available" when the bus is nil, and returns. `emitReplayRequest` asks bgp-rib for a full Loc-RIB replay over the bus. A comment in `handleBestChange` calls the dump token "an in-process claim".
-- [ ] `internal/component/bgp/plugins/bmp/register.go` - `ConfigureEventBus` installs the bus. `RunEngine` is `runBMPPlugin`.
-- [ ] `internal/component/bgp/server/events.go` - `onPeerBound` delivers a state up with reason `rpc.ReasonAttached` to each process a reload attached to a running session.
-- [ ] `internal/component/bgp/reactor/peer_derived_bindings.go` - `bindProcesses` hands the attach to `OnPeerBound` with InitialReplay 0. The `onPeerBound` comment names `applyHotSwappableSettings` as the reload caller; that caller was not read.
-- [ ] `internal/component/plugin/server/restart.go` - `restartHandshake` runs the five stages and the post-startup delivery for a respawned plugin. It delivers no state event for a peer that is already up.
-- [ ] `pkg/plugin/sdk/sdk_callbacks.go` - `initCallbackDefaults` answers `deliver-event` and `deliver-batch` with OK and no action. `OnEvent` replaces both. `OnStructuredEvent` sets only the handler the DirectBridge calls.
-
-**D1 reach (which sequences leave a peer unobserved):**
-
-| Sequence | Result | Evidence |
-|----------|--------|----------|
-| A reload attaches bgp-bmp to a peer that is Established | The attached up arrives, `openCache` holds nothing for the peer, `recordPeerUp` returns silently. No Peer Up, no dump. Later UPDATEs still stream as Route Monitoring | `onPeerBound`, `recordPeerUp`, `handleSenderUpdate` read |
-| bgp-bmp is restarted by its failure policy while peers are up | The new process starts with empty `openCache` and `peerUps`, and `restartHandshake` replays no state. No Peer Up until each peer reconnects | `runBMPPlugin`, `restartHandshake` read; whether any other path delivers a state event after a restart was not traced |
-| A reload first adds BMP config, so the plugin auto-loads while peers are up | Not traced | UNVERIFIED |
-| A binding without `open` | Already recorded: `message-for-a-peer-never-announced` 2026-10-13, owned by `spec-bmp-sflow-export-rfc-defects` | journal row |
-
-**D2 (bgp-bmp forked):** the handshake and config proceed, because nothing checks `IsInternal`. Events reach the SDK's default `deliver-event` and `deliver-batch` callbacks, which answer OK and drop them, so `handleStructuredEvent` never runs: no OPEN cache, no Peer Up, no Route Monitoring, no Route Mirroring. Loc-RIB monitoring logs one warning that names no fix. No functional test runs bgp-bmp through the external harness. Whether the receiver half works forked was not read.
+**Source files read (verified at HEAD on 2026-11-26):**
+- [ ] `internal/component/bgp/plugins/bmp/bmp.go` - `runBMPPlugin` creates `BMPPlugin` without an `issuequeue.Queue`; `registerCallbacks` registers `OnStructuredEvent` only (no `OnEvent`, no `SetEnvelope(true)`, no `OnAllPluginsReady`). Receiver path (`handleSession`, `processRouteMonitoring`, `processPeerDown`, `processTermination`, `handleCommand`) already uses `InjectWireRoute` and `DispatchCommandArgs`.
+- [ ] `internal/component/bgp/plugins/bmp/bmp_events.go` - `recordPeerUp` returns silently when `bp.openCache[se.PeerAddress]` lacks either OPEN PDU; `handleSenderState` logs `"bmp: OPEN cache miss for peer, skipping Peer Up"` and sends nothing.
+- [ ] `internal/component/bgp/plugins/bmp/bmp_replay.go` - `cacheAdjUpdate` returns nil when `bp.peerUps[se.PeerAddress]` is nil; `peerUpState.routes` is populated only by live UPDATE events.
+- [ ] `internal/component/bgp/plugins/bmp/bmp_locrib.go`, `locrib_runtime.go` - `validateLocRIBRuntimeConfig` refuses `loc-rib true` when `getEventBus() == nil`; `startLocRIB` subscribes via in-process `getEventBus()`; line 783 calls `report.RaiseError("bgp-bmp", diagnostic.CodeDoctorRecentEvents, ss.name, failure.Error())` directly.
+- [ ] `internal/component/bgp/plugins/bmp/register.go` - `bmpBusSends()` declares `cli:request bgp rib withdraw-router`, `cli:show bgp rib protocol`, `cli:request bgp rib withdraw-protocol`, `bgp-rib:replay-request`, `bgp:send-raw`; `bmpBusReceives()` declares BGP events only (not `bgp-rib:best-change` or `bgp-rib:replay-complete`); `ConfigureEventBus` installs `eventBusPtr`.
+- [ ] `internal/component/bgp/plugins/bmp/receiver.go`, `system_identity.go`, `doctor.go`, `register_doctor_codes.go` - receiver listeners, system identity, and post-config doctor check (`doctor-bmp-unreachable`) already work without in-process engine pointers.
+- [ ] `internal/component/bgp/reactor/session.go`, `session_negotiate.go`, `session_handlers.go` - `Session` keeps parsed `proposal.message` and `peerOpen` (`*message.Open`), not the exact raw sent and received OPEN wire bodies.
+- [ ] `internal/component/bgp/reactor/peer_derived_bindings.go`, `reactor_api.go` - `diffEffectivePeerEdges` sets `gainedOpen = true` whenever any endpoint gains `bgp:open`; `effectiveBusDeliverable` returns `false` on `gainedOpen` or `feedCatchUpImpossible` (including `sent && s.advertised.Load()`), forcing `reconcilePeers` to bounce the BGP session on reload; `onlyReceiveOnlyBusDiffers` also returns `false` on any `bgp:open` send-block change.
+- [ ] `internal/component/bgp/server/events.go` - `onPeerBound` delivers `SessionStateUp` with `rpc.ReasonAttached` to newly attached processes; `onMessageSent` calls `format.AppendSentMessage` for both post-policy sent and pre-policy Adj-RIB-Out UPDATEs.
+- [ ] `internal/component/bgp/format/text.go`, `text_json.go`, `text_update.go`, `json_message.go` - `appendStateChangeJSON` emits `peer`, `state`, `reason`, `notification`, `session-generation`, etc., but omits `local-port`, `remote-port`, and `fsm-event`; `AppendSentMessage` hardcodes `"type":"sent"` ignoring `msg.PrePolicyOut` and omits `msg.PrePolicyNextHopUnknown`; `json_message.go` already emits `"raw":{"message":"<hex>"}` for `format=full` OPEN, NOTIFICATION, KEEPALIVE, and ROUTE-REFRESH; `appendFullFromResult` already emits `"asn4"`, `"raw":{"update":"<hex>"}`, and `"raw":{"add-path":...}`.
+- [ ] `internal/component/bgp/plugins/cmd/peer/peer.go`, `yang/ze-peer-cmd.yang`, `internal/component/bgp/yang/ze-bgp-api.yang` - `handleBgpPeerDetail` reads `PeerInfo` via `filterPeersByArgs`; no `show bgp peer open` command exists to return Established peers' raw sent/received OPEN PDUs.
+- [ ] `internal/component/bgp/plugins/rib/rib.go`, `rib_commands.go`, `rib_mrt.go`, `ribout_entry.go`, `rib_event_sdk.go` - `bgp-rib` auto-loads on `bgp`, stores per-peer Adj-RIB-In in `r.bgpPeers` (walked by `dumpRIBForMRT` using `IterateFamilyWire` and `reconstructWireAttrs`) and post-policy Adj-RIB-Out in `r.ribOut` (using `pool.RibOut` and `NativeNLRI`/CIDR), and has no paged per-peer snapshot command yet.
+- [ ] `internal/component/plugin/registry/registry.go`, `internal/component/plugin/server/restart.go`, `command.go`, `dispatch_registry.go`, `engine_event.go`, `delivery_graph.go` - `registry.Registration` has `PeerUpBarrier` (in-process only) and `SignalsSessionReady` (also on Stage 1), no `SelfReconcilesOnAttach` flag; `restartHandshake` delivers `post-startup` (`OnAllPluginsReady`) without replaying peer state; `CommandContext.Sender` identifies calling plugins; `rpc.MethodEmitEvent` works on both `DirectBridge` and JSON RPC; `DeliveryGraph.PeerProcessEdges` answers which peers grant `bgp:state` to a given process.
+- [ ] `pkg/plugin/sdk/sdk_callbacks.go` - `initCallbackDefaults` silently accepts and drops `deliver-event`/`deliver-batch` when `OnEvent` is unset; `OnAllPluginsReady` runs on the event loop once registries are frozen and other plugins accept `DispatchCommandArgs`.
+- [ ] `internal/core/bgp/ribevents/replay.go` - defines `ReplayPage` and `ReplayPageBudget` (`rpc.MaxMessageSize / 2`) for paged cross-process route queries.
+- [ ] `test/plugin/bmp-locrib-external-refuses.ci`, `internal/component/bgp/plugins/bmp/locrib_runtime_config_test.go` - assert the current external Loc-RIB refusal; will be replaced/updated (with `ze-test-judge` approval at implementation time) to prove forked Loc-RIB succeeds.
 
 **Behavior to preserve:**
-- The order a collector receives on connect: Initiation, Peer Up for each recorded peer, the snapshot, End-of-RIB (`primeSender`).
-- A Peer Up carries the two real OPEN PDUs (RFC 7854 Section 4.10); none is sent with a fabricated OPEN for a BGP peer.
+- Collector priming order on connect: Initiation, Peer Up for each recorded peer, Route Monitoring snapshot, End-of-RIB per family (`primeSender`).
+- Every BGP Peer Up carries the two real BGP OPEN PDUs exchanged on the session (RFC 7854 Section 4.10); never fabricated for a BGP peer.
+- Non-reconciling plugins (`SelfReconcilesOnAttach == false`, the default) keep the exact existing `gainedOpen` and `feedDirectionsCatchUp` restart / Route Refresh behavior on reload (`delivery_graph_test.go`).
+- In-process `bgp-bmp` retains its zero-copy `DirectBridge` (`OnStructuredEvent`) fast path for BGP events.
+- `ExaBGP` bridge (`internal/exabgp/bridge/bridge_event_state.go`) sees zero behavior change from the additive optional JSON fields on state and pre-policy-out events.
+- Bus policy isolation: a peer excluded from `bgp-bmp` by `bus { endpoint bgp-bmp { receive { from [...] } } }` or the peer's `bus { send { ... } }` is never returned by `show bgp peer open` and never announced to collectors.
 
 **Behavior to change:**
-- D1 and D2, as the Task table states.
+- `Session` retains immutable clones of sent and received OPEN wire bodies; `show bgp peer <selector> open` serves Established peers' OPEN snapshots, bus-scoped by `DeliveryGraph` when called by a plugin.
+- `bgp-rib` serves paged per-peer Adj-RIB-In and post-policy Adj-RIB-Out snapshots via `request bgp rib peer-snapshot`, bounded by `ribevents.ReplayPageBudget`.
+- `registry.Registration` and Stage 1 `rpc.DeclareRegistrationInput` gain `SelfReconcilesOnAttach bool`; `bgp-bmp` declares it `true`, so reload attach of receive-only `bgp-bmp` does not bounce an Established BGP session.
+- `bgp-bmp` runs a single-worker reconciler triggered by `OnAllPluginsReady` (startup, restart, reload auto-load) and by `openCache` miss on `SessionStateUp` (`ReasonAttached` or open-less binding), buffering concurrent live UPDATEs per reconciling peer without holding `eventMu` across RPCs, then installing `peerUpState`, applying buffered live updates, and announcing Peer Up + Route Monitoring + End-of-RIB to connected collectors.
+- `bgp-bmp` registers `SetEnvelope(true)` and `OnEvent` to decode enveloped `bgp:*` (reusing `handleStructuredEvent`) and `bgp-rib:*` (`best-change`, `replay-complete`) over the RPC/event rail; `format/` adds optional `local-port`, `remote-port`, `fsm-event` on JSON state events and `update-pre-policy-out` + `pre-policy-next-hop-unknown` on JSON pre-policy outbound UPDATEs.
+- `bmp_locrib.go` moves onto Stage 1 `Receives` (`bgp-rib:best-change`, `bgp-rib:replay-complete`) + `sdk.Plugin.EmitEvent` (`bgp-rib:replay-request`), retiring `ConfigureEventBus` and `locrib_runtime.go`, and routes its collector write-failure report through `issuequeue.Queue` (`sdk.Plugin.RaiseIssue`) instead of direct `report.RaiseError`.
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Bus query for a table replay | `internal/component/bgp/plugins/bmp/bmp_locrib.go` `emitReplayRequest` | Asks bgp-rib over the EventBus to re-emit the Loc-RIB as replay batches, correlated by a token | Candidate to extend for a peer's Adj-RIB-In (open design question) |
-| Late subscriber queries and reconciles | `ai/doors/bgp-plugins.md`, Traps | The stated rule for a subscriber that joins after the events it needs | The rule D1's fix follows, or the rule the design proposes to change, with its page |
-| Attached up | `internal/component/bgp/server/events.go` `onPeerBound`, `rpc.ReasonAttached` | Tells a process a reload attached that the running session is up, with InitialReplay 0 | The event D1's fix reacts to. A grep shows `adj_rib_in`, `rib`, `rs`, `rr` and `watchdog` branch on the reason; their handlers were not read |
-| Per-peer snapshot and replay | `internal/component/bgp/plugins/bmp/bmp_replay.go` `cacheAdjUpdate`, `replayPeerLocked` | Keeps each recorded peer's routes from live UPDATEs and replays them to a connecting collector | Extended: it needs a first fill for a peer whose UPDATEs it did not see |
-| External-start refusal | `pkg/plugin/sdk/sdk.go` `IsInternal`; the door names `rib` and `adj_rib_in` as plugins that branch on it | A plugin that cannot work forked refuses or branches | One of D2's two candidate fixes |
-| Text event rail | `pkg/plugin/sdk/sdk_callbacks.go` `OnEvent` | Delivers events to a forked plugin as text | The other candidate fix for D2 |
+| Late subscriber queries and reconciles | `ai/doors/bgp-plugins.md`, Traps | States that subscriptions deliver future events only and a late subscriber queries and reconciles | Follows and extends: `bgp-bmp` queries `show bgp peer open` and `request bgp rib peer-snapshot` on `OnAllPluginsReady` and `ReasonAttached` instead of asking the engine for bulk replay |
+| Attached up on reload | `internal/component/bgp/server/events.go` `onPeerBound`, `rpc.ReasonAttached`; `internal/component/bgp/reactor/peer_derived_bindings.go` `bindProcesses` | Delivers `SessionStateUp` with `ReasonAttached` when a reload attaches a process to a running session | Extends: `SelfReconcilesOnAttach` lets receive-only `bgp-bmp` take this hot-attach path without bouncing the BGP session on `gainedOpen` or `sent`/`received` route catch-up |
+| Registration capability flags | `internal/component/plugin/registry/registry.go` `SignalsSessionReady`, `PeerUpBarrier`; `pkg/plugin/rpc/types.go` `DeclareRegistrationInput` | Lets plugins declare lifecycle properties to the engine without hardcoding plugin names | Extends: adds `SelfReconcilesOnAttach bool` on both `registry.Registration` and Stage 1 `rpc.DeclareRegistrationInput` (with `registry.SetRuntimeSelfReconcilesOnAttach` / `registry.SelfReconcilesOnAttach`, mirroring `SignalsSessionReady`) |
+| Paged cross-process route query | `internal/core/bgp/ribevents/replay.go` `ReplayPage`, `ReplayPageBudget`; `internal/component/bgp/plugins/rib/rib_mrt.go` `reconstructWireAttrs` | Bounded JSON paging (`rpc.MaxMessageSize / 2`) with stall-guard cursor, and wire attribute reconstruction from `storage.PeerRIB` | Extends: adds `PeerSnapshotPage` / `PeerSnapshotRoute` in `ribevents` and `request bgp rib peer-snapshot` on `bgp-rib`, reusing `ReplayPageBudget`, `reconstructWireAttrs`, `IterateFamilyWire`, and `pool.RibOut` |
+| Per-peer Adj-RIB snapshot and collector priming | `internal/component/bgp/plugins/bmp/bmp_replay.go` `cacheAdjUpdate`, `replayPeerLocked`; `bmp_events.go` `primeSender` | Maintains per-peer `peerUpState.routes` (both directions) and replays Peer Up + Route Monitoring + End-of-RIB to connecting collectors | Extends: adds a first-fill path from `PeerSnapshotPage` into `peerUpState.routes` and reconciles pending live UPDATEs in order before announcing to connected collectors |
+| Enveloped JSON event rail | `pkg/plugin/sdk/sdk_callbacks.go` `OnEvent`, `SetEnvelope`; `internal/component/bgp/plugins/rib/rib.go` `dispatchText` | Delivers `bgp:*` and non-BGP namespace events (`bgp-rib:*`) as enveloped JSON over RPC for forked plugins and for non-BGP subscriptions in-process | Extends: `bgp-bmp` enables `SetEnvelope(true)` and registers `OnEvent` to drive both `handleStructuredEvent` (forked BGP events) and Loc-RIB handlers (`bgp-rib:best-change`, `bgp-rib:replay-complete`) identically internal and forked |
+| Unified `emit-event` engine op | `internal/component/plugin/server/dispatch_registry.go` `rpc.MethodEmitEvent`; `pkg/plugin/sdk` `Plugin.EmitEvent` | Emits typed EventBus events over `DirectBridge` in-process and JSON RPC forked, enforcing bus `Sends` on both | Replaces `ConfigureEventBus` / `eventBusPtr` / `locrib_runtime.go` in `bgp-bmp`: `bmp_locrib.go` emits `bgp-rib:replay-request` via `sdk.Plugin.EmitEvent` so Loc-RIB runs identically internal and forked |
+| Non-blocking plugin report queue | `internal/component/plugin/issuequeue/queue.go` `issuequeue.Start`, `Queue.RaiseError` | Sends plugin report-bus raises asynchronously over `sdk.Plugin.RaiseIssue` (`rpc.MethodReportIssue`), working identically internal and forked | Replaces direct `report.RaiseError` in `bmp_locrib.go:783`, fixing the process-boundary violation without blocking collector write locks |
+| Post-startup callback | `pkg/plugin/sdk/sdk_callbacks.go` `OnAllPluginsReady`; `internal/component/plugin/server/restart.go` `restartHandshake` | Runs on the event loop after all plugins are loaded and registries frozen, including after plugin restart and reload auto-load | Extends: `bgp-bmp` registers `OnAllPluginsReady` to trigger full reconciliation of all monitored Established peers |
+| DeliveryGraph peer scoping | `internal/component/plugin/server/delivery_graph.go` `DeliveryGraph.PeerProcessEdges`; `CommandContext.Sender` | Records compiled per-peer receive/send grants per endpoint | Extends: `handleBgpPeerOpen` filters returned Established peers to those where `ctx.Sender.Process()` holds a compiled `bgp:state` receive grant |
 
-## Open design questions
+## Design documents
 
-Stated without a choice. The design round answers each from the RFC text, then FRR and BIRD.
-
-| ID | Question | Options |
-|----|----------|---------|
-| DQ-1 | How bgp-bmp learns the routes of a peer whose UPDATEs it did not see | (a) bgp-bmp queries the RIB plugin for the peer's Adj-RIB-In, as `emitReplayRequest` does for the Loc-RIB; (b) the engine replays state-up and routes to a late subscriber, which changes the door's "There is no replay" |
-| DQ-2 | How bgp-bmp learns the two OPEN PDUs of a peer whose OPEN exchange it did not see | Not designed. The attached up carries none that `recordPeerUp` reads |
-| DQ-3 | D2: serve the text rail, or refuse external start | The door says every plugin can run in another process; a refusal needs the message and its fix command |
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | A plugin can run in another process | the door every change reads | "Every plugin, ours included, runs either internal (a goroutine in the daemon) or external (a forked subprocess that talks only over TLS and RPC). The SDK hides which. Code that only works internal is broken." | agrees | `bgp-bmp` handles BGP events over `OnEvent` when forked, moves Loc-RIB onto Stage 1 `Receives` + `sdk.Plugin.EmitEvent`, replaces direct `report.RaiseError` with `issuequeue.Queue`, and reconciles late-attached/restarted state through `DispatchCommandArgs` over both transports |
+| `ai/doors/bgp-engine.md` | Boundaries | the door covering `internal/component/bgp/reactor/`, `format/`, `yang/`, `internal/core/bgp/ribevents/` | "Never name a plugin package from the reactor." | agrees | `peer_derived_bindings.go` queries the generic `registry.SelfReconcilesOnAttach` flag rather than naming `bgp-bmp`, and `Session` OPEN body clones are immutable cold-path copies never aliasing pooled read buffers |
+| `ai/doors/bgp-plugins.md` | Traps | the door covering `internal/component/bgp/plugins/` | "**A subscription delivers future events only.** A late subscriber queries and reconciles. There is no replay (same page)." | agrees | D1 never adds engine-side event replay; `bgp-bmp` queries `show bgp peer open` and `request bgp rib peer-snapshot` and reconciles against buffered live events |
+| `ai/doors/plugin-infra.md` | Boundaries | the door covering `internal/component/plugin/` and `pkg/plugin/` | "**A compiled-in and an external plugin differ only in how they reach the bus.** A rule for external plugins alone needs a transport reason or an arrival-order reason, and any other difference is a defect" | agrees | Retires `locrib_runtime.go`'s external-only refusal, exposes `SelfReconcilesOnAttach` on Stage 1 as well as `registry.Registration`, and uses one shared reconciliation and Loc-RIB event path across both transports |
+| `ai/doors/le-tooling.md` | Boundaries | the door covering `internal/le/interoplab/bgp/` and `test/` | "**Never import `internal/le` from product code**, not even for a helper." | agrees | `bmp-late-attach-pmacct` lives under `test/interop/scenarios/` and `internal/le/interoplab/bgp/`, and `.ci` tests live under `test/reload/` and `test/plugin/` with zero imports from product code |
+| `docs/architecture/core-design.md` | Executive Summary | `// Design:` of `session.go`, `peer.go`, `peer_derived_bindings.go`, `bmp.go`, `bmp_events.go` | "`WireUpdate` - BGP UPDATE message as bytes" | agrees | In-process `DirectBridge` `OnStructuredEvent` keeps zero-copy `WireUpdate` delivery; D1 queries `bgp-rib` for wire-level snapshots and D2 decodes `format=full` raw UPDATE hex into `WireUpdate` |
+| `docs/architecture/buffer-architecture.md` | Design Principles | `// Design:` of `session.go`; a page this spec modifies | "Store wire bytes, not parsed structs" | agrees | `Session` clones verbatim sent and received OPEN wire bodies once at OPEN exchange (cold path) so `show bgp peer open` and BMP Peer Up carry exact RFC 7854 Section 4.10 wire bytes without reconstructing from parsed structs; the copy trigger is documented on this page |
+| `docs/architecture/api/architecture.md` | TL;DR (Read This First) | `// Design:` of `registry.go`; anchored to `session.go`, `peer.go`, `reactor_api.go`, `types.go`, `text_json.go` | "Compiled bus filters per participant. Every participant registers what it sends and receives (running by default with nothing written)" | agrees | `bgp-bmp` declares all new queries and Loc-RIB subscriptions in `bmpBusSends()`/`bmpBusReceives()`, and `show bgp peer open` enforces the compiled `DeliveryGraph` `bgp:state` filter for plugin callers |
+| `docs/architecture/api/commands.md` | Overview | `// Design:` of `pkg/plugin/rpc/types.go`, `cmd/peer/peer.go`; a page this spec modifies | "Ze uses verb-first command paths with JSON or text encoding." | agrees | Adds verb-first `show bgp peer <selector> open` (with `ShapeTab` and registered columns) and `request bgp rib peer-snapshot`, documented on this page |
+| `docs/architecture/api/ipc_protocol.md` | Overview | `// Design:` of `pkg/plugin/rpc/types.go`; anchored to `peer.go`, `ze-bgp-api.yang`, `text_json.go` | "Ze uses correlated, bidirectional RPC between the engine and plugins. Every request carries a `uint64` ID and receives an `ok` or `error` response." | agrees | Reuses the existing bidirectional RPC framing (`dispatch-command-args`, `emit-event`, `report-issue`, `deliver-event`, `declare-registration`) unchanged |
+| `docs/architecture/api/json-format.md` | Field naming | `// Design:` of `text_json.go`, `text_update.go`; a page this spec modifies | "JSON keys are lowercase kebab-case, never camelCase and never snake_case." | agrees | Every new JSON field (`local-port`, `remote-port`, `fsm-event`, `update-pre-policy-out`, `pre-policy-next-hop-unknown`, `self-reconciles-on-attach`, `sent-open`, `received-open`) is lowercase kebab-case and documented on this page |
+| `docs/architecture/api/process-protocol.md` | Overview | anchored to `peer.go`, `reactor_api.go`, `registry.go`, `types.go`; a page this spec modifies | "The protocol is the same for all invocation modes (internal goroutine, external subprocess). Internal plugins get a performance optimization via `DirectBridge` after startup." | agrees | Forked `bgp-bmp` receives identical event semantics over `deliver-event`/`deliver-batch` (`OnEvent`), emits Loc-RIB replay requests over `emit-event`, raises issues over `report-issue`, and declares `self-reconciles-on-attach` at Stage 1 |
+| `docs/architecture/plugin/plugin-system.md` | Registration fields | anchored to `peer.go`, `registry.go`, `types.go`; a page this spec modifies | "The setters the daemon calls while it starts (`SetEventBus`, `SetPluginServer`, `SetMetricsRegistry`, `InjectPluginMetrics`, the `SetRuntime*` seams, `SetPeerDeclarationsChanged`, `SetNTPSyncProvider`, `RunBootEffects`) are runtime seams and stay callable" | agrees | Adds `SelfReconcilesOnAttach` to `registry.Registration` and `SetRuntimeSelfReconcilesOnAttach` as a documented runtime seam for Stage 1, and documents `bgp-bmp` process-boundary parity |
+| `docs/architecture/plugin/rib-storage-design.md` | Overview | `// Design:` of `rib_commands.go`; anchored to `peer.go`, `rib_commands.go` | "This is the **implementation reference** for Pool + Wire design in API programs:" | agrees | Adj-RIB storage stays in `bgp-rib` using the pool+wire model; `request bgp rib peer-snapshot` reads `r.bgpPeers` and `r.ribOut` without moving any RIB storage into the engine |
+| `docs/architecture/mrt.md` | Wire Format Library (`internal/mrt`) | `// Design:` of `rib_mrt.go` | "Shared by both daemon (write) and analysis (read) paths." | agrees | `rib_peer_snapshot.go` reuses `reconstructWireAttrs` from `rib_mrt.go` without altering MRT wire encoding or `dumpRIBForMRT` |
+| `docs/guide/bmp.md` | Sender | `// Design:` of `bmp_replay.go`, `locrib_runtime.go`, `locrib_runtime_config_test.go`; a page this spec modifies | "Enable BMP before establishing that BGP session, because replay depends on observing the OPEN exchange and subsequent updates. Widening BMP monitoring to an already established peer requires that BGP peer to reconnect before it can be monitored." | departs | Replaced by this spec: D1 reconciles Established peers on late attach, reload auto-load, and plugin restart without bouncing BGP sessions, and D2 enables forked `bgp-bmp` (including `loc-rib true`); this page is updated in the same change |
+| `rfc/short/rfc9069.md` | Key Constraints | `// Design:` of `bmp_locrib.go` | "Initial dump sends full Loc-RIB contents as Route Monitoring" | agrees | Forked `bgp-bmp` with `loc-rib true` delivers the exact same Peer Type 3 Peer Up, initial Loc-RIB Route Monitoring dump, and End-of-RIB over Stage 1 `Receives` + `sdk.Plugin.EmitEvent` |
+| `docs/architecture/testing/interop.md` | The suites, one per protocol area | `// Design:` of `names.go`, `checkers.go`, `check_extras.go` | "A scenario with no checker, or a nil checker, is an ERROR rather than a skipped test, so a fixture and its registry cannot silently disagree." | agrees | `bmp-late-attach-pmacct` lives under `test/interop/scenarios/bmp-late-attach-pmacct/` and registers its name, checker, and reload extras in `names.go`, `checkers.go`, and `check_extras.go` |
+| `docs/architecture/behavior/fsm-active.md` | TL;DR | anchored to `session.go` | - | silent | Active FSM state transitions are unchanged; `Session` only clones OPEN bodies once admitted/sent |
+| `docs/architecture/behavior/fsm-connect.md` | TL;DR | anchored to `session.go` | - | silent | Connect FSM state transitions are unchanged; `Session` only clones OPEN bodies once admitted/sent |
+| `docs/architecture/behavior/fsm-established.md` | TL;DR | anchored to `session.go`, `session_handlers.go` | - | silent | Established FSM message handling is unchanged; `SelfReconcilesOnAttach` preserves Established sessions across BMP reload attach |
+| `docs/architecture/behavior/fsm-idle.md` | TL;DR | anchored to `session.go` | - | silent | Idle FSM state transitions are unchanged |
+| `docs/architecture/behavior/fsm-open-confirm.md` | TL;DR | anchored to `session.go`, `session_handlers.go` | - | silent | OpenConfirm FSM transitions are unchanged; OPEN body clone happens during `admitOpen` before OpenConfirm |
+| `docs/architecture/behavior/fsm-open-sent.md` | TL;DR | anchored to `session.go`, `session_negotiate.go`, `session_handlers.go`, `peer.go` | - | silent | OpenSent validation and transitions are unchanged; `sendOpen`/`admitOpen` retain copies of the exchanged OPEN bodies |
+| `docs/architecture/behavior/fsm.md` | TL;DR (Read This First) | anchored to `session.go`, `session_handlers.go`, `peer.go`, `reactor_api.go`, `peer_derived_bindings.go`, `cmd/peer/peer.go` | - | silent | FSM states and event transitions are unchanged |
+| `docs/architecture/behavior/peer-lifecycle.md` | TL;DR | anchored to `session.go`, `session_negotiate.go`, `session_handlers.go`, `peer.go`, `reactor_api.go`, `peer_derived_bindings.go` | - | silent | Peer lifecycle state machine and teardown paths are unchanged; `Peer.OpenSnapshot` is a read-only projection |
+| `docs/architecture/congestion-industry.md` | Sources | anchored to `session.go` | - | silent | Write-congestion industry survey does not govern BMP late attach or forked transport |
+| `docs/architecture/edge-cases/extended-message.md` | TL;DR | anchored to `session.go`, `session_negotiate.go` | - | silent | Extended-message negotiation limits are unchanged; raw OPEN clone preserves whatever OPEN was negotiated |
+| `docs/architecture/encoding-context.md` | TL;DR (Read This First) | anchored to `session.go`, `peer.go` | - | silent | Per-peer directional `EncodingContext` design is unchanged; forked BMP reconstructs a read-only context from `asn4` and `raw.add-path` |
+| `docs/architecture/forward-congestion-pool.md` | Invariant | anchored to `session.go`, `peer.go` | - | silent | Forwarding congestion pool invariants are unchanged |
+| `docs/architecture/memory/lifetime-contracts.md` | TL;DR | anchored to `session.go` | - | silent | Pooled read-buffer lifetime contracts are unchanged; cold-path OPEN clones own independent slices |
+| `docs/architecture/message-buffer-design.md` | Overview | anchored to `session.go` | - | silent | Message buffer pooling and overlay design are unchanged |
+| `docs/architecture/rib-transition.md` | Executive Summary | anchored to `session.go` | - | silent | Historical engine-to-plugin RIB transition doc; engine still holds no RIB |
+| `docs/architecture/update-building.md` | TL;DR (Read This First) | anchored to `session.go`, `peer.go`, `rib_commands.go` | - | silent | UPDATE build/forward wire paths are unchanged |
+| `docs/architecture/bgp/protocol-event-capture.md` | Enabling it | anchored to `session_negotiate.go` | - | silent | Protocol event capture tee is unchanged |
+| `docs/architecture/wire/capabilities.md` | TL;DR (Read This First) | anchored to `session_negotiate.go`, `peer.go` | - | silent | Capability TLV encoding/decoding is unchanged |
+| `docs/architecture/wire/messages.md` | TL;DR (Read This First) | anchored to `session_handlers.go` | - | silent | BGP message header and framing wire format are unchanged |
+| `docs/architecture/api/capability-contract.md` | TL;DR | anchored to `peer.go` | - | silent | Plugin capability injection contract is unchanged |
+| `docs/architecture/api/update-syntax.md` | Overview | anchored to `peer.go`, `registry.go`, `ze-bgp-api.yang` | - | silent | `send bgp ... update text` command grammar is unchanged |
+| `docs/architecture/bgp/structural-forwarding.md` | The ordering constraint | anchored to `peer.go`, `registry.go`, `text_update.go` | - | silent | Structural forwarding pipeline is unchanged |
+| `docs/architecture/config/syntax.md` | Overview | anchored to `peer.go`, `registry.go` | - | silent | Configuration file syntax is unchanged |
+| `docs/architecture/meta/role.md` | Keys Set | anchored to `peer.go` | - | silent | BGP Role route metadata keys are unchanged |
+| `docs/architecture/testing/ci-format.md` | Syntax Overview | anchored to `peer.go` | - | silent | Functional `.ci` test file syntax is unchanged |
+| `docs/architecture/api/text-format.md` | Current Format | anchored to `reactor_api.go` | - | silent | Human-readable text event format is unchanged; only JSON `format=full` / `state` gains additive fields |
+| `docs/architecture/config/transaction-protocol.md` | 1. Design Principles | anchored to `reactor_api.go`, `registry.go`, `types.go` | - | silent | Config reload verify/apply/rollback transaction protocol is unchanged |
+| `docs/architecture/wire/nlri-bgpls.md` | Wire Format Overview | anchored to `reactor_api.go` | - | silent | BGP-LS NLRI wire encoding is unchanged |
+| `docs/architecture/exabgp-bridge.md` | The bridge translates in two directions | anchored to `peer_derived_bindings.go` | - | silent | ExaBGP bridge translation is unchanged; additive optional JSON keys are ignored by `bridge_event_state.go` |
+| `docs/architecture/decisions/001-pull-model-metrics.md` | Decision | anchored to `registry.go` | - | silent | Pull-model Prometheus metrics architecture is unchanged |
+| `docs/architecture/dns/geodns.md` | Config model | anchored to `registry.go` | - | silent | GeoDNS plugin architecture is unrelated to BMP or `SelfReconcilesOnAttach` |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md` | Decisions | anchored to `registry.go` | - | silent | IKEv2 engine architecture is unrelated to BMP |
+| `docs/architecture/wire/nlri.md` | Overview | anchored to `registry.go`, `types.go`, `text_json.go` | - | silent | NLRI registry and wire codecs are unchanged |
+| `docs/architecture/api/wire-format.md` | Transport | anchored to `types.go`, `ze-bgp-api.yang` | - | silent | YANG RPC line framing is unchanged |
+| `docs/architecture/config/apply-ordering.md` | The requirement | anchored to `types.go` | - | silent | Config apply phase ordering is unchanged |
+| `docs/architecture/doctor-and-health-checks.md` | The runtime phase: checks only the daemon runs | anchored to `types.go`, `rib/register.go` | - | silent | Doctor check phase split is unchanged; `bmp_locrib.go` routes its existing `CodeDoctorRecentEvents` raise through `issuequeue` |
+| `docs/architecture/firewall/firewall-irr.md` | Decisions | anchored to `types.go` | - | silent | IRR firewall plugin architecture is unrelated to BMP |
+| `docs/architecture/forked-route-install.md` | Scope | anchored to `types.go` | - | silent | System FIB route-install RPC is unrelated to BMP |
+| `docs/architecture/plugin-manager-wiring.md` | Problem | anchored to `types.go` | - | silent | Two-phase plugin manager startup wiring is unchanged |
+| `docs/architecture/system-architecture.md` | Build personalities | anchored to `types.go` | - | silent | Build personalities and system RIB boundary are unchanged |
+| `docs/architecture/update-cache.md` | Purpose | anchored to `types.go` | - | silent | Forwarding UPDATE cache protocol is unchanged |
+| `docs/architecture/config/yang-config-design.md` | 1. Key Principle | anchored to `ze-bgp-api.yang` | - | silent | YANG config schema principles are unchanged; only operational `show bgp peer open` RPC is added |
+| `docs/architecture/route-selection.md` | Overview | anchored to `rib_commands.go` | - | silent | Best-path selection algorithm is unchanged |
+| `docs/architecture/plugin/plugin-relationships.md` | 1. System Plugins | anchored to `rib/register.go` | - | silent | Plugin startup order dependencies are unchanged; `bgp-bmp` queries `bgp-rib` from `OnAllPluginsReady` |
+| `docs/architecture/api/text-coverage.md` | Message Type Coverage | anchored to `text_json.go`, `text_update.go` | - | silent | Text-mode parser coverage is unchanged; forked `bgp-bmp` uses JSON `format=full` |
+| `docs/architecture/api/text-parser.md` | Current Parser | anchored to `text_update.go` | - | silent | Text-mode event parser is unchanged |
+| `docs/architecture/api/birdwatcher-compat.md` | Status of this document | anchored to `bmp.go` | - | silent | Looking Glass birdwatcher API is unrelated to BMP sender/receiver |
+| `docs/architecture/ospf/ospf-ext-16-ipsec-auth.md` | Decisions | anchored to `checkers.go` | - | silent | OSPF IPsec authentication interop is unrelated to BMP |
+| `docs/architecture/ospf/ospf-4-component-config.md` | Decisions | anchored to `check_extras.go` | - | silent | OSPF component config interop is unrelated to BMP |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | BMP is a control-plane BGP plugin and introduces no kernel-only data-plane coupling |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | BMP introduces no data-plane mismatch and preserves existing validation verdicts |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | Unchanged; this spec touches no firewall or VPP verifier code |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | Unchanged; this spec introduces no data-plane selector |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | Preserved; forked BMP passes `pre-policy-next-hop-unknown` computed by the existing export-chain facts unchanged |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Unchanged; this spec modifies no export policy authoring or next-hop rewriting |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | Unchanged; this spec leaves export policy compilation intact |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | Unchanged; this spec touches no next-hop folding or `wireOverride` logic |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | Unchanged; this spec touches no import/export next-hop policy validation |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Unchanged; this spec touches no route-origination next-hop rules |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Unchanged; this spec inserts no filter-chain members |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Removes `validateLocRIBRuntimeConfig`'s external startup refusal and introduces zero new startup refusals; unavailable RIB snapshot queries degrade per-peer via `issuequeue` + structured warning rather than exiting `ze start` |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Preserved; BMP introduces no startup refusal or kernel/VPP mismatch |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | Unchanged; this spec does not alter `\| implied` rendering |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | `bgp-bmp` declares all new commands (`cli:show bgp peer open`, `cli:request bgp rib peer-snapshot`) in `bmpBusSends()` and Loc-RIB events (`bgp-rib:best-change`, `bgp-rib:replay-complete`) in `bmpBusReceives()` so default operation needs no manual `bus` config |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | `show bgp peer open` honors compiled `DeliveryGraph` edges produced by peer `send > to` overrides |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | `show bgp peer open` scopes returned peers strictly to those permitted by `bgp-bmp`'s compiled `receive > from` edges in `DeliveryGraph` |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | All new `bgp-bmp` queries and subscriptions ride normal bus allow-list enforcement on `DispatchCommandArgs`, `EmitEvent`, and `Receives` |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | Both peer-side `bus` blocks and central `bus { endpoint bgp-bmp }` compile into the single `DeliveryGraph` that `peer_derived_bindings.go` and `handleBgpPeerOpen` consult |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | `SelfReconcilesOnAttach` adds no exclusive-role arbitration or commit refusal; it only tells the reactor a receive-only participant can reconcile without a peer restart |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | Adding new sends/receives to `bmpBusSends()`/`bmpBusReceives()` automatically appears in the existing bus effective-edges display |
+| `docs/architecture/update-building.md` | Design decisions | decision of 2026-11-23 | "Gate draft-simpson 0x0800 FlowSpec MP_REACH next-hop emission behind an explicit per-session opt-in (`session { flowspec-redirect-next-hop true; }`, default `false`), written automatically by `ze exabgp migrate` when a migrated neighbor uses Simpson actions or serves an API process on a FlowSpec family" | agrees | Unchanged; this spec touches no FlowSpec next-hop emission |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | `show bgp peer <selector> open` follows the existing `show bgp peer <selector> detail/capabilities/statistics` subject path and uses standard `ShapeTab` pipe operators for formatting and filtering |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | `show bgp peer <selector> open` declares standard `ShapeTab` with no custom pipe overrides |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | `show bgp peer <selector> open` returns pure peer OPEN data and lets downstream pipe operators format, filter, or save it |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-23 | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | No new `engineOp` is added; `bgp-bmp` uses existing bus-checked `dispatch-command-args`, `emit-event`, `inject-wire-route`, and `report-issue` operations under its compiled profile |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-25 | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | Forked `bgp-bmp` receives every subscribed BGP and `bgp-rib` event losslessly over `deliver-event`/`deliver-batch`, and offloads reconciliation RPCs to a dedicated worker so `OnEvent` never stalls delivery |
+| `docs/architecture/plugin/plugin-system.md` | Design decisions | decision of 2026-11-23 | "With no daemon running, a command that parses a config starts each declared external program in query mode, never its run loop, and validates against its declaration" | agrees | External `bgp-bmp` (`ZE_PLUGIN_MODE=declare`) continues returning pure declarations (including updated `bmpBusSends()`, `bmpBusReceives()`, and `SelfReconcilesOnAttach`) without starting listeners, senders, or reconciler workers |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-23 | "An ExaBGP script is an ordinary bus endpoint that runs the wrapper; the bridge config section and the internal bridge mode do not exist" | agrees | Preserved; ExaBGP scripts remain ordinary bus endpoints unaffected by BMP changes |
+| `docs/architecture/exabgp-bridge.md` | Design decisions | decision of 2026-11-26 | "ExaBGP wrapper endpoints request `base64` (`plugin.FormatBase64`) UPDATE delivery at Stage 5 `ready` using Ze's positional counted wire grammar (`upd <flags> <local-as> <remote-as> <conn-id> <n>:<peer> <n>:<local> <n>:<router-id> <n>:<extra-addpath> <n>:<b64-body>`, zero key names, `0:` when absent) over pooled `WriteBatchFrame` `MuxConn` batching while keeping low-frequency control/session events as JSON; `ze exabgp plugin` renders hot IPv4/IPv6 unicast UPDATEs directly into a `[]byte` buffer from wire bytes and falls back to the wire-backed `Event` renderer for non-unicast families and error cases" | agrees | Preserved; `FormatBase64` UPDATE delivery is untouched, and additive optional keys on JSON control/state events are ignored by the ExaBGP wrapper |
+| `docs/architecture/testing/interop.md` | Design decisions | decision of 2026-11-23 | "Each Docker interop suite and scenario checks only the kernel capabilities it actually requires (`Suite.KernelCapabilities` unioned with selected `ScenarioPlan.KernelCapabilities`); suites whose selected scenarios require none run without unrelated kernel features (such as SRv6 or IPsec)" | agrees | `bmp-late-attach-pmacct` requires no extra kernel capabilities beyond the pure-BGP/BMP Docker suite |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
-Not designed (skeleton). The subsections state what is read today.
-
 ### Entry Point
-- D1: a state up event with reason `attached`, delivered by `onPeerBound` when a reload attaches the process to a running session.
-- D2: the events the engine delivers to a forked process as `deliver-event` and `deliver-batch`.
+- **D1 (startup / restart / reload auto-load)**: `restartHandshake` / startup coordinator sends `post-startup` -> `sdk.Plugin` invokes `OnAllPluginsReady` -> enqueues a full-reconcile request on `BMPPlugin`'s single-worker reconciler channel.
+- **D1 (reload bus attach / open-less binding)**: `reconcilePeers` checks `diffEffectivePeerEdges` / `effectiveBusDeliverable` (honoring `SelfReconcilesOnAttach`), keeps the BGP session Established, publishes delivery edges, and `onPeerBound` delivers `SessionStateUp` (`ReasonAttached`); `recordPeerUp` hits `openCache` miss and enqueues a targeted peer-reconcile request (`peerAddr`) on the reconciler channel without holding `eventMu` across RPCs.
+- **D2 (forked `bgp-bmp` events)**: Engine delivers enveloped JSON lines (`namespace=bgp` with `format=full`, or `namespace=bgp-rib` for `best-change` and `replay-complete`) over TLS RPC `deliver-event` / `deliver-batch` -> `sdk.Plugin` invokes `OnEvent` -> `handleEnvelopedEvent`.
+- **D2 (Loc-RIB replay request, both transports)**: `emitReplayRequest` calls `bp.plugin.EmitEvent(ctx, "bgp-rib", "replay-request", "", "", payload)` -> engine delivers to `bgp-rib` -> `bgp-rib` emits `bgp-rib:best-change` (with `replay-id`) and `bgp-rib:replay-complete` -> engine delivers to `bgp-bmp`'s `OnEvent`.
 
 ### Transformation Path
-1. [design round]
+1. **OPEN wire capture (cold path, once per BGP session)**: `Session.sendOpen` clones the sent OPEN body into `Session.sentOpenBody`; `Session.admitOpen` clones the validated received OPEN body into `Session.recvOpenBody`; `Peer.OpenSnapshot` reads both under lock only when the session is Established.
+2. **Engine OPEN query (`show bgp peer open`)**: `handleBgpPeerOpen` resolves peers via `filterPeersByArgs`, filters to peers where `ctx.Sender.Process()` holds a `bgp:state` receive grant in `ctx.Server.DeliveryGraph()` (when caller is a plugin), skips non-Established peers or incomplete OPEN pairs, and returns JSON rows (`peer-address`, `local-address`, `local-port`, `remote-port`, `peer-as`, `remote-router-id`, `asn4`, `sent-open`, `received-open`, `session-generation`).
+3. **RIB paged snapshot query (`request bgp rib peer-snapshot`)**: `RIBManager.peerSnapshotCommand` accepts `<peer-address> <in|out> <cursor>` and walks either `r.bgpPeers[owner]` (`IterateFamilyWire` + `reconstructWireAttrs`) or `r.ribOut[peerAddr]` (`pool.RibOut.Get` + `NativeNLRI`/CIDR), emitting one deterministic `ribevents.PeerSnapshotPage` capped at `ribevents.ReplayPageBudget` (`rpc.MaxMessageSize / 2`).
+4. **Reconciliation ordering inside `bgp-bmp` (single-worker goroutine, zero RPCs under lock)**:
+   - Reconciler calls `show bgp peer open` (for `"*"` or one `peerAddr`).
+   - For each returned Established peer, under `eventMu.Lock()`: if `peerUps[addr]` already matches `sessionGeneration` or `lastDownGeneration[addr] >= sessionGeneration`, skip; otherwise register a per-peer `reconcilingPeer` state (`generation`, bounded `pending []*rpc.StructuredEvent`) and unlock `eventMu`.
+   - While `reconcilingPeer` is active, any live `EventKindUpdate` / `EventKindUpdatePrePolicyOut` for that peer is appended to `pending` (and NOT streamed to collectors before Peer Up); any `EventKindState` Down cancels `reconcilingPeer` and records `lastDownGeneration[addr]`.
+   - Outside `eventMu`, reconciler pages `request bgp rib peer-snapshot <addr> in 0..N` and `<addr> out 0..N` (stopping on `!page.More` or stall guard `LastIndex <= cursor`), building `adjRoute` entries respecting `adjReplayBytesMax` and `adjReplayRoutesMax`.
+   - Under `eventMu.Lock()`: verify `reconcilingPeer` is still active for the same `generation`; install `peerUpState` (real OPEN PDUs, TCP endpoints, snapshot `routes`), replay `pending` live events onto `st.routes` via `cacheAdjUpdate` so concurrent withdrawals/replacements override the snapshot, clear `reconcilingPeer`, then acquire each connected collector's `ss.writeMu` (preserving lock order `eventMu -> writeMu -> mu`) to write Peer Up followed by `replayPeerLocked` (Route Monitoring + End-of-RIB per family).
+5. **Forked JSON event decoding (`bmp_json_events.go`)**: `handleEnvelopedEvent` parses the outer `{namespace, type, direction, peer, event}` envelope:
+   - `namespace == "bgp-rib"`: dispatches `best-change` (`ribevents.BestChangeBatch`) to `handleBestChange` and `replay-complete` (`replay.Request`) to `handleReplayComplete` when `bp.locRIBEnabled` is true (identical path on both internal and forked transports).
+   - `namespace == "bgp"`: decodes the inner `ze-bgp` JSON (`state`, `open`, `update`, `sent`, `update-pre-policy-out`, `notification`, `keepalive`, `refresh`) into an `*rpc.StructuredEvent` (populating `LocalPort`, `RemotePort`, `FSMEvent`, `CloseNotificationDirection`/`CloseNotificationBody` when present, `RawBytes` from hex `raw.update`/`raw.message`, `PrePolicyOut`/`PrePolicyNextHopUnknown`, and a synthetic `EncodingContext` from `asn4` + `raw.add-path`) and calls `handleStructuredEvent(se)`.
+6. **Report-bus delivery**: `bmp_locrib.go` write failures call `bp.issues.RaiseError(diagnostic.CodeDoctorRecentEvents, ss.name, failure.Error())` on the plugin's `issuequeue.Queue`, which delivers asynchronously over `sdk.Plugin.RaiseIssue` (`rpc.MethodReportIssue`) on both transports.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | State and UPDATE events to bgp-bmp: structured over DirectBridge in process, text over RPC forked | No |
-| Plugin ↔ Plugin | bgp-bmp to bgp-rib over the EventBus, if DQ-1 takes option (a) | No |
+| Engine ↔ `bgp-bmp` (events) | `DirectBridge` (`OnStructuredEvent`) in-process; enveloped JSON `format=full` over TLS RPC (`OnEvent`) forked | No |
+| Engine ↔ `bgp-bmp` (OPEN snapshot query) | `sdk.Plugin.DispatchCommandArgs` -> `show bgp peer open` (`ze-bgp:peer-open`), JSON answer scoped by `DeliveryGraph` | No |
+| `bgp-bmp` ↔ `bgp-rib` (Adj-RIB snapshot query) | `sdk.Plugin.DispatchCommandArgs` -> `request bgp rib peer-snapshot`, paged JSON (`ribevents.PeerSnapshotPage`, bounded by `ReplayPageBudget`) | No |
+| `bgp-bmp` ↔ `bgp-rib` (Loc-RIB replay & best-change) | `sdk.Plugin.EmitEvent` (`bgp-rib:replay-request`) + Stage 1 `Receives` (`bgp-rib:best-change`, `bgp-rib:replay-complete`) delivered via enveloped `OnEvent` on both transports | No |
+| `bgp-bmp` ↔ Daemon report bus | `issuequeue.Queue` -> `sdk.Plugin.RaiseIssue` (`rpc.MethodReportIssue`), identical internal and forked | No |
+| `bgp-bmp` ↔ Engine (registration) | `registry.Registration.SelfReconcilesOnAttach` and Stage 1 `rpc.DeclareRegistrationInput.SelfReconcilesOnAttach` | No |
 
 ### Changed-Wire Census
 
-Not designed (skeleton). DQ-1 and DQ-2 decide whether an event or an RPC changes.
+**Search evidence:** Searched `internal/component/bgp/format/`, `internal/component/bgp/server/`, `internal/component/bgp/plugins/`, `internal/component/plugin/`, `internal/exabgp/bridge/`, `pkg/plugin/rpc/`, `pkg/plugin/sdk/`, `docs/`, and `test/` for `appendStateChangeJSON`, `AppendSentMessage`, `EventUpdatePrePolicyOut`, `DeclareRegistrationInput`, `PeerUpBarrier`, `SignalsSessionReady`, `ze-bgp:peer-`, and `request bgp rib`. Positive controls: `appendStateChangeJSON` in `internal/component/bgp/format/text_json.go:521` matched `internal/exabgp/bridge/bridge_event_state.go` and `internal/component/bgp/plugins/rib/rib_events_text.go`; `AppendSentMessage` in `internal/component/bgp/format/text_update.go:147` matched `internal/component/bgp/server/events.go`; `DeclareRegistrationInput` in `pkg/plugin/rpc/types.go` matched `pkg/plugin/sdk/sdk.go` and `internal/component/plugin/server/handshake_stage1.go`. No shell or Python scripts outside Go parse `update-pre-policy-out`, `show bgp peer open`, or `request bgp rib peer-snapshot`.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| `ze-bgp` JSON `state` event (`local-port`, `remote-port`, `fsm-event`) | writer | `internal/component/bgp/format/text_json.go::appendStateChangeJSON` | Writes `"type":"state"`, `peer`, `state`, `reason`, `notification`, `session-generation`; currently omits `local-port`, `remote-port`, `fsm-event` | Change: append optional `"local-port"` and `"remote-port"` (when nonzero) and `"fsm-event"` (on `down` when nonzero); additive, preserves all existing keys |
+| `ze-bgp` JSON `state` event (`local-port`, `remote-port`, `fsm-event`) | reader | `internal/component/bgp/plugins/bmp/bmp_json_events.go::decodeBGPJSONEvent` (new) | New forked `bgp-bmp` JSON event decoder reading `local-port`, `remote-port`, `fsm-event` into `rpc.StructuredEvent` | Change: decode the three fields for RFC 7854 Section 4.10 Peer Up and Section 4.9 Reason 2 Peer Down |
+| `ze-bgp` JSON `state` event (`local-port`, `remote-port`, `fsm-event`) | reader | `internal/exabgp/bridge/bridge_event_state.go::handleStateJSON`, `internal/component/bgp/plugins/rib/rib_events_text.go`, `internal/component/bgp/plugins/adj_rib_in/`, third-party external plugins | Standard `encoding/json` struct/map decoders ignoring unknown additive keys | Preserve: existing readers ignore optional additive keys with zero behavior change (verified by existing state-event and ExaBGP tests) |
+| `ze-bgp` JSON `update-pre-policy-out` event (`type`, `pre-policy-next-hop-unknown`) | writer | `internal/component/bgp/format/text_update.go::AppendSentMessage`, `appendFullFromResult` | `onMessageSent` calls `AppendSentMessage` for both `EventKindUpdate` (sent) and `EventKindUpdatePrePolicyOut`; currently always writes `"type":"sent"` and omits `PrePolicyNextHopUnknown` | Change: emit `"type":"update-pre-policy-out"` when `msg.PrePolicyOut` is true and `"pre-policy-next-hop-unknown":true` when `msg.PrePolicyNextHopUnknown` is true; post-policy sent events stay `"type":"sent"` |
+| `ze-bgp` JSON `update-pre-policy-out` event (`type`, `pre-policy-next-hop-unknown`) | reader | `internal/component/bgp/plugins/bmp/bmp_json_events.go::decodeBGPJSONEvent` (new); third-party BMP/telemetry plugins subscribing to `bgp:update-pre-policy-out` | Only subscribers that explicitly subscribe to `bgp:update-pre-policy-out` receive this event (`onMessageSent` scopes by `EventKindUpdatePrePolicyOut`) | Change: decode `"type":"update-pre-policy-out"` to `rpc.EventKindUpdatePrePolicyOut` and `pre-policy-next-hop-unknown` onto `RawMessage.PrePolicyNextHopUnknown` |
+| Stage 1 `declare-registration` (`self-reconciles-on-attach`) | writer | `pkg/plugin/sdk/sdk.go` (`Plugin.Run` marshaling `rpc.DeclareRegistrationInput`), `internal/component/bgp/plugins/bmp/bmp.go` (`runBMPPlugin`), third-party plugins | `DeclareRegistrationInput` carries `SignalsSessionReady`, `FencesLiveForwards`, `Sends`, `Receives`; `bgp-bmp` passes `&sdk.Registration{...}` | Change: add optional `SelfReconcilesOnAttach bool` (`json:"self-reconciles-on-attach,omitempty"`); `bgp-bmp` sets it `true`; omitting it defaults to `false` |
+| Stage 1 `declare-registration` (`self-reconciles-on-attach`) | reader | `internal/component/plugin/server/handshake_stage1.go` (calling `registry.SetRuntimeSelfReconcilesOnAttach`) and `internal/component/bgp/reactor/peer_derived_bindings.go` (reading `registry.SelfReconcilesOnAttach`) | Stage 1 records runtime registration flags (same pattern as `SignalsSessionReady` -> `registry.SetRuntimeSessionReady`) | Change: record runtime flag at Stage 1 and consult `registry.SelfReconcilesOnAttach` in `diffEffectivePeerEdges` / `effectiveBusDeliverable` / `onlyReceiveOnlyBusDiffers` / `busFeedDeliverable` / `catchUpBoundProcesses` |
+| `ze-bgp:peer-open` (`show bgp peer open`) JSON answer | writer | `internal/component/bgp/plugins/cmd/peer/open.go::handleBgpPeerOpen` (new) | New builtin peer command registered in `ze-peer-cmd.yang`, `ze-bgp-api.yang`, and `cmd/peer/peer.go` | Change: emits Established peers' OPEN snapshots (`peer-address`, `local-address`, `local-port`, `remote-port`, `peer-as`, `remote-router-id`, `asn4`, `sent-open`, `received-open`, `session-generation`), bus-scoped for plugin callers |
+| `ze-bgp:peer-open` (`show bgp peer open`) JSON answer | reader | `internal/component/bgp/plugins/bmp/bmp_reconcile.go::queryPeerOpens` (new); CLI/REST/gRPC/MCP operators | New reconciler query over `DispatchCommandArgs`; CLI/API surfaces render via registered `ShapeTab` + column order | Change: decodes Established peer snapshots to populate `peerUpState` with real OPEN PDUs |
+| `request bgp rib peer-snapshot` JSON answer (`ribevents.PeerSnapshotPage`) | writer | `internal/component/bgp/plugins/rib/rib_peer_snapshot.go::peerSnapshotCommand` (new) | New `bgp-rib` command registered in `rib/rib_commands.go` and `rib/register.go::commandDecls` | Change: streams bounded pages (`ribevents.ReplayPageBudget`) of per-peer Adj-RIB-In (`in`) or post-policy Adj-RIB-Out (`out`) wire routes |
+| `request bgp rib peer-snapshot` JSON answer (`ribevents.PeerSnapshotPage`) | reader | `internal/component/bgp/plugins/bmp/bmp_reconcile.go::queryPeerSnapshot` (new) | New reconciler query over `DispatchCommandArgs` walking pages until `!More` (with stall guard) | Change: populates `peerUpState.routes` for both directions before announcing Peer Up + Route Monitoring + End-of-RIB |
+| `bgp-rib:best-change` and `bgp-rib:replay-complete` enveloped JSON | writer | `internal/component/bgp/plugins/rib/rib_bestchange.go` + `rib_event_sdk.go` + `internal/component/plugin/server/dispatch.go::deliverEvent` | Already emitted by `bgp-rib` (and extended with JSON `replay-id` and `replay-complete` by `spec-bmp-locrib-dump-end-of-rib-before-routes.md`) | Preserve writer: `Server.deliverEvent` delivers enveloped JSON to every plugin-process subscriber declaring them in Stage 1 `Receives` |
+| `bgp-rib:best-change` and `bgp-rib:replay-complete` enveloped JSON | reader | `internal/component/bgp/plugins/bmp/bmp_json_events.go::handleEnvelopedEvent` (new), replacing direct `getEventBus().Subscribe` in `bmp_locrib.go` | `bgp-bmp` declares both in `bmpBusReceives()` and decodes enveloped JSON into `handleBestChange` / `handleReplayComplete` on both transports | Change: single enveloped `OnEvent` consumer for internal and forked `bgp-bmp` |
 
 ### Integration Points
-- `recordPeerUp`, `cacheAdjUpdate`, `primeSender` - the recorded-peer state every collector message is built from
-- [design round]
+- `internal/component/bgp/reactor/session.go`, `session_negotiate.go`, `session_handlers.go`, `peer.go` - captures immutable sent/received OPEN bodies and exposes `Peer.OpenSnapshot` via `Reactor` peer-query interface.
+- `internal/component/bgp/plugins/cmd/peer/` - registers `ze-bgp:peer-open` (`show bgp peer <selector> open`) with YANG, `ShapeTab`, columns, address fields, and `DeliveryGraph` bus scoping for plugin callers.
+- `internal/component/bgp/plugins/rib/` - registers `request bgp rib peer-snapshot` returning `ribevents.PeerSnapshotPage` from `r.bgpPeers` and `r.ribOut`.
+- `internal/component/plugin/registry/registry.go`, `pkg/plugin/rpc/types.go`, `internal/component/plugin/server/handshake_stage1.go` - carries `SelfReconcilesOnAttach` from both compiled registration and Stage 1 RPC; `peer_derived_bindings.go` honors it for receive-only endpoints.
+- `internal/component/bgp/plugins/bmp/` - wires `issuequeue.Start(p)`, `SetEnvelope(true)`, `OnEvent`, `OnAllPluginsReady`, single-worker reconciler, `sdk.Plugin.EmitEvent` for Loc-RIB, and `bmpBusSends()` / `bmpBusReceives()`.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound | No | |
-| Registration over hardcoding, inbound | No | |
+| No bypassed layers (data flows through the intended path) | Yes | OPEN snapshots flow `Session -> Peer -> Reactor -> show bgp peer open -> DispatchCommandArgs -> bgp-bmp`; Adj-RIB snapshots flow `bgp-rib -> request bgp rib peer-snapshot -> DispatchCommandArgs -> bgp-bmp`; Loc-RIB flows `bgp-rib -> EventBus/RPC -> OnEvent -> bgp-bmp`; report raises flow `bmp -> issuequeue -> sdk.Plugin.RaiseIssue -> daemon report bus`. Zero direct package calls across plugin boundaries |
+| No unintended coupling (components stay isolated) | Yes | `bgp-bmp` imports neither `reactor/` nor `rib/`; `reactor/` never names `bgp-bmp` and reads only `registry.SelfReconcilesOnAttach`; `internal/core/bgp/ribevents/` carries pure value structs with zero component imports |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Reuses `ribevents.ReplayPageBudget`, `rib_mrt.go::reconstructWireAttrs`, `bmp_replay.go::replayPeerLocked`, `bmp_events.go::handleStructuredEvent`, `issuequeue.Queue`, `DeliveryGraph.PeerProcessEdges`, and `OnAllPluginsReady` |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | Hot-path UPDATE forwarding and in-process `DirectBridge` `OnStructuredEvent` stay zero-copy; OPEN body cloning happens once per BGP session establishment (cold path, documented in `docs/architecture/buffer-architecture.md`) |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | `show bgp peer open` registers in `cmd/peer/peer.go` + `ze-peer-cmd.yang`; `request bgp rib peer-snapshot` registers in `rib/rib_commands.go` + `rib/register.go`; `SelfReconcilesOnAttach` is a generic boolean property on `registry.Registration` and Stage 1 `rpc.DeclareRegistrationInput` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Searched `internal/component/bgp/reactor/peer_derived_bindings.go`, `internal/component/plugin/server/`, and `internal/component/bgp/plugins/cmd/peer/` for hardcoded plugin names: `peer_derived_bindings.go` queries `registry.SelfReconcilesOnAttach(name)` rather than naming `"bgp-bmp"`; CLI help, completion, MCP, REST, and gRPC derive `show bgp peer open` from the YANG/command registry automatically |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | `bgp-rib` is always auto-loaded whenever `bgp {}` is configured, and stores both per-peer Adj-RIB-In (`r.bgpPeers`) and post-policy Adj-RIB-Out (`r.ribOut`). | `internal/component/bgp/plugins/rib/register.go` (`ConfigRoots: []string{configRootBGP}`), `rib_mrt.go`, `ribout_entry.go` | If `bgp-rib` is absent or disabled in a custom config, `request bgp rib peer-snapshot` fails; `bgp-bmp` still announces Peer Up with empty snapshot and raises a warning + `issuequeue` event rather than crashing or hanging | Unit test (`TestReconcilePeerWithUnavailableRIBStillAnnouncesPeerUp`) and `.ci` functional tests | unvalidated |
+| A-2 | `restartHandshake` delivers `post-startup` (`OnAllPluginsReady`) after Stages 1–5 for both plugin restart and reload auto-load. | `internal/component/plugin/server/restart.go:392` (`sendPostStartupTo(proc)`) | If reload auto-load skips `post-startup`, a reload-auto-loaded `bgp-bmp` would miss Established peers | Functional test `test/reload/bmp-late-attach-and-restart.ci` covering both reload bus attach and plugin restart | unvalidated |
+| A-3 | `Server.deliverEvent` delivers `bgp-rib:best-change` and `bgp-rib:replay-complete` as enveloped JSON to `OnEvent` for BOTH internal and forked `bgp-bmp` when declared in Stage 1 `Receives` and `SetEnvelope(true)` is active, without calling `getEventBus().Subscribe`. | `internal/component/plugin/server/engine_event.go:143-145`, `internal/component/bgp/plugins/rib/rib.go:897` | Duplicate delivery or missed Loc-RIB events on one transport | Unit tests on both internal and forked transports + `test/plugin/bmp-locrib.ci` + `test/plugin/bmp-locrib-external.ci` | unvalidated |
+| A-4 | Adding optional `"local-port"`, `"remote-port"`, `"fsm-event"` to `appendStateChangeJSON` and `"type":"update-pre-policy-out"` / `"pre-policy-next-hop-unknown"` to `AppendSentMessage` breaks no existing consumer or ExaBGP bridge test. | `internal/exabgp/bridge/bridge_event_state.go`, `internal/component/bgp/format/text_json.go`, `text_update.go` | Golden JSON tests or ExaBGP bridge tests fail | Scoped tests in `internal/component/bgp/format/...`, `internal/exabgp/bridge/...`, and `./le test functional exabgp` | unvalidated |
+| A-5 | `Session.admitOpen` and `Session.sendOpen` are the sole entry points for admitted received and transmitted BGP OPEN messages on a live session. | `internal/component/bgp/reactor/session_handlers.go:61`, `session_negotiate.go:201` | A collision-resolved or passive session could miss an OPEN body clone | Unit test covering both active and passive TCP openers + collision resolution (`TestSessionCapturesRealOpenBodies`) | unvalidated |
+| A-6 | `spec-bmp-locrib-dump-end-of-rib-before-routes.md` lands before or alongside D2's Loc-RIB external enablement so `bgp-rib:replay-complete` and JSON `replay-id` exist on `bgp-rib:best-change`. | `plan/release/fixes/spec-bmp-locrib-dump-end-of-rib-before-routes.md` (`Status: ready`) | Forked Loc-RIB dump could not correlate chunked batches or close empty families | Dependency declared in Metadata table (`Depends`) | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | Deadlock if `bgp-bmp` calls `DispatchCommandArgs` while holding `eventMu`, `mu`, or `ss.writeMu` (especially when `bgp-rib` or `bgp-bmp` runs forked) | `go test -race` hang or timeout in reconciliation tests | Reconciler runs on a single dedicated goroutine and NEVER holds `eventMu`, `mu`, or `writeMu` across any RPC; all RPC calls carry bounded `context.WithTimeout` cancelled by `bp.stopCh` |
+| R-2 | Race between paged `bgp-rib` snapshot read and concurrent live UPDATE/withdrawal or peer down during late attach | A withdrawn prefix is resurrected after Peer Up, or a Peer Up is sent for a peer that already went down | Per-peer `reconcilingPeer` state under `eventMu` buffers live UPDATEs while paging and cancels reconciliation on `SessionStateDown`; buffered events replay on top of the snapshot before announcing Peer Up + Route Monitoring + End-of-RIB |
+| R-3 | `SelfReconcilesOnAttach` accidentally suppressing BGP session restart for a plugin that does NOT self-reconcile or that holds a send grant | Existing `delivery_graph_test.go` or reload tests fail | Gate applies ONLY to receive-only endpoints (`!sendChanged` and no send grant toward the peer) whose `registry.SelfReconcilesOnAttach(name)` is `true`; default is `false` |
+| R-4 | Large Adj-RIB table exceeds one RPC frame or memory cap during reconciliation | RPC frame ceiling error or unbounded RAM growth | `request bgp rib peer-snapshot` caps each page at `ribevents.ReplayPageBudget` (`rpc.MaxMessageSize / 2`) with stall-guard cursor (`LastIndex <= cursor`), and `bgp-bmp` enforces existing `adjReplayBytesMax` (512 MiB) / `adjReplayRoutesMax` (2,000,000) limits |
+| R-5 | Replacing `test/plugin/bmp-locrib-external-refuses.ci` and `locrib_runtime_config_test.go` triggers the test-weakening gate | Hook refuses edit without approval | Follow `ai/META-DECISIONS.md`: obtain `ze-test-judge` approval (`./le test weakened approve`) at implementation time because DQ-3 explicitly replaced the external refusal with full forked Loc-RIB support |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | Monitored BGP peers could flap on BMP reload attach, collectors could receive malformed Peer Up / duplicate or missing routes / wrong Peer Down reasons, or forked `bgp-bmp` could drop events or stall on shutdown. Non-BMP BGP routing is unaffected when `SelfReconcilesOnAttach` defaults to `false`. |
+| How is it reverted? | Single commit revert restores prior behavior; no persistent state format or on-disk config schema breaks (all JSON additions are optional and additive). |
+| Who else touches this path? | `plan/release/fixes/spec-bmp-locrib-dump-end-of-rib-before-routes.md` (`bmp_locrib.go`, `bmp.go`, `rib_bestchange.go`) and `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` (`bmp_events.go`, `text_json.go`). Keep edits cleanly scoped to non-overlapping responsibilities and rebase cleanly if one lands first. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| Reload adding `/bgp/peer/<p>` to `bus { endpoint bgp-bmp { receive { ... } } }` | → | `peer_derived_bindings.go` (`SelfReconcilesOnAttach`) → `onPeerBound` (`ReasonAttached`) → `BMPPlugin.enqueueReconcilePeer` → `show bgp peer open` + `request bgp rib peer-snapshot` → `writePeerUpLocked` + `replayPeerLocked` | `test/reload/bmp-late-attach-and-restart.ci` and `TestLateAttachReconcilesEstablishedPeerWithoutBounce` |
+| `request plugin restart bgp-bmp` while BGP peers are Established | → | `restartHandshake` (`post-startup`) → `OnAllPluginsReady` → `BMPPlugin.enqueueReconcileAll` → `show bgp peer open` + `request bgp rib peer-snapshot` → collector Peer Up + Route Monitoring + End-of-RIB | `test/reload/bmp-late-attach-and-restart.ci` and `TestAllPluginsReadyReconcilesEstablishedPeers` |
+| Forked `bgp-bmp` (`external { run ... }`) receiving BGP events + Loc-RIB + receiver feed | → | `OnEvent` (`SetEnvelope(true)`) → `handleEnvelopedEvent` → `handleStructuredEvent` / `handleBestChange` / `handleReplayComplete` + `sdk.Plugin.EmitEvent` + `issuequeue.Queue` | `test/plugin/bmp-sender-external.ci`, `test/plugin/bmp-locrib-external.ci`, and `TestForkedBMPJSONEventParity` |
+| `show bgp peer <selector> open` invoked by operator or plugin | → | `cmd/peer/open.go::handleBgpPeerOpen` (`DeliveryGraph` scoped for plugin callers) → `Peer.OpenSnapshot` | `TestShowBgpPeerOpenBusScoped` |
+| `request bgp rib peer-snapshot` invoked by `bgp-bmp` | → | `rib/rib_peer_snapshot.go::peerSnapshotCommand` → `r.bgpPeers` / `r.ribOut` paged `ribevents.PeerSnapshotPage` | `TestRIBPeerSnapshotPaginationAndBothDirections` |
 
 ## Acceptance Criteria
 
-Draft rows; the design round fixes inputs, tests and survivors.
-
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A reload attaches bgp-bmp to a peer that is Established, a collector connected | The collector receives a Peer Up for that peer carrying both OPEN PDUs, then its Adj-RIB-In as Route Monitoring, then End-of-RIB per family (RFC 7854 Section 3.1 for the Peer Up at BMP session start; Section 3.3 for the Peer Up, the dump and the End-of-RIB) | [design round] |
-| AC-2 | bgp-bmp restarts while peers are Established | Each monitored Established peer is announced and dumped to the collector without the BGP session reconnecting | [design round] |
-| AC-3 | bgp-bmp configured as a forked process | Per DQ-3: the collector receives the same messages as from the in-process plugin, or the daemon refuses the start with a message naming the fix | [design round] |
+| AC-1 | A BGP peer is Established with received IPv4/IPv6 routes in Adj-RIB-In (and advertised routes in Adj-RIB-Out), and a collector is connected; a config reload attaches `bgp-bmp` to that peer (via peer `bus` or central `bus { endpoint bgp-bmp }`) | The BGP peer stays Established (connection drop count and flap count stay 0), and the collector receives a Peer Up carrying both real BGP OPEN PDUs and real TCP ports (RFC 7854 Section 4.10), followed by Route Monitoring for the peer's Adj-RIB-In (and post-policy Adj-RIB-Out when policy includes `post-policy`/`all`) and End-of-RIB per family (RFC 7854 Sections 3.1, 3.3, 5) | Pre-policy Adj-RIB-Out routes advertised before `bgp-bmp` attached are not backfilled because the reactor computes pre-policy outbound candidates transiently and retains no pre-policy Adj-RIB-Out table (documented in Known Limitations); all subsequent pre-policy outbound updates stream normally |
+| AC-2 | `bgp-bmp` restarts (via `request plugin restart bgp-bmp` or failure policy) or auto-loads on a reload while monitored BGP peers are already Established | Without any BGP session reconnecting, the restarted `bgp-bmp` queries `show bgp peer open` and `request bgp rib peer-snapshot` from `OnAllPluginsReady`, and every connected collector receives Initiation, Peer Up (real OPEN PDUs), Adj-RIB Route Monitoring, and End-of-RIB for each monitored Established peer | Same as AC-1 for transient pre-policy Adj-RIB-Out; peers excluded from `bgp-bmp` by `bus` filters are intentionally omitted |
+| AC-3 | A live route withdrawal or replacement arrives for a peer while `bgp-bmp` is paging its `request bgp rib peer-snapshot` during late attach or restart | No Route Monitoring is emitted before Peer Up; the live update is applied on top of the snapshot in arrival order so the collector receives Peer Up followed by the post-withdrawal route state and End-of-RIB (never resurrecting a withdrawn prefix). If the peer transitions Down during paging, reconciliation cancels cleanly and emits neither Peer Up nor Peer Down | None — every concurrent live UPDATE/withdrawal and peer-down transition during reconciliation is ordered under `eventMu` |
+| AC-4 | `bgp-bmp` runs as a forked external process (`./le mock plugin-external bgp-bmp`) with BMP sender enabled (`route-monitoring-policy all`, `adj-rib-out-pre-policy true`, `route-mirroring true`) | The collector receives byte-equivalent Peer Up (with real OPEN PDUs and real ephemeral TCP ports), pre-policy and post-policy Route Monitoring (with exact RFC 8671 Section 5.2 next-hop normalization on `update-pre-policy-out`), Route Mirroring, End-of-RIB, and Peer Down (with real NOTIFICATION PDU or RFC 4271 FSM event code) matching in-process `bgp-bmp`, including on late attach and restart | Wire-message receipt timestamp on forked JSON UPDATE events is 0 when the JSON UPDATE carries no receipt timestamp (permitted by RFC 7854 Section 4.2: "If zero, the time is unavailable") |
+| AC-5 | `bgp-bmp` runs as a forked external process with `loc-rib true` and with BMP receiver (`environment bmp`) enabled | Forked `bgp-bmp` starts without refusal, delivers Loc-RIB Peer Up (PeerType=3), initial Loc-RIB Route Monitoring, End-of-RIB after `bgp-rib:replay-complete`, incremental Loc-RIB updates, and accepts inbound BMP sessions injecting routes into `bgp-rib` and withdrawing on session close; collector write failures surface on the daemon report bus via `issuequeue` (`sdk.Plugin.RaiseIssue`) | None — both Loc-RIB and receiver halves operate identically across internal and forked transports |
+| AC-6 | A peer is excluded from `bgp-bmp` by `bus { endpoint bgp-bmp { receive { from [ /bgp/peer/p1 ]; } } }` while peer `p2` is also Established | `show bgp peer open` invoked by `bgp-bmp` returns only `p1` (never `p2`), and the collector receives Peer Up and Route Monitoring for `p1` alone | Operator callers (`plugin.OperatorSender()`) invoking `show bgp peer * open` on CLI/API still see all matching peers, as with `show bgp peer * detail` |
+| AC-7 | Independent BMP collector (`pmacct` `pmbmpd`) receives `bmp-late-attach-pmacct` after reload attaches `bgp-bmp` to an already-Established BGP peer (FRR/BIRD) | `pmacct` decodes and logs the Peer Up (real OPEN capabilities, peer ASN, router ID), the dumped prefix in Route Monitoring, and End-of-RIB while FRR's/Ze's BGP session uptime continues uninterrupted (zero session drops) | None — validated against independent `pmacct` parser with red-then-green discrimination |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Enables BMP monitoring or adds a peer to `bgp-bmp`'s bus filter on a live router via config reload | Config reload -> `reconcilePeers` (`SelfReconcilesOnAttach`) -> session stays Established -> `onPeerBound` (`ReasonAttached`) -> `bgp-bmp` queries `show bgp peer open` + `request bgp rib peer-snapshot` -> collector receives Peer Up + Route Monitoring + End-of-RIB | `test/reload/bmp-late-attach-and-restart.ci`, `bmp-late-attach-pmacct` |
+| 2 | Restarts `bgp-bmp` (`request plugin restart bgp-bmp`) during maintenance while BGP sessions stay up | `restartHandshake` -> `OnAllPluginsReady` -> `bgp-bmp` queries `show bgp peer open` + `request bgp rib peer-snapshot` -> collector receives Initiation, Peer Up, Route Monitoring, End-of-RIB for all monitored Established peers | `test/reload/bmp-late-attach-and-restart.ci` |
+| 3 | Runs `bgp-bmp` in an external forked process for fault isolation with sender, pre-policy Adj-RIB-Out, Route Mirroring, Loc-RIB, and receiver | Forked `bgp-bmp` over TLS RPC -> `OnEvent` (`SetEnvelope(true)`) + `DispatchCommandArgs` + `EmitEvent` + `InjectWireRoute` + `issuequeue` -> full BMP parity with in-process `bgp-bmp` | `test/plugin/bmp-sender-external.ci`, `test/plugin/bmp-locrib-external.ci` |
+| 4 | Inspects negotiated OPEN PDUs of an Established peer via `show bgp peer <selector> open` | CLI/API -> `cmd/peer/open.go::handleBgpPeerOpen` -> `Peer.OpenSnapshot` -> rendered table/JSON with sent and received OPEN hex and TCP endpoints | `TestShowBgpPeerOpenBusScoped` |
 
 ## 🧪 TDD Test Plan
-
-Not designed (skeleton). The design round names each test; every row below is a placeholder.
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| [design round] | `internal/component/bgp/plugins/bmp/` | AC-1, AC-2: an attached up for a peer with no cached OPEN ends in a recorded Peer Up and a filled snapshot | |
+| `TestSessionCapturesRealOpenBodies` | `internal/component/bgp/reactor/session_open_snapshot_test.go` | AC-1, A-5: active and passive BGP sessions capture verbatim sent and received OPEN bodies and clear them on session replacement | |
+| `TestSelfReconcilesOnAttachAvoidsPeerBounce` | `internal/component/bgp/reactor/delivery_graph_test.go` | AC-1, R-3: receive-only endpoint declaring `SelfReconcilesOnAttach: true` attaches to an Established session with routes without setting `gainedOpen` or returning `deliverable=false`, while non-declaring endpoints (`SelfReconcilesOnAttach: false`) and send-grant changes still force restart | |
+| `TestShowBgpPeerOpenBusScoped` | `internal/component/bgp/plugins/cmd/peer/open_test.go` | AC-6: `show bgp peer open` returns Established peers' OPEN snapshots for operators, scopes strictly to `DeliveryGraph` `bgp:state` grants for plugin callers, and omits non-Established peers | |
+| `TestRIBPeerSnapshotPaginationAndBothDirections` | `internal/component/bgp/plugins/rib/rib_peer_snapshot_test.go` | AC-1, AC-2, R-4: `request bgp rib peer-snapshot` paginates `in` (Adj-RIB-In IPv4/IPv6/ADD-PATH) and `out` (post-policy Adj-RIB-Out) under `ReplayPageBudget`, advances cursor strictly, and returns empty `More: false` for unknown peer | |
+| `TestFormatStateJSONPortsAndFSMEvent` | `internal/component/bgp/format/text_json_test.go` | AC-4, A-4: `appendStateChangeJSON` emits optional `local-port`, `remote-port`, and `fsm-event` (on down); `AppendSentMessage` emits `type:"update-pre-policy-out"` and `pre-policy-next-hop-unknown:true` when set without altering post-policy `sent` or ExaBGP bridge | |
+| `TestLateAttachReconcilesEstablishedPeerWithoutBounce` | `internal/component/bgp/plugins/bmp/bmp_reconcile_test.go` | AC-1: `ReasonAttached` on `openCache` miss queries `show bgp peer open` and `request bgp rib peer-snapshot`, installs `peerUpState`, and emits Peer Up (real OPENs) + Route Monitoring + End-of-RIB | |
+| `TestAllPluginsReadyReconcilesEstablishedPeers` | `internal/component/bgp/plugins/bmp/bmp_reconcile_test.go` | AC-2: `OnAllPluginsReady` reconciles all monitored Established peers without prior OPEN events | |
+| `TestReconcileConcurrentWithdrawalAndPeerDownOrdering` | `internal/component/bgp/plugins/bmp/bmp_reconcile_test.go` | AC-3, R-2: live withdrawal arriving during snapshot paging overrides snapshot route and never emits before Peer Up; live peer down during paging cancels reconciliation without emitting Peer Up or Peer Down | |
+| `TestReconcilePeerWithUnavailableRIBStillAnnouncesPeerUp` | `internal/component/bgp/plugins/bmp/bmp_reconcile_test.go` | A-1: when `request bgp rib peer-snapshot` returns an error, `bgp-bmp` still announces Peer Up + End-of-RIB and raises a non-blocking `issuequeue` warning rather than crashing or hanging | |
+| `TestForkedBMPJSONEventParity` | `internal/component/bgp/plugins/bmp/bmp_json_events_test.go` | AC-4: enveloped JSON events (`state` up/down with ports + `fsm-event` + closing notification, `open`, `update`, `sent`, `update-pre-policy-out` with `pre-policy-next-hop-unknown`, `notification`, `keepalive`, `refresh`) produce byte-identical BMP frames to `DirectBridge` `StructuredEvent` | |
+| `TestForkedLocRIBAndIssueQueueParity` | `internal/component/bgp/plugins/bmp/bmp_locrib_test.go` | AC-5: enveloped `bgp-rib:best-change` + `bgp-rib:replay-complete` over `OnEvent` and `bgp-rib:replay-request` via `EmitEvent` work with `getEventBus() == nil`, and write failures queue `CodeDoctorRecentEvents` on `issuequeue.Queue` instead of direct `report.RaiseError` | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [design round] | | | | |
+| `request bgp rib peer-snapshot` `<cursor>` | `0..MaxUint64` | `0`, `len(routes)` (returns empty `More: false`) | negative / non-numeric string (refused with `opererr`) | overflow past `MaxUint64` (refused with `opererr`) |
+| `PeerSnapshotPage` serialized byte budget | `1..ReplayPageBudget` (`rpc.MaxMessageSize / 2`) | single route filling budget still makes forward progress (1 route/page minimum) | `0` (N/A — constant `ReplayPageBudget`) | page exceeding budget splits to next page (`More: true`); stall (`LastIndex <= cursor`) aborts with error |
+| `local-port` / `remote-port` in JSON state event & `show bgp peer open` | `0..65535` (`uint16`) | `65535` (`0` omitted on JSON wire) | `-1` (rejected on JSON decode) | `65536` (rejected on JSON decode) |
+| `fsm-event` in JSON down state event | `0..65535` (`uint16`) | `65535` (`0` omitted on JSON wire) | `-1` (rejected on JSON decode) | `65536` (rejected on JSON decode) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| [design round] | [design round] | AC-1: a reload attaches bgp-bmp to an Established peer and the collector receives Peer Up, routes and End-of-RIB | |
-| [design round] | [design round] | AC-3: bgp-bmp run as an external process | |
+| `bmp-late-attach-and-restart` | `test/reload/bmp-late-attach-and-restart.ci` | AC-1, AC-2, AC-6: establishes BGP peer with routes while `bgp-bmp` excludes it; reloads bus config to attach `bgp-bmp` -> verifies zero BGP session drops and collector receives Peer Up (real OPENs) + Route Monitoring + End-of-RIB; then runs `request plugin restart bgp-bmp` -> verifies collector receives fresh Peer Up + Route Monitoring + End-of-RIB without BGP reconnect | |
+| `bmp-sender-external` | `test/plugin/bmp-sender-external.ci` | AC-4, AC-5: runs `bgp-bmp` via `./le mock plugin-external bgp-bmp` with sender (`route-monitoring-policy all`, `adj-rib-out-pre-policy true`, `route-mirroring true`) and receiver enabled; verifies collector receives Peer Up (real OPENs + ephemeral ports), pre-policy and post-policy Route Monitoring, Route Mirroring, End-of-RIB, Peer Down, and receiver injects/withdraws BMP routes into `bgp-rib` | |
+| `bmp-locrib-external` | `test/plugin/bmp-locrib-external.ci` | AC-5: replaces `test/plugin/bmp-locrib-external-refuses.ci` (with `ze-test-judge` approval at implementation time); runs `bgp-bmp` externally with `loc-rib true` and verifies collector receives Loc-RIB Peer Up (PeerType=3), initial Route Monitoring, End-of-RIB after routes, and incremental Loc-RIB updates | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| [design round] | [design round] | a BMP collector (the existing BMP scenarios use pmacct) | AC-1 as an independent collector decodes it | |
+| `bmp-late-attach-pmacct` | `test/interop/scenarios/bmp-late-attach-pmacct/` | `pmacct` (`pmbmpd`) + `frr` | AC-1, AC-7: FRR establishes BGP with Ze and advertises a prefix while `bgp-bmp` is not attached to FRR; Ze reloads via `SIGHUP` attaching `bgp-bmp` to FRR -> `pmacct` decodes Peer Up (real OPENs, peer ASN, BGP ID), Route Monitoring for the already-received prefix, and End-of-RIB, while FRR confirms zero BGP session flaps. Red-then-green discrimination verified before fix | |
 
 ## Files to Modify
-- `internal/component/bgp/plugins/bmp/bmp_events.go` - `recordPeerUp` and its callers (D1)
-- `internal/component/bgp/plugins/bmp/bmp_replay.go` - the first fill of a peer's snapshot (D1)
-- `internal/component/bgp/plugins/bmp/bmp.go` - `registerCallbacks`, `runBMPPlugin` (D2)
-- `docs/guide/bmp.md` - the passage that tells the operator to reconnect the peer
-- [design round: whatever DQ-1 and DQ-2 name on the RIB or engine side]
+
+- `internal/component/bgp/reactor/session.go` - store immutable `sentOpenBody []byte` and `recvOpenBody []byte` on `Session` with lock-protected accessor
+- `internal/component/bgp/reactor/session_negotiate.go` - clone transmitted OPEN body in `Session.sendOpen`
+- `internal/component/bgp/reactor/session_handlers.go` - clone admitted received OPEN body in `Session.admitOpen`
+- `internal/component/bgp/reactor/peer.go`, `reactor_api.go` - expose `Peer.OpenSnapshot` and `Reactor.PeerOpenSnapshots`
+- `internal/component/bgp/reactor/peer_derived_bindings.go` - consult `registry.SelfReconcilesOnAttach` in `diffEffectivePeerEdges`, `effectiveBusDeliverable`, `onlyReceiveOnlyBusDiffers`, `busFeedDeliverable`, and `catchUpBoundProcesses` for receive-only endpoints
+- `internal/component/plugin/registry/registry.go` - add `SelfReconcilesOnAttach bool` on `Registration`, plus `SetRuntimeSelfReconcilesOnAttach` / `SelfReconcilesOnAttach` (mirroring `SignalsSessionReady`)
+- `pkg/plugin/rpc/types.go` - add `SelfReconcilesOnAttach bool` (`json:"self-reconciles-on-attach,omitempty"`) to `DeclareRegistrationInput`
+- `internal/component/plugin/server/handshake_stage1.go` - record `SelfReconcilesOnAttach` at Stage 1
+- `internal/component/bgp/plugins/cmd/peer/peer.go`, `yang/ze-peer-cmd.yang`, `internal/component/bgp/yang/ze-bgp-api.yang` - register `ze-bgp:peer-open` (`show bgp peer <selector> open`), shape, columns, and YANG model
+- `internal/component/bgp/plugins/rib/rib_commands.go`, `register.go`, `rib_mrt.go` - register `request bgp rib peer-snapshot` and share `reconstructWireAttrs` helper
+- `internal/component/bgp/format/text_json.go`, `text_update.go` - add optional `local-port`, `remote-port`, `fsm-event` to `appendStateChangeJSON`; emit `type:"update-pre-policy-out"` and `pre-policy-next-hop-unknown:true` in `AppendSentMessage` / `appendFullFromResult`
+- `internal/component/bgp/plugins/bmp/bmp.go` - wire `issuequeue.Start(p)`, `SetEnvelope(true)`, `OnEvent`, `OnAllPluginsReady`, single-worker reconciler lifecycle, `SelfReconcilesOnAttach: true`, and remove `validateLocRIBRuntimeConfig` calls
+- `internal/component/bgp/plugins/bmp/register.go` - add `SelfReconcilesOnAttach: true`, add `cli:show bgp peer open` and `cli:request bgp rib peer-snapshot` to `bmpBusSends()`, add `bgp-rib:best-change` and `bgp-rib:replay-complete` to `bmpBusReceives()`, and remove `ConfigureEventBus`
+- `internal/component/bgp/plugins/bmp/bmp_events.go` - trigger per-peer reconciliation on `recordPeerUp` `openCache` miss, buffer live updates for reconciling peers, cancel reconciliation on `SessionStateDown`, track `lastDownGeneration`
+- `internal/component/bgp/plugins/bmp/bmp_replay.go` - add helper installing `ribevents.PeerSnapshotRoute` entries into `peerUpState.routes` respecting `adjReplayBytesMax`/`adjReplayRoutesMax`
+- `internal/component/bgp/plugins/bmp/bmp_locrib.go` - drive Loc-RIB via Stage 1 `Receives` (`OnEvent`) + `sdk.Plugin.EmitEvent` (retiring `eventBusPtr` / `getEventBus`), replace direct `report.RaiseError` with `bp.issues.RaiseError` (`issuequeue.Queue`)
+- `internal/component/bgp/plugins/bmp/locrib_runtime.go`, `locrib_runtime_config_test.go` - remove external Loc-RIB refusal (replace test coverage with positive forked Loc-RIB tests under `ze-test-judge` approval)
+- `internal/le/interoplab/bgp/names.go`, `checkers.go`, `check_extras.go` - register `bmp-late-attach-pmacct` interop scenario
+- `docs/guide/bmp.md` - update D1 late-attach/restart behavior and D2 forked external support (including Loc-RIB)
+- `docs/architecture/api/json-format.md` - document additive optional `local-port`, `remote-port`, `fsm-event` on `state` and `update-pre-policy-out` / `pre-policy-next-hop-unknown` on sent UPDATEs
+- `docs/architecture/api/process-protocol.md` - document `self-reconciles-on-attach` Stage 1 field
+- `docs/architecture/api/commands.md` - document `show bgp peer <selector> open` and `request bgp rib peer-snapshot`
+- `docs/architecture/plugin/plugin-system.md` - document `SelfReconcilesOnAttach` registration property and `bgp-bmp` process-boundary parity
+- `docs/architecture/buffer-architecture.md` - list cold-path OPEN body clone on `Session` as a deliberate copy trigger
+- `rfc/short/rfc7854.md` - link unit, `.ci`, and `pmacct` interop tests to `RFC7854-x-16`, `RFC7854-x-17`, and `RFC7854-3.3-1`
 
 ## Files to Create
-- [design round]
+
+- `internal/core/bgp/ribevents/peer_snapshot.go` - `PeerSnapshotCommand`, `PeerSnapshotPage`, `PeerSnapshotRoute` pure value structs
+- `internal/component/bgp/plugins/cmd/peer/open.go`, `open_test.go` - `handleBgpPeerOpen` (`ze-bgp:peer-open`) with `DeliveryGraph` plugin scoping and unit tests
+- `internal/component/bgp/plugins/rib/rib_peer_snapshot.go`, `rib_peer_snapshot_test.go` - `peerSnapshotCommand` (`request bgp rib peer-snapshot`) and pagination unit tests
+- `internal/component/bgp/plugins/bmp/bmp_reconcile.go`, `bmp_reconcile_test.go` - single-worker late-attach/startup reconciler (`queryPeerOpens`, `queryPeerSnapshot`, concurrent update buffering) and unit tests
+- `internal/component/bgp/plugins/bmp/bmp_json_events.go`, `bmp_json_events_test.go` - enveloped JSON event decoder (`bgp:*` and `bgp-rib:*`) and parity unit tests
+- `internal/component/bgp/reactor/session_open_snapshot_test.go` - unit tests for `Session` OPEN body capture across active/passive/collision sessions
+- `test/reload/bmp-late-attach-and-restart.ci` - functional test for D1 (reload bus attach without peer bounce + `request plugin restart bgp-bmp` + bus scoping)
+- `test/plugin/bmp-sender-external.ci` - functional test for D2 (forked `bgp-bmp` sender + pre-policy out + mirroring + receiver)
+- `test/plugin/bmp-locrib-external.ci` - functional test for D2 forked Loc-RIB (replacing `test/plugin/bmp-locrib-external-refuses.ci` with `ze-test-judge` approval)
+- `test/interop/scenarios/bmp-late-attach-pmacct/` (`ze.conf`, `ze-reload.conf`, `frr.conf`, `pmbmpd.conf`) - `pmacct` interop scenario for AC-1 / AC-7
+
+### Integration Checklist
+
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` and `internal/component/bgp/yang/ze-bgp-api.yang` declare `show bgp peer <selector> open` (`ze-bgp:peer-open`, `ze-bgp-api:peer-open`). No new config leaf is added (`bgp` and `environment bmp` config syntax is unchanged) |
+| YANG validation constraints | Yes | `show bgp peer open` inherits the existing mandatory `selector` leaf from container `peer` in `ze-peer-cmd.yang` |
+| YANG custom validators | No | No new config leaf requiring `ze:validate` |
+| CLI commands/flags | Yes | `show bgp peer <selector> open` registered in `internal/component/bgp/plugins/cmd/peer/peer.go` and `request bgp rib peer-snapshot` registered in `internal/component/bgp/plugins/rib/rib_commands.go` and `register.go` |
+| CLI grammar (keyword before value) | Yes | `show bgp peer <selector> open` matches the existing `show bgp peer <selector> detail/capabilities/statistics` grammar; `request bgp rib peer-snapshot` matches `request bgp rib recovery` / `request bgp adj-rib-in replay-routes` |
+| Editor autocomplete | N-A | Operational `show`/`request` commands derive completion automatically from YANG (`ze-peer-cmd.yang`); no new config leaves |
+| Functional test for new RPC/API | Yes | `test/reload/bmp-late-attach-and-restart.ci`, `test/plugin/bmp-sender-external.ci`, `test/plugin/bmp-locrib-external.ci` |
+| Pipe completeness | Yes | `show bgp peer open` registers `command.ShapeTab`, `command.RegisterColumns`, and `command.RegisterAddressFields` (`local-ip`), routing output through the standard dispatcher pipe chain |
+| Env var registration | No | No new `environment/` YANG leaf or env var |
+| Doctor check for runtime dependencies | No | No new external binary, socket, file path, kernel module, or listen port; existing `bmpDoctorCheck` (`doctor-bmp-unreachable`) remains intact |
+| Doctor code per problem class | Yes | Collector write failure in `bmp_locrib.go` keeps existing `diagnostic.CodeDoctorRecentEvents` (already registered in `internal/core/diagnostic/`), now raised via `issuequeue.Queue` (`sdk.Plugin.RaiseIssue`) so it reaches the daemon from forked `bgp-bmp`; reconciliation RIB-query failure logs structured `Warn` and raises `CodeDoctorRecentEvents` via `issuequeue` |
+| Prometheus counters/metrics | No | No new Prometheus metric required; existing BMP panic boundary (`ze_task_panics_total`) and `prePolicyOutDropped` stay unchanged |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No new BGP AFI/SAFI, capability, or path attribute |
+
+### Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | BMP sender/receiver/Loc-RIB already exist in `features/`; this closes two defects (D1, D2) within existing BMP scope |
+| 2 | Config syntax changed? | No | Zero config syntax or YANG config leaf changes |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` (add `show bgp peer <selector> open`) |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` (`show bgp peer <selector> open`, `request bgp rib peer-snapshot`) |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` (note `bgp-bmp` full external/forked parity) |
+| 6 | Has a user guide page? | Yes | `docs/guide/bmp.md` (replace D1 reconnect instruction with late-attach/restart reconciliation; replace D2 external Loc-RIB limitation with full forked support) |
+| 7 | Wire format changed? | No | BMP wire frames follow RFC 7854/8671/9069 unchanged; JSON plugin event format is covered under row 8 |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md` (`self-reconciles-on-attach` Stage 1 field) and `docs/architecture/api/json-format.md` (optional `local-port`, `remote-port`, `fsm-event`, `update-pre-policy-out`, `pre-policy-next-hop-unknown`) |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7854.md` (`RFC7854-x-16`, `RFC7854-x-17`, `RFC7854-3.3-1` evidence and `pmacct` interop links) |
+| 10 | Test infrastructure changed? | No | Uses existing `.ci` runner (`./le mock plugin-external`) and existing `pmacct` interop lab |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` already lists BMP support |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/plugin/plugin-system.md` (`SelfReconcilesOnAttach`, `bgp-bmp` parity) and `docs/architecture/buffer-architecture.md` (cold-path OPEN body clone) |
+| 13 | Route metadata keys added/changed? | No | No route metadata keys added or changed |
+| 14 | Prometheus counters added/changed? | No | No Prometheus counters added or changed |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md` (`bgp-bmp` sends/receives and `bgp-rib` / `cmd/peer` commands) |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Verified via `./le spec citation anchors spec plan/release/fixes/spec-bmp-late-attach-and-forked.md`. All modified design pages are listed in `## Files to Modify` (`docs/guide/bmp.md`, `docs/architecture/api/json-format.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/commands.md`, `docs/architecture/plugin/plugin-system.md`, `docs/architecture/buffer-architecture.md`, `rfc/short/rfc7854.md`). Five additional declared `// Design:` pages are unaffected: `docs/architecture/api/architecture.md` (compiled bus and engine/API split unchanged), `docs/architecture/api/ipc_protocol.md` (RPC framing unchanged), `docs/architecture/mrt.md` (`reconstructWireAttrs` reused unchanged by `rib_peer_snapshot.go`), `docs/architecture/plugin/rib-storage-design.md` (pool storage layout unchanged; read-only snapshot query added), and `docs/architecture/testing/interop.md` (uses existing `test/interop/scenarios/` discovery and `pmacct` harness unchanged) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/bmp.md` external/attach examples updated to match reconciled behavior and forked parity |
+
+## Design presentation
+
+### What changes
+
+An operator can now attach `bgp-bmp` to an already-Established BGP peer via config reload, auto-load `bgp-bmp` on reload, or restart `bgp-bmp` without flapping any BGP session: `bgp-bmp` queries the BGP engine for each monitored Established peer's real OPEN PDUs (`show bgp peer open`, strictly scoped by the compiled `DeliveryGraph`) and pages `bgp-rib` for its Adj-RIB-In and post-policy Adj-RIB-Out (`request bgp rib peer-snapshot`), then announces Peer Up, Route Monitoring, and End-of-RIB to every connected collector. At the same time, per Thomas's 2026-11-24 DQ-3 ruling, running `bgp-bmp` as a forked external process now has full parity with running it in-process across BGP peer monitoring, pre-policy/post-policy Adj-RIB-Out, Route Mirroring, Loc-RIB monitoring (RFC 9069), the BMP receiver, and daemon report-bus diagnostics (`issuequeue`).
+
+### Before and after
+
+1. **Reload attaching `bgp-bmp` to an Established peer**:
+   - Before: Reload either bounces the BGP session (`gainedOpen` / `feedCatchUpImpossible`) or delivers `ReasonAttached` which `recordPeerUp` silently drops on `openCache` miss; the collector receives no Peer Up and no Adj-RIB dump until the BGP session reconnects.
+   - After: `SelfReconcilesOnAttach` keeps the BGP session Established with zero flaps; `bgp-bmp` queries `show bgp peer open` and `request bgp rib peer-snapshot`, and the collector receives Peer Up (with the peer's real sent and received OPEN PDUs), Route Monitoring for the peer's routes, and End-of-RIB per family.
+2. **Restarting `bgp-bmp` while BGP peers are Established**:
+   - Before: `bgp-bmp` restarts with empty `openCache` and `peerUps`; collectors receive Initiation and nothing else until peers reconnect.
+   - After: `OnAllPluginsReady` triggers full reconciliation of all monitored Established peers; collectors receive Initiation, Peer Up, Route Monitoring, and End-of-RIB for every monitored Established peer with zero BGP reconnects.
+3. **Running `bgp-bmp` as a forked external process (`external { run ... }`)**:
+   - Before: BGP events hit the SDK's default no-op handler and are silently dropped (collector sees zero Peer Up / Route Monitoring); `loc-rib true` refuses startup with `bgp-bmp Loc-RIB monitoring cannot run because the BGP RIB event bus is unavailable in this process`; collector write errors in `bmp_locrib.go` never reach the daemon report bus.
+   - After: Forked `bgp-bmp` decodes enveloped `bgp:*` and `bgp-rib:*` events over `OnEvent`, emits `bgp-rib:replay-request` via `sdk.Plugin.EmitEvent`, reports write failures via `issuequeue` (`sdk.Plugin.RaiseIssue`), and produces byte-equivalent BMP output to in-process `bgp-bmp`.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Have the BGP reactor replay past OPENs and UPDATEs to late subscribers | Violates `ai/doors/bgp-plugins.md` ("A subscription delivers future events only. A late subscriber queries and reconciles. There is no replay.") and duplicates RIB state inside the engine |
+| Hardcode `"bgp-bmp"` in `peer_derived_bindings.go` to skip session bounce on reload | Violates `ai/META-DECISIONS.md` and `ai/doors/bgp-engine.md` (engine must never name a specific plugin; registration flag `SelfReconcilesOnAttach` solves it cleanly for both compiled-in and external plugins) |
+| Query `bgp-adj-rib-in` instead of `bgp-rib` for per-peer route snapshots | `bgp-adj-rib-in` has no `ConfigRoots` and only auto-loads when `bgp-rs` or `bgp-rr` is configured, and does not store Adj-RIB-Out; `bgp-rib` auto-loads on `bgp {}` and holds both `bgpPeers` (Adj-RIB-In) and `ribOut` (post-policy Adj-RIB-Out) |
+| Refuse external/forked start of `bgp-bmp` via `!p.IsInternal()` | Set aside by owner decision DQ-3 (2026-11-24): support forked `bgp-bmp` over the RPC/event rail |
+| Keep dual Loc-RIB transport (`getEventBus().Subscribe` in-process + `OnEvent` forked) | Creates two code paths and risks double-delivery when `bmpBusReceives()` declares `bgp-rib:best-change`; Stage 1 `Receives` + `OnEvent` + `sdk.Plugin.EmitEvent` gives one unified path across both transports |
+
+### Documents departed from
+
+- `docs/guide/bmp.md` — Section `Sender`: currently instructs "Enable BMP before establishing that BGP session, because replay depends on observing the OPEN exchange and subsequent updates. Widening BMP monitoring to an already established peer requires that BGP peer to reconnect before it can be monitored." and documents external `bgp-bmp` Loc-RIB as unsupported. After this work, the page documents that late-attached, reload-auto-loaded, and restarted `bgp-bmp` reconciles Established peers' real OPEN PDUs and Adj-RIB-In / post-policy Adj-RIB-Out without bouncing BGP sessions, and that forked `bgp-bmp` supports all sender (including Loc-RIB) and receiver features over the RPC/event rail.
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-Not designed (skeleton).
+1. **Phase: Wiring (MANDATORY FIRST)** -- register `SelfReconcilesOnAttach` (`registry.Registration`, `rpc.DeclareRegistrationInput`, Stage 1), register `show bgp peer open` (`cmd/peer`, YANG) and `request bgp rib peer-snapshot` (`rib`, `ribevents`), declare updated `bmpBusSends()` / `bmpBusReceives()`, wire `issuequeue.Start(p)`, `SetEnvelope(true)`, `OnEvent`, and `OnAllPluginsReady` skeletons in `bmp.go`, and add failing wiring tests.
+   - Tests: `TestSelfReconcilesOnAttachAvoidsPeerBounce`, `TestShowBgpPeerOpenBusScoped`, `TestRIBPeerSnapshotPaginationAndBothDirections`, `TestLateAttachReconcilesEstablishedPeerWithoutBounce`, `TestAllPluginsReadyReconcilesEstablishedPeers`, `TestForkedBMPJSONEventParity`
+   - Files: `registry.go`, `pkg/plugin/rpc/types.go`, `handshake_stage1.go`, `ribevents/peer_snapshot.go`, `cmd/peer/{peer.go,open.go,yang/ze-peer-cmd.yang}`, `ze-bgp-api.yang`, `rib/{rib_commands.go,register.go,rib_peer_snapshot.go}`, `bmp/{bmp.go,register.go,bmp_reconcile.go,bmp_json_events.go}`
+   - Verify: all entry points compile and are reachable; wiring tests fail on stub behavior.
+2. **Phase: Engine OPEN capture, `show bgp peer open`, and `SelfReconcilesOnAttach`** -- clone sent/received OPEN bodies in `Session`, expose `Peer.OpenSnapshot`, implement bus-scoped `handleBgpPeerOpen`, and honor `SelfReconcilesOnAttach` for receive-only endpoints in `peer_derived_bindings.go`.
+   - Tests: `TestSessionCapturesRealOpenBodies`, `TestShowBgpPeerOpenBusScoped`, `TestSelfReconcilesOnAttachAvoidsPeerBounce`
+   - Files: `session.go`, `session_negotiate.go`, `session_handlers.go`, `peer.go`, `reactor_api.go`, `peer_derived_bindings.go`, `cmd/peer/open.go`
+   - Verify: tests pass under `-race -tags ze_bgp`.
+3. **Phase: `bgp-rib` paged peer snapshot (`request bgp rib peer-snapshot`)** -- implement deterministic `in` (Adj-RIB-In via `IterateFamilyWire` + `reconstructWireAttrs`) and `out` (post-policy Adj-RIB-Out via `pool.RibOut`) pagination bounded by `ribevents.ReplayPageBudget`.
+   - Tests: `TestRIBPeerSnapshotPaginationAndBothDirections`
+   - Files: `ribevents/peer_snapshot.go`, `rib/{rib_peer_snapshot.go,rib_mrt.go,rib_commands.go,register.go}`
+   - Verify: tests pass under `-race -tags ze_bgp`.
+4. **Phase: `bgp-bmp` single-worker reconciler (D1)** -- implement `bmp_reconcile.go` triggered by `OnAllPluginsReady` and `openCache` miss on `SessionStateUp`, with lock-free RPCs, per-peer live-update buffering, `lastDownGeneration` guard, and `bmp_replay.go` snapshot installation.
+   - Tests: `TestLateAttachReconcilesEstablishedPeerWithoutBounce`, `TestAllPluginsReadyReconcilesEstablishedPeers`, `TestReconcileConcurrentWithdrawalAndPeerDownOrdering`, `TestReconcilePeerWithUnavailableRIBStillAnnouncesPeerUp`
+   - Files: `bmp/{bmp.go,bmp_events.go,bmp_replay.go,bmp_reconcile.go}`
+   - Verify: unit tests pass under `-race -tags ze_bgp,ze_bmp`.
+5. **Phase: JSON format additions + Forked `bgp-bmp` + Loc-RIB & `issuequeue` parity (D2)** -- add optional `local-port`, `remote-port`, `fsm-event` to `appendStateChangeJSON` and `update-pre-policy-out` / `pre-policy-next-hop-unknown` to `AppendSentMessage`/`appendFullFromResult`; implement `bmp_json_events.go`; move `bmp_locrib.go` onto Stage 1 `Receives` + `sdk.Plugin.EmitEvent` + `issuequeue.Queue`; retire `ConfigureEventBus` and `locrib_runtime.go` (obtaining `ze-test-judge` approval for replacing `locrib_runtime_config_test.go` and `bmp-locrib-external-refuses.ci`).
+   - Tests: `TestFormatStateJSONPortsAndFSMEvent`, `TestForkedBMPJSONEventParity`, `TestForkedLocRIBAndIssueQueueParity`
+   - Files: `format/{text_json.go,text_update.go}`, `bmp/{bmp.go,register.go,bmp_json_events.go,bmp_locrib.go,locrib_runtime.go}`
+   - Verify: scoped unit tests pass under `-race -tags ze_bgp,ze_bmp` and `./le plugin boundary check`, `./le plugin declarations check`, `./le arch tier check`, `./le doc yang-contract command-contract` pass.
+6. **Phase: Functional `.ci`, `pmacct` interop, and documentation** -- author and prove `test/reload/bmp-late-attach-and-restart.ci`, `test/plugin/bmp-sender-external.ci`, `test/plugin/bmp-locrib-external.ci`, and `test/interop/scenarios/bmp-late-attach-pmacct/` (with red-then-green discrimination against `pmacct`); update all docs listed in Documentation Update Checklist and `rfc/short/rfc7854.md`.
+   - Tests: `./le test functional reload`, `./le test functional plugin`, `./le test integration interop scenario bmp-late-attach-pmacct`, `./le doc check all`, `./le rfc check`
+   - Files: `test/reload/bmp-late-attach-and-restart.ci`, `test/plugin/{bmp-sender-external.ci,bmp-locrib-external.ci}`, `test/interop/scenarios/bmp-late-attach-pmacct/*`, `internal/le/interoplab/bgp/{names.go,checkers.go,check_extras.go}`, `docs/*`, `rfc/short/rfc7854.md`
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- [design round]
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-1..AC-7 has an implementation and test at file:line |
+| Feature completeness | Every End-to-End User Story has a passing unit + `.ci` (and `pmacct` interop for AC-1/AC-7) |
+| Correctness | Lock order strictly `eventMu -> writeMu -> mu` with ZERO RPCs under any lock; `lastDownGeneration` prevents phantom Peer Up after peer down; buffered live updates override stale snapshot entries |
+| Naming | JSON keys kebab-case (`local-port`, `remote-port`, `fsm-event`, `update-pre-policy-out`, `pre-policy-next-hop-unknown`, `self-reconciles-on-attach`, `sent-open`, `received-open`); YANG and Go constants aligned |
+| Data flow | `reactor/` never names `"bgp-bmp"`; `bmp/` never imports `reactor/`, `rib/`, or `internal/core/report` |
+| Operator errors and doctor codes | All invalid CLI/RPC arguments return `opererr` with exact fix on last line; `bmp_locrib.go` and reconciler failures raise `diagnostic.CodeDoctorRecentEvents` via `issuequeue.Queue` (`sdk.Plugin.RaiseIssue`), never direct `report.RaiseError` |
+| Rule: `ai/rules/plugins.md` & `ai/doors/plugin-infra.md` | `bmpBusSends()` and `bmpBusReceives()` shared identically between `register.go` and `bmp.go` Stage 1; `./le plugin declarations check` and `./le plugin boundary check` green |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| `Session` real OPEN wire capture + `show bgp peer open` bus-scoped command | `./le job run label bgp-open command go test -race -tags ze_bgp ./internal/component/bgp/reactor/... ./internal/component/bgp/plugins/cmd/peer/...` |
+| `request bgp rib peer-snapshot` paged Adj-RIB-In + Adj-RIB-Out query | `./le job run label bgp-rib-snap command go test -race -tags ze_bgp ./internal/component/bgp/plugins/rib/... ./internal/core/bgp/ribevents/...` |
+| `bgp-bmp` late-attach/restart reconciler + forked JSON/Loc-RIB/`issuequeue` parity | `./le job run label bmp command go test -race -tags ze_bgp,ze_bmp ./internal/component/bgp/plugins/bmp/... ./internal/component/bgp/format/...` |
+| Plugin boundary, declarations, YANG contract, tier, and doc checks | `./le plugin boundary check`, `./le plugin declarations check`, `./le arch tier check`, `./le doc yang-contract command-contract`, `./le doc check all`, `./le rfc check` |
+| End-to-end functional tests (reload attach, restart, forked sender/receiver/Loc-RIB) | `./le test functional reload` (`bmp-late-attach-and-restart`), `./le test functional plugin` (`bmp-sender-external`, `bmp-locrib-external`, `bmp-locrib`) |
+| `pmacct` interop scenario proving AC-1 / AC-7 | `./le test integration interop scenario bmp-late-attach-pmacct` |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Bus authorization on `show bgp peer open` | Plugin callers MUST be filtered by `DeliveryGraph` `bgp:state` grants so a restricted plugin cannot read OPEN PDUs or peer details of ungranted BGP peers; missing/zero `ctx.Sender` fails closed |
+| Untrusted JSON / hex inputs on forked rail & snapshot responses | Validate hex decoding, port bounds (`0..65535`), `fsm-event` bounds (`0..65535`), and BGP header length before building PDUs; reject malformed inputs without panicking |
+| Resource exhaustion during reconciliation | Enforce `ribevents.ReplayPageBudget` per page, cursor stall guard (`LastIndex <= cursor`), bounded pending-update buffer per reconciling peer, and existing `adjReplayBytesMax` (512 MiB) / `adjReplayRoutesMax` (2,000,000) ceilings; cancel in-flight RPCs on `bp.stopCh` |
+| Process-boundary isolation | Zero direct `internal/core/report` calls in `bgp-bmp`; all raises go through `issuequeue.Queue` -> `sdk.Plugin.RaiseIssue` |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood -> RESEARCH |
+| Lint failure | Fix inline. If architectural -> DESIGN |
+| Functional test fails | Check the AC: wrong AC -> DESIGN, correct AC -> IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- Retaining raw OPEN wire bodies once at `Session.sendOpen` / `Session.admitOpen` avoids reconstructing or fabricating OPEN messages and preserves unknown/optional capabilities verbatim for RFC 7854 Section 4.10.
+- Moving Loc-RIB onto Stage 1 `Receives` (`bgp-rib:best-change`, `bgp-rib:replay-complete`) + enveloped `OnEvent` + `sdk.Plugin.EmitEvent` eliminates the entire in-process `ConfigureEventBus` / `locrib_runtime.go` special case rather than adding a second forked code path.
 
 ## Owned journal rows
 
@@ -237,13 +613,27 @@ Not designed (skeleton).
 | `announced-state-never-replayed.md` | 2026-11-11 | bmp `recordPeerUp` on the attached up: a peer Established before bgp-bmp saw its OPENs is never announced |
 | `silent-fall-through.md` | 2026-11-11 | bgp-bmp run forked receives no event and sends nothing, with no refusal |
 
+## Key Design Decisions
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Query `show bgp peer open` + `request bgp rib peer-snapshot` on `OnAllPluginsReady` and `openCache` miss | Engine-side event replay to late subscribers | Honors `ai/doors/bgp-plugins.md` ("A late subscriber queries and reconciles. There is no replay"), matches FRR and BIRD, and works identically internal and forked |
+| Generic `SelfReconcilesOnAttach` registration flag (compiled + Stage 1) | Naming `"bgp-bmp"` in `peer_derived_bindings.go`, or letting reload bounce BGP peers | Honors `ai/META-DECISIONS.md` (registration over hardcoding), prevents BGP session flaps when attaching BMP on reload, and preserves existing restart guarantees for non-reconciling plugins |
+| Support forked `bgp-bmp` over enveloped `OnEvent` + `EmitEvent` + `issuequeue` | Refuse external start via `!p.IsInternal()` | Implements owner decision DQ-3 (2026-11-24) and eliminates in-process-only Loc-RIB and report-bus code paths |
+| Carry `local-port`, `remote-port`, `fsm-event` on `appendStateChangeJSON` rather than `appendPeerJSON` | Putting ports on every UPDATE's `peer` block | Avoids enlarging every high-rate JSON UPDATE payload while giving state-up/state-down full parity with `rpc.StructuredEvent` |
+
 ## Known Limitations
 
-- None agreed. `docs/guide/bmp.md` describes D1 as an operator instruction; it is owed work, not a limit.
+- **Pre-policy Adj-RIB-Out routes advertised prior to late attach or plugin restart (`adj-rib-out-pre-policy true`, RFC 8671)**: Ze computes pre-policy outbound candidates transiently during egress policy evaluation (`internal/component/bgp/reactor/pre_policy_adj_out.go`) and retains no persistent pre-policy Adj-RIB-Out table in the reactor or `bgp-rib`. Late attach and restart therefore reconcile Adj-RIB-In and post-policy Adj-RIB-Out from `bgp-rib`, while pre-policy Adj-RIB-Out streams live updates from the point of attachment onward. If pre-policy Adj-RIB-Out backfill on late attach is ever needed, it belongs in a dedicated post-release spec adding pre-policy outbound retention.
+- **Wire receipt timestamps on forked JSON UPDATE events**: `ze-bgp` JSON UPDATE events do not currently serialize a nanosecond receipt timestamp, so forked `bgp-bmp` leaves the BMP per-peer header timestamp zero (explicitly permitted by RFC 7854 Section 4.2: "If zero, the time is unavailable").
 
 ## RFC Documentation (Scope: protocol)
 
-Add the quoted sentence above the code that performs it, each under the section it comes from: `// RFC 7854 Section 3.1: "<quoted sentence>"` above the Peer Up for a peer already Established when the BMP session comes up, and `// RFC 7854 Section 3.3: "<quoted sentence>"` above the Peer Up, the Adj-RIBs-In dump and the End-of-RIB of the session lifecycle.
+Add `// RFC 7854 Section 3.1: "<quoted sentence>"` above the Peer Up reconciliation for a peer already Established when the BMP session comes up, `// RFC 7854 Section 3.3: "<quoted sentence>"` above the Peer Up, Adj-RIBs-In dump, and End-of-RIB reconciliation steps, and `// RFC 7854 Section 4.10: "<quoted sentence>"` above `Session` OPEN body capture and `handleBgpPeerOpen`.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| RFC 7854 Sections 3.1, 3.3, 4.10, 5 | Default BMP sender (`route-monitoring-policy pre-policy`) sends Peer Up (carrying both real BGP OPEN PDUs), Adj-RIB-In Route Monitoring, and End-of-RIB per family for every monitored Established peer, including after late attach or `bgp-bmp` restart, both in-process and forked | `route-monitoring-policy post-policy` / `all`, `adj-rib-out-pre-policy true`, `route-mirroring true`, `loc-rib true`, `statistics-timeout`, narrowed `bus` peer filters | `TestLateAttachReconcilesEstablishedPeerWithoutBounce`, `TestAllPluginsReadyReconcilesEstablishedPeers`, `test/reload/bmp-late-attach-and-restart.ci`, `bmp-late-attach-pmacct` | `TestForkedBMPJSONEventParity`, `TestForkedLocRIBAndIssueQueueParity`, `test/plugin/bmp-sender-external.ci`, `test/plugin/bmp-locrib-external.ci`, `TestShowBgpPeerOpenBusScoped` |
 
 ## Checklist
 
@@ -261,10 +651,10 @@ Add the quoted sentence above the code that performs it, each under the section 
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated
+- [ ] AC-1..AC-7 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, run in the main checkout: the scoped package test (`./le job run label bmp command go test -tags ze_bgp,ze_bmp ./internal/component/bgp/plugins/bmp/...`), then `./le test functional plugin` and `./le test functional reload` for the tests this spec adds. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests (`./le job run label bmp command go test -race -tags ze_bgp,ze_bmp ./internal/component/bgp/plugins/bmp/... ./internal/component/bgp/plugins/rib/... ./internal/component/bgp/plugins/cmd/peer/... ./internal/component/bgp/reactor/... ./internal/component/bgp/format/... ./internal/component/plugin/... ./pkg/plugin/... ./internal/core/bgp/ribevents/...`), then `./le test functional plugin`, `./le test functional reload`, `./le test functional exabgp`, and `./le test integration interop scenario bmp-late-attach-pmacct`. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -276,13 +666,17 @@ Add the quoted sentence above the code that performs it, each under the section 
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Boundary tests for all numeric inputs
 - [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [ ] Interop tests for protocol features (`bmp-late-attach-pmacct`)
 
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded in this spec's Review Gate
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
-- [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+- [ ] **Commit B:** `remove plan/release/fixes/spec-bmp-late-attach-and-forked.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Review Gate
+
+Recorded during `/ze-close` after implementation and review.

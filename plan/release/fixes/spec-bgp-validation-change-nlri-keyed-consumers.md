@@ -2,183 +2,532 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Priority | P1 |
-| Release reason | A validation or eligibility change to a route of an NLRI-keyed family (VPN, labeled unicast) never re-runs selection in any consumer, so a route that became ineligible keeps being selected and advertised |
+| Status | design |
 | Scope | protocol |
+| Priority | P1 |
+| Release reason | A validation or eligibility change to a route of an NLRI-keyed or labeled-unicast family (VPN, labeled unicast, EVPN, MVPN, MUP, RTC, VPLS, BGP-LS) never re-runs selection or reconciliation in any consumer, so a route that became ineligible keeps being selected and advertised |
+| RFC gaps | - |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-29 |
+| Updated | 2026-11-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Found while fixing bgp-adj-rib-in's validation-change keys for the RFC 8212
-spec (`spec-bgp-rfc8212-ebgp-default-reject.md`, Phase 3). bgp-adj-rib-in now
-emits a `ValidationChange` key that carries the native NLRI for a route of a
-family keyed by its NLRI, and `validationRouteKey` resolves it to the stored
-route. Every consumer still drops such a key:
+Found while fixing `bgp-adj-rib-in`'s validation-change keys for RFC 8212 (`spec-bgp-rfc8212-ebgp-default-reject.md`, Phase 3). `bgp-adj-rib-in` already emits `ribevents.ValidationChange` carrying `ValidationRoute.Prefix` for simple-prefix and CIDR-keyed labeled families (`nlrisplit.KeysByCIDR`) and `ValidationRoute.NLRI` (the native wire NLRI without ADD-PATH) for every NLRI-keyed family (`VPN-IPv4`, `VPN-IPv6`, `EVPN`, `MVPN`, `MUP`, `RTC`, `VPLS`, `BGP-LS`), and `validationRouteKey` already resolves every one of those forms to its stored route. Every downstream consumer and the relay gate still drop or ignore non-simple-prefix routes:
 
-- bgp-rib `rib_validation.go::validationChanged` skips a key whose `Prefix` is
-  invalid.
-- bgp-rr `validation.go::replayValidation` skips it unless the family is
-  FlowSpec.
-- bgp-rs `server_validation.go` calls `replay-path` with `Prefix.String()`.
-- bgp-adj-rib-in `rib_replay_path.go` refuses every family that is not a simple
-  prefix.
+1. `bgp-rib` (`internal/component/bgp/plugins/rib/rib_validation.go`): `validationChanged` skips any key whose `Prefix` is invalid, so NLRI-keyed routes never re-run best-path selection; `validationEligible` returns `true` unconditionally whenever `!storage.IsCIDRFamily(fam)`, so `gatherKeyCandidatesForLocked` (`rib_commands.go`) never excludes validation-ineligible non-CIDR candidates (and does not batch through `candidateGate`); `replaySourceRefused` skips every `ribOutKey` whose `Prefix` is invalid (which includes both labeled unicast and every non-CIDR family).
+2. `bgp-rib` (`internal/component/bgp/plugins/rib/rib_bestchange.go` and `rib_flowspec_validation.go`): `collectBestPaths` skips `RouteEligibleBatch` for non-CIDR opaque shard entries, so late best-path replay can advertise ineligible VPN/EVPN routes; `reconcileFlowSpecs` only queries `RouteEligibleBatch` for `storage.IsCIDRFamily(fam)`, skipping `SAFIVPN` unicast routes even though `validationChanged` triggers `reconcileFlowSpecs` on `SAFIVPN` changes.
+3. `bgp-rr` (`internal/component/bgp/plugins/rr/validation.go`, `stored_admission.go`, `stored_membership.go`): `replayValidation` drops every non-FlowSpec key whose `Prefix` is invalid; `admitStoredRoute` and `fillValidationReceipt` match only exact `NativeHex` (the announced label stack) via `lookupNativeLocked`, so RFC 8277 Section 2.4 compatibility-framed withdrawals (`0x800000`) for VPN or labeled-unicast routes fail to match the announced inventory entry and are dropped.
+4. `bgp-rs` (`internal/component/bgp/plugins/rs/server_validation.go`): `replayValidation` passes `route.Prefix.String()` (`"invalid Prefix"`) to `ribevents.RelayReplayPath` for NLRI-keyed families instead of encoding the native NLRI.
+5. `bgp-adj-rib-in` (`internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go`) and `ribevents` (`internal/core/bgp/ribevents/replay.go`): `replayPathCommand` refuses every family that fails `isSimplePrefixFamily(fam)` (refusing both labeled unicast and every NLRI-keyed family), parses argument 4 only via `netip.ParsePrefix`, and builds explicit withdrawals with bare `prefixToWireHex` or announcement-framed `stored.NLRIHex` instead of RFC 8277 Section 2.4 Compatibility framing (`0x800000` via `nlrisplit.WithdrawalNLRIFromKey`) and omits `MsgID` on policy-denied withdrawals.
+6. `reactor` (`internal/component/bgp/reactor/forward_validation.go`): `validationSelection.section` and `validationRetainsPath` switch only on the four simple-prefix families (plus FlowSpec), passing labeled-unicast and NLRI-keyed families through unvalidated (so a retained ineligible route relayed by `bgp-rr` or `bgp-rs` is re-announced instead of converted into an `MP_UNREACH_NLRI` withdrawal, and cache eviction drops ADD-PATH retention for those families), and `forwardValidationWire` writes `mpDenied` directly to `MP_UNREACH_NLRI` without converting labeled/VPN announcements to RFC 8277 Section 2.4 withdrawal framing through `nlrisplit.GetWithdrawalWriter`.
 
-To be designed: each consumer resolves an NLRI-keyed key through the producer's
-key form and re-runs selection for that route, and `replay-path` accepts the
-native NLRI form. The JSON ingest path that keys VPN on its prefix string is
-`plan/journal/declared-format-contradicts-payload.md`'s open row and is not this
-spec's.
+Goal: every validation-change consumer (`bgp-rib`, `bgp-rr`, `bgp-rs`), `replay-path` (`bgp-adj-rib-in` / `ribevents`), and the reactor's forward validation gate (`reactor/forward_validation.go`) resolve both CIDR-keyed (simple prefix and labeled unicast) and NLRI-keyed families through the producer's key form and `nlrisplit` registries, re-run selection and reconciliation on both in-process and forked plugin transports, and emit conformant RFC 8277 Section 2.4 withdrawals for denied or removed labeled and VPN routes. The separate JSON-ingest keying defect in `bgp-adj-rib-in` (`plan/journal/declared-format-contradicts-payload.md`, 2026-10-20 row) is outside this spec.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/plugin/rib-storage-design.md` - ValidationChange section, key forms
-  → Constraint: to be filled at design
+- [ ] `docs/architecture/plugin/rib-storage-design.md` - ValidationChange key forms, `replay-path`, `candidateGate` batching, `Source-policy lifecycle owners`, and Adj-RIB-Out native inventory
+  → Decision: `ValidationRoute` carries `Prefix` for CIDR-keyed families and `NLRI` (native wire bytes without ADD-PATH) for NLRI-keyed families; `bgp-rib` batches remote-gate queries per selection/family via `RouteEligibleBatch`
+  → Constraint: every consumer must work identically when `bgp-adj-rib-in`, `bgp-rib`, `bgp-rr`, or `bgp-rs` runs forked across the process boundary; no store lock may cross bus or RPC I/O
+- [ ] `docs/architecture/bgp/structural-forwarding.md` - validation-triggered reflection, route-server validation workers, reactor `forwardValidationWire`, and ADD-PATH retention
+  → Decision: `bgp-rr` and `bgp-rs` read the path's current state via `replay-path` and relay it under their own `send [ update ]` grant through `RelayStoredRoute`, which passes through `forwardValidationWire`
+  → Constraint: FlowSpec authorization remains owned by `bgp-rib` (`flowSpecSection`, `LookupFlowSpecPath`) and must not route through `replay-path`; live forwards of FlowSpec remain suppressed in `flowSpecSection`
+- [ ] `docs/architecture/api/process-protocol.md` - `replay-path` argument contract, `StoredRoute` provenance (`source-owner`, `source-receipt`, `source-connection-id`), and lossless event delivery
+  → Decision: `replay-path` carries the immutable `peer-owner` and `connection-id` from `ValidationRoute` and returns a single-route `ReplayPage` carrying `NLRIFramingPrefixOnly`
+  → Constraint: `replay-path` never substitutes a sibling owner or newer connection when the original path is absent; every engine/plugin operation retains its declared `Sends`/`Receives` registrations
+- [ ] `docs/architecture/api/architecture.md` - owner-relayed `replay-path` and bus participant grants
+  → Decision: `bgp-adj-rib-in` answers `replay-path` without relaying; `bgp-rr` and `bgp-rs` relay under their own compiled bus filter permissions
+  → Constraint: no new bus message name or cross-plugin privilege is introduced
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc4364.md` - VPN-IPv4 route identity
-  → Constraint: to be filled at design
+- [ ] `rfc/short/rfc4364.md` - VPN-IPv4 route identity (8-octet RD + prefix; two RDs with the same IPv4 prefix are distinct routes)
+  → Constraint: VPN route identity must preserve the opaque 8-octet Route Distinguisher so validation changes to one RD never affect another RD sharing the IPv4/IPv6 prefix
+- [ ] `rfc/short/rfc8277.md` - Section 2.4 withdrawal Compatibility field (`0x800000` on transmission, ignored on reception) and Section 3.1 label-independent route comparability
+  → Constraint: denied or absent labeled-unicast (SAFI 4) and VPN (SAFI 128) routes converted to `MP_UNREACH_NLRI` must carry RFC 8277 Section 2.4 Compatibility framing (`0x800000`, `Length = 24 + remaining_bits`) via `nlrisplit.WithdrawalNLRIFromKey` / `nlrisplit.GetWithdrawalWriter`, and withdrawal reception/lookup must ignore any received Compatibility value
+- [ ] `rfc/short/rfc8212.md` - Section 3 default EBGP import rejection across all enabled address families
+  → Constraint: an RFC 8212 import-policy denial or abort on an EBGP session must re-evaluate and withdraw/restore VPN and labeled-unicast routes as well as unicast routes
+- [ ] `rfc/short/draft-ietf-sidrops-aspa-verification.md` - Section 5.7 retained ineligible paths in Adj-RIB-In for future re-evaluation
+  → Constraint: retained ineligible paths remain stored in `bgp-adj-rib-in` and are converted to withdrawals at the reactor forward gate while keeping regenerated ADD-PATH identifiers through `RoutePresent`
+
+**Key insights:**
+- `nlrisplit` already centralizes every family's route-identity (`GetPrefixKey`, `KeysByCIDR`, `RouteCIDR`), withdrawal splitter (`GetWithdraw`), and RFC 8277 Section 2.4 withdrawal conversion (`CarriesCompatibility`, `GetWithdrawalWriter`, `WithdrawalNLRIFromKey`). No family switch table is needed in any consumer.
+- Fixing only `bgp-rib::validationChanged`, `rr::replayValidation`, `rs::replayValidation`, and `adj_rib_in::replayPathCommand` would still fail end-to-end because `rib::validationEligible` returns `true` for all `!IsCIDRFamily` families, `rr::admitStoredRoute` drops compatibility-framed withdrawals via exact `NativeHex` mismatch, and `reactor::forward_validation.go` passes labeled and NLRI-keyed announcements through unvalidated and writes `mpDenied` without Compatibility framing.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go` - producer of NLRI-keyed keys; read at design
-- [ ] `internal/component/bgp/plugins/rib/rib_validation.go` - consumer; read at design
+- [ ] `internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go` - `validationRouteKey` already resolves simple-prefix, `KeysByCIDR`, and NLRI-keyed `ValidationRoute` values; `noteValidationChange` and `validationNLRILocked` already emit native wire `NLRI` for NLRI-keyed families and `Prefix` for CIDR-keyed families
+- [ ] `internal/component/bgp/plugins/adj_rib_in/compact_key.go` - `routeKeyFromNLRI` keys `KeysByCIDR` families by `Prefix` and all other complex families by interned `nlrisplit.GetPrefixKey` identity
+- [ ] `internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go` - `replayPathCommand` refuses `!isSimplePrefixFamily(fam)` (line 40), parses `args[3]` only as `netip.Prefix`, constructs absent withdrawals only via `prefixToWireHex`, and emits policy-denied withdrawals with announcement-framed `route.NLRIHex` and zero `MsgID`
+- [ ] `internal/core/bgp/ribevents/replay.go` - `ReplayPathCommand` and `RelayReplayPath` pass positional argument 4 as `prefix`
+- [ ] `internal/core/bgp/ribevents/validation.go` - `ValidationRoute` already carries `Prefix` and `NLRI` (hex-marshaled in `validationRouteJSON`), `RouteEligible`, `RouteEligibleBatch`, and `RoutePresent` already transport `NLRI` across both transports
+- [ ] `internal/core/bgp/nlri/nlrisplit/register.go` and `prefix_key.go` - registers splitters, `GetPrefixKey`, `KeysByCIDR`, `RouteCIDR`, `CarriesCompatibility`, `GetWithdrawalWriter`, and `WithdrawalNLRIFromKey` for every supported BGP family
+- [ ] `internal/component/bgp/plugins/rib/rib_validation.go` - `validationEligible` returns `true` for all `!storage.IsCIDRFamily(fam)` (line 27); `validationChanged` skips `!key.Prefix.IsValid()` (line 100); `replaySourceRefused` skips `!key.Prefix.IsValid()` (line 235)
+- [ ] `internal/component/bgp/plugins/rib/rib_commands.go` - `gatherPrefixCandidatesForLocked` batches eligibility via `candidateGate`, while `gatherKeyCandidatesForLocked` (line 1722) calls `validationEligible` one route at a time (which always returns `true` for non-CIDR)
+- [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go` - `checkRouteBestChange` already selects and publishes opaque non-CIDR routes via `routeIdentity` + `gatherKeyCandidatesLocked`; `collectBestPaths` (lines 1922-1938) discards `peerOwner`/`connectionID` and omits `dropIneligible` queries for opaque shards
+- [ ] `internal/component/bgp/plugins/rib/rib_flowspec_validation.go` - `reconcileFlowSpecs` (line 537) queries `RouteEligibleBatch` only when `storage.IsCIDRFamily(fam)`, skipping `SAFIVPN` unicast routes
+- [ ] `internal/component/bgp/plugins/rib/ribout_entry.go` - `ribOutRouteKeyForAction` stores plain CIDR in `key.Prefix` and stores labeled unicast and all non-CIDR families in `key.Native` with exact advertised bytes in `entry.NativeNLRI`
+- [ ] `internal/component/bgp/plugins/rr/validation.go` - `replayValidation` (line 156) skips `!key.Prefix.IsValid() && !ribevents.IsFlowSpec(key.Family)`; `fillValidationReceipt` (line 218) matches only exact `NativeHex`
+- [ ] `internal/component/bgp/plugins/rr/stored_admission.go` and `stored_membership.go` - `storedInventory` already parses announcements and withdrawals for every `nlrisplit` family using `GetWithdraw` and `GetPrefixKey`, but `storedMemberLocked` checks only `lookupNativeLocked(..., route.NLRIHex, false)` instead of matching the semantic `withdrawalKey`, rejecting compatibility-framed VPN/labeled withdrawals
+- [ ] `internal/component/bgp/plugins/rs/server_validation.go` - `replayValidation` (line 77) unconditionally passes `route.Prefix.String()` to `RelayReplayPath`
+- [ ] `internal/component/bgp/reactor/forward_validation.go` - `validationSelection.section` (line 266) and `validationRetainsPath` (line 705) handle only the four simple-prefix families and FlowSpec; `forwardValidationWire` (line 225) puts `mpDenied` into `MP_UNREACH_NLRI` without running `nlrisplit.GetWithdrawalWriter`
+- [ ] `internal/component/bgp/reactor/reactor_api_relay.go` and `relay_retire_original.go` - `buildRelayWithdrawal` writes `route.NLRIHex` straight into `MP_UNREACH_NLRI`; `retireOriginalStoredRoute` requires `route.MsgID != 0` and parses `route.NLRIHex` with `withdraw = true` (`fwdPathKeyFor`)
 
 **Behavior to preserve:**
-- Simple-prefix keys and their consumers behave as today
+- Simple-prefix families (`IPv4Unicast`, `IPv4Multicast`, `IPv6Unicast`, `IPv6Multicast`) keep their exact existing `ValidationRoute.Prefix` key form, allocation-free fast path in `reactor/forward_validation.go` and `rib/rib_validation.go`, and 7-argument `replay-path` wire shape.
+- FlowSpec families (`IPv4/FlowSpec`, `IPv6/FlowSpec`, `IPv4/FlowSpec-VPN`, `IPv6/FlowSpec-VPN`) remain owned by `bgp-rib` (`flowSpecLookup`, `flowSpecSection`, `LookupFlowSpecPath`, `parkValidation`) and never route through `bgp-adj-rib-in`'s `replay-path` or recurse inside `bgp-rib::validationChanged`.
+- When receive validation is disabled (`!ribevents.ValidationEnabled()`), non-FlowSpec announcements and explicit withdrawals pass through `forwardValidationWire` unchanged.
+- Original-source provenance (`PeerOwner`, `ConnectionID`, `SourceReceipt`, `SourcePolicyEpoch`, `MsgID`) is preserved without address-based fallback.
+- `bgp-adj-rib-in` continues to answer `replay-path` without relaying, and `bgp-rr` / `bgp-rs` continue to relay under their own compiled bus send grants.
 
 **Behavior to change:**
-- A validation or eligibility change to an NLRI-keyed route re-runs selection in every consumer
+- `bgp-rib::validationChanged` re-runs `checkBestPathChange` for NLRI-keyed non-FlowSpec keys using `[]byte(key.NLRI)` with `addPath=false` and publishes best-path changes when the winner changes or disappears.
+- `bgp-rib::gatherKeyCandidatesForLocked` batches non-FlowSpec receive-gate checks through `candidateGate` (`RouteEligibleBatch`) carrying `NLRI: path.Route`, and `validationEligible` evaluates non-CIDR families against `RouteEligible` instead of returning `true`.
+- `bgp-rib::collectBestPaths`, `bgp-rib::replaySourceRefused`, and `bgp-rib::reconcileFlowSpecs` include labeled-unicast and NLRI-keyed routes in their batched `RouteEligibleBatch` queries.
+- `ribevents.ValidationRoute.ReplayPathKey()` formats CIDR-keyed routes as `Prefix.String()` and NLRI-keyed routes as lowercase hex of `NLRI`; `bgp-rr::replayValidation` and `bgp-rs::replayValidation` pass that key to `RelayReplayPath`, and `bgp-rr` resolves compatibility-framed withdrawals against its inventory by semantic `withdrawalKey`.
+- `bgp-adj-rib-in::replayPathCommand` accepts every non-FlowSpec family supported by `nlrisplit`, resolves CIDR-keyed families via `netip.ParsePrefix` and NLRI-keyed families via hex decoding + `validationRouteKey`, emits explicit withdrawals (absent and policy-denied) in RFC 8277 Section 2.4 withdrawal framing when `nlrisplit.CarriesCompatibility(fam)` holds, and preserves `MsgID` on policy-denied withdrawals.
+- `reactor/forward_validation.go` validates `KeysByCIDR` and non-FlowSpec `nlrisplit.Supported` families in `validationSelection.section` and `validationRetainsPath`, normalizes compatibility-framed withdrawal NLRIs for `validationRouteKey`, and converts `mpDenied` in place via `nlrisplit.GetWithdrawalWriter` before building `MP_UNREACH_NLRI`.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| `nlrisplit` family key, withdrawal splitter, and RFC 8277 Compatibility writer | `internal/core/bgp/nlri/nlrisplit/prefix_key.go` (`GetPrefixKey`, `KeysByCIDR`, `RouteCIDR`, `GetWithdraw`, `CarriesCompatibility`, `GetWithdrawalWriter`, `WithdrawalNLRIFromKey`) | Single registration table for per-family NLRI splitting, semantic route identity, and RFC 8277 Section 2.4 `0x800000` withdrawal framing | Extends all validation-change consumers, `replay-path`, and `forward_validation.go` to dispatch through these existing `nlrisplit` functions instead of hardcoding simple-prefix switches |
+| `adj-rib-in` validation key resolver and producer | `internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go` (`validationRouteKey`, `noteValidationChange`, `validationNLRILocked`) | Already emits `ValidationRoute.Prefix` for simple-prefix and `KeysByCIDR` families and native `ValidationRoute.NLRI` for NLRI-keyed families, and decodes both in `routeEligible`/`routePresent` | Extends `replayPathCommand` to resolve keys through the same `validationRouteKey` function rather than duplicating family logic |
+| `ValidationRoute` JSON codec and batched remote gate | `internal/core/bgp/ribevents/validation.go` (`ValidationRoute`, `RouteEligibleBatch`, `RoutePresent`) and `gate_remote.go` (`EligibilityRequest`, `AnswerEligibility`) | Already hex-encodes `NLRI` in JSON and batches up to `EligibilityBatchMax` queries over both in-process and forked transports | Reuses unchanged for cross-process parity; extends `rib`, `rr`, `rs`, and `reactor` callers to populate `Prefix` or `NLRI` for all supported families |
+| `bgp-rib` opaque best-path election and `candidateGate` pool | `internal/component/bgp/plugins/rib/rib_bestchange.go` (`checkRouteBestChange`, `routeIdentity`), `rib_validation.go` (`candidateGate`, `dropIneligible`), `rib_commands.go` (`gatherKeyCandidatesForLocked`) | Already runs best-path selection and `selectedDispatch` publication for non-CIDR families via `routeIdentity` + `bestPrevStore.opaque`, and pools `candidateGate` for CIDR selections | Extends `validationChanged`, `gatherKeyCandidatesForLocked`, `collectBestPaths`, `replaySourceRefused`, and `reconcileFlowSpecs` to feed non-CIDR and labeled routes into these existing helpers |
+| Owner-relayed `replay-path` plumbing | `internal/core/bgp/ribevents/replay.go` (`ReplayPathCommand`, `RelayReplayPath`), `internal/le/cli/dispatch/plugin_sends.go` (`RelayReplayPath` bus-send recognition) | Transports 7-argument path query from `bgp-rr`/`bgp-rs` to `bgp-adj-rib-in` and relays the resulting `ReplayPage` under the caller's own `send [ update ]` grant | Extends argument 4 of the existing 7-argument command to carry either CIDR prefix or hex-encoded native NLRI (unambiguously selected by family) via a shared `ValidationRoute.ReplayPathKey()` helper; keeps command name and bus declarations unchanged |
+| `bgp-rr` semantic withdrawal inventory | `internal/component/bgp/plugins/rr/stored_membership.go` (`storedInventory`, `nativeInventory`) | Already parses announcements and withdrawals for every `nlrisplit` family into a semantic `withdrawalKey` (`fam\|pathID\|hex(GetPrefixKey)`) | Extends `storedMemberLocked` and `fillValidationReceipt` to check `entries[key]` from `storedInventory` when `lookupNativeLocked` misses on a compatibility-framed withdrawal |
+| `reactor` forward validation batching and `MP_UNREACH_NLRI` synthesis | `internal/component/bgp/reactor/forward_validation.go` (`forwardValidationWire`, `validationSelection`, `eligibilityBatch`, `validationRetainsPath`) | Partitions eligible vs denied paths per section using pooled `eligibilityBatch` and retains ADD-PATH IDs via `RoutePresent` | Extends `validationSelection.section` and `validationRetainsPath` to cover `KeysByCIDR` and non-FlowSpec `nlrisplit.Supported` families, and converts `mpDenied` via `nlrisplit.GetWithdrawalWriter` before `validationBuildWire` |
+
+## Design documents
+
+| Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
+|----------|---------|--------------|-------------------|---------|-----------------------------------|
+| `ai/doors/system.md` | A plugin can run in another process | the door every change reads | "Every plugin, ours included, runs either internal (a goroutine in the daemon) or external (a forked subprocess that talks only over TLS and RPC). The SDK hides which. Code that only works internal is broken." | agrees | Every consumer uses `ValidationChange` JSON (`nlri` hex), `replay-path` ASCII arguments, `RouteEligibleBatch` (`request bgp adj-rib-in eligibility`), and `RelayStoredRoute`, working identically in-process and forked |
+| `docs/architecture/api/architecture.md` | Data Flow: Config to Delivery | `// Design:` page and source anchor of `internal/core/bgp/ribevents/replay.go` | "A validation change takes the same route: the owner reads the path's current state (`request bgp adj-rib-in replay-path`, a one-route page) and relays it itself." | agrees | `bgp-rr` and `bgp-rs` continue reading the path via `replay-path` (widening argument 4 to hex native NLRI for NLRI-keyed families) and relaying it under their own compiled bus send grants |
+| `docs/architecture/api/process-protocol.md` | Accepted redistribution at BGP input | source anchor of `replay.go`, `rib_replay_path.go`, `rib_validation.go`; modified by this spec | "The last two come from the original `ValidationRoute`; the receive store never substitutes a sibling's path when that original is absent." | agrees | Preserves the 7-argument `replay-path` command and exact `peer-owner`/`connection-id` matching while updating the page to document that argument 4 carries a CIDR prefix for CIDR-keyed families or hex-encoded native NLRI for NLRI-keyed families |
+| `docs/architecture/plugin/rib-storage-design.md` | Source-policy lifecycle owners | `// Design:` page and source anchors of `adj_rib_in`, `rib`, `rr`, `rs`, `reactor`; modified by this spec | "Records the bound, keeping the previous one; `routeEligible`, replay and `replay-path` exclude the paths, VPN and the other families keyed by NLRI included" | agrees | Brings `replay-path`, `bgp-rib`, `bgp-rr`, `bgp-rs`, and `forward_validation.go` into full agreement with this rule and updates the `Validation eligibility` subsection where `replay-path` still said prefix-only |
+| `ai/doors/bgp-engine.md` | Boundaries | door covering `ribevents/replay.go`, `reactor/forward_validation.go`, and its test | "The engine reaches plugin features only through what they register:" | agrees | `reactor/forward_validation.go` reaches family splitters, keys, and withdrawal writers only through `nlrisplit` and reaches validation verdicts only through `ribevents.RouteEligibleBatch`/`RoutePresent`, never importing a plugin |
+| `ai/doors/bgp-plugins.md` | Boundaries | door covering `adj_rib_in`, `rib`, `rr`, `rs` files and tests | "Reach the engine through the bus, DirectBridge or a text command, never a plain call into `reactor` or another component." | agrees | No plugin imports another plugin or `reactor`; all inter-plugin traffic flows over `ValidationChange`, `replay-path`, `RouteEligibleBatch`, and `RelayStoredRoute` |
+| `docs/architecture/api/commands.md` | Command Categories | source anchor of `internal/component/bgp/plugins/rib/rib_commands.go` | - | silent | Silent on BGP validation-change consumption and `replay-path` NLRI keying; no user-facing command or pipe grammar changes |
+| `docs/architecture/route-selection.md` | RPKI Validation | source anchor of `rib_commands.go`, `rib_bestchange.go` | "The lookup state and policy decision are separate. RPKI policy can accept any lookup result, while an ASPA rejection can retain the received path as ineligible for selection and replay. A later accepting decision restores that generation without another UPDATE." | agrees | Extends `bgp-rib` selection (`gatherKeyCandidatesForLocked`, `validationChanged`), best-path replay (`collectBestPaths`), and Adj-RIB-Out replay (`replaySourceRefused`) so retained ineligible NLRI-keyed and labeled-unicast paths are excluded and restored without a new UPDATE |
+| `docs/architecture/update-building.md` | Path 2: Forward Path (Route Reflection) | source anchor of `internal/component/bgp/plugins/rib/rib_commands.go` | - | silent | Silent on receive-validation key resolution and `replay-path` argument decoding; UPDATE building paths and `*Params` types are unchanged |
+| `docs/architecture/buffer-architecture.md` | Design Principles | source anchor of `internal/component/bgp/plugins/rib/rib_bestchange.go` | - | silent | Silent on validation-change consumers; in-place `nlrisplit.GetWithdrawalWriter` conversion and pooled `candidateGate` preserve buffer-first zero-copy principles |
+| `docs/architecture/core-design.md` | 4. RIB Storage Model | source anchor of `rib_bestchange.go`, `reactor/forward_validation.go` | - | silent | Silent on `ValidationChange` consumer dispatch and `replay-path` key decoding; no config refusal, startup behavior, or RIB storage layout changes |
+| `docs/architecture/edge-cases/extended-message.md` | Ze implementation | source anchor of `internal/component/bgp/plugins/rib/rib_bestchange.go` | - | silent | Silent on validation-change key resolution; 4K/64K buffer selection in `validationBuildWire` and `buildRelayUpdate` is preserved unchanged |
+| `docs/architecture/rib-transition.md` | Key Components | source anchor of `internal/component/bgp/plugins/rib/rib_bestchange.go` | - | silent | Silent on NLRI-keyed validation-change consumers; RIB ownership remains in plugins outside the engine |
+| `docs/architecture/rib/forward-handle.md` | The decisions | source anchor of `internal/component/bgp/plugins/rib/rib_bestchange.go` | - | silent | Silent on validation-change consumers; `ForwardHandle` lifecycle is untouched |
+| `docs/architecture/bgp/structural-forwarding.md` | Receive validation and cache changes | `// Design:` page of `rr/validation.go`, `rs/server_validation.go`, `reactor/forward_validation.go`; modified by this spec | "`validationChanged` enqueues route keys on the route server's existing source workers. Each worker flushes its buffered live UPDATEs before asking Adj-RIB-In for `replay-path`, which answers the current retained path or an explicit withdrawal for a removed path; the worker relays that answer itself, under the route server's own send grant." | agrees | Extends `replayValidation` in `bgp-rr` and `bgp-rs` and `forwardValidationWire` in `reactor` to cover labeled-unicast and NLRI-keyed routes while keeping FlowSpec on `LookupFlowSpecPath` and updating the stale "CIDR-only `replay-path`" phrase at line 580 |
+| `docs/architecture/wire/nlri-flowspec.md` | Wire Format Overview | source anchor of `internal/component/bgp/plugins/rib/rib_flowspec_validation.go` | - | silent | Silent on FlowSpec-VPN unicast eligibility filtering; FlowSpec NLRI wire encoding and decoding are unchanged |
+| `ai/doors/le-tooling.md` | Boundaries | door covering `test/plugin/bgp-vpn-validation-change-consumers*.ci` | "**A bare `go test` omits the feature tags**, so plugins do not register and unrelated tests fail." | agrees | All unit, functional, and interop deliverables run through `./le test unit pkg`, `./le test bgp plugin`, and `./le test integration interop` under full feature tags |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "When `\| implied` modifies an existing config line (such as inserting automatic members into a `filters [ ... ];` list), it keeps the line intact and places an inline `# implied: ...` comment on the same line after the statement naming what was added and why, rather than placing a comment only above the line or splitting the list across multiple lines. In Thomas's words (2026-11-23): "No, it should be on the same line and say what was added"." | agrees | Does not touch config display or `\| implied` rendering |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "Everything on the bus is a participant named by its configuration path. A participant registers the messages it sends and receives, events and commands alike, and with nothing written that registration is what runs" | agrees | Reuses the existing `bgp-rib:validation-change` and `cli:request bgp adj-rib-in replay-path` registrations already declared on `bgp-adj-rib-in`, `bgp-rib`, `bgp-rr`, and `bgp-rs` |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `send > to` list written on a participant replaces the destinations its messages have by registration; it never adds to them. Present and empty means nobody" | agrees | Does not alter `send > to` compilation or enforcement; `bgp-adj-rib-in` stays receive-only when configured with `to none` |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A `receive > from` list limits who may address a participant. Absent means everybody; present and empty means nobody" | agrees | Does not alter `receive > from` compilation or enforcement |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "A send and a receive allow-list of message names (`send > allow`, `receive > allow`) exist on every participant: absent means everything declared, empty means nothing. The bus enforces them when it receives the message" | agrees | Every `replay-path` and `RelayStoredRoute` call continues to pass through bus allow-list enforcement under the caller's own participant identity |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "What is written on the participant and what is written in the `bus` section compile into one filter per participant. A disagreement between the two places, or between an allow-list and a destination on one participant, is refused at commit naming both lines" | agrees | Does not touch bus filter compilation or conflict checking |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "The bus does not arbitrate between participants: no exclusive-role rule, no commit refusal and no silent winner. A plugin that must not duplicate another limits itself" | agrees | Adds no bus arbitration or role registry; each plugin consumes `ValidationChange` for its own store/targets |
+| `docs/architecture/api/architecture.md` | Design decisions | decision of 2026-11-23 | "One display shows every registered default beside what the operator wrote, the defaults a written list replaced, and the line that produced each effective entry" | agrees | Does not alter bus display or effective-entry provenance |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-23 | "Every engine operation names the message it carries or `none` with a reason, and a plugin identity is authorized by a profile compiled from its filter" | agrees | Adds no new engine operation; existing `replay-path`, `eligibility`, `validation-change`, and `RelayStoredRoute` declarations and profile authorization remain intact |
+| `docs/architecture/api/process-protocol.md` | Design decisions | decision of 2026-11-25 | "Engine-to-plugin event delivery never drops events on queue overflow; endpoints expect every subscribed network event losslessly" | agrees | Preserves lossless `bgp-rib/validation-change` delivery and coalescing in `bgp-rr`, `bgp-rs`, and `bgp-rib` |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-08-21 | "The pipe wins: a command path names the subject and stops; scope, presentation and format are pipe operations after it, selector words included" | agrees | Adds no user-facing command or selector syntax; `replay-path` is an existing hidden internal plumbing command |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-20 | "A command may override any generic pipe operation that acts on its data, as long as the answer keeps the generic's data format: every data operator of the catalog is overridable, each held to its generic's answer shape; a format, paging, `save` and `log` are the data format or its display, and stay the generic's. In Thomas's words: "I believe it should be possible to overwrite more command as long as their data format is not changed."" | agrees | Does not touch pipe operators or command answer shapes |
+| `docs/architecture/api/commands.md` | Design decisions | decision of 2026-11-23 | "A pipe operation works on the answer of the command before it. It may narrow the answer, extend it, transform it, or deliver it somewhere, such as saving it to a file. It never changes what the command does" | agrees | Does not touch pipe operations |
+| `docs/architecture/update-building.md` | Design decisions | decision of 2026-11-23 | "Gate draft-simpson 0x0800 FlowSpec MP_REACH next-hop emission behind an explicit per-session opt-in (`session { flowspec-redirect-next-hop true; }`, default `false`), written automatically by `ze exabgp migrate` when a migrated neighbor uses Simpson actions or serves an API process on a FlowSpec family" | agrees | Preserves FlowSpec redirect-to-IP next-hop gating and `flowSpecSection` handling unchanged |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A commit fails when it configures a feature that programs only the Linux kernel, or that reads only what the Linux kernel sees of the traffic, while the interfaces run on VPP. Two host-side uses stay accepted, so that mixed setups remain possible once VRFs are added: a `fib kernel` block beside a `fib vpp` block, which programs the Linux route table for the router's own traffic, and `sysctl`, which sets the Linux kernel's own tunables. A `fib kernel` block with no `fib vpp` block beside it is refused, for now." | agrees | Does not touch Linux/VPP backend selection or FIB commit validation |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "A configuration that holds such a mismatch is refused at daemon start as well as at commit, reload and `ze config validate`, by one verdict that is the same at each." | agrees | Does not add or alter backend mismatch validation |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "The VPP firewall verifier, not a YANG annotation, decides whether `connection-state` and `mark-set` are accepted on VPP. The `ze:backend` annotation of `flow-offload` is deleted with theirs; `flow-offload` stays refused on VPP because VPP has no flowtable and the `flowtable` list keeps its `ze:backend "kernel"` annotation." | agrees | Does not touch firewall or VPP configuration |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every data-plane selector names the plane it programs, `kernel` or `vpp`: `interface backend`, `firewall backend` and `traffic control backend` take `kernel` where they took `netlink`, `nft` and `tc`, and each defaults to `kernel`; the `fib` blocks already name `kernel` and `vpp`. The plane a registration declares and the value a `ze:backend` annotation names are the same word. A second implementation on the same plane, such as eBPF, takes a value of its own when it exists. In Thomas's words (voice-transcribed): "should tc and netfilter be renamed to kernel? so we have vpp and kernel?", then "please do it"." | agrees | Does not touch data-plane backend selectors |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "BGP egress next-hop rewriting belongs exclusively in the export filter chain, not under session configuration (`session { next-hop }`). Ze automatically appends `next-hop auto` at the end of the export chain when no earlier export filter has already set a next-hop outcome (`self`, `unchanged`, or an explicit address), so ordinary eBGP rewrites to self while iBGP and route-server clients preserve the received next hop. In Thomas's words (voice-transcribed): "I would think that all the rewrite should be in the prefix export and not under configuration. I believe we should automatically add to the export prefix list the auto at the end of the list if not defined with something else. So if no one, for example, used a self or unchanged, we should automatically change it on eBGP. Because otherwise we have two ways to modify packets on the way out to the peer.", then "Unify into the export chain it is the way I want it."" | agrees | Relayed announcements and withdrawals pass through the existing `RelayStoredRoute` -> `forwardUpdateCore` egress chain, preserving all export next-hop rewriting rules |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Egress export chains configure next-hop rewriting through one underlying `policychain.Sets` next-hop intent exposed in two authoring forms: `policy { modify <name> { set { next-hop self \| unchanged \| auto \| <ip>; } } }` for matched/conditional rules, and built-in chain references `next-hop:self`, `next-hop:unchanged`, and `next-hop:auto` for peer-wide policy without a wrapper `modify` block. Selected by Thomas on 2026-11-23 ("Option A: Extend policy modify (self\|unchanged\|auto\|<ip>) AND provide built-in next-hop:self / next-hop:unchanged / next-hop:auto chain refs")." | agrees | Does not touch egress policy syntax or `policychain.Sets` |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Built-in `next-hop:auto`, `next-hop:self`, and `next-hop:unchanged` are BGP engine steps compiled into `policychain.Chain` (parallel to `loop-detection`), never external plugin RPCs or a `pkg/plugin/rpc.FilterInsertion` tail extension. Config loading appends `next-hop:auto` at the tail of every export chain unless an unconditional `next-hop:self`, `next-hop:unchanged`, or `next-hop:auto` is already present, leaving `Policy.Configured()` false for unconfigured chains; operators override via `next-hop:unchanged`, and `inactive:next-hop:auto` is refused. Selected by Thomas on 2026-11-23 ("Option A: Built-in BGP engine step appended at config compile time (like loop-detection; zero RPC; override via next-hop:unchanged, no inactive:next-hop:auto)")." | agrees | Does not alter `policychain.Chain` or config-time export chain compilation |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Within an export chain, explicit next-hop sets (`self`, `unchanged`, `auto`, or an IP address) use standard last-write-wins folding while the auto-appended trailing `next-hop:auto` acts only when next-hop is still unset. For a whole-UPDATE raw override (`wireOverride`), Ze compares each emitted next-hop field against the received UPDATE (matching `forward_med.go` provenance): trailing `auto` is skipped only when the raw override changed the next-hop bytes or an earlier chain member already selected `unchanged`/`self`/explicit. Selected by Thomas on 2026-11-23 ("Option A: Provenance check on raw overrides (like MED): skip trailing auto only when the raw override changed the next-hop bytes or an earlier member set unchanged/self")." | agrees | Does not alter export next-hop folding or `wireOverride` provenance |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Explicit next-hop addresses in `policy { modify <name> { set { next-hop <ip>; } } }` and `policychain.Sets.NextHop` support both IPv4 (attr 3) and IPv6/MP_REACH (through `NextHopProfile` and `ValidatePeerGlobalNextHop`) on both export and import chains. Egress-only next-hop modes (`self`, `unchanged`, `auto`), whether written as built-in `next-hop:*` refs or inside `policy { modify }`, are refused on import chains at config load. Selected by Thomas on 2026-11-23 ("Option A: Support IPv4 + IPv6/MP_REACH for explicit next-hop on both export and import; refuse self/unchanged/auto on import at config load")." | agrees | Does not alter import/export explicit next-hop handling |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Auto-appended trailing `next-hop:auto` applies only to forwarded routes and preserves the originator-chosen next hop on locally originated routes (static config routes, ExaBGP `announce`, API announcements). Explicit export-chain next-hop actions (`next-hop:self`, `modify { set { next-hop ... } }`) apply uniformly to both forwarded and locally originated routes. Selected by Thomas on 2026-11-23 ("Option A: Trailing next-hop:auto applies to forwarded routes only (preserves static/ExaBGP/API explicit next-hop); explicit next-hop:self / modify next-hop applies to both forwarded and originated routes")." | agrees | Preserves distinction between forwarded routes and locally originated routes (including keeping local routes out of `replaySourceRefused`) |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-23 | "Every automatic filter-chain member Ze inserts — both built-in BGP engine steps (`next-hop:auto` at the export tail, `loop-detection` at the import head) and plugin-declared `FilterInsertions` — is published through one queryable implied-filter seam carrying direction, position, reference and `implied-by` reason so `\| implied` displays every extra chain member alongside the operator's written filter list. In Thomas's words (2026-11-23): "Can you make sure that \| implied show the extra chain members when it displays the filter ?"." | agrees | Does not add or alter automatic filter-chain members or implied-filter display |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code. Examples are a web certificate name that does not resolve, a looking-glass `server` entry with no certificate to present, and a looking-glass address list that does not parse. Where a service has several endpoints, only the endpoint that cannot be served stays down and the others serve. A reload whose config cannot be served stays refused as a whole, and the running services keep what they serve. In Thomas's words (voice-transcribed): "we should never not start ze as if we can not bring networking we can not fix things like web cert and the like so the only good answer is to disable the service badly configured and not start it"; asked about a reload, "reload stay refused"; asked "Should only that endpoint stay down while the others serve", "yes". The reason is that a daemon that does not start brings up no networking, so the operator cannot reach the box to correct it." | agrees | Adds no config refusal or startup exit path; `ze start` behavior is completely unaffected |
+| `docs/architecture/core-design.md` | Design decisions | decision of 2026-11-26 | "The rule of 2026-11-23 above, that a configuration which holds a feature that programs only the Linux kernel while the interfaces run on VPP "is refused at daemon start", is superseded for the start: ze starts, that feature stays off, and `ze doctor` reports the mismatch with its fix. A commit, a reload and `ze config validate` still refuse such a configuration, by the same verdict as before. Thomas was asked whether the rule that ze always starts replaces the refusal at start, "(a) yes, ze starts, that feature stays off and ze doctor reports the mismatch, while commit and reload still refuse it; (b) no", and answered "2a" (voice-transcribed). The reason is the one of the row above: a daemon that does not start brings up no networking, so the operator cannot reach the box to correct the mismatch." | agrees | Adds no startup refusal or kernel/VPP mismatch check |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A validation verdict or RFC 8212 source-policy change for a VPN or labeled route in bgp-adj-rib-in
+- A validation or eligibility state change in `bgp-adj-rib-in` for a received route of any non-FlowSpec `nlrisplit`-supported family (RFC 8212 source-policy apply/abort/finalize, RPKI/ASPA validation decision or retention change, pending admission/timeout, or withdrawal/session-down while the validation gate is active), delivered as `bgp-rib/validation-change` (`[]ribevents.ValidationRoute`) over EventBus (in-process) or enveloped SDK event JSON (forked).
+- Live or replayed BGP UPDATEs carrying labeled-unicast (`SAFI 4`) or NLRI-keyed (`SAFI 128` VPN, `EVPN`, `MVPN`, `MUP`, `RTC`, `VPLS`, `BGP-LS`) NLRIs entering `reactor/forward_validation.go::forwardValidationWire`.
 
 ### Transformation Path
-1. to be filled at design
+1. **Producer (`bgp-adj-rib-in`)**: `noteValidationChange` emits `ValidationRoute` with `Prefix` set for simple-prefix and `KeysByCIDR` families (`SAFI 4`), or `NLRI` set to the bare native wire bytes (without ADD-PATH) for NLRI-keyed families (`SAFI 128`, `EVPN`, `MVPN`, `MUP`, `RTC`, `VPLS`, `BGP-LS`), along with immutable `Peer`, `PeerOwner`, `ConnectionID`, `Family`, and `PathID`.
+2. **Selecting RIB consumer (`bgp-rib`)**:
+   - `validationChanged` sets `revalidate = true` for `SAFIUnicast` and `SAFIVPN`. For FlowSpec it skips (avoiding recursion). For `storage.IsCIDRFamily(key.Family)` it encodes `key.Prefix` and calls `checkBestPathChange`. For every other family it checks `key.NLRI != ""` and calls `checkBestPathChange(key.Family, []byte(key.NLRI), false, nil)`.
+   - `checkRouteBestChange` computes `routeIdentity` (`storage.RouteKey` via `nlrisplit.GetPrefixKey`), locks the opaque shard, and calls `gatherKeyCandidatesLocked`.
+   - `gatherKeyCandidatesForLocked` collects candidates across all peers, batches non-FlowSpec eligibility queries through `candidateGate` (`ribevents.RouteEligibleBatch` with `NLRI: path.Route` and `MsgID: path.Entry.MsgID`), and filters out ineligible candidates before `SelectMultipath`, `bestPrev` update, `selectedDispatch` publication, and `publishBestChanges`.
+   - `collectBestPaths`, `replaySourceRefused`, and `reconcileFlowSpecs` likewise include labeled-unicast (`Prefix` derived from `key.Native`) and NLRI-keyed (`NLRI` derived from `best.route` / `entry.NativeNLRI` / stored raw bytes without ADD-PATH) routes in their batched `RouteEligibleBatch` queries.
+3. **Route Reflector (`bgp-rr`) and Route Server (`bgp-rs`) consumers**:
+   - For FlowSpec, both keep their existing `LookupFlowSpecPath` path unchanged.
+   - For every non-FlowSpec family, both compute `routeKey, ok := route.ReplayPathKey()` (`Prefix.String()` when valid, else lowercase hex of `NLRI`) and call `ribevents.RelayReplayPath` with `request bgp adj-rib-in replay-path <dest> <src> <fam> <routeKey> <pathID> <owner> <connID>`.
+   - `bgp-adj-rib-in::replayPathCommand` checks `fam` is known, non-FlowSpec, and `nlrisplit.Supported(fam)`, decodes `args[3]` by family kind (`netip.ParsePrefix` for simple-prefix and `KeysByCIDR`, hex bytes for NLRI-keyed), looks up the route via `validationRouteKey`, and answers a 1-route `ReplayPage`: announcement-framed `StoredRoute` if present and not policy-denied, or withdrawal-framed `StoredRoute` (`Withdraw: true`, RFC 8277 Section 2.4 `0x800000` via `nlrisplit.WithdrawalNLRIFromKey` whenever `nlrisplit.CarriesCompatibility(fam)` holds, preserving `MsgID` when policy-denied) if absent or policy-denied.
+   - `bgp-rr` fills missing `SourceReceipt`/`MsgID` on withdrawals via `fillValidationReceipt` (matching by semantic `withdrawalKey` if `lookupNativeLocked` misses on compatibility framing) and admits the withdrawal in `admitStoredRoute` via the same semantic `withdrawalKey` match before calling `RelayStoredRoute`.
+   - `bgp-rs` admits the route in `relayToTarget` and calls `RelayStoredRoute`.
+4. **Reactor forward validation gate (`reactor/forward_validation.go`)**:
+   - `RelayStoredRoute` reconstructs the UPDATE (`buildRelayUpdate` or `buildRelayWithdrawal`, or `retireOriginalStoredRoute` when `relayUseOriginalRetirement` holds) and invokes `forwardUpdateCore` -> `forwardValidationWire`.
+   - `validationSelection.section` splits non-simple-prefix, non-FlowSpec families with `nlrisplit.Get(fam)` (announcements) or `nlrisplit.GetWithdraw(fam)` (withdrawals), builds `ValidationRoute` via `RouteCIDR` (for `KeysByCIDR`) or native NLRI (normalizing compatibility-framed withdrawals to a single S=1 label header so `validationRouteKey` decodes the exact semantic identity), and batches queries through `eligibilityBatch` (`RouteEligibleBatch`).
+   - Denied announcements land in `mpDenied`; before `validationBuildWire` builds `MP_UNREACH_NLRI`, `forwardValidationWire` converts `mpDenied` in place through `nlrisplit.GetWithdrawalWriter(reachFamily)` when non-nil so every denied SAFI 4 / SAFI 128 path leaves the wire with RFC 8277 Section 2.4 Compatibility `0x800000`.
+   - On cache eviction of a withdrawal, `validationRetainsPath` resolves `KeysByCIDR` and NLRI-keyed routes the same way and queries `ribevents.RoutePresent`, preserving regenerated ADD-PATH identifiers while the path remains retained in `bgp-adj-rib-in`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin ↔ Plugin | ValidationChange event, `replay-path` command | No |
+| `bgp-adj-rib-in` ↔ `bgp-rib` / `bgp-rr` / `bgp-rs` | EventBus / SDK enveloped JSON `bgp-rib/validation-change` (`ValidationRoute` with hex `nlri`) | No |
+| `bgp-rr` / `bgp-rs` ↔ `bgp-adj-rib-in` | Command dispatch `request bgp adj-rib-in replay-path` (7 ASCII args, JSON `ReplayPage` answer) | No |
+| `bgp-rib` / `reactor` ↔ `bgp-adj-rib-in` | In-process `ribevents.RouteEligibleBatch` / `RoutePresent` or forked `request bgp adj-rib-in eligibility` (JSON `EligibilityRequest` / `EligibilityAnswer`) | No |
+| `bgp-rr` / `bgp-rs` ↔ `reactor` | `RelayStoredRoute` (DirectBridge or RPC) -> `forwardValidationWire` -> BGP session wire (`MP_REACH_NLRI` / `MP_UNREACH_NLRI`) | No |
+
+### Changed-Wire Census
+
+**Search evidence:** Ran `git grep -n "replay-path\|ReplayPathCommand\|RelayReplayPath" -- . ':!plan/'` across the entire repository (Go sources, tests, `.ci` files, docs, and RFC audit records; 70 matches). Positive control: `internal/core/bgp/ribevents/replay.go:46` (`ReplayPathCommand`), `internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go:27` (`replayPathCommand`), `internal/component/bgp/plugins/rr/validation.go:170`, `internal/component/bgp/plugins/rs/server_validation.go:74`, and `internal/le/cli/dispatch/plugin_sends.go:1256`. Also ran `git grep -n "EventValidationChange\|ValidationChange\|validation-change" -- 'internal/' 'pkg/' ':!*_test.go'` and confirmed `ValidationRoute` JSON (`validationRouteJSON`) and `EligibilityRequest` already encode `nlri` as hex with no wire schema change. No shell, Python, or third-party script outside Go calls `replay-path`.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| `request bgp adj-rib-in replay-path` | writer | `internal/core/bgp/ribevents/replay.go::RelayReplayPath` | Calls `readReplayPage(ctx, dispatch, ReplayPathCommand, destination, source, family, routeKey, pathID, owner, connection)`; 7 positional arguments | Change: rename parameter `prefix` to `routeKey` and add `ValidationRoute.ReplayPathKey()` so CIDR-keyed families still send `Prefix.String()` and NLRI-keyed families send lowercase hex of native `NLRI`; simple-prefix wire form is preserved byte-for-byte |
+| `request bgp adj-rib-in replay-path` | writer | `internal/component/bgp/plugins/rr/validation.go::replayValidation` | Previously skipped `!key.Prefix.IsValid() && !IsFlowSpec` and passed `key.Prefix.String()` to `RelayReplayPath` | Change: route every non-FlowSpec family through `key.ReplayPathKey()` and `RelayReplayPath`; preserve simple-prefix arguments and FlowSpec `LookupFlowSpecPath` path |
+| `request bgp adj-rib-in replay-path` | writer | `internal/component/bgp/plugins/rs/server_validation.go::replayValidation` | Previously passed `route.Prefix.String()` unconditionally to `RelayReplayPath` | Change: pass `route.ReplayPathKey()` to `RelayReplayPath` and skip unkeyable routes with a warning; preserve simple-prefix arguments and FlowSpec `relayFlowSpecValidation` path |
+| `request bgp adj-rib-in replay-path` | writer | `test/plugin/` and unit tests (`adj_rib_in`, `rr`, `rs`, `reactor`, `ribevents`) plus any external plugin calling the hidden internal command | Existing tests invoke `request bgp adj-rib-in replay-path` with simple-prefix 7-argument form (`<dest> <src> ipv4/unicast 10.0.1.0/24 ...`); `test/plugin/bus-send-compiled-in-keeps-commands.ci` lists the command name in bus allow-lists | Preserve: command name and 7-argument CIDR syntax remain identical; existing tests keep passing without breaking simple-prefix callers |
+| `request bgp adj-rib-in replay-path` | reader | `internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go::replayPathCommand` | Previously checked `!isSimplePrefixFamily(fam)` and parsed `args[3]` only with `netip.ParsePrefix` | Change: accept every non-FlowSpec `nlrisplit.Supported(fam)` family, parse `args[3]` as CIDR for simple-prefix and `KeysByCIDR` or hex native NLRI for NLRI-keyed families via `validationRouteKey`, and emit withdrawal-framed `NLRIHex` (RFC 8277 `0x800000` for compatibility families) on absent or policy-denied routes |
 
 ### Integration Points
-- to be filled at design
+- `nlrisplit.Get`, `nlrisplit.GetWithdraw`, `nlrisplit.KeysByCIDR`, `nlrisplit.RouteCIDR`, `nlrisplit.GetPrefixKey`, `nlrisplit.CarriesCompatibility`, `nlrisplit.GetWithdrawalWriter`, `nlrisplit.WithdrawalNLRIFromKey` - single registry of family splitting, identity, and RFC 8277 withdrawal framing used by `adj_rib_in`, `rib`, `rr`, and `reactor`.
+- `adj_rib_in::validationRouteKey` - single key decoder shared by `routeEligible`, `routePresent`, `validationNLRILocked`, and `replayPathCommand`.
+- `rib::candidateGate` and `rib::dropIneligible` - existing pooled and batched `ribevents.RouteEligibleBatch` filters extended to opaque candidates, opaque best-path replay, Adj-RIB-Out refresh/replay, and VPN FlowSpec validation.
+- `rr::storedInventory` - existing semantic key parser reused by `admitStoredRoute` and `fillValidationReceipt` so compatibility-framed withdrawals match announced inventory entries.
+- `internal/le/cli/dispatch/plugin_sends.go` - existing static check recognizing `ribevents.RelayReplayPath` as sending `ribevents.ReplayPathCommand` continues to match with no signature break.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | No | to be filled at design |
+| No bypassed layers (data flows through the intended path) | Yes | Eligibility notifications flow `bgp-adj-rib-in` -> EventBus/SDK `validation-change` -> `bgp-rib` (re-election + `RouteEligibleBatch`) and `bgp-rr`/`bgp-rs` (`replay-path` -> `RelayStoredRoute` -> `reactor/forwardValidationWire`); no plugin calls another plugin's package directly |
+| No unintended coupling (components stay isolated) | Yes | All plugins communicate exclusively via `ribevents` value types, EventBus events, `replay-path`, `eligibility`, and `RelayStoredRoute`; no cross-plugin imports are added (`./le arch tier check` and `./le plugin boundary check`) |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Reuses `nlrisplit` registries, `adj_rib_in::validationRouteKey`, `rib::candidateGate` / `dropIneligible` / `checkRouteBestChange`, `rr::storedInventory`, and `reactor::eligibilityBatch` / `GetWithdrawalWriter` |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | Simple-prefix fast path in `reactor/forward_validation.go` stays allocation-free; `mpDenied` converts in place via `nlrisplit.GetWithdrawalWriter(mpDenied, mpDenied, ...)`; `rib::gatherKeyCandidatesForLocked` reuses pooled `candidateGate` |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | No new commands or family switches added; all consumers query `nlrisplit.Supported`, `nlrisplit.KeysByCIDR`, `nlrisplit.GetPrefixKey`, and `nlrisplit.CarriesCompatibility` dynamically |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | Searched `isSimplePrefixFamily`, `IsCIDRFamily`, and the simple-prefix switch in `reactor/forward_validation.go` (lines 266, 705); replaced hardcoded family exclusions in `replayPathCommand`, `rib_validation.go`, `rib_bestchange.go`, `rib_flowspec_validation.go`, `rr/validation.go`, and `reactor/forward_validation.go` with `nlrisplit` registry lookups |
 
 ## Risks & Assumptions
 
 ### Assumptions
-| ID | Assumption | Basis | If wrong | Validated by | Status |
-|----|-----------|-------|----------|--------------|--------|
-| A-1 | to be filled at design | - | - | - | unvalidated |
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | Every family supported by `bgp-adj-rib-in` and `bgp-rib` for non-FlowSpec validation changes is registered in `nlrisplit` with `Get`, `GetWithdraw`, and `GetPrefixKey` | `internal/core/bgp/nlri/nlrisplit/register.go` registers all 16 BGP families (`IPv4/6` unicast, multicast, labeled, VPN, MVPN, MUP, FlowSpec, FlowSpec-VPN, `L2VPN/EVPN`, `L2VPN/VPLS`, `IPv4/RTC`, `BGP-LS`, `BGP-LS-VPN`) | A family without an `nlrisplit` splitter cannot be split or keyed and would be refused by `replayPathCommand` and skipped in `forward_validation.go` | Unit tests covering `SAFI 4` (labeled unicast), `SAFI 128` (VPN-IPv4/IPv6), and `EVPN` across all consumers | unvalidated |
+| A-2 | `adj_rib_in::validationRouteKey` decodes `ValidationRoute.NLRI` with `withdraw=false`, so any caller querying `RouteEligible` or `RoutePresent` from a compatibility-framed withdrawal (SAFI 128) must normalize the 3-octet Compatibility field to an S=1 single-label header | `internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go:43` calls `nlrisplit.GetPrefixKey(route.Family)([]byte(route.NLRI), scratch[:], false)` and `labelFieldEnd` loops until `S=1`, which fails on `0x800000` (`S=0`) | Withdrawal eligibility checks and `RoutePresent` cache-eviction checks for VPN routes would always return `false`, allowing stale withdrawals to remove eligible routes and freeing ADD-PATH IDs early | Unit tests in `reactor` passing `0x800000` and arbitrary non-zero Compatibility values (RFC 8277 Section 2.4) through `forwardValidationWire` and `validationRetainsPath` | unvalidated |
+| A-3 | `ribOutEntry.SourcePath` vs `ribOutKey.PathID` in `replaySourceRefused`: for a non-ADD-PATH or same-PathID destination, `entry.SourcePath` identifies the received ADD-PATH ID when `entry.SourceAddPath` is true (or `key.PathID` when `SourceAddPath` is false and `SourcePath == 0`) | `internal/component/bgp/plugins/rib/ribout_entry.go:60-61` retains `SourcePath` and `SourceAddPath` on every `ribOutEntry` | Asking `RouteEligibleBatch` with a regenerated destination `PathID` instead of the source's received `PathID` would miss the stored route in `bgp-adj-rib-in` | Unit test in `internal/component/bgp/plugins/rib/` checking `replaySourceRefused` for VPN and labeled-unicast routes both without ADD-PATH and with ADD-PATH | unvalidated |
+| A-4 | Converting `mpDenied` in place with `nlrisplit.GetWithdrawalWriter(reachFamily)` never grows the buffer and produces exact RFC 8277 Section 2.4 framing | `internal/core/bgp/nlri/nlrisplit/prefix_key.go:260-267` documents output is never longer than input and `dst` may alias `field` | `MP_UNREACH_NLRI` would carry invalid length or label bytes and peers would reset or ignore the withdrawal | Unit test in `reactor` denying both single-label and multi-label VPN and labeled-unicast routes, plus FRR interop scenario | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | to be filled at design | - | - |
+| R-1 | Calling `checkBestPathChange` for a FlowSpec `ValidationChange` inside `bgp-rib::validationChanged` would recursively invoke `reconcileFlowSpecs` | Infinite recursion or duplicate FlowSpec emissions in `bgp-rib` unit tests | Explicitly skip `ribevents.IsFlowSpec(key.Family)` inside `validationChanged` before the non-CIDR branch, preserving the existing FlowSpec invariant |
+| R-2 | `bgp-rr::admitStoredRoute` matching `entries[key]` could accidentally admit a withdrawal for a different generation or closed row | Unit test for stale/superseded withdrawal fails | Keep all existing provenance checks (`SourceOwner`, `SourceConnectionID`, `SourceReceipt`, `MsgID`, `!info.Closing`) on the matched `withdrawalInfo` |
+| R-3 | Forked `bgp-adj-rib-in` or `bgp-rib` fails to decode `NLRI` in `ValidationChange` or `EligibilityRequest`, or hits per-route RPC overhead | Slow or failing forked tests / `-race` timeouts | Reuse existing hex JSON codec in `ribevents.ValidationRoute` and batch all candidate/replay/FlowSpec queries via `RouteEligibleBatch`; add forked-transport test coverage |
+| R-4 | A labeled or VPN route with `SourcePolicyDenied` or `ImportFiltered` answered by `replay-path` with `Withdraw: true` and `MsgID: 0` fails `retireOriginalStoredRoute` (`errRelayOriginalSource`) when validation is disabled | `bgp-rr` or `bgp-rs` logs `relay-stored-route: original source` error on RFC 8212 apply without RPKI | Preserve `stored.MsgID` on policy-denied withdrawals in `replayPathCommand`, and have `bgp-rr::fillValidationReceipt` populate `SourceReceipt`/`MsgID` from semantic `withdrawalKey` when the store already deleted the row |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | to be filled at design |
-| How is it reverted? | to be filled at design |
-| Who else touches this path? | `spec-bgp-rfc8212-ebgp-default-reject` |
+| What breaks if this is wrong? | VPN, labeled-unicast, or other non-simple-prefix routes could fail to withdraw when becoming ineligible, be wrongly withdrawn when still eligible, emit malformed `MP_UNREACH_NLRI` bytes causing peer session resets (RFC 7606/8277), or regress existing simple-prefix/FlowSpec validation replay |
+| How is it reverted? | Single commit revert; no config syntax, YANG schema, or persistent on-disk format changes |
+| Who else touches this path? | RFC 8212 source-policy reload (`reactor/source_policy_reload.go`, `rib/source_policy.go`, `adj_rib_in/source_policy.go`, `rr/source_policy.go`, `rs/source_policy.go`), RPKI/ASPA validation (`bgp-rpki`, `bgp-adj-rib-in`), and FlowSpec validation (`rib/rib_flowspec_validation.go`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Validation change of a received VPN route | → | to be filled at design | to be named at design |
+| `bgp-rib/validation-change` for a VPN route reaching `bgp-rib` | → | `rib.RIBManager.validationChanged` -> `checkBestPathChange` -> `gatherKeyCandidatesForLocked` -> `candidateGate` | `TestValidationChangedReelectsVPNRoute` (`internal/component/bgp/plugins/rib/rib_validation_nlri_key_test.go`) |
+| `bgp-rib/validation-change` for VPN and labeled-unicast routes reaching `bgp-rr` and `bgp-rs` | → | `rr.routeReflector.replayValidation` / `rs.routeServer.replayValidation` -> `ribevents.RelayReplayPath` -> `adj_rib_in.AdjRIBInManager.replayPathCommand` | `TestValidationReplaysVPNAndLabeledRoutes` (`internal/component/bgp/plugins/rr/validation_nlri_key_test.go`), `TestValidationReplayVPNAndLabeledRoutes` (`internal/component/bgp/plugins/rs/server_validation_nlri_key_test.go`), `TestReplayPathVPNAndLabeledFamilies` (`internal/component/bgp/plugins/adj_rib_in/rib_replay_path_nlri_test.go`) |
+| Relayed or live VPN and labeled-unicast UPDATEs passing through the reactor forward gate | → | `reactor.forwardValidationWire` -> `validationSelection.section` -> `nlrisplit.GetWithdrawalWriter` / `validationRetainsPath` | `TestForwardValidationGatesVPNAndLabeledRoutes` (`internal/component/bgp/reactor/forward_validation_nlri_test.go`) |
+| End-to-end daemon with VPN route eligibility change (RFC 8212 import-policy reload and validation gate) | → | Full daemon `bgp-adj-rib-in` -> `bgp-rib` / `bgp-rr` / `bgp-rs` -> `reactor` -> peer wire `MP_UNREACH_NLRI` / `MP_REACH_NLRI` | `test/plugin/bgp-vpn-validation-change-consumers.ci` and `test/interop/scenarios/bgp-vpn-validation-change-frr/` |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | A received VPN route becomes ineligible | Every consumer re-runs selection for it and its downstream advertisement follows |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A received VPN-IPv4 or VPN-IPv6 route in `bgp-rib` becomes ineligible (and later eligible again) under the receive validation gate, signaled by `bgp-rib/validation-change` carrying `ValidationRoute.NLRI` | `bgp-rib::validationChanged` re-runs `checkBestPathChange` for that route identity; `gatherKeyCandidatesForLocked` excludes the ineligible candidate via batched `RouteEligibleBatch` (letting an eligible runner-up win or withdrawing the best path when none remains), updates `bestPrev` and `selectedDispatch`, and publishes the best-path change; when the route becomes eligible again, a subsequent `ValidationChange` re-elects and publishes it | Routes of other RDs sharing the same IPv4/IPv6 prefix remain selected and advertised because RFC 4364 Section 4.1 makes the 8-octet RD part of the route identity; FlowSpec `ValidationChange` notifications are not re-entered into `checkBestPathChange` because `bgp-rib` itself emitted them |
+| AC-2 | A received VPN or labeled-unicast route's eligibility changes while `bgp-rib` serves late best-path replay (`collectBestPaths`), Adj-RIB-Out refresh/replay (`replaySourceRefused`), or FlowSpec-VPN validation (`reconcileFlowSpecs`) | `collectBestPaths` excludes ineligible non-CIDR winners via `dropIneligible`, `replaySourceRefused` refuses ineligible labeled-unicast and non-CIDR Adj-RIB-Out entries, and `reconcileFlowSpecs` excludes ineligible `SAFIVPN` unicast paths when validating FlowSpec-VPN rules | Locally originated routes (empty `SourcePeer`) and eligible routes of unaffected sources remain permitted because the receive gate governs only learned received paths |
+| AC-3 | `request bgp adj-rib-in replay-path` is invoked for a simple-prefix family, a labeled-unicast family (`ipv4/mpls-label`, `ipv6/mpls-label`), or an NLRI-keyed family (`ipv4/mpls-vpn`, `ipv6/mpls-vpn`, `l2vpn/evpn`) | `replayPathCommand` resolves CIDR-keyed families via `netip.ParsePrefix` and NLRI-keyed families via hex decoding + `validationRouteKey`; answers the stored announcement when present and not policy-denied, and answers `Withdraw: true` with RFC 8277 Section 2.4 Compatibility framing (`0x800000` via `nlrisplit.WithdrawalNLRIFromKey`) for SAFI 4/128 (or native NLRI bytes for non-compatibility NLRI families) when absent or policy-denied (preserving `MsgID` on policy-denied rows); FlowSpec and unsupported families are refused with a clear error | Simple-prefix 7-argument callers continue working identically; a query where `destination == source` returns an empty `ReplayPage` per existing split-horizon rule |
+| AC-4 | `bgp-rr` and `bgp-rs` receive `bgp-rib/validation-change` for VPN-IPv4, VPN-IPv6, labeled-unicast, or EVPN routes (including across forked-process JSON delivery) | Both compute argument 4 with `ValidationRoute.ReplayPathKey()`, call `ribevents.RelayReplayPath` for every target supporting the family, and relay the returned announcement or withdrawal under their own send grant; `bgp-rr` admits compatibility-framed VPN/labeled withdrawals and fills missing `SourceReceipt`/`MsgID` from its semantic `withdrawalKey` inventory | FlowSpec notifications continue taking the dedicated `LookupFlowSpecPath` path; targets that did not negotiate the family receive nothing |
+| AC-5 | A live or replayed VPN or labeled-unicast UPDATE passes through `reactor/forward_validation.go` while the receive validation gate is active (including multi-label announcements and arbitrary Compatibility-field withdrawals) | `forwardValidationWire` keeps eligible NLRIs in `MP_REACH_NLRI`, moves denied NLRIs into `MP_UNREACH_NLRI` converted to RFC 8277 Section 2.4 Compatibility framing (`0x800000`) via `nlrisplit.GetWithdrawalWriter`, blocks stale withdrawals when a current generation is still eligible (ignoring received Compatibility octets), and `validationRetainsPath` preserves regenerated ADD-PATH identifiers while `RoutePresent` is true | When `!ribevents.ValidationEnabled()`, non-FlowSpec announcements and withdrawals pass through unchanged; unaffected eligible NLRIs in a mixed UPDATE remain in `MP_REACH_NLRI` |
+| AC-6 | End-to-end daemon and FRR interop: a VPN-IPv4 route received from an EBGP peer becomes ineligible (RFC 8212 import-policy removal or receive-gate denial) and later becomes eligible again across `bgp-rib`, `bgp-rr`, and `bgp-rs` | Downstream peers (including FRR in Docker interop) receive a conformant RFC 8277 Section 2.4 `MP_UNREACH_NLRI` withdrawal (`0x800000`) when the route becomes ineligible (or switch to an eligible backup path), and receive the restored `MP_REACH_NLRI` announcement when it becomes eligible again, with zero session resets | Unaffected peers, unaffected RDs, and unrelated families retain their existing routes unchanged |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Receives a VPN route whose validation state changes | to be filled at design | to be named at design |
+| 1 | Receives two VPN-IPv4 paths for the same RD/prefix (or one path) and the winning path becomes ineligible via receive validation or RFC 8212 import-policy reload | `bgp-adj-rib-in` emits `ValidationChange` (`NLRI`) -> `bgp-rib::validationChanged` -> `checkBestPathChange` -> `gatherKeyCandidatesForLocked` (`RouteEligibleBatch`) -> runner-up elected or withdrawal published -> `selectedDispatch` updates downstream | `TestValidationChangedReelectsVPNRoute`, `test/plugin/bgp-vpn-validation-change-consumers.ci` |
+| 2 | Runs a Route Reflector or Route Server forwarding VPN-IPv4 / labeled-unicast routes when a received route's eligibility flips | `bgp-adj-rib-in` emits `ValidationChange` -> `bgp-rr`/`bgp-rs` calls `RelayReplayPath` (`ReplayPathKey`) -> `adj_rib_in::replayPathCommand` -> `RelayStoredRoute` -> `reactor/forwardValidationWire` (RFC 8277 `0x800000` withdrawal or restored announcement) -> downstream peer | `TestValidationReplaysVPNAndLabeledRoutes`, `TestValidationReplayVPNAndLabeledRoutes`, `test/plugin/bgp-vpn-validation-change-consumers.ci`, `test/interop/scenarios/bgp-vpn-validation-change-frr/` |
+| 3 | Runs `bgp-adj-rib-in` or `bgp-rib` as a forked subprocess while VPN validation state changes | JSON `ValidationChange` (`nlri` hex) -> forked `bgp-rib`/`bgp-rr`/`bgp-rs` -> `request bgp adj-rib-in eligibility` (JSON `EligibilityRequest` with `nlri` hex) and `request bgp adj-rib-in replay-path` (7 ASCII args with hex NLRI) -> identical selection and wire output | `TestValidationChangedVPNForkedTransport`, `test/plugin/bgp-vpn-validation-change-consumers-forked.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| to be filled at design | - | AC-1 | |
+| `TestValidationRouteReplayPathKey` | `internal/core/bgp/ribevents/replay_test.go` | AC-3, AC-4: `ReplayPathKey` returns CIDR for simple/labeled prefixes, lowercase hex for native `NLRI`, and `ok=false` when empty | |
+| `TestReplayPathVPNAndLabeledFamilies` | `internal/component/bgp/plugins/adj_rib_in/rib_replay_path_nlri_test.go` | AC-3: `replayPathCommand` for VPN-IPv4, VPN-IPv6, labeled unicast (SAFI 4), and EVPN (installed, pending/ineligible, policy-denied preserving `MsgID` + `0x800000`, absent with `0x800000`, wrong connection, FlowSpec refused, malformed hex refused) | |
+| `TestValidationChangedReelectsVPNRoute` | `internal/component/bgp/plugins/rib/rib_validation_nlri_key_test.go` | AC-1: `validationChanged` + `gatherKeyCandidatesForLocked` + `validationEligible` re-elects VPN-IPv4/IPv6 when primary becomes ineligible (runner-up wins, then withdraws when no eligible path remains, then restores on eligibility return), leaves other RD on same IPv4 prefix untouched, and does not recurse on FlowSpec | |
+| `TestValidationChangedVPNForkedTransport` | `internal/component/bgp/plugins/rib/rib_validation_nlri_key_test.go` | AC-1, AC-2: JSON-decoded `ValidationChange` + remote `RouteEligibleBatch` (`AnswerEligibility`) path for VPN and labeled-unicast routes | |
+| `TestReplaySourceRefusedAndCollectBestPathsNLRIKeyed` | `internal/component/bgp/plugins/rib/rib_validation_nlri_key_test.go` | AC-2: `collectBestPaths` opaque shard filtering, `replaySourceRefused` for SAFI 4 and SAFI 128 (with and without ADD-PATH), and `reconcileFlowSpecs` excluding ineligible `SAFIVPN` unicast routes | |
+| `TestValidationReplaysVPNAndLabeledRoutes` | `internal/component/bgp/plugins/rr/validation_nlri_key_test.go` | AC-4: `bgp-rr::replayValidation` relays VPN-IPv4/IPv6 and labeled-unicast announcements and RFC 8277 compatibility-framed withdrawals (matching announced inventory via semantic `withdrawalKey` and filling missing `SourceReceipt`/`MsgID` in `fillValidationReceipt`), while preserving FlowSpec | |
+| `TestValidationReplayVPNAndLabeledRoutes` | `internal/component/bgp/plugins/rs/server_validation_nlri_key_test.go` | AC-4: `bgp-rs::replayValidation` passes hex NLRI for VPN/EVPN and CIDR for labeled unicast to `RelayReplayPath`, skips unkeyable keys cleanly, and preserves FlowSpec | |
+| `TestForwardValidationGatesVPNAndLabeledRoutes` | `internal/component/bgp/reactor/forward_validation_nlri_test.go` | AC-5: `forwardValidationWire` partitions mixed eligible/ineligible VPN (single and multi-label), labeled-unicast, and EVPN UPDATEs, converts denied SAFI 4/128 NLRIs to RFC 8277 `0x800000`, blocks stale withdrawals carrying arbitrary Compatibility values (`0x800000`, `0x000000`, `0x123456`) when a current generation is eligible, and `validationRetainsPath` retains ADD-PATH IDs while `RoutePresent` is true | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| N-A | - | - | - | - |
+| `replay-path` `pathID` | `0..4294967295` (`uint32`) | `0` and `4294967295` | `-1` (parse error) | `4294967296` (parse error) |
+| `replay-path` `peerOwner` / `connectionID` | `1..max uint64` | `1` and `18446744073709551615` | `0` (explicit refusal) | overflow (parse error) |
+| VPN NLRI bit length after Compatibility conversion | `88..255` bits (SAFI 128 IPv4 `88..120`, IPv6 `88..216`) | `120` (VPN-IPv4 /32), `216` (VPN-IPv6 /128) | `< 88` (`errPrefixKey`) | `> 231` key bits (`errWithdrawalLength` in `WithdrawalNLRIFromKey`) |
+| `replay-path` hex NLRI argument | non-empty even-length valid hex decoding to a valid family NLRI | shortest valid family NLRI (e.g., 12-byte VPN `/0`) | `""` or odd-length hex (refused) | malformed/truncated NLRI refused by `validationRouteKey` |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| to be named at design | `test/` | AC-1 | |
+| `bgp-vpn-validation-change-consumers` | `test/plugin/bgp-vpn-validation-change-consumers.ci` | Real daemon with VPN-IPv4 and labeled-unicast routes through `bgp-rib`, `bgp-rr`, and `bgp-rs`: eligibility flip withdraws downstream with RFC 8277 `0x800000` (or fails over to backup RD/path) and recovery re-announces | |
+| `bgp-vpn-validation-change-consumers-forked` | `test/plugin/bgp-vpn-validation-change-consumers-forked.ci` | Same scenario with `bgp-adj-rib-in` and consumer running forked across TLS RPC, proving process-boundary parity for `ValidationChange` (`nlri` hex), `replay-path`, and `eligibility` | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| to be named at design | `test/interop/scenarios/` | FRR | to be filled at design | |
+| `bgp-vpn-validation-change-frr` | `test/interop/scenarios/bgp-vpn-validation-change-frr/` | FRR | FRR originates a VPN-IPv4 route to Ze (with `bgp-rr`/`bgp-rs` and `bgp-rib`), a second FRR peer receives it, an RFC 8212 import-policy removal makes it ineligible and triggers a conformant RFC 8277 Section 2.4 `MP_UNREACH_NLRI` withdrawal that FRR accepts without resetting the session, and restoring the policy re-advertises the VPN-IPv4 route to FRR; non-vacuous because reverting the consumer/replay-path fix leaves the ineligible route installed on the downstream FRR peer | |
 
 ## Files to Modify
-- to be filled at design
+- `internal/core/bgp/ribevents/replay.go` - add `ValidationRoute.ReplayPathKey()`, rename `RelayReplayPath` parameter `prefix` to `routeKey`, update command docs (`// Design: docs/architecture/api/architecture.md`)
+- `internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go` - support all non-FlowSpec `nlrisplit.Supported` families in `replayPathCommand`, decode CIDR or hex NLRI through `validationRouteKey`, build RFC 8277 withdrawal-framed `NLRIHex` for absent and policy-denied routes, preserve `MsgID` on policy-denied rows (`// Design: docs/architecture/plugin/rib-storage-design.md`)
+- `internal/component/bgp/plugins/rib/rib_validation.go` - handle NLRI-keyed keys in `validationChanged` (skipping FlowSpec), evaluate non-CIDR families in `validationEligible`, and include labeled-unicast and non-CIDR entries in `replaySourceRefused` (`// Design: docs/architecture/plugin/rib-storage-design.md`)
+- `internal/component/bgp/plugins/rib/rib_commands.go` - batch non-FlowSpec eligibility checks in `gatherKeyCandidatesForLocked` through `candidateGate` (`RouteEligibleBatch`) with `NLRI: path.Route` (`// Design: docs/architecture/plugin/rib-storage-design.md`)
+- `internal/component/bgp/plugins/rib/rib_bestchange.go` - include opaque shard winners in `collectBestPaths`'s batched `dropIneligible` check (`// Design: docs/architecture/plugin/rib-storage-design.md`)
+- `internal/component/bgp/plugins/rib/rib_flowspec_validation.go` - include `SAFIVPN` unicast paths in `reconcileFlowSpecs`'s batched `dropIneligible` check (`// Design: docs/architecture/plugin/rib-storage-design.md`)
+- `internal/component/bgp/plugins/rr/validation.go` - handle non-FlowSpec NLRI-keyed routes in `replayValidation` via `ReplayPathKey()`, call `fillValidationReceipt` on `Withdraw: true` replay answers, and match semantic `withdrawalKey` in `fillValidationReceipt` (`// Design: docs/architecture/bgp/structural-forwarding.md`)
+- `internal/component/bgp/plugins/rr/stored_admission.go` and `internal/component/bgp/plugins/rr/stored_membership.go` - allow `admitStoredRoute` / `storedMemberForKeyLocked` to match compatibility-framed withdrawals against announced inventory entries by semantic `withdrawalKey` while preserving all provenance and generation checks (`// Design: docs/architecture/plugin/rib-storage-design.md`)
+- `internal/component/bgp/plugins/rs/server_validation.go` - use `route.ReplayPathKey()` in `replayValidation` instead of `route.Prefix.String()` (`// Design: docs/architecture/bgp/structural-forwarding.md`)
+- `internal/component/bgp/reactor/forward_validation.go` - validate `KeysByCIDR` and non-FlowSpec `nlrisplit.Supported` families in `validationSelection.section` and `validationRetainsPath` (normalizing compatibility-framed withdrawals for `validationRouteKey`), and convert `mpDenied` in place via `nlrisplit.GetWithdrawalWriter` (`// Design: docs/architecture/bgp/structural-forwarding.md`)
+- `docs/architecture/plugin/rib-storage-design.md` - update `replay-path`, `validationChanged`, `validationEligible`, `collectBestPaths`, `replaySourceRefused`, and FlowSpec-VPN validation descriptions to reflect CIDR-keyed labeled and NLRI-keyed family support
+- `docs/architecture/bgp/structural-forwarding.md` - replace stale "CIDR-only `replay-path`" wording (line 580) and document non-simple-prefix family coverage in `forward_validation.go`
+- `docs/architecture/api/process-protocol.md` - update `replay-path` argument 4 specification (CIDR prefix for CIDR-keyed families or hex-encoded native NLRI for NLRI-keyed families)
+- `plan/journal/parser-refuses-a-form-its-producer-emits.md` - mark the 2026-10-29 owned row fixed upon implementation
 
 ## Files to Create
-- to be filled at design
+- `internal/component/bgp/plugins/adj_rib_in/rib_replay_path_nlri_test.go` - unit tests for `replayPathCommand` across VPN, labeled-unicast, and EVPN families
+- `internal/component/bgp/plugins/rib/rib_validation_nlri_key_test.go` - unit tests for `bgp-rib` NLRI-keyed `validationChanged`, `gatherKeyCandidatesForLocked`, `collectBestPaths`, `replaySourceRefused`, FlowSpec-VPN eligibility, and forked transport
+- `internal/component/bgp/plugins/rr/validation_nlri_key_test.go` - unit tests for `bgp-rr` NLRI-keyed and labeled-unicast validation replay and compatibility-framed withdrawal admission
+- `internal/component/bgp/plugins/rs/server_validation_nlri_key_test.go` - unit tests for `bgp-rs` NLRI-keyed and labeled-unicast validation replay
+- `internal/component/bgp/reactor/forward_validation_nlri_test.go` - unit tests for `reactor/forward_validation.go` VPN/labeled/EVPN gating, RFC 8277 `0x800000` withdrawal conversion, and `validationRetainsPath`
+- `test/plugin/bgp-vpn-validation-change-consumers.ci` - functional test proving end-to-end VPN and labeled-unicast validation-change selection and relay
+- `test/plugin/bgp-vpn-validation-change-consumers-forked.ci` - functional test proving process-boundary parity with forked plugin transport
+- `test/interop/scenarios/bgp-vpn-validation-change-frr/` - FRR interop scenario (`ze.conf`, `ze-reload.conf`, `frr.conf`, `frr-sink.conf`) proving live VPN-IPv4 eligibility withdrawal and restoration over BGP wire
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | No new config leaves or RPCs; `request bgp adj-rib-in replay-path` is an existing hidden internal command |
+| YANG validation constraints | N-A | No YANG changes |
+| YANG custom validators | N-A | No YANG changes |
+| CLI commands/flags | No | Existing hidden command `request bgp adj-rib-in replay-path` keeps its 7-argument shape |
+| CLI grammar (keyword before value) | N-A | No new CLI verb or user-facing syntax |
+| Editor autocomplete | N-A | No new config leaves |
+| Functional test for new RPC/API | Yes | `test/plugin/bgp-vpn-validation-change-consumers.ci` and `test/plugin/bgp-vpn-validation-change-consumers-forked.ci` exercise `replay-path` and `validation-change` end-to-end |
+| Pipe completeness | N-A | No new user-facing `show` command |
+| Env var registration | No | No new environment variables |
+| Doctor check for runtime dependencies | No | No new runtime dependency, path, socket, port, or binary |
+| Doctor code per problem class | No | No new problem class; validation-replay failures use existing structured logging and `replay-path` error returns |
+| Prometheus counters/metrics | No | Existing `bgp-rib` and `bgp-adj-rib-in` metrics cover re-elected routes without new metric names |
+| BGP family surface (new SAFI / capability / attribute) | No | No new SAFI, capability, or attribute; extends validation consumers to already-registered `nlrisplit` families |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Bug fix restoring expected selection/withdrawal behavior for existing VPN and labeled-unicast families |
+| 2 | Config syntax changed? | No | No config or YANG changes |
+| 3 | CLI command added/changed? | No | No user-facing CLI changes (`replay-path` is hidden internal plumbing) |
+| 4 | API/RPC added/changed? | No | No new RPC or JSON event schema change (`ValidationRoute` already carries `nlri`) |
+| 5 | Plugin added/changed? | No | No plugin added, removed, or re-registered |
+| 6 | Has a user guide page? | No | No user-facing behavior change to document in `docs/guide/` |
+| 7 | Wire format changed? | No | BGP wire output conforms to existing RFC 4364 and RFC 8277 Section 2.4 (`docs/architecture/wire/nlri.md` already documents both) |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md` (update `replay-path` argument 4 wording) |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | Fixes consumer coverage of existing RFC 4364 / RFC 8277 / RFC 8212 behavior; no new RFC requirement row status changes in `rfc/short/` |
+| 10 | Test infrastructure changed? | No | Uses existing `.ci` runner and `interoplab` BGP harness |
+| 11 | Affects daemon comparison? | No | No comparison-table change |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/plugin/rib-storage-design.md` and `docs/architecture/bgp/structural-forwarding.md` |
+| 13 | Route metadata keys added/changed? | No | No route metadata keys added or changed |
+| 14 | Prometheus counters added/changed? | No | No metrics added or changed |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | All event types, `Sends`, `Receives`, and commands remain identical |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Modified: `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/api/process-protocol.md`. Unaffected (checked via `./le spec citation anchors`): `docs/architecture/api/architecture.md` (already describes owner-relayed `replay-path` without CIDR restriction), `docs/architecture.md` (high-level overview), `docs/architecture/api/commands.md` (command registry taxonomy), `docs/architecture/buffer-architecture.md` (buffer design), `docs/architecture/core-design.md` (core architecture and RIB model), `docs/architecture/edge-cases/extended-message.md` (extended message sizing), `docs/architecture/rib-transition.md` (RIB plugin ownership), `docs/architecture/rib/forward-handle.md` (`ForwardHandle` fast path), `docs/architecture/route-selection.md` (general RPKI/ASPA separation and best-path rules already hold), `docs/architecture/update-building.md` (UPDATE builder paths), `docs/architecture/wire/nlri-flowspec.md` (FlowSpec wire format), `docs/features/api-commands.md` (API command list), `docs/features/bgp-protocol.md` (protocol feature summary), `docs/features/srv6.md` (SRv6 SID handling), `docs/guide/bmp.md` (BMP guide), `docs/guide/graceful-restart.md` (GR guide), `docs/guide/looking-glass.md` (LG guide), `docs/guide/plugins.md` (plugin guide), `docs/guide/route-injection.md` (route injection guide), `docs/guide/route-reflection.md` (RR guide; contains no `replay-path` or CIDR-only wording) |
+| 17 | Existing docs show config/CLI/API examples for this area? | No | Checked `docs/architecture/api/architecture.md`, `process-protocol.md`, `structural-forwarding.md`, `rib-storage-design.md`; only the prose rows in #8 and #12 describe `replay-path` as CIDR-only |
+
+## Design presentation
+
+### What changes
+
+Every consumer of `bgp-rib/validation-change` (`bgp-rib`, `bgp-rr`, `bgp-rs`), the internal `request bgp adj-rib-in replay-path` command, and the reactor's forward validation gate (`forward_validation.go`) now handle labeled-unicast (`SAFI 4`) and NLRI-keyed families (`VPN-IPv4`, `VPN-IPv6`, `EVPN`, `MVPN`, `MUP`, `RTC`, `VPLS`, `BGP-LS`) through the same `nlrisplit` registries and `ValidationRoute` key forms `bgp-adj-rib-in` already emits. When a VPN or labeled-unicast route becomes ineligible (for example via an RFC 8212 import-policy removal or receive-gate denial) and later becomes eligible again, `bgp-rib` re-elects the route (failing over to an eligible runner-up or withdrawing it), `bgp-rr` and `bgp-rs` replay the route's current state through `replay-path` and `RelayStoredRoute`, and the reactor emits a conformant RFC 8277 Section 2.4 `MP_UNREACH_NLRI` withdrawal (`0x800000`) or restored `MP_REACH_NLRI` announcement on both in-process and forked transports.
+
+### Before and after
+
+1. **VPN-IPv4 route becomes ineligible in `bgp-rib`**:
+   - Before: `bgp-adj-rib-in` emits `ValidationChange` with `prefix` invalid and `nlri` set to the VPN wire bytes; `bgp-rib::validationChanged` skips `!key.Prefix.IsValid()`, and even if selection ran, `validationEligible` returns `true` for every `!IsCIDRFamily` family. The ineligible VPN route stays selected and advertised downstream.
+   - After: `bgp-rib::validationChanged` passes `[]byte(key.NLRI)` to `checkBestPathChange`, `gatherKeyCandidatesForLocked` batches `RouteEligibleBatch` via `candidateGate` with `NLRI: path.Route`, excludes the ineligible path, elects any eligible backup path (or withdraws the route), and publishes the change downstream.
+2. **VPN-IPv4 or labeled-unicast route re-evaluated by `bgp-rr` or `bgp-rs`**:
+   - Before: `bgp-rr::replayValidation` drops non-FlowSpec keys with an invalid `Prefix`; `bgp-rs::replayValidation` sends `"invalid Prefix"` to `replay-path`; `adj_rib_in::replayPathCommand` refuses every family outside the four simple-prefix families; `reactor/forward_validation.go` passes labeled and VPN announcements through unvalidated.
+   - After: `bgp-rr` and `bgp-rs` format argument 4 via `ValidationRoute.ReplayPathKey()` (CIDR for SAFI 4, lowercase hex native NLRI for VPN/EVPN), `replayPathCommand` resolves the route through `validationRouteKey` and emits RFC 8277 `0x800000` withdrawals when absent or policy-denied, `bgp-rr` matches compatibility-framed withdrawals by semantic `withdrawalKey`, and `reactor/forward_validation.go` gates the route and converts denied SAFI 4/128 NLRIs to `0x800000` `MP_UNREACH_NLRI`.
+
+### Alternatives set aside
+
+| Alternative | Why set aside |
+|-------------|---------------|
+| Add a second `replay-path-nlri` command for NLRI-keyed families | Duplicates command registration, `Sends` allow-lists in `bgp-rr`/`bgp-rs` and `.ci` fixtures, and static dispatch checks (`plugin_sends.go`), even though the existing `family` argument (`args[2]`) already unambiguously determines whether `args[3]` is CIDR text or hex NLRI |
+| Keep `validationRouteKey` accepting only announcement-framed NLRI and skip withdrawal validation for VPN in `reactor/forward_validation.go` | Leaves stale withdrawals able to withdraw a currently eligible VPN route and breaks ADD-PATH identifier retention (`validationRetainsPath`) during temporary validation withdrawals; normalizing the 3-octet Compatibility field to an S=1 label header before querying `RouteEligibleBatch`/`RoutePresent` closes both holes cleanly without changing `ValidationRoute` or `adj-rib-in`'s wire contract |
+| Route VPN and labeled-unicast revalidation directly through `bgp-rib` like FlowSpec instead of `replay-path` | Breaks deployments where `bgp-rs` or `bgp-rr` runs with `bgp-adj-rib-in` without `bgp-rib` owning the relay, and contradicts `bgp-adj-rib-in`'s existing ownership of non-FlowSpec receive validation |
+
+### Documents departed from
+
+none
+
+### Choices for Thomas
+
+none
 
 ## Implementation Steps
 
-1. to be filled at design
+1. **Phase: Wiring (MANDATORY FIRST)** -- add `ValidationRoute.ReplayPathKey()` in `ribevents/replay.go`, wire `replayPathCommand`, `rib/rib_validation.go`, `rr/validation.go`, `rs/server_validation.go`, and `reactor/forward_validation.go` entry points, and write failing wiring unit tests for each consumer.
+   - Tests: `TestValidationRouteReplayPathKey`, `TestReplayPathVPNAndLabeledFamilies`, `TestValidationChangedReelectsVPNRoute`, `TestValidationReplaysVPNAndLabeledRoutes`, `TestValidationReplayVPNAndLabeledRoutes`, `TestForwardValidationGatesVPNAndLabeledRoutes`
+   - Files: `internal/core/bgp/ribevents/replay.go`, `internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go`, `internal/component/bgp/plugins/rib/rib_validation.go`, `internal/component/bgp/plugins/rr/validation.go`, `internal/component/bgp/plugins/rs/server_validation.go`, `internal/component/bgp/reactor/forward_validation.go`
+   - Verify: wiring tests compile and fail against stubbed/existing behavior before implementation.
+2. **Phase: Producer & Relay Path (`ribevents` + `bgp-adj-rib-in`)** -- implement `ValidationRoute.ReplayPathKey()` and full `nlrisplit`-driven `replayPathCommand` with RFC 8277 Section 2.4 withdrawal framing (`nlrisplit.WithdrawalNLRIFromKey`) and `MsgID` preservation on policy-denied rows.
+   - Tests: `TestValidationRouteReplayPathKey`, `TestReplayPathVPNAndLabeledFamilies`
+   - Files: `internal/core/bgp/ribevents/replay.go`, `internal/core/bgp/ribevents/replay_test.go`, `internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go`, `internal/component/bgp/plugins/adj_rib_in/rib_replay_path_nlri_test.go`
+   - Verify: tests fail -> implement -> tests pass; existing `adj_rib_in` and `ribevents` tests remain green.
+3. **Phase: Selecting RIB Consumer (`bgp-rib`)** -- implement NLRI-keyed `validationChanged`, batched `candidateGate` in `gatherKeyCandidatesForLocked`, non-CIDR `validationEligible`, opaque `collectBestPaths` filtering, SAFI 4 and non-CIDR `replaySourceRefused`, and `SAFIVPN` eligibility in `reconcileFlowSpecs`.
+   - Tests: `TestValidationChangedReelectsVPNRoute`, `TestValidationChangedVPNForkedTransport`, `TestReplaySourceRefusedAndCollectBestPathsNLRIKeyed`
+   - Files: `internal/component/bgp/plugins/rib/rib_validation.go`, `internal/component/bgp/plugins/rib/rib_commands.go`, `internal/component/bgp/plugins/rib/rib_bestchange.go`, `internal/component/bgp/plugins/rib/rib_flowspec_validation.go`, `internal/component/bgp/plugins/rib/rib_validation_nlri_key_test.go`
+   - Verify: tests fail -> implement -> tests pass with `-race -tags ze_bgp`.
+4. **Phase: Forwarding Consumers & Reactor Gate (`bgp-rr`, `bgp-rs`, `reactor`)** -- wire `ReplayPathKey()` in `bgp-rr` and `bgp-rs`, fix semantic `withdrawalKey` matching in `rr::admitStoredRoute` and `rr::fillValidationReceipt`, and extend `reactor/forward_validation.go` (`section`, `forwardValidationWire` `mpDenied` Compatibility conversion, `validationRetainsPath`).
+   - Tests: `TestValidationReplaysVPNAndLabeledRoutes`, `TestValidationReplayVPNAndLabeledRoutes`, `TestForwardValidationGatesVPNAndLabeledRoutes`
+   - Files: `internal/component/bgp/plugins/rr/validation.go`, `internal/component/bgp/plugins/rr/stored_admission.go`, `internal/component/bgp/plugins/rr/stored_membership.go`, `internal/component/bgp/plugins/rs/server_validation.go`, `internal/component/bgp/reactor/forward_validation.go`, plus their new `*_test.go` files
+   - Verify: tests fail -> implement -> tests pass with `-race -tags ze_bgp`.
+5. **Phase: Functional, Interop & Docs** -- write `test/plugin/bgp-vpn-validation-change-consumers.ci`, `test/plugin/bgp-vpn-validation-change-consumers-forked.ci`, and `test/interop/scenarios/bgp-vpn-validation-change-frr/`, update the three architecture docs, and mark the owned journal row fixed.
+   - Tests: both `.ci` tests and FRR interop scenario (proving red when consumer fix is reverted and green with it)
+   - Files: `test/plugin/bgp-vpn-validation-change-consumers.ci`, `test/plugin/bgp-vpn-validation-change-consumers-forked.ci`, `test/interop/scenarios/bgp-vpn-validation-change-frr/*`, `docs/architecture/plugin/rib-storage-design.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/api/process-protocol.md`, `plan/journal/parser-refuses-a-form-its-producer-emits.md`
+   - Verify: scoped unit tests, functional `.ci` tests, FRR interop scenario, `./le plugin boundary check`, `./le arch tier check`, `./le doc check all`.
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-1..AC-6 has an implementation at `file:line` and a passing unit/functional/interop test |
+| Feature completeness | Every user story (1..3) connects end-to-end across in-process and forked transports with no dropped link |
+| Correctness | RFC 8277 Section 2.4 Compatibility field (`0x800000`) is written on every synthesized SAFI 4 / SAFI 128 withdrawal and ignored on every received withdrawal; RFC 4364 Section 4.1 RD isolation keeps same-prefix different-RD routes independent; FlowSpec does not recurse in `validationChanged` |
+| Naming | No new commands or event names; `ReplayPathKey` and error strings follow existing `ribevents` / `adj_rib_in` conventions |
+| Data flow | No store lock held across EventBus emit or RPC dispatch; `bgp-rib` batches remote-gate queries through `RouteEligibleBatch` (no per-route RPC loop) |
+| Operator errors and doctor codes | `replayPathCommand` refusal errors name the offending family/argument and why; no new doctor codes owed |
+| Rule: Process-boundary parity | Forked `bgp-adj-rib-in`, `bgp-rib`, `bgp-rr`, and `bgp-rs` pass `NLRI` hex over JSON `ValidationChange`, `EligibilityRequest`, and `replay-path` identically to in-process mode |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| `ValidationRoute.ReplayPathKey()` and updated `RelayReplayPath` | `./le test unit pkg path ./internal/core/bgp/ribevents/` |
+| `adj_rib_in::replayPathCommand` for CIDR-keyed labeled and NLRI-keyed families with RFC 8277 withdrawals | `./le test unit pkg path ./internal/component/bgp/plugins/adj_rib_in/` |
+| `bgp-rib` NLRI-keyed `validationChanged`, `gatherKeyCandidatesForLocked`, `collectBestPaths`, `replaySourceRefused`, and `reconcileFlowSpecs` | `./le test unit pkg path ./internal/component/bgp/plugins/rib/` |
+| `bgp-rr` and `bgp-rs` NLRI-keyed/labeled validation replay and compatibility withdrawal admission | `./le test unit pkg path ./internal/component/bgp/plugins/rr/` and `./le test unit pkg path ./internal/component/bgp/plugins/rs/` |
+| `reactor/forward_validation.go` VPN/labeled/EVPN gating, RFC 8277 `mpDenied` conversion, and `validationRetainsPath` | `./le test unit pkg path ./internal/component/bgp/reactor/` |
+| End-to-end functional tests (internal and forked) | `./le test bgp plugin bgp-vpn-validation-change-consumers` and `bgp-vpn-validation-change-consumers-forked` |
+| FRR interop scenario | `./le test integration interop scenario bgp-vpn-validation-change-frr` |
+| Boundary, tier, and doc checks | `./le plugin boundary check`, `./le arch tier check`, `./le doc check all` |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | `replayPathCommand` rejects malformed/odd-length/empty hex, invalid/unknown/FlowSpec families, zero `owner`/`connectionID`, and NLRI bytes rejected by `validationRouteKey` without panicking or indexing out of bounds |
+| Bounds and framing | `WithdrawalNLRIFromKey` and `GetWithdrawalWriter` enforce bit-length (`<= 231` key bits, `>= 64` for VPN RD) and destination buffer bounds; `forwardValidationWire` never overruns scratch or leaks pooled buffers on error |
+| Provenance and fail-closed | Zero `PeerOwner` or `ConnectionID` never falls back to address lookup; `bgp-rr` semantic `withdrawalKey` match still enforces exact `SourceOwner`, `ConnectionID`, `SourceReceipt`, and `MsgID`; remote gate failures remain fail-closed |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-
-## Key Design Decisions
-| Decision | Alternatives Considered | Rationale |
-|----------|------------------------|-----------|
-
-## Known Limitations
-- to be filled at design
-
-## Checklist
-
-### Pre-Spec Verification (before the design is presented)
-- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
-- [ ] Current Behavior and Data Flow sections completed
-
-### Goal Gates (MUST pass)
-- [ ] AC-1..AC-N all demonstrated
-- [ ] `./le verify changed` passes on the closing commit
-
-### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-
-### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] **Commit A:** code + tests + docs + edited spec
-- [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-validation-change-nlri-keyed-consumers.md` only
 
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-29 | Validation-change consumers drop NLRI-keyed keys |
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| Keep `request bgp adj-rib-in replay-path` at 7 arguments with `args[3]` interpreted by family (`Prefix` for simple-prefix and `KeysByCIDR`, lowercase hex native NLRI for NLRI-keyed families) | Add a second `replay-path-nlri` command or an optional 8th flag argument | The family in `args[2]` already uniquely identifies how `adj-rib-in` keys the route; preserving the 7-argument command avoids duplicating bus `Sends` allow-lists, `.ci` fixtures, and static dispatch checks |
+| Normalize compatibility-framed VPN withdrawals to a single S=1 label header before querying `RouteEligibleBatch` / `RoutePresent` in `reactor/forward_validation.go` | Change `ValidationRoute` to carry a `Withdraw` boolean on the wire | Avoids changing `validationRouteJSON`, `EligibilityRequest`, and `adj_rib_in::validationRouteKey` wire contracts while honoring RFC 8277 Section 2.4's rule that received Compatibility octets must be ignored |
+| Match `bgp-rr` withdrawal admission and `fillValidationReceipt` by semantic `withdrawalKey` from `storedInventory` when `lookupNativeLocked` misses | Store withdrawal-framed hex beside announced `NativeHex` in `rr`'s index | `rr` already computes the exact semantic `withdrawalKey` in `storedInventory` via `nlrisplit.GetPrefixKey`; using it avoids a second index and handles arbitrary label stacks and relabels |
+
+## Known Limitations
+- The separate `bgp-adj-rib-in` JSON-ingest defect that keys complex families on the parsed `prefix` string (`plan/journal/declared-format-contradicts-payload.md`, 2026-10-20 row) is tracked independently and is not part of this spec.
+- RPKI ROA origin validation (RFC 6811) and ASPA verification (`draft-ietf-sidrops-aspa-verification` Section 6.2) apply by default to IPv4/IPv6 unicast (`isSimplePrefixFamily`); this spec ensures that whenever a non-simple-prefix route's eligibility changes (via RFC 8212 source-policy denial/abort, import filtering, or any validation gate state change), every consumer and relay gate honors it.
+
+## RFC Documentation (Scope: protocol)
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| RFC 4364 Section 4.1 | Two VPN-IPv4/IPv6 routes with distinct 8-octet RDs and identical IPv4/IPv6 prefixes are distinct routes; eligibility changes to one RD re-elect/withdraw only that RD | Explicit RD and Route-Target configuration on VPN peers | `TestValidationChangedReelectsVPNRoute`, `TestReplayPathVPNAndLabeledFamilies` | `TestValidationChangedReelectsVPNRoute` (sibling RD survives unchanged) |
+| RFC 8277 Section 2.4 | Synthesized `MP_UNREACH_NLRI` withdrawals for SAFI 4 and SAFI 128 carry the 3-octet Compatibility field `0x800000` (`Length = 24 + remaining_bits`), and received withdrawals ignore any Compatibility field value | Multiple Labels framing (Section 2.3) converted to single 3-octet Compatibility field on withdrawal | `TestReplayPathVPNAndLabeledFamilies`, `TestForwardValidationGatesVPNAndLabeledRoutes`, `bgp-vpn-validation-change-frr` | `TestForwardValidationGatesVPNAndLabeledRoutes` (multi-label announcement denied to single `0x800000`, non-`0x800000` received Compatibility values accepted) |
+| RFC 8212 Section 3 | On EBGP sessions without an explicit import policy (including live reload removing import policy), received VPN and labeled-unicast routes become ineligible and are withdrawn downstream; restoring the policy restores them | Explicit `filter { import { final accept; } }` and IBGP sessions without policy remain unaffected | `bgp-vpn-validation-change-frr`, `test/plugin/bgp-vpn-validation-change-consumers.ci` | `test/plugin/bgp-vpn-validation-change-consumers.ci` (explicitly accepted peer unaffected) |
+| draft-ietf-sidrops-aspa-verification Section 5.7 | Retained ineligible paths remain stored in `bgp-adj-rib-in`, are withheld from selection and converted to withdrawals on relay, keep regenerated ADD-PATH identifiers while `RoutePresent` is true, and recover without a new UPDATE | Existing simple-prefix and FlowSpec retention and revalidation behavior unchanged | `TestForwardValidationGatesVPNAndLabeledRoutes`, `TestValidationReplaysVPNAndLabeledRoutes`, `TestValidationReplayVPNAndLabeledRoutes` | Existing `adj_rib_in`, `rib`, `rr`, `rs`, and `reactor` unicast and FlowSpec test suites |
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-6 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. No agent runs any whole-tree verification command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-validation-change-nlri-keyed-consumers.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
