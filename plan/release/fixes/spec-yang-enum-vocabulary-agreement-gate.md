@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -46,24 +46,35 @@ mapped Go vocabulary in both directions regardless of enum size (including
 retires its per-package YANG value-set boilerplate (retaining only behavioral
 parse/round-trip assertions), and repair the three shipped enum mismatches:
 
-1. `environment/log/backend`: add `enum kmsg` to `ze-hub-conf.yang`, split the
-   backend constants out of the mixed log-level `const` block in `slogutil.go`
-   and replace the line-136 `gated by` marker with `// enumeration: yang` on
-   both the backend `const` block and `validBackends` (`slogutil.go:58` already
-   derives `ze.log.backend`'s env description dynamically via `BackendNames()`),
-   and remove the `logBackendEnvOnly` exclusion in `log_backend_yang_test.go`.
+1. `environment/log/backend`: add `enum kmsg` (and document `kmsg`'s `/dev/kmsg`
+   fallback to `stderr` in `leaf backend`'s description) in `ze-hub-conf.yang`,
+   split the backend constants out of the mixed log-level `const` block in
+   `slogutil.go` and replace the line-136 `gated by` marker with
+   `// enumeration: yang` on both the backend `const` block and `validBackends`
+   (`slogutil.go:58` already derives `ze.log.backend`'s env description
+   dynamically via `BackendNames()`), and remove the `logBackendEnvOnly`
+   exclusion in `log_backend_yang_test.go` (keeping the test as runtime proof
+   that `slogutil.BackendNames()` matches `configyang.EnumValues`).
 2. `add-path/direction`: delete the dead `"receive/send"` case arm in
    `parseAddPathDirection` (`internal/component/bgp/reactor/config_capabilities.go`),
-   and migrate all five reactor enum tables (`peer_forward_facts.go`,
-   `peer_settings.go`, `config.go`, `config_as_set.go`, `config_capabilities.go`)
-   onto `// enumeration: yang` with zero dead `gated by` markers remaining.
-3. `diag` capture `protocol`: add `enum bfd` to `show diag capture raw`
-   `protocol` and include `bfd` in `container raw`'s description in
-   `internal/plugins/diag/yang/ze-diag-cmd.yang`, move protocol recognition out
-   of the mixed command-token switches in `capture_raw.go` and `capture.go` onto
-   dedicated `// enumeration: yang`-annotated protocol lookup maps in
-   `capture_common.go`, and keep `show diag capture` `protocol` aligned with
-   `HandleShowCapture` (`l2tp`, `bgp`).
+   extract a shared `typedef add-path-direction` in
+   `internal/component/bgp/yang/ze-bgp-conf.yang` so `add-path/direction` and
+   `add-path/family/direction` share one declaration (matching `typedef
+   capability-mode`), and migrate all five reactor enum tables
+   (`peer_forward_facts.go`, `peer_settings.go`, `config.go`, `config_as_set.go`,
+   `config_capabilities.go`) onto `// enumeration: yang` with zero dead
+   `gated by` markers remaining.
+3. `show capture` `protocol` and `action`: add `enum bfd` to
+   `show/capture/raw/protocol` and include `bfd` in `container raw`'s
+   description in `internal/plugins/diag/yang/ze-diag-cmd.yang`, move protocol
+   recognition out of the mixed command-token switches in `capture_raw.go` and
+   `capture.go` onto dedicated `// enumeration: yang`-annotated protocol lookup
+   maps in `capture_common.go`, keep `show capture` `protocol` aligned with
+   `HandleShowCapture` (`l2tp`, `bgp`), migrate `capture_raw.go:21`
+   (`captureRawActionStart..Dump`) from `gated by` onto `// enumeration: yang`
+   (retaining `capture_raw_yang_test.go`'s dispatch assertions while retiring
+   its duplicate enum-set comparison), and clear the resolved BFD scope gap in
+   `features/core-diagnostics.md` (which renders `docs/features.md`).
 
 Note: `software-version/mode` runtime enforcement (`require` and `refuse`) is
 owned solely by `plan/release/fixes/spec-software-version-mode-implements-two-of-four.md`;
@@ -91,17 +102,19 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 **Source files read:**
 - [ ] `internal/le/arch/enumeration/corpus.go` - `yangEnumerations` groups YANG enums by value set with no leaf-path index; `collectEnums` skips nothing with `len(names) > 1`, but `enumeration.go` ignores sets smaller than `closedGroupKeysMin = 3`
 - [ ] `internal/le/arch/enumeration/enumeration.go` - `bestGroup` checks only `len(matched) == len(group.Keys)` and `len(group.Keys) >= 3`; `stringConstants` inspects raw `*ast.BasicLit` strings only and does not resolve same-package string `const` identifiers; `// enumeration: gated by TestX` verifies only that `func TestX(` exists in `_test.go`
-- [ ] `internal/component/bgp/reactor/config_capabilities.go` - `parseAddPathDirection` (line 499) carries `// enumeration: gated by TestAddPathDirectionsMatchTheYANGModel` and accepts `"send"`, `"receive"`, `"send/receive"`, and `"receive/send"`, while `ze-bgp-conf.yang` declares only `send`, `receive`, `send/receive`
+- [ ] `internal/component/bgp/reactor/config_capabilities.go` - `parseAddPathDirection` (line 498; marker on line 499) carries `// enumeration: gated by TestAddPathDirectionsMatchTheYANGModel` and accepts `"send"`, `"receive"`, `"send/receive"`, and `"receive/send"` (line 505), while `ze-bgp-conf.yang` declares only `send`, `receive`, `send/receive` (in two separate inline `enumeration` blocks at lines 1173 and 1204)
 - [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - `sendCommunitySuppression` (line 715) carries `// enumeration: gated by TestSendCommunityKeywordsMatchTheYANGModel` on a 5-case switch matching `ze-bgp-conf` `session/community/send` (`all`, `none`, `standard`, `large`, `extended`)
-- [ ] `internal/component/bgp/reactor/peer_settings.go` - `prefixReconnectNames` (line 830) carries `// enumeration: gated by TestPrefixReconnectNamesMatchTheYANGModel`; index 0 holds non-YANG sentinel `PrefixReconnectUnset: "unset"` beside YANG modes `never`, `backoff`, `timer`
-- [ ] `internal/component/bgp/reactor/config.go` - lines 61-70 mix `valTrue`, `valFalse`, `valAuto` in the same `const` block as the four `add-path/family/mode` constants (`valEnable`, `valDisable`, `valRequire`, `valRefuse`) under `// enumeration: gated by TestAddPathModeKeywordsMatchTheYANGModel`
+- [ ] `internal/component/bgp/reactor/peer_settings.go` - `prefixReconnectNames` (marker on line 839, `var` on line 840) carries `// enumeration: gated by TestPrefixReconnectNamesMatchTheYANGModel`; index 0 holds non-YANG sentinel `PrefixReconnectUnset: "unset"` beside YANG modes `never`, `backoff`, `timer`
+- [ ] `internal/component/bgp/reactor/config.go` - marker on line 62 and `const` block on lines 63-71 mix `valTrue`, `valFalse`, `valAuto` in the same `const` block as the four `add-path/family/mode` constants (`valEnable`, `valDisable`, `valRequire`, `valRefuse`) under `// enumeration: gated by TestAddPathModeKeywordsMatchTheYANGModel`
 - [ ] `internal/component/bgp/reactor/config_as_set.go` - lines 10-13 declare the 2-value `const` block (`asSetPolicyWithdraw`, `asSetPolicyAccept`) for `session/as-set`, unannotated because `closedGroupKeysMin = 3` skipped it
 - [ ] `internal/component/bgp/reactor/yang_enum_agreement_test.go` - five hand-written per-package tests with private `yangModel`/`yangEnumValues` helpers; `TestAddPathDirectionsMatchTheYANGModel` tests `YANG -> Go` only and never catches `"receive/send"`
-- [ ] `internal/component/hub/yang/ze-hub-conf.yang` - `environment/log/backend` declares `stderr`, `stdout`, `syslog` and omits `kmsg`
+- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - declares `add-path/direction` (line 1173) and `add-path/family/direction` (line 1204) as two duplicate inline `type enumeration` blocks instead of a shared typedef like `capability-mode` (line 27)
+- [ ] `internal/component/hub/yang/ze-hub-conf.yang` - `environment/log/backend` (lines 96-106) declares `stderr`, `stdout`, `syslog` and omits `kmsg` from both the enum and its description
 - [ ] `internal/core/slogutil/slogutil.go` - line 58 already derives `ze.log.backend`'s env description dynamically via `BackendNames()`; lines 136-147 mix log-level constants (`levelDisabled`..`levelError`) and backend constants (`backendStdout`..`backendKmsg`) under `// enumeration: gated by internal/component/config:TestLogBackendLeafMatchesSlogutil`; `validBackends` (line 362) uses those `const` identifiers as map keys; `writerForBackend` handles `kmsg` via `openKmsg`
 - [ ] `internal/component/config/log_backend_yang_test.go` - `TestLogBackendLeafMatchesSlogutil` explicitly deletes `logBackendEnvOnly = "kmsg"` before comparing sets
-- [ ] `internal/plugins/diag/yang/ze-diag-cmd.yang` - both `show/capture/protocol` and `show/capture/raw/protocol` declare only `l2tp` and `bgp`, and `container raw` description (lines 95-96) reads `"Protocols: l2tp, bgp."`
-- [ ] `internal/plugins/diag/cmd/capture_common.go`, `capture_raw.go`, and `capture.go` - `capture_common.go` declares `capL2TP`, `capBGP`, `capBFD` beside `argCount`, `msgSubsystemNotRunning`, `fmtPcap` under `// enumeration: exempt (...)`; `capture_raw.go:44` switches on `capL2TP`, `capBGP`, `capBFD` inside a mixed command-token switch (`start`/`stop`/`dump`, `pcap`/`json`, `count`); `capture.go:20` switches on `capL2TP`, `capBGP` inside a mixed token switch (`tunnel-id`, `peer`, `count`)
+- [ ] `internal/plugins/diag/yang/ze-diag-cmd.yang` - both `show/capture/protocol` (line 60) and `show/capture/raw/protocol` (line 108) declare only `l2tp` and `bgp`, and `container raw` description (lines 95-96) reads `"Protocols: l2tp, bgp."`
+- [ ] `internal/plugins/diag/cmd/capture_common.go`, `capture_raw.go`, `capture_raw_yang_test.go`, and `capture.go` - `capture_common.go` declares `capL2TP`, `capBGP`, `capBFD` beside `argCount`, `msgSubsystemNotRunning`, `fmtPcap` under `// enumeration: exempt (...)`; `capture_raw.go:21` carries `// enumeration: gated by TestCaptureRawActionsMatchTheModel` on `captureRawActionStart..Dump`; `capture_raw.go:44` switches on `capL2TP`, `capBGP`, `capBFD` inside a mixed command-token switch (`start`/`stop`/`dump`, `pcap`/`json`, `count`); `capture.go:20` switches on `capL2TP`, `capBGP` inside a mixed token switch (`tunnel-id`, `peer`, `count`)
+- [ ] `features/core-diagnostics.md` - lines 9-10, 15-16, and 21 record `Scope: partial` and `Scope gaps: BFD raw capture cannot be selected alone` because `ze-diag-cmd.yang` `protocol` omits `bfd`
 
 **Behavior to preserve:**
 - Existing flat-registry enumeration checks (plugin names, family names, CLI verbs, diagnostic codes) and existing `// enumeration: exempt (...)` / `// enumeration: gated by TestX` annotations continue working without breaking unrelated packages.
@@ -110,8 +123,8 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 **Behavior to change:**
 - `./le arch enumeration check` evaluates every `// enumeration: yang <module>/<leaf-path>` unit in both directions regardless of enum size (2-value enums included), refusing extra Go strings, missing YANG values, and phantom/non-enum leaf paths.
 - `environment/log/backend` accepts `kmsg` in config files as well as env vars.
-- `parseAddPathDirection` no longer carries the unreachable `"receive/send"` arm.
-- `show diag capture raw` accepts `protocol bfd` in the YANG schema and CLI validator/completer, matching `capture_raw.go`.
+- `parseAddPathDirection` no longer carries the unreachable `"receive/send"` arm, and `ze-bgp-conf.yang` defines `typedef add-path-direction` once for both `add-path/direction` and `add-path/family/direction`.
+- `show capture raw` accepts `protocol bfd` in the YANG schema and CLI validator/completer, matching `capture_raw.go`, and `features/core-diagnostics.md` clears the resolved BFD scope gap.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -120,7 +133,7 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 | Enumeration corpus and check | `internal/le/arch/enumeration/corpus.go` `yangEnumerations`; `enumeration.go` `Check`, `bestGroup` | Detects unannotated Go copies of closed YANG enums with >= 3 values and checks `gated by TestX` existence | Extends: adds `// enumeration: yang <module>/<leaf-path>` bidirectional exact-set checking for any enum size, same-package string `const` resolution on mapped units, and phantom-path refusal |
 | Per-package reactor enum tables and agreement tests | `internal/component/bgp/reactor/yang_enum_agreement_test.go`; `peer_forward_facts.go` `sendCommunitySuppression`; `peer_settings.go` `prefixReconnectNames`; `config.go` `valEnable..valRefuse`; `config_as_set.go` `asSetPolicy*`; `config_capabilities.go` `parseAddPathDirection` | Five hand-written per-package YANG tests plus four `// enumeration: gated by` markers (and one unannotated 2-value const block) | Replaces (value-set assertions): moves all five reactor enum tables onto `// enumeration: yang <path>` (separating non-YANG sentinel `"unset"` in `peer_settings.go` and non-mode tokens in `config.go`), removes all four reactor `gated by` markers, and retires the five YANG value-set tests while keeping behavioral parse/round-trip assertions |
 | Log backend declaration and agreement test | `internal/core/slogutil/slogutil.go` `validBackends`, `BackendNames`, lines 136-147; `internal/component/config/log_backend_yang_test.go` `TestLogBackendLeafMatchesSlogutil` | `slogutil.go:136` gates a mixed level+backend `const` block via `TestLogBackendLeafMatchesSlogutil`, which hand-excludes `kmsg`; `slogutil.go:58` derives `ze.log.backend` help from `BackendNames()` | Extends: splits the backend `const` block from the level constants, replaces the line-136 `gated by` marker with `// enumeration: yang` on the backend `const` block and `validBackends`, and deletes the `kmsg` exclusion in `log_backend_yang_test.go` |
-| Diag capture protocol dispatch | `internal/plugins/diag/cmd/capture_common.go`, `capture_raw.go` `handleCaptureRaw`, `capture.go` `HandleShowCapture`; `internal/plugins/diag/yang/ze-diag-cmd.yang` | Mixed token switches match `capL2TP`/`capBGP`/`capBFD` beside `action`/`format`/`count`/`tunnel-id`/`peer`; `ze-diag-cmd.yang` omits `bfd` from `show/capture/raw/protocol` and `container raw` description | Extends: adds `enum bfd` and updates `container raw` description in `ze-diag-cmd.yang`; extracts dedicated `// enumeration: yang`-annotated protocol lookup maps in `capture_common.go` called by `capture_raw.go` and `capture.go` |
+| Diag capture protocol and action dispatch | `internal/plugins/diag/cmd/capture_common.go`, `capture_raw.go` `handleCaptureRaw` and `captureRawAction*`, `capture_raw_yang_test.go`, `capture.go` `HandleShowCapture`; `internal/plugins/diag/yang/ze-diag-cmd.yang` | Mixed token switches match `capL2TP`/`capBGP`/`capBFD` beside `action`/`format`/`count`/`tunnel-id`/`peer`; `capture_raw.go:21` gates `captureRawActionStart..Dump` via `TestCaptureRawActionsMatchTheModel`; `ze-diag-cmd.yang` omits `bfd` from `show/capture/raw/protocol` and `container raw` description | Extends: adds `enum bfd` and updates `container raw` description in `ze-diag-cmd.yang`; extracts dedicated `// enumeration: yang`-annotated protocol lookup maps in `capture_common.go` called by `capture_raw.go` and `capture.go`; migrates `capture_raw.go:21` onto `// enumeration: yang ze-diag-cmd/show/capture/raw/action` (keeping `capture_raw_yang_test.go`'s dispatch assertions) |
 | YANG schema loader | `internal/component/config/yang` `DefaultLoader`, `EnumValues` | Loads all registered YANG modules and resolves enumeration value sets | Does not apply: already provides the authoritative resolved enum sets read by `corpus.go` |
 
 ## Design documents
@@ -140,6 +153,9 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 | `docs/architecture/rfc-may-decisions.md` | RFC 4760 Section 7 - Non-Negotiated AFI/SAFI Handling | anchored to `internal/component/bgp/reactor/config.go` | - | silent | Documents optional RFC MAY policy choices; splitting add-path mode constants in `config.go` does not touch `IgnoreFamilyMismatch` or RFC MAY behavior |
 | `docs/architecture/wire/capabilities.md` | TL;DR (Read This First) | anchored to `internal/component/bgp/reactor/config.go` | "`enable`/`disable`/`require`/`refuse` — enforcement after negotiation" | agrees | Splitting `valEnable`, `valDisable`, `valRequire`, and `valRefuse` into their own `const` block annotated with `// enumeration: yang` binds Go to those exact four YANG modes |
 | `docs/architecture/wire/attributes.md` | Segment Types | the // Design: page of `internal/component/bgp/reactor/config_as_set.go`; anchored to `config_as_set.go` | "The leaf is that operator configuration: an operator may set it on any peer, and `ze exabgp migrate` writes it for an ExaBGP neighbor configured with `as-set accept`." | agrees | Annotating `asSetPolicyWithdraw`/`asSetPolicyAccept` in `config_as_set.go` with `// enumeration: yang` binds Go to the exact two-value `session/as-set` YANG enum without altering RFC 9774 AS_SET behavior |
+| `docs/architecture/api/update-syntax.md` | Overview | anchored to `internal/component/bgp/yang/ze-bgp-conf.yang` | - | silent | Covers BGP UPDATE text/wire syntax; extracting `typedef add-path-direction` in `ze-bgp-conf.yang` keeps the exact three ADD-PATH direction values (`send`, `receive`, `send/receive`) and leaves UPDATE syntax untouched |
+| `docs/architecture/bgp/filter-path-asn.md` | The config | anchored to `internal/component/bgp/yang/ze-bgp-conf.yang` | - | silent | Covers `reject-asn` policy filter configuration; extracting `typedef add-path-direction` in `ze-bgp-conf.yang` does not touch `policy` or AS-path filtering |
+| `docs/architecture/rib-transition.md` | Executive Summary | anchored to `internal/component/bgp/yang/ze-bgp-conf.yang` | - | silent | Covers moving RIB ownership into plugins; extracting `typedef add-path-direction` in `ze-bgp-conf.yang` leaves RIB architecture untouched |
 | `docs/architecture/config/yang-config-design.md` | Claim Completeness Gate | the // Design: page of `yang_enum_agreement_test.go`; anchored to `ze-hub-conf.yang`; a page this spec modifies | "Validation says a config value is well formed." | agrees | Extends this page to document `./le arch enumeration check`'s bidirectional Go-vs-YANG enum agreement beside the schema claim gate |
 | `docs/architecture/config/environment-block.md` | TL;DR | anchored to `ze-hub-conf.yang`, `slogutil.go`; the // Design: page of `log_backend_yang_test.go`; a page this spec modifies | "The config loader maps `environment/log/*` to env vars via `slogutil.ApplyLogConfig`" | agrees | Adding `enum kmsg` to `environment/log/backend` makes the config block agree with `slogutil.ApplyLogConfig` and updates this page's `log` section notes |
 | `ai/doors/hub-engine.md` | Where it sits | the door covering `internal/component/hub/yang/ze-hub-conf.yang` | "That directory now holds only the `ze-hub-conf.yang` schema" | agrees | Edits `ze-hub-conf.yang` alone to add `enum kmsg` without re-introducing hub orchestration code |
@@ -181,19 +197,19 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 ### Entry Point
 - Build/CI gate: `./le arch enumeration check` (and unit tests in `internal/le/arch/enumeration/`).
 - Operator config: `environment { log { backend kmsg; } }`.
-- Operator CLI: `show diag capture raw start protocol bfd` / `stop` / `dump`.
+- Operator CLI: `show capture raw action start protocol bfd` / `stop` / `dump` (or shorthand `show capture raw start protocol bfd`).
 
 ### Transformation Path
-1. `corpus.go` resolves the full YANG schema via `yang.DefaultLoader()` and indexes every `gyang.Yenum` leaf by canonical `<module>/<path>` (for every enum of size >= 1, with no 3-value floor).
-2. `enumeration.go` builds a per-package string-constant table from `const` declarations across each scanned package's non-test `.go` files, parses Go AST units (`*ast.CompositeLit`, `*ast.SwitchStmt`, `const` `*ast.GenDecl`), and reads `// enumeration: yang <module>/<leaf-path>` directives.
-3. For each mapped unit, `enumeration.go` resolves the leaf path (failing on unknown or non-enum paths), extracts the Go unit's string values according to its AST shape — `CaseClause.List` expressions for `*ast.SwitchStmt`, `KeyValueExpr.Key` for `*ast.MapType` composite literals, element expressions or `KeyValueExpr.Value` for `*ast.ArrayType` composite literals (including index-keyed arrays like `prefixReconnectNames`), and `ValueSpec.Values` RHS expressions for `const` `*ast.GenDecl` — resolving both string `*ast.BasicLit` literals and same-package string `const` `*ast.Ident` references (ignoring `""` empty sentinels). It then suppresses any legacy unmapped closed-corpus finding on that unit and compares the two sets bidirectionally: any value in YANG missing from Go or in Go missing from YANG is a finding. Legacy unmapped scans keep their existing literal matching unchanged so unrelated packages do not regress.
-4. On the product side: `ze-hub-conf.yang` exposes `kmsg` to `ValidateLeafValue` and `ApplyLogConfig` -> `slogutil` (where `slogutil.go` splits the backend constants from the level constants and annotates both the backend `const` block and `validBackends`, while `slogutil.go:58` already derives `ze.log.backend`'s env description dynamically via `BackendNames()`); `ze-diag-cmd.yang` adds `enum bfd` to `show/capture/raw/protocol` and updates `container raw`'s description, while `capture_common.go` holds dedicated `// enumeration: yang`-annotated protocol lookup maps checked by `capture_raw.go` and `capture.go` outside their mixed command-token switches; and all five BGP reactor enum vocabularies (`peer_forward_facts.go`, `peer_settings.go`, `config.go`, `config_as_set.go`, `config_capabilities.go`) carry `// enumeration: yang` (with dead `"receive/send"` deleted from `parseAddPathDirection`, index-0 `"unset"` handled explicitly in `PrefixReconnectMode.String()` outside `prefixReconnectNames`, and `valEnable`..`valRefuse` split into their own `const` block in `config.go`).
+1. `corpus.go` resolves the full YANG schema via `yang.DefaultLoader()` and indexes every `gyang.Yenum` leaf by canonical `<module>/<path>` for every enum of size >= 1 (lifting `collectEnums`'s `len(names) > 1` filter for the path index while keeping legacy closed-corpus grouping unchanged).
+2. `enumeration.go` builds a per-package string-constant table from `const` declarations across each scanned package's non-test `.go` files, parses `// enumeration: yang <module>/<leaf-path>` directives during `readMarkers`, and binds each `yang` directive directly during the AST walk (independent of legacy candidate discovery, so 2-value enums, missing-value units, and constant-keyed maps are always evaluated). A `yang` directive binds to its target syntactic unit (`*ast.SwitchStmt`, `*ast.CompositeLit`, or `const` `*ast.GenDecl`): either the immediately following unit starting on the directive's line or the line after the comment group (including a `var` `*ast.GenDecl` whose `*ast.ValueSpec` initializes a single `*ast.CompositeLit`, binding to that outermost composite literal rather than inner nested literals), or a unit enclosing the directive line. A `yang` directive that attaches to no supported unit is reported as a `KindMarker` finding naming the dead directive and fix.
+3. For each bound unit, `enumeration.go` resolves `<module>/<leaf-path>` against the path index (emitting a `KindMarker` finding on an unknown or non-enum path), extracts the Go unit's string values according to its AST shape — `CaseClause.List` expressions for `*ast.SwitchStmt`, `KeyValueExpr.Key` for `*ast.MapType` composite literals, element expressions or `KeyValueExpr.Value` for `*ast.ArrayType` composite literals (including `[...]string` index-keyed arrays like `prefixReconnectNames`), and `ValueSpec.Values` RHS expressions for `const` `*ast.GenDecl` — resolving both string `*ast.BasicLit` literals and same-package string `const` `*ast.Ident` references (ignoring `""` empty sentinels). It suppresses any legacy unmapped closed-corpus finding on that unit and compares the two sets bidirectionally: a clean exact match produces zero findings (silent in both `check` and `report`, because the gate itself proves agreement), while any value in YANG missing from Go or in Go missing from YANG emits a `KindLiteral` finding under corpus `"YANG enumerations"` naming the leaf path, every missing value, and every extra value through the shared renderer in `report.go`. Legacy unmapped scans keep their existing literal matching unchanged so unrelated packages do not regress.
+4. On the product side: `ze-hub-conf.yang` adds `enum kmsg` (and documents its `/dev/kmsg` -> `stderr` fallback in `leaf backend`'s description) so `ValidateLeafValue` and `ApplyLogConfig` -> `slogutil` accept `kmsg` (where `slogutil.go` splits the backend constants from the level constants and annotates both the backend `const` block and `validBackends`, while `slogutil.go:58` already derives `ze.log.backend`'s env description dynamically via `BackendNames()`); `ze-diag-cmd.yang` adds `enum bfd` to `show/capture/raw/protocol` and updates `container raw`'s description, `capture_common.go` holds dedicated `// enumeration: yang`-annotated protocol lookup maps checked by `capture_raw.go` and `capture.go` outside their mixed command-token switches, `capture_raw.go:21` migrates `captureRawActionStart..Dump` onto `// enumeration: yang ze-diag-cmd/show/capture/raw/action`, and `features/core-diagnostics.md` clears the resolved BFD scope gap; `ze-bgp-conf.yang` extracts `typedef add-path-direction` shared by `add-path/direction` and `add-path/family/direction`, and all five BGP reactor enum vocabularies (`peer_forward_facts.go`, `peer_settings.go`, `config.go`, `config_as_set.go`, `config_capabilities.go`) carry `// enumeration: yang` (with dead `"receive/send"` deleted from `parseAddPathDirection`, index-0 `"unset"` handled explicitly in `PrefixReconnectMode.String()` outside `prefixReconnectNames`, and `valEnable`..`valRefuse` split into their own `const` block in `config.go`).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | `internal/le` → product YANG schema | Blank import `_ "github.com/ze-software/ze/internal/component/plugin/all"` + `yang.DefaultLoader()` (allowed directional le -> ze dependency) | No |
-| YANG schema → CLI / config validator | `ValidateLeafValue` (`environment/log/backend`) and `ValidateArgs` (`show diag capture raw protocol`) | No |
+| YANG schema → CLI / config validator | `ValidateLeafValue` (`environment/log/backend`) and `ValidateArgs` (`show capture raw` `protocol`) | No |
 
 ### Changed-Wire Census
 
@@ -220,19 +236,19 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every YANG enum leaf path in `yang.DefaultLoader()` has a deterministic `<module>/<path>` key | `corpus.go:319-327` already walks sorted modules and sorted `entry.Dir` children | Duplicate or unstable paths across augments | Unit test `TestEveryYANGEnumMappingAgrees` over the full loaded model | unvalidated |
-| A-2 | `show diag capture` (structured) handles only `l2tp` and `bgp`, while `show diag capture raw` handles `l2tp`, `bgp`, and `bfd` | Verified by reading `internal/plugins/diag/cmd/capture.go` (lines 21, 47, 49) and `capture_raw.go` (lines 48, 76, 103) | Adding `bfd` to structured `capture` would accept a value with no handler | Unit test + `capture_raw_test.go` | unvalidated |
+| A-2 | `show capture` (structured) handles only `l2tp` and `bgp`, while `show capture raw` handles `l2tp`, `bgp`, and `bfd` | Verified by reading `internal/plugins/diag/cmd/capture.go` (lines 21, 47, 49) and `capture_raw.go` (lines 48, 76, 103) | Adding `bfd` to structured `capture` would accept a value with no handler | Unit test + `capture_raw_test.go` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Switch statements that also have string literals inside case bodies (e.g. error messages or log strings) could look like extra enum values if the AST extractor walks the entire switch body | False-positive "extra in Go" findings on mapped switches | For `*ast.SwitchStmt`, extract string constants from `case` clause expressions (`CaseClause.List`) only, never from case bodies; for `*ast.CompositeLit` maps, extract map keys (`KeyValueExpr.Key`) only |
-| R-2 | Existing `// enumeration: gated by TestX` rows across 50+ files could break if removed all at once | Massive unrelated diff across 30+ packages | Keep existing `gated by TestX` accepted while adding `// enumeration: yang <module>/<leaf-path>` and migrating the owned reactor/slogutil/diag sites now |
+| R-2 | Existing `// enumeration: gated by TestX` rows across 82 sites (76 remaining outside this spec) could break if removed all at once | Massive unrelated diff across 30+ packages | Keep existing `gated by TestX` accepted while adding `// enumeration: yang <module>/<leaf-path>`, migrating the owned reactor/`slogutil`/`diag` sites now, and homing the remaining 76 sites in `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md` |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | `./le arch enumeration check` reports false positives or misses drift; `environment { log { backend kmsg; } }` or `show diag capture raw start protocol bfd` fails validation |
+| What breaks if this is wrong? | `./le arch enumeration check` reports false positives or misses drift; `environment { log { backend kmsg; } }` or `show capture raw action start protocol bfd` fails validation |
 | How is it reverted? | Single commit revert |
 | Who else touches this path? | `spec-software-version-mode-implements-two-of-four.md` (`softver.go` mode parsing) |
 
@@ -240,38 +256,39 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| A Go switch or map annotated with `// enumeration: yang <path>` that holds an extra value or omits a YANG enum value (including a 2-value enum) | → | `archenumeration.Check` bidirectional enum agreement check | `TestEveryYANGEnumMappingAgrees` |
+| A Go switch, map, array, or const block annotated with `// enumeration: yang <path>` that holds an extra value or omits a YANG enum value (including a 2-value enum) | → | `archenumeration.Check` bidirectional enum agreement check | `TestEveryYANGEnumMappingAgrees` |
 | Config file setting `environment { log { backend kmsg; } }` | → | YANG validator (`ze-hub-conf.yang`) → `slogutil.ApplyLogConfig` | `test/parse/log-backend-kmsg.ci` |
+| CLI command `show capture raw action start protocol bfd` | → | `command.ValidateArgs` (`ze-diag-cmd.yang`) → `handleCaptureRaw` (`captureRawProtocols`) | `TestDiagCaptureRawProtocolAcceptsBFD` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A Go const block, composite literal, or switch carrying `// enumeration: yang <module>/<leaf-path>` omits a YANG enum value or includes an extra string constant the YANG enum lacks, for any enum size (including 2-value enums), whether values are written as string literals or same-package string `const` identifiers | `./le arch enumeration check` resolves same-package string `const` identifiers (e.g., `backendStderr`..`backendKmsg` in `slogutil.go`, `capL2TP`/`capBGP`/`capBFD` in `capture_common.go`) across the package's non-test `.go` files and fails naming the file, line, `<module>/<leaf-path>`, every value missing from Go, and every extra value absent from YANG | String literals inside switch case bodies (log messages, errors) and map values (handlers, RFC numbers, booleans) are not compared; only `CaseClause.List` expressions (switches), `KeyValueExpr.Key` (`*ast.MapType` literals), element expressions or `KeyValueExpr.Value` (`*ast.ArrayType` slice/array literals, including index-keyed arrays), or `ValueSpec.Values` RHS (`const` blocks) are compared; legacy unmapped scans keep existing literal matching unchanged |
-| AC-2 | A `// enumeration: yang <module>/<leaf-path>` directive names a path absent from `yang.DefaultLoader()` or pointing to a non-enum node, or sits on no Go unit | `./le arch enumeration check` fails naming the phantom or dead directive and the fix | None |
-| AC-3 | `environment { log { backend kmsg; } }` in a config file and `slogutil.go` backend declarations | Config validation and startup accept `kmsg`; `slogutil.go:58` already derives `ze.log.backend`'s description dynamically via `BackendNames()`; `slogutil.go` splits the four backend constants (`backendStdout`..`backendKmsg`) out of the mixed log-level `const` block (lines 136-147), replaces the line-136 `// enumeration: gated by` marker with `// enumeration: yang ze-hub-conf/environment/log/backend` on the backend `const` block, and annotates `validBackends` (line 362) with `// enumeration: yang ze-hub-conf/environment/log/backend`; `log_backend_yang_test.go` deletes `logBackendEnvOnly` and verifies exact equality | Comma-separated multi-backend env overrides (`ze.log.backend=kmsg,stderr`) remain supported on the env-var path as today |
-| AC-4 | `parseAddPathDirection` (`internal/component/bgp/reactor/config_capabilities.go`) against `ze-bgp-conf` `add-path/direction` | The dead `"receive/send"` arm is removed; the switch replaces its `gated by` marker with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/capability/add-path/direction` and agrees bidirectionally (`send`, `receive`, `send/receive`) | None |
-| AC-5 | `show diag capture raw start protocol bfd` and `show diag capture` `protocol` against `ze-diag-cmd.yang` | `ze-diag-cmd.yang` `show/capture/raw/protocol` declares `l2tp`, `bgp`, `bfd` and `container raw` description reads `"Protocols: l2tp, bgp, bfd."`; `show/capture/protocol` declares `l2tp`, `bgp`; `capture_common.go` defines dedicated `captureRawProtocols` (`capL2TP`, `capBGP`, `capBFD`) and `captureProtocols` (`capL2TP`, `capBGP`) lookup maps annotated with `// enumeration: yang`, checked by `capture_raw.go` and `capture.go` outside their mixed command-token switches | Structured `show diag capture` keeps `l2tp` and `bgp` only because BFD has raw capture only (`capture_raw.go`), not structured capture (`capture.go`); `capture_common.go`'s `const` block keeps its `// enumeration: exempt (...)` for the flat plugin-names corpus |
-| AC-6 | Shipped tree under `./le arch enumeration check`, all five reactor enum tables, and `yang_enum_agreement_test.go` retirement | `./le arch enumeration check` exits 0 with zero dead `// enumeration: gated by` markers; all five reactor enum vocabularies carry `// enumeration: yang`: `peer_forward_facts.go` (`sendCommunitySuppression` -> `session/community/send`), `peer_settings.go` (`prefixReconnectNames` omitting index-0 `PrefixReconnectUnset` while `String()` returns `"unset"` for `PrefixReconnectUnset` -> `session/family/prefix/reconnect`), `config.go` (dedicated 4-const block `valEnable`..`valRefuse` split from `valTrue`/`valFalse`/`valAuto` -> `session/capability/add-path/family/mode`), `config_as_set.go` (`asSetPolicyWithdraw`/`asSetPolicyAccept` -> `session/as-set`), and `config_capabilities.go` (`parseAddPathDirection` -> `session/capability/add-path/direction`); `yang_enum_agreement_test.go` retires all five per-package YANG value-set tests and its private `yangModel`/`yangEnumValues` helpers while retaining behavioral parse/round-trip assertions | Existing `// enumeration: gated by TestX` directives in unrelated packages (including `capture_raw.go:21` action constants) stay valid until migrated |
+| AC-1 | A Go const block, composite literal, or switch carrying `// enumeration: yang <module>/<leaf-path>` omits a YANG enum value or includes an extra string constant the YANG enum lacks, for any enum size (including 2-value enums), whether values are written as string literals or same-package string `const` identifiers | `./le arch enumeration check` binds the directive directly to its AST unit (including a `var` doc comment on a single composite literal), resolves same-package string `const` identifiers (e.g., `backendStderr`..`backendKmsg` in `slogutil.go`, `capL2TP`/`capBGP`/`capBFD` in `capture_common.go`) across the package's non-test `.go` files, emits a `KindLiteral` finding under corpus `"YANG enumerations"` naming the file, line, `<module>/<leaf-path>`, every value missing from Go, and every extra value absent from YANG, and emits zero findings on a clean exact match | String literals inside switch case bodies (log messages, errors) and map values (handlers, RFC numbers, booleans) are not compared; only `CaseClause.List` expressions (switches), `KeyValueExpr.Key` (`*ast.MapType` literals), element expressions or `KeyValueExpr.Value` (`*ast.ArrayType` slice/array literals, including `[...]string` index-keyed arrays), or `ValueSpec.Values` RHS (`const` blocks) are compared; legacy unmapped scans keep existing literal matching unchanged |
+| AC-2 | A `// enumeration: yang <module>/<leaf-path>` directive names a path absent from `yang.DefaultLoader()` or pointing to a non-enum node, or sits on no supported Go unit | `./le arch enumeration check` fails with a `KindMarker` finding naming the phantom or dead directive and the fix | None |
+| AC-3 | `environment { log { backend kmsg; } }` in a config file and `slogutil.go` backend declarations | Config validation and startup accept `kmsg` (with `leaf backend`'s YANG description noting `/dev/kmsg` and its `stderr` fallback); `slogutil.go:58` already derives `ze.log.backend`'s description dynamically via `BackendNames()`; `slogutil.go` splits the four backend constants (`backendStdout`..`backendKmsg`) out of the mixed log-level `const` block (lines 136-147), replaces the line-136 `// enumeration: gated by` marker with `// enumeration: yang ze-hub-conf/environment/log/backend` on the backend `const` block, and annotates `validBackends` (line 362) with `// enumeration: yang ze-hub-conf/environment/log/backend`; `log_backend_yang_test.go` deletes `logBackendEnvOnly` and keeps `TestLogBackendLeafMatchesSlogutil` as runtime proof that `slogutil.BackendNames()` matches `configyang.EnumValues` | Comma-separated multi-backend env overrides (`ze.log.backend=kmsg,stderr`) remain supported on the env-var path as today |
+| AC-4 | `parseAddPathDirection` (`internal/component/bgp/reactor/config_capabilities.go`) against `ze-bgp-conf` `add-path/direction` and `add-path/family/direction` | The dead `"receive/send"` arm is removed; `ze-bgp-conf.yang` defines a shared `typedef add-path-direction` (`send`, `receive`, `send/receive`) used by both `add-path/direction` and `add-path/family/direction` so the two leaves cannot drift apart; the switch replaces its `gated by` marker with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/capability/add-path/direction` and agrees bidirectionally (`send`, `receive`, `send/receive`) | None |
+| AC-5 | `show capture raw action start protocol bfd`, `show capture raw` `action`, and `show capture` `protocol` against `ze-diag-cmd.yang` | `ze-diag-cmd.yang` `show/capture/raw/protocol` declares `l2tp`, `bgp`, `bfd` and `container raw` description reads `"Protocols: l2tp, bgp, bfd."`; `show/capture/protocol` declares `l2tp`, `bgp`; `capture_common.go` defines dedicated `captureRawProtocols` (`capL2TP`, `capBGP`, `capBFD`) and `captureProtocols` (`capL2TP`, `capBGP`) lookup maps annotated with `// enumeration: yang`, checked by `capture_raw.go` and `capture.go` outside their mixed command-token switches; `capture_raw.go:21` replaces `gated by TestCaptureRawActionsMatchTheModel` with `// enumeration: yang ze-diag-cmd/show/capture/raw/action` (retaining `capture_raw_yang_test.go`'s dispatch assertions); `features/core-diagnostics.md` clears the resolved BFD scope gap and passes `./le feature check` | Structured `show capture` keeps `l2tp` and `bgp` only because BFD has raw capture only (`capture_raw.go`), not structured capture (`capture.go`); `capture_common.go`'s `const` block keeps its `// enumeration: exempt (...)` for the flat plugin-names corpus |
+| AC-6 | Shipped tree under `./le arch enumeration check`, all five reactor enum tables, and `yang_enum_agreement_test.go` retirement | `./le arch enumeration check` exits 0 with zero dead `// enumeration: gated by` markers; all five reactor enum vocabularies carry `// enumeration: yang`: `peer_forward_facts.go` (`sendCommunitySuppression` -> `session/community/send`), `peer_settings.go` (`prefixReconnectNames` omitting index-0 `PrefixReconnectUnset` while `String()` returns `"unset"` for `PrefixReconnectUnset` -> `session/family/prefix/reconnect`), `config.go` (dedicated 4-const block `valEnable`..`valRefuse` split from `valTrue`/`valFalse`/`valAuto` -> `session/capability/add-path/family/mode`), `config_as_set.go` (`asSetPolicyWithdraw`/`asSetPolicyAccept` -> `session/as-set`), and `config_capabilities.go` (`parseAddPathDirection` -> `session/capability/add-path/direction`); `yang_enum_agreement_test.go` retires all five per-package YANG value-set tests and its private `yangModel`/`yangEnumValues` helpers while retaining behavioral parse/round-trip assertions | Existing `// enumeration: gated by TestX` directives in unrelated packages (76 remaining sites, homed in `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md`) stay valid until migrated |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Configures `environment { log { backend kmsg; } }` | Config parser -> YANG enum validator (`ze-hub-conf.yang`) -> `ApplyLogConfig` -> `slogutil.writerForBackend` | `test/parse/log-backend-kmsg.ci` |
-| 2 | Runs `show diag capture raw start protocol bfd` | CLI -> `ValidateArgs` (`ze-diag-cmd.yang`) -> `captureRawStart` (`capture_raw.go`) | `internal/plugins/diag/cmd/capture_raw_test.go` + `./le arch enumeration check` |
+| 2 | Runs `show capture raw action start protocol bfd` | CLI -> `ValidateArgs` (`ze-diag-cmd.yang`) -> `handleCaptureRaw` (`captureRawProtocols`) -> `captureRawStart` (`capture_raw.go`) | `TestDiagCaptureRawProtocolAcceptsBFD` (`internal/plugins/diag/cmd/capture_raw_test.go`) + `./le arch enumeration check` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEveryYANGEnumMappingAgrees` | `internal/le/arch/enumeration/yang_mapping_test.go` | AC-1, AC-2 (missing value, extra value, 2-value enum, same-package string `const` resolution, index-keyed array literals, switch-body strings and map values ignored, phantom/non-enum path, clean match) | |
-| `TestLogBackendLeafMatchesSlogutil` | `internal/component/config/log_backend_yang_test.go` | AC-3 (exact bidirectional equality including `kmsg`, no exclusion) | |
+| `TestEveryYANGEnumMappingAgrees` | `internal/le/arch/enumeration/yang_mapping_test.go` | AC-1, AC-2 (missing value, extra value, 2-value enum, same-package string `const` resolution, `var` doc-comment binding, index-keyed `[...]string` array literals, switch-body strings and map values ignored, phantom/non-enum path, unattached directive, clean silent match) | |
+| `TestLogBackendLeafMatchesSlogutil` | `internal/component/config/log_backend_yang_test.go` | AC-3 (exact runtime equality between `configyang.EnumValues` and `slogutil.BackendNames()` including `kmsg`, no exclusion) | |
 | `TestAddPathDirectionRejectsReceiveSend` | `internal/component/bgp/reactor/yang_enum_agreement_test.go` | AC-4, AC-6 (`receive/send` and unknown strings return `AddPathNone`; all three valid directions return non-None) | |
 | `TestPrefixReconnectModeRoundTripAndRejectsUnset` | `internal/component/bgp/reactor/yang_enum_agreement_test.go` | AC-6 (`PrefixReconnectUnset.String() == "unset"`, `parsePrefixReconnectMode("unset")` returns `false`, every configured mode round-trips) | |
 | `TestSendCommunitySuppressionBehavior` | `internal/component/bgp/reactor/yang_enum_agreement_test.go` | AC-6 (`"none"` and unknown keywords fail closed suppressing all three types; `"all"`, `"standard"`, `"large"`, `"extended"` leave the expected types unsuppressed) | |
-| `TestDiagCaptureRawProtocolAcceptsBFD` | `internal/plugins/diag/cmd/capture_raw_test.go` | AC-5 (dispatching `show diag capture raw` with `protocol bfd` validates against YANG and routes through `captureRawProtocols`) | |
+| `TestDiagCaptureRawProtocolAcceptsBFD` | `internal/plugins/diag/cmd/capture_raw_test.go` | AC-5 (validating `show capture raw` tokens with `protocol bfd` through `command.ValidateArgs` against the loaded `ze-diag-cmd.yang` schema — never `commandtest.Args` — and dispatching the resulting `ValidatedArgs` into `handleCaptureRaw` through `captureRawProtocols`) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -287,22 +304,26 @@ once it lands, `softver.go` can annotate its mode switch under this gate as well
 N-A: Scope is config and development lint gate; no protocol wire change.
 
 ## Files to Modify
-- `internal/le/arch/enumeration/corpus.go` - index YANG enum value sets by `<module>/<leaf-path>` for all enum sizes
-- `internal/le/arch/enumeration/enumeration.go` - build per-package string-const table, parse `// enumeration: yang <module>/<leaf-path>`, extract case/map-key/array-element/const value sets (resolving same-package string `const` idents), suppress legacy closed-corpus finding on mapped units, compare bidirectionally, refuse phantom/dead directives
+- `internal/le/arch/enumeration/corpus.go` - index YANG enum value sets by `<module>/<leaf-path>` for all enum sizes (>= 1)
+- `internal/le/arch/enumeration/enumeration.go` - build per-package string-const table, parse `// enumeration: yang <module>/<leaf-path>`, bind directly to target AST unit (including `var` doc-comment literals), extract case/map-key/array-element/const value sets (resolving same-package string `const` idents), suppress legacy closed-corpus finding on mapped units, compare bidirectionally (`KindLiteral` on mismatch, silent on clean match), refuse phantom/non-enum/unattached directives (`KindMarker`)
 - `internal/le/arch/enumeration/report.go` - report missing, extra, and phantom enum mapping findings with fixes through the shared renderer
-- `internal/component/bgp/reactor/config_capabilities.go` - remove `"receive/send"` from `parseAddPathDirection` and replace `gated by` with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/capability/add-path/direction`
+- `internal/component/bgp/yang/ze-bgp-conf.yang` - extract shared `typedef add-path-direction` (`send`, `receive`, `send/receive`) used by both `add-path/direction` and `add-path/family/direction`
+- `internal/component/bgp/reactor/config_capabilities.go` - remove `"receive/send"` (line 505) from `parseAddPathDirection` and replace `gated by` (line 499) with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/capability/add-path/direction`
 - `internal/component/bgp/reactor/peer_forward_facts.go` - replace `gated by` on `sendCommunitySuppression` switch (line 715) with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/community/send` and update doc comment
-- `internal/component/bgp/reactor/peer_settings.go` - omit index-0 `PrefixReconnectUnset` from `prefixReconnectNames` (handle `PrefixReconnectUnset` returning `"unset"` in `String()`), replace `gated by` on line 830 with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/family/prefix/reconnect`, and update doc comment
-- `internal/component/bgp/reactor/config.go` - split `valEnable`, `valDisable`, `valRequire`, `valRefuse` out of lines 61-70 into a dedicated `const` block separate from `valTrue`, `valFalse`, `valAuto`, replacing `gated by` with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/capability/add-path/family/mode`
+- `internal/component/bgp/reactor/peer_settings.go` - omit index-0 `PrefixReconnectUnset` from `prefixReconnectNames` (line 840; handle `PrefixReconnectUnset` returning `"unset"` in `String()`), replace `gated by` on line 839 with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/family/prefix/reconnect`, and update doc comment
+- `internal/component/bgp/reactor/config.go` - split `valEnable`, `valDisable`, `valRequire`, `valRefuse` out of lines 63-71 into a dedicated `const` block separate from `valTrue`, `valFalse`, `valAuto`, replacing `gated by` (line 62) with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/capability/add-path/family/mode`
 - `internal/component/bgp/reactor/config_as_set.go` - annotate `asSetPolicyWithdraw`/`asSetPolicyAccept` `const` block (line 10) with `// enumeration: yang ze-bgp-conf/bgp/group/peer/session/as-set`
 - `internal/component/bgp/reactor/yang_enum_agreement_test.go` - retire all five YANG value-set boilerplate tests and private `yangModel`/`yangEnumValues` helpers; keep behavioral parse/round-trip assertions
-- `internal/component/hub/yang/ze-hub-conf.yang` - add `enum kmsg` to `environment/log/backend`
+- `internal/component/hub/yang/ze-hub-conf.yang` - add `enum kmsg` to `environment/log/backend` and document `/dev/kmsg` with `stderr` fallback in `leaf backend`'s description
 - `internal/core/slogutil/slogutil.go` - split backend constants (`backendStdout`..`backendKmsg`) out of the mixed log-level `const` block (lines 136-147), replace the line-136 `gated by` marker with `// enumeration: yang ze-hub-conf/environment/log/backend` on the backend `const` block and annotate `validBackends` (line 362) with `// enumeration: yang ze-hub-conf/environment/log/backend`
-- `internal/component/config/log_backend_yang_test.go` - delete `logBackendEnvOnly = "kmsg"` exclusion
+- `internal/component/config/log_backend_yang_test.go` - delete `logBackendEnvOnly = "kmsg"` exclusion (keep runtime equality test between `configyang.EnumValues` and `slogutil.BackendNames()`)
 - `internal/plugins/diag/yang/ze-diag-cmd.yang` - add `enum bfd` to `show/capture/raw/protocol` and update `container raw` description (lines 95-96) to `"Protocols: l2tp, bgp, bfd."`
 - `internal/plugins/diag/cmd/capture_common.go` - define dedicated `captureRawProtocols` (`capL2TP`, `capBGP`, `capBFD`) and `captureProtocols` (`capL2TP`, `capBGP`) lookup maps annotated with `// enumeration: yang`
-- `internal/plugins/diag/cmd/capture_raw.go` - check `captureRawProtocols[a]` outside the mixed token switch in `handleCaptureRaw`
+- `internal/plugins/diag/cmd/capture_raw.go` - check `captureRawProtocols[a]` outside the mixed token switch in `handleCaptureRaw`, and replace `gated by` on line 21 (`captureRawActionStart..Dump`) with `// enumeration: yang ze-diag-cmd/show/capture/raw/action`
+- `internal/plugins/diag/cmd/capture_raw_test.go` - add `TestDiagCaptureRawProtocolAcceptsBFD` validating `protocol bfd` through `command.ValidateArgs` against `ze-diag-cmd.yang` before calling `handleCaptureRaw`
+- `internal/plugins/diag/cmd/capture_raw_yang_test.go` - keep `handleCaptureRaw` action dispatch assertions while retiring the duplicate `configyang.EnumValues` comparison superseded by `capture_raw.go:21`'s `// enumeration: yang` directive
 - `internal/plugins/diag/cmd/capture.go` - check `captureProtocols[a]` outside the mixed token switch in `HandleShowCapture`
+- `features/core-diagnostics.md` - clear the resolved BFD scope gap (`Scope: full`, `Scope gaps: -`, update `Doc review`, `Defect review`, and description) so rendered `docs/features.md` stays accurate
 - `docs/architecture/config/environment-block.md` - document `kmsg` in `environment/log/backend`
 - `docs/architecture/config/yang-config-design.md` - document bidirectional Go-vs-YANG enum agreement in `./le arch enumeration check`
 
@@ -313,10 +334,10 @@ N-A: Scope is config and development lint gate; no protocol wire change.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `ze-hub-conf.yang` (`kmsg`), `ze-diag-cmd.yang` (`bfd`) |
-| YANG validation constraints | Yes | Enumerations in `ze-hub-conf.yang` and `ze-diag-cmd.yang` |
+| YANG schema (new RPCs/config) | Yes | `ze-hub-conf.yang` (`kmsg`), `ze-diag-cmd.yang` (`bfd`), `ze-bgp-conf.yang` (`typedef add-path-direction`) |
+| YANG validation constraints | Yes | Enumerations in `ze-hub-conf.yang`, `ze-diag-cmd.yang`, and `ze-bgp-conf.yang` |
 | YANG custom validators | No | None |
-| CLI commands/flags | No | Existing `show diag capture raw` gains `bfd` enum value only |
+| CLI commands/flags | No | Existing `show capture raw` gains `bfd` enum value only |
 | CLI grammar (keyword before value) | Yes | `./le cli grammar` verifies `ze-diag-cmd.yang` |
 | Editor autocomplete | Yes | Automatically offers `kmsg` and `bfd` from YANG enums |
 | Functional test for new RPC/API | Yes | `test/parse/log-backend-kmsg.ci` |
@@ -330,9 +351,9 @@ N-A: Scope is config and development lint gate; no protocol wire change.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|----------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | No | Aligns shipped YANG enums with existing Go handlers |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/core-diagnostics.md` (clears `Scope gaps: BFD raw capture cannot be selected alone`, renders `docs/features.md`) |
 | 2 | Config syntax changed? | Yes | `docs/architecture/config/environment-block.md` (`environment/log/backend` adds `kmsg`) |
-| 3 | CLI command added/changed? | No | `show diag capture raw` already accepts `protocol`; `bfd` is an enum value |
+| 3 | CLI command added/changed? | No | `show capture raw` already accepts `protocol`; `bfd` is an enum value |
 | 4 | API/RPC added/changed? | No | None |
 | 5 | Plugin added/changed? | No | None |
 | 6 | Has a user guide page? | No | None |
@@ -356,17 +377,18 @@ N-A: Scope is config and development lint gate; no protocol wire change.
 `// enumeration: yang <module>/<leaf-path>`, refusing both missing YANG values
 and extra dead Go arms regardless of enum size (including 2-value enums). Three
 shipped enum mismatches are fixed at the same time: `environment/log/backend`
-adds `kmsg`, `parseAddPathDirection` drops the dead `receive/send` arm, and
-`show diag capture raw protocol` adds `bfd`.
+adds `kmsg`, `parseAddPathDirection` drops the dead `receive/send` arm (while
+`add-path/direction` and `add-path/family/direction` share a single typedef),
+and `show capture raw` `protocol` adds `bfd`.
 
 ### Before and after
 
 1. **Configuring `environment { log { backend kmsg; } }`.**
    Before: Refused by YANG validation (`invalid enum: "kmsg"`), even though `slogutil` implements `kmsg` via `ze.log.backend=kmsg`.
    After: Accepted by YANG validation, offered by editor autocomplete, and wired to `slogutil`'s `/dev/kmsg` handler.
-2. **Running `show diag capture raw start protocol bfd`.**
-   Before: Refused by `ValidateArgs` because `ze-diag-cmd.yang` lists only `l2tp` and `bgp`, even though `capture_raw.go` implements and tests `bfd`.
-   After: Accepted by `ValidateArgs` and tab-completed in the CLI.
+2. **Running `show capture raw action start protocol bfd`.**
+   Before: Refused by `ValidateArgs` because `ze-diag-cmd.yang` lists only `l2tp` and `bgp`, even though `capture_raw.go` implements and tests `bfd` (and `features/core-diagnostics.md` records the scope gap).
+   After: Accepted by `ValidateArgs` and tab-completed in the CLI, and `features/core-diagnostics.md` clears the BFD scope gap.
 3. **Adding a dead arm (`"receive/send"`) or an extra value to a Go parser mapped to a YANG enum (including 2-value enums).**
    Before: `./le arch enumeration check` exits 0 because it checks only one direction and skips enums with fewer than 3 values.
    After: `./le arch enumeration check` fails naming the leaf path, the extra Go value, and the fix.
@@ -385,29 +407,31 @@ none
 
 ### Choices for Thomas
 
-none
+| # | Choice | Options | Decision |
+|---|--------|---------|----------|
+| C-1 | Remaining `// enumeration: gated by TestX` annotations (82 in tree today; 76 outside this spec after migrating `capture_raw.go:21`) | (a) (Recommended) Keep `gated by TestX` accepted during transition, migrate `capture_raw.go:21` now since this spec edits `capture_raw.go`, and home the remaining 76 sites in `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md`; (b) Leave `capture_raw.go:21` on `gated by` too (77 remaining); (c) Expand this spec to migrate all 82 sites and remove `gated by TestX` now | Pending Thomas's confirmation (drafted per option (a)) |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- add `TestEveryYANGEnumMappingAgrees` (failing) and `test/parse/log-backend-kmsg.ci` (failing).
-2. **Phase: Gate** -- add `<module>/<leaf-path>` index in `corpus.go`, per-package string-const table, `// enumeration: yang <path>` parsing, shape-specific AST extraction (switches, map keys, array/slice elements/values, const blocks), legacy closed-corpus suppression, and bidirectional comparison in `enumeration.go`, and shared-renderer diagnostics in `report.go` (AC-1, AC-2).
-3. **Phase: Shipped Mismatches & Reactor Migration** -- fix `ze-hub-conf.yang` / `slogutil.go` (split backend const block + annotate const block and `validBackends`) / `log_backend_yang_test.go` (`kmsg`); migrate all five reactor tables (`config_capabilities.go` dropping `"receive/send"`, `peer_forward_facts.go`, `peer_settings.go` handling `"unset"` in `String()`, `config.go` splitting `valEnable`..`valRefuse`, `config_as_set.go`) and retire superseded YANG value-set tests in `yang_enum_agreement_test.go`; update `ze-diag-cmd.yang` (`enum bfd` + `container raw` description) and extract dedicated annotated protocol maps in `capture_common.go` called from `capture_raw.go` and `capture.go` (AC-3..AC-6).
-4. **Phase: Docs** -- update `docs/architecture/config/environment-block.md` and `docs/architecture/config/yang-config-design.md`.
+1. **Phase: Wiring (MANDATORY FIRST)** -- add `TestEveryYANGEnumMappingAgrees` (failing), `test/parse/log-backend-kmsg.ci` (failing), and `TestDiagCaptureRawProtocolAcceptsBFD` running `command.ValidateArgs` against `ze-diag-cmd.yang` (failing).
+2. **Phase: Gate** -- add `<module>/<leaf-path>` index (size >= 1) in `corpus.go`, per-package string-const table, `// enumeration: yang <path>` parsing and direct AST unit binding (including `var` doc-comment literals), shape-specific AST extraction (switches, map keys, array/slice elements/values including `[...]string`, const blocks), legacy closed-corpus suppression, and bidirectional comparison (`KindLiteral` on mismatch, `KindMarker` on phantom/unattached, silent on clean match) in `enumeration.go`, and shared-renderer diagnostics in `report.go` (AC-1, AC-2).
+3. **Phase: Shipped Mismatches & Reactor Migration** -- fix `ze-hub-conf.yang` (`enum kmsg` + description) / `slogutil.go` (split backend const block + annotate const block and `validBackends`) / `log_backend_yang_test.go` (`kmsg`); extract `typedef add-path-direction` in `ze-bgp-conf.yang`, migrate all five reactor tables (`config_capabilities.go` dropping `"receive/send"`, `peer_forward_facts.go`, `peer_settings.go` handling `"unset"` in `String()`, `config.go` splitting `valEnable`..`valRefuse`, `config_as_set.go`) and retire superseded YANG value-set tests in `yang_enum_agreement_test.go`; update `ze-diag-cmd.yang` (`enum bfd` + `container raw` description), extract dedicated annotated protocol maps in `capture_common.go` called from `capture_raw.go` and `capture.go`, and migrate `capture_raw.go:21` (`captureRawActionStart..Dump`) onto `// enumeration: yang` while keeping `capture_raw_yang_test.go`'s dispatch assertions (AC-3..AC-6).
+4. **Phase: Docs** -- update `features/core-diagnostics.md` (clearing the BFD scope gap), `docs/architecture/config/environment-block.md`, and `docs/architecture/config/yang-config-design.md`.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-1..AC-6 has an implementation at file:line and zero dead `gated by` markers remain across reactor and `slogutil.go` |
-| Correctness | Switch extraction reads `CaseClause.List` only (never body strings); map extraction reads `KeyValueExpr.Key` only; array/slice extraction reads elements or index-keyed `KeyValueExpr.Value`; same-package string `const` idents resolve on mapped units |
+| Completeness | Every AC-1..AC-6 has an implementation at file:line and zero dead `gated by` markers remain across reactor, `slogutil.go`, and `capture_raw.go` |
+| Correctness | Switch extraction reads `CaseClause.List` only (never body strings); map extraction reads `KeyValueExpr.Key` only; array/slice extraction reads elements or index-keyed `KeyValueExpr.Value`; same-package string `const` idents resolve on mapped units; `TestDiagCaptureRawProtocolAcceptsBFD` validates through `ValidateArgs` (not `commandtest.Args`) |
 | Data flow | `internal/core/slogutil` adds zero upward imports |
-| Rule: no-layering | Dead `"receive/send"` arm, hand-coded `logBackendEnvOnly` exclusion, and private `yangModel`/`yangEnumValues` boilerplate deleted |
+| Rule: no-layering | Dead `"receive/send"` arm, hand-coded `logBackendEnvOnly` exclusion, duplicate inline `add-path` direction enum, and private `yangModel`/`yangEnumValues` boilerplate deleted |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Bidirectional enum gate | `./le test unit pkg path ./internal/le/arch/enumeration/ && ./le arch enumeration check` |
 | Log backend `kmsg` | `./le test unit pkg path ./internal/component/config/ && ./le test functional parse` |
-| ADD-PATH and diag fixes | `./le test unit pkg path ./internal/component/bgp/reactor/ && ./le test unit pkg path ./internal/plugins/diag/cmd/ && ./le cli grammar` |
+| ADD-PATH and diag fixes | `./le test unit pkg path ./internal/component/bgp/reactor/ && ./le test unit pkg path ./internal/plugins/diag/cmd/ && ./le cli grammar && ./le feature check` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -441,8 +465,15 @@ Moved here on 2026-11-26 from `plan/release/fixes/spec-yang-single-source-of-tru
 | Add `kmsg` to `ze-hub-conf.yang` and `bfd` to `ze-diag-cmd.yang`, delete `"receive/send"` from `config_capabilities.go` | Remove `kmsg` and `bfd` from Go; add `"receive/send"` alias to YANG | `kmsg` and `bfd` are active shipped capabilities; `"receive/send"` is a redundant dead spelling for `"send/receive"` |
 
 ## Known Limitations
-- Migrating all ~55 existing `// enumeration: gated by TestX` annotations in unrelated packages to `// enumeration: yang <path>` is incremental; this spec migrates the owned reactor, `slogutil`, and `diag` sites and keeps `gated by TestX` accepted during transition.
+- Migrating the remaining 76 `// enumeration: gated by TestX` annotations in unrelated packages to `// enumeration: yang <path>` and retiring `gated by TestX` is homed in `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md`; this spec migrates the owned reactor, `slogutil`, and `diag` (`capture_raw.go:21`) sites and keeps `gated by TestX` accepted during transition.
 - `software-version/mode` runtime enforcement (`require`/`refuse`) is owned by `plan/release/fixes/spec-software-version-mode-implements-two-of-four.md`.
+
+## Work Not Done
+
+| Item | Destination spec |
+|------|------------------|
+| Migrate remaining 76 `// enumeration: gated by TestX` sites across unrelated packages onto `// enumeration: yang <module>/<leaf-path>` and retire `gated by TestX` | `plan/post-release/engineering/spec-yang-enum-gated-marker-migration.md` |
+| Enforce `require` and `refuse` on `software-version/mode` and annotate `softver.go` | `plan/release/fixes/spec-software-version-mode-implements-two-of-four.md` |
 
 ## Review Gate
 
