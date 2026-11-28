@@ -7,6 +7,7 @@ package yang
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -391,6 +392,9 @@ func resolveJoined(compiled *Resolved, declared []declaredModule) (*Resolved, er
 //     newError and errorf; Entry.merge begins with the augment or uses that
 //     adds a node already held, then quotes the node it met). Each declared
 //     module is parsed under a file name of its own (externalFile);
+//   - a pre-process cycle error belongs to the module that declared the closing
+//     grouping or identity (cycleError), and skips moduleCheckErrors because
+//     goyang's Process did not run;
 //   - a leafref error belongs to the module whose statement wrote the leaf
 //     (leafrefError, yang.RootNode), which for a leaf augmented into a
 //     compiled-in container is the augmenting module;
@@ -398,9 +402,13 @@ func resolveJoined(compiled *Resolved, declared []declaredModule) (*Resolved, er
 //     checks refuse when they judge it alone over the processed set
 //     (moduleCheckErrors), since they judged the declared modules only.
 func failingModule(loader *Loader, declared []declaredModule, resolveErr error) (declaredModule, bool) {
-	goyangErrs, leafOwners := resolveErrorOrigins(resolveErr)
+	goyangErrs, moduleOwners := resolveErrorOrigins(resolveErr)
+	skipPostProcess := errors.Is(resolveErr, ErrCyclicGrouping)
+	if errors.Is(resolveErr, ErrCyclicIdentity) {
+		skipPostProcess = true
+	}
 	for _, module := range declared {
-		if leafOwners[module.name] {
+		if moduleOwners[module.name] {
 			return module, true
 		}
 		file := externalFile(module.external) + ":"
@@ -408,6 +416,9 @@ func failingModule(loader *Loader, declared []declaredModule, resolveErr error) 
 			if strings.HasPrefix(err.Error(), file) {
 				return module, true
 			}
+		}
+		if skipPostProcess {
+			continue
 		}
 		parsed := loader.modules.Modules.Modules[module.name]
 		if parsed == nil {
@@ -421,11 +432,11 @@ func failingModule(loader *Loader, declared []declaredModule, resolveErr error) 
 }
 
 // resolveErrorOrigins walks the error tree of a resolve and answers goyang's
-// errors (processError) and the name of each module that wrote a leaf whose
-// leafref was refused (leafrefError). The walk is an explicit stack bounded by
-// the errors one resolve joins.
-func resolveErrorOrigins(resolveErr error) (goyangErrs []error, leafOwners map[string]bool) {
-	leafOwners = map[string]bool{}
+// errors (processError) and the name of each module that owns a pre-process
+// cycle error (cycleError) or a refused leafref (leafrefError). The walk is an
+// explicit stack bounded by the errors one resolve joins.
+func resolveErrorOrigins(resolveErr error) (goyangErrs []error, moduleOwners map[string]bool) {
+	moduleOwners = map[string]bool{}
 	pending := []error{resolveErr}
 	for len(pending) > 0 {
 		err := pending[len(pending)-1]
@@ -436,9 +447,15 @@ func resolveErrorOrigins(resolveErr error) (goyangErrs []error, leafOwners map[s
 			goyangErrs = append(goyangErrs, goyang.errs...)
 			continue
 		}
+		if cycle, isCycle := err.(*cycleError); isCycle { //nolint:errorlint // one node of the walk, see above
+			if cycle.module != "" {
+				moduleOwners[cycle.module] = true
+			}
+			continue
+		}
 		if leafref, isLeafref := err.(*leafrefError); isLeafref { //nolint:errorlint // one node of the walk, see above
 			if leafref.leaf.Node != nil {
-				leafOwners[gyang.RootNode(leafref.leaf.Node).Name] = true
+				moduleOwners[gyang.RootNode(leafref.leaf.Node).Name] = true
 			}
 			continue
 		}
@@ -446,7 +463,7 @@ func resolveErrorOrigins(resolveErr error) (goyangErrs []error, leafOwners map[s
 			pending = append(pending, joined.Unwrap()...)
 		}
 	}
-	return goyangErrs, leafOwners
+	return goyangErrs, moduleOwners
 }
 
 // moduleUse is what one module of a set gives ze, by the one rule every

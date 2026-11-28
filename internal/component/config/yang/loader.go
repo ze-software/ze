@@ -382,8 +382,10 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // every failure, and each undeclared extension wraps ErrUndeclaredExtension.
 //
 // It also refuses every `pattern` statement compilePattern cannot compile,
-// each wrapping ErrUncompilablePattern, and every structure goyang accepts
-// and RFC 7950 forbids (checkStructure): an include of a submodule that
+// each wrapping ErrUncompilablePattern, every cyclic grouping
+// (ErrCyclicGrouping) or cyclic identity base chain (ErrCyclicIdentity) before
+// goyang processes the modules (checkPreProcess), and every structure goyang
+// accepts and RFC 7950 forbids (checkStructure): an include of a submodule that
 // belongs to another module (ErrIncludeBelongsTo), length parts that overlap or descend
 // (ErrLengthOrder), an enum restriction that departs from its base type
 // (ErrEnumRestriction), a non-YANG statement under an extension
@@ -405,6 +407,12 @@ func (l *Loader) Resolve() (*Resolved, error) {
 	}
 	l.modules.resolved = true
 	processErr := l.process()
+	if errors.Is(processErr, ErrCyclicGrouping) {
+		return nil, processErr
+	}
+	if errors.Is(processErr, ErrCyclicIdentity) {
+		return nil, processErr
+	}
 	extensionErr := l.checkExtensions()
 	patterns, patternErr := l.checkPatterns()
 	structureErr := l.checkStructure()
@@ -418,8 +426,13 @@ func (l *Loader) Resolve() (*Resolved, error) {
 	return resolved, nil
 }
 
-// process runs goyang's import and type resolution over every loaded module.
+// process runs Ze's pre-process cycle guards and then goyang's import and type
+// resolution over every loaded module. If checkPreProcess finds a grouping or
+// identity cycle, goyang's Process is skipped so it cannot overflow the stack.
 func (l *Loader) process() error {
+	if err := l.checkPreProcess(); err != nil {
+		return err
+	}
 	errs := l.modules.Process()
 	if len(errs) == 0 {
 		errs = l.modules.augmentErrors()

@@ -1,9 +1,10 @@
 // Design: docs/architecture/config/yang-config-design.md — YANG schema handling
 // Related: loader.go — Resolve and DefaultLoader join these checks
-// RFC: rfc/short/rfc7950.md -- Sections 7.2.2, 7.19, 9.4.4 and 9.6.4, structures goyang accepts
+// RFC: rfc/short/rfc7950.md -- Sections 7.2.2, 7.12, 7.18.2, 7.19, 9.4.4 and 9.6.4, structures goyang accepts
 package yang
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"reflect"
@@ -15,6 +16,18 @@ import (
 
 	"github.com/openconfig/goyang/pkg/yang"
 )
+
+// ErrCyclicGrouping marks a `grouping` that references itself directly or
+// indirectly through `uses` or nested `grouping` statements (RFC 7950 Section
+// 7.12). goyang's ToEntry recurses before caching, so any cycle overflows the
+// goroutine stack unless refused before Modules.Process runs.
+var ErrCyclicGrouping = errors.New("cyclic YANG grouping")
+
+// ErrCyclicIdentity marks an `identity` whose `base` chain reaches itself
+// directly or indirectly (RFC 7950 Section 7.18.2). goyang's addChildren
+// recurses over derived identities with no visited guard, so any cycle
+// overflows the goroutine stack unless refused before Modules.Process runs.
+var ErrCyclicIdentity = errors.New("cyclic YANG identity")
 
 // ErrLengthOrder marks a `length` statement whose parts overlap or descend.
 // goyang sorts and coalesces the parts before it validates them (types_builtin.go,
@@ -127,6 +140,544 @@ func includedSubmodule(mod *yang.Module, include *yang.Include) *yang.Module {
 		}
 	}
 	return mod.Modules.SubModules[include.Name]
+}
+
+// checkPreProcess runs pre-process guards over every loaded module and
+// submodule before goyang's Modules.Process runs, refusing grouping and
+// identity cycles that would otherwise overflow goyang's recursion stack.
+// All cross-module and submodule lookups stay strictly in memory and never
+// read files from disk.
+func (l *Loader) checkPreProcess() error {
+	mods := l.modules.heldModulesSorted()
+	errs := slices.Concat(
+		// RFC 7950 Section 7.12
+		cyclicGroupingErrors(mods),
+		// RFC 7950 Section 7.18.2
+		cyclicIdentityErrors(mods),
+	)
+	return errors.Join(errs...)
+}
+
+// heldModulesSorted answers every distinct loaded module and submodule in
+// deterministic order, deduplicated by pointer because goyang keys revisioned
+// modules under both bare and name@revision keys.
+func (m *sourcedModules) heldModulesSorted() []*yang.Module {
+	held := m.held()
+	mods := make([]*yang.Module, 0, len(held))
+	for mod := range held {
+		mods = append(mods, mod)
+	}
+	slices.SortFunc(mods, func(a, b *yang.Module) int {
+		if order := cmp.Compare(a.FullName(), b.FullName()); order != 0 {
+			return order
+		}
+		return cmp.Compare(yang.Source(a), yang.Source(b))
+	})
+	return mods
+}
+
+// groupingHolder is any goyang AST node that can declare local groupings.
+type groupingHolder interface {
+	Groupings() []*yang.Grouping
+}
+
+// cycleVisitState tracks iterative three-color DFS progress over a finite
+// dependency graph: unvisited, on the active recursion stack, or fully explored.
+type cycleVisitState uint8
+
+const (
+	cycleUnvisited cycleVisitState = iota
+	cycleVisiting
+	cycleDone
+)
+
+// groupingEdge is one directed dependency from a grouping to another grouping,
+// either via a `uses` statement or via a nested `grouping` declaration that
+// goyang's ToEntry eagerly converts.
+type groupingEdge struct {
+	target   *yang.Grouping
+	location string
+}
+
+// groupingFrame is one active vertex on the iterative DFS stack in
+// cyclicGroupingErrors.
+type groupingFrame struct {
+	node *yang.Grouping
+	next int
+}
+
+// identityEdge is one directed base dependency from an identity to its base
+// identity.
+type identityEdge struct {
+	target   *yang.Identity
+	location string
+}
+
+// identityFrame is one active vertex on the iterative DFS stack in
+// cyclicIdentityErrors.
+type identityFrame struct {
+	node *yang.Identity
+	next int
+}
+
+// importedModule answers the module imp names from the in-memory module set,
+// preferring an exact revision match when revision-date is given. It never
+// reads a file from disk.
+func importedModule(mod *yang.Module, imp *yang.Import) *yang.Module {
+	if imp.Module != nil {
+		return imp.Module
+	}
+	if mod.Modules == nil {
+		return nil
+	}
+	if imp.RevisionDate != nil {
+		if target := mod.Modules.Modules[imp.Name+"@"+imp.RevisionDate.Name]; target != nil {
+			return target
+		}
+	}
+	return mod.Modules.Modules[imp.Name]
+}
+
+// owningModule answers the main module for a submodule via its belongs-to
+// statement when loaded in memory, or mod itself for a module.
+func owningModule(mod *yang.Module) *yang.Module {
+	if mod == nil {
+		return nil
+	}
+	if mod.BelongsTo == nil {
+		return mod
+	}
+	if mod.Modules == nil {
+		return mod
+	}
+	if parent := mod.Modules.Modules[mod.BelongsTo.Name]; parent != nil {
+		return parent
+	}
+	return mod
+}
+
+// resolveModulePrefixInMemory resolves prefix in mod's lexical module scope
+// using only modules already loaded in memory, reporting whether one was found.
+func resolveModulePrefixInMemory(mod *yang.Module, prefix string) (*yang.Module, bool) {
+	if mod == nil {
+		return nil, false
+	}
+	if prefix == "" {
+		return mod, true
+	}
+	if prefix == mod.GetPrefix() {
+		return mod, true
+	}
+	for _, imp := range mod.Import {
+		if imp.Prefix == nil {
+			continue
+		}
+		if imp.Prefix.Name == prefix {
+			target := importedModule(mod, imp)
+			if target == nil {
+				return nil, false
+			}
+			return target, true
+		}
+	}
+	return nil, false
+}
+
+// reachableModulesInMemory answers mod and every module or submodule sharing
+// its namespace through belongs-to and transitive include statements, using
+// only modules already loaded in memory.
+func reachableModulesInMemory(mod *yang.Module) []*yang.Module {
+	if mod == nil {
+		return nil
+	}
+	visited := map[*yang.Module]bool{mod: true}
+	result := []*yang.Module{mod}
+	pending := []*yang.Module{mod}
+	if owner := owningModule(mod); owner != nil {
+		if !visited[owner] {
+			visited[owner] = true
+			result = append(result, owner)
+			pending = append(pending, owner)
+		}
+	}
+	// Bounded by the finite set of loaded modules and submodules via visited.
+	for len(pending) > 0 {
+		current := pending[0]
+		pending = pending[1:]
+		for _, inc := range current.Include {
+			if inc.Module == nil {
+				if current.Modules == nil {
+					continue
+				}
+			}
+			sub := includedSubmodule(current, inc)
+			if sub == nil {
+				continue
+			}
+			if visited[sub] {
+				continue
+			}
+			visited[sub] = true
+			result = append(result, sub)
+			pending = append(pending, sub)
+		}
+	}
+	return result
+}
+
+// moduleGroupingNodes collects every *yang.Grouping declared anywhere in mod's
+// AST in deterministic pre-order, using substatementFieldTable with an explicit
+// stack.
+func moduleGroupingNodes(mod *yang.Module) []*yang.Grouping {
+	if mod == nil {
+		return nil
+	}
+	table := substatementFieldTable()
+	var groupings []*yang.Grouping
+	pending := []reflect.Value{reflect.ValueOf(mod)}
+	for len(pending) > 0 {
+		node := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if grouping, isGrouping := reflect.TypeAssert[*yang.Grouping](node); isGrouping {
+			groupings = append(groupings, grouping)
+		}
+		before := len(pending)
+		pending = appendSubstatementNodes(pending, node.Elem(), table)
+		slices.Reverse(pending[before:])
+	}
+	return groupings
+}
+
+// groupingEdges answers the direct grouping dependencies of g: every `uses`
+// statement anywhere in g's body (outside nested groupings) and every direct
+// nested `grouping` inside g's body. Nested groupings are included as edges
+// because goyang's ToEntry eagerly expands nested groupings before caching the
+// enclosing grouping, so a nested grouping using an outer grouping overflows
+// the stack even when the outer grouping never uses the nested one.
+func groupingEdges(g *yang.Grouping) []groupingEdge {
+	table := substatementFieldTable()
+	var edges []groupingEdge
+	var pending []reflect.Value
+	pending = appendSubstatementNodes(pending, reflect.ValueOf(g).Elem(), table)
+	slices.Reverse(pending)
+	for len(pending) > 0 {
+		node := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if nested, isGrouping := reflect.TypeAssert[*yang.Grouping](node); isGrouping {
+			edges = append(edges, groupingEdge{target: nested, location: yang.Source(nested)})
+			// nested is its own vertex in the grouping graph; do not attribute
+			// its internal uses edges to g.
+			continue
+		}
+		if uses, isUses := reflect.TypeAssert[*yang.Uses](node); isUses {
+			if target, found := resolveGroupingInMemory(uses, uses.Name); found {
+				edges = append(edges, groupingEdge{target: target, location: yang.Source(uses)})
+			}
+		}
+		before := len(pending)
+		pending = appendSubstatementNodes(pending, node.Elem(), table)
+		slices.Reverse(pending[before:])
+	}
+	return edges
+}
+
+// resolveGroupingInMemory resolves a `uses` grouping reference strictly from
+// loaded in-memory ASTs following RFC 7950 Section 5.5 lexical scoping:
+// unprefixed or own-prefix names walk up the enclosing ParentNode chain before
+// searching the module and its included submodules; foreign-prefix names search
+// the imported module's top-level groupings and its included submodules.
+func resolveGroupingInMemory(uses *yang.Uses, ref string) (*yang.Grouping, bool) {
+	root := yang.RootNode(uses)
+	if root == nil {
+		return nil, false
+	}
+	prefix, localName, hasPrefix := strings.Cut(ref, ":")
+	if !hasPrefix {
+		localName = ref
+		prefix = ""
+	}
+	isLocal := prefix == ""
+	if !isLocal {
+		isLocal = prefix == root.GetPrefix()
+	}
+	if isLocal {
+		for ancestor := uses.ParentNode(); ancestor != nil; ancestor = ancestor.ParentNode() {
+			if found, ok := findDirectGrouping(ancestor, localName); ok {
+				return found, true
+			}
+		}
+		return findTopLevelGrouping(root, localName)
+	}
+	imported, found := resolveModulePrefixInMemory(root, prefix)
+	if !found {
+		return nil, false
+	}
+	return findTopLevelGrouping(imported, localName)
+}
+
+// findDirectGrouping returns a grouping named name declared directly on node
+// and whether one was found.
+func findDirectGrouping(node yang.Node, name string) (*yang.Grouping, bool) {
+	holder, ok := node.(groupingHolder)
+	if !ok {
+		return nil, false
+	}
+	for _, g := range holder.Groupings() {
+		if g.Name == name {
+			return g, true
+		}
+	}
+	return nil, false
+}
+
+// findTopLevelGrouping searches mod and its reachable submodules in memory for
+// a top-level grouping named name and reports whether one was found.
+func findTopLevelGrouping(mod *yang.Module, name string) (*yang.Grouping, bool) {
+	for _, candidate := range reachableModulesInMemory(mod) {
+		for _, g := range candidate.Grouping {
+			if g.Name == name {
+				return g, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// cyclicGroupingErrors detects every direct or indirect grouping cycle across
+// mods using iterative three-color DFS, returning one error wrapping
+// ErrCyclicGrouping per cycle back-edge.
+func cyclicGroupingErrors(mods []*yang.Module) []error {
+	all := make([]*yang.Grouping, 0, len(mods))
+	for _, mod := range mods {
+		all = append(all, moduleGroupingNodes(mod)...)
+	}
+	if len(all) == 0 {
+		return nil
+	}
+	edges := make(map[*yang.Grouping][]groupingEdge, len(all))
+	for _, g := range all {
+		edges[g] = groupingEdges(g)
+	}
+	state := make(map[*yang.Grouping]cycleVisitState, len(all))
+	var errs []error
+	for _, start := range all {
+		if state[start] != cycleUnvisited {
+			continue
+		}
+		state[start] = cycleVisiting
+		stack := []groupingFrame{{node: start}}
+		for len(stack) > 0 {
+			top := &stack[len(stack)-1]
+			outgoing := edges[top.node]
+			if top.next >= len(outgoing) {
+				state[top.node] = cycleDone
+				stack = stack[:len(stack)-1]
+				continue
+			}
+			edge := outgoing[top.next]
+			top.next++
+			switch state[edge.target] {
+			case cycleUnvisited:
+				state[edge.target] = cycleVisiting
+				stack = append(stack, groupingFrame{node: edge.target})
+			case cycleVisiting:
+				errs = append(errs, cyclicGroupingError(stack, edge))
+			case cycleDone:
+				// Acyclic subgraph already explored (e.g. diamond DAG).
+			}
+		}
+	}
+	return errs
+}
+
+// cycleError records the declaring module alongside a pre-process grouping or
+// identity cycle error so multi-module Join blames the offending module without
+// running post-Process checks on an unprocessed AST.
+type cycleError struct {
+	module string
+	err    error
+}
+
+func (e *cycleError) Error() string { return e.err.Error() }
+
+func (e *cycleError) Unwrap() error { return e.err }
+
+// cyclicGroupingError formats one ErrCyclicGrouping refusal naming the
+// module, source location, offending grouping, and cycle chain.
+func cyclicGroupingError(stack []groupingFrame, closing groupingEdge) error {
+	startIndex := 0
+	for i := range stack {
+		if stack[i].node == closing.target {
+			startIndex = i
+			break
+		}
+	}
+	nodes := make([]yang.Node, 0, len(stack)-startIndex+1)
+	for i := startIndex; i < len(stack); i++ {
+		nodes = append(nodes, stack[i].node)
+	}
+	nodes = append(nodes, closing.target)
+	closingNode := stack[len(stack)-1].node
+	modName := nodeModuleName(closingNode)
+	location := closing.location
+	if location == "" {
+		location = yang.Source(closingNode)
+	}
+	return &cycleError{
+		module: modName,
+		err: fmt.Errorf("%w: module %s: %s: grouping %s has a circular dependency (%s) (RFC 7950 Section 7.12)",
+			ErrCyclicGrouping, modName, location, closingNode.Name, formatCycleChain(nodes)),
+	}
+}
+
+// resolveIdentityInMemory resolves an identity `base` reference strictly from
+// loaded in-memory modules and submodules, reporting whether one was found.
+func resolveIdentityInMemory(mod *yang.Module, ref string) (*yang.Identity, bool) {
+	if mod == nil {
+		return nil, false
+	}
+	prefix, localName, hasPrefix := strings.Cut(ref, ":")
+	if !hasPrefix {
+		localName = ref
+		prefix = ""
+	}
+	targetMod := mod
+	if prefix != "" {
+		if prefix != mod.GetPrefix() {
+			resolved, found := resolveModulePrefixInMemory(mod, prefix)
+			if !found {
+				return nil, false
+			}
+			targetMod = resolved
+		}
+	}
+	for _, candidate := range reachableModulesInMemory(targetMod) {
+		for _, id := range candidate.Identity {
+			if id.Name == localName {
+				return id, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// cyclicIdentityErrors detects every direct or indirect identity base cycle
+// across mods using iterative three-color DFS, returning one error wrapping
+// ErrCyclicIdentity per cycle back-edge.
+func cyclicIdentityErrors(mods []*yang.Module) []error {
+	var all []*yang.Identity
+	for _, mod := range mods {
+		all = append(all, mod.Identity...)
+	}
+	if len(all) == 0 {
+		return nil
+	}
+	edges := make(map[*yang.Identity][]identityEdge, len(all))
+	for _, id := range all {
+		root := yang.RootNode(id)
+		for _, base := range id.Base {
+			target, found := resolveIdentityInMemory(root, base.Name)
+			if !found {
+				continue
+			}
+			edges[id] = append(edges[id], identityEdge{
+				target:   target,
+				location: yang.Source(base),
+			})
+		}
+	}
+	state := make(map[*yang.Identity]cycleVisitState, len(all))
+	var errs []error
+	for _, start := range all {
+		if state[start] != cycleUnvisited {
+			continue
+		}
+		state[start] = cycleVisiting
+		stack := []identityFrame{{node: start}}
+		for len(stack) > 0 {
+			top := &stack[len(stack)-1]
+			outgoing := edges[top.node]
+			if top.next >= len(outgoing) {
+				state[top.node] = cycleDone
+				stack = stack[:len(stack)-1]
+				continue
+			}
+			edge := outgoing[top.next]
+			top.next++
+			switch state[edge.target] {
+			case cycleUnvisited:
+				state[edge.target] = cycleVisiting
+				stack = append(stack, identityFrame{node: edge.target})
+			case cycleVisiting:
+				errs = append(errs, cyclicIdentityError(stack, edge))
+			case cycleDone:
+				// Acyclic subgraph already explored (e.g. multi-base diamond DAG).
+			}
+		}
+	}
+	return errs
+}
+
+// cyclicIdentityError formats one ErrCyclicIdentity refusal naming the module,
+// source location, offending identity, and cycle chain.
+func cyclicIdentityError(stack []identityFrame, closing identityEdge) error {
+	startIndex := 0
+	for i := range stack {
+		if stack[i].node == closing.target {
+			startIndex = i
+			break
+		}
+	}
+	nodes := make([]yang.Node, 0, len(stack)-startIndex+1)
+	for i := startIndex; i < len(stack); i++ {
+		nodes = append(nodes, stack[i].node)
+	}
+	nodes = append(nodes, closing.target)
+	closingNode := stack[len(stack)-1].node
+	modName := nodeModuleName(closingNode)
+	location := closing.location
+	if location == "" {
+		location = yang.Source(closingNode)
+	}
+	return &cycleError{
+		module: modName,
+		err: fmt.Errorf("%w: module %s: %s: identity %s has a circular base dependency (%s) (RFC 7950 Section 7.18.2)",
+			ErrCyclicIdentity, modName, location, closingNode.Name, formatCycleChain(nodes)),
+	}
+}
+
+// nodeModuleName answers the declaring module or submodule name of node.
+func nodeModuleName(node yang.Node) string {
+	if root := yang.RootNode(node); root != nil {
+		return root.Name
+	}
+	return "unknown"
+}
+
+// formatCycleChain renders nodes as "a -> b -> a" when all nodes belong to one
+// module, or "mod-a:a -> mod-b:b -> mod-a:a" when the cycle crosses modules or
+// submodules.
+func formatCycleChain(nodes []yang.Node) string {
+	crossModule := false
+	firstMod := ""
+	if len(nodes) > 0 {
+		firstMod = nodeModuleName(nodes[0])
+	}
+	for _, node := range nodes[1:] {
+		if nodeModuleName(node) != firstMod {
+			crossModule = true
+			break
+		}
+	}
+	parts := make([]string, len(nodes))
+	for i, node := range nodes {
+		if crossModule {
+			parts[i] = nodeModuleName(node) + ":" + node.NName()
+			continue
+		}
+		parts[i] = node.NName()
+	}
+	return strings.Join(parts, " -> ")
 }
 
 // moduleTypes is the `type` nodes of one module's goyang AST, in the order

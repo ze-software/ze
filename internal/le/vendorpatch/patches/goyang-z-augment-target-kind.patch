@@ -1,0 +1,89 @@
+Ze-Reviewed-Against: github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
+
+Licensed under the Apache License, Version 2.0 (matching upstream
+github.com/openconfig/goyang).
+
+RFC 7950 Section 7.17: "The target node MUST be either a container, list,
+choice, case, input, output, or notification node."
+
+Entry.Augment calls target.merge without checking target.Dir or target node
+kind. When an augment (top-level, cross-module, chained, uses-expanded, or
+uses-local) targets a leaf or leaf-list, Entry.merge panics with assignment to
+entry in nil map (Entry.Dir is nil). When an augment targets an anydata,
+anyxml, rpc, or action node, Entry.merge silently inserts child nodes that RFC
+7950 Section 7.17 forbids.
+
+Verify before target.merge that target.Dir is non-nil and target is one of the
+seven permitted node kinds (container, list, choice, case, input, output, or
+notification). Otherwise record an error on e naming the augment's source
+location, target path, target node kind, and RFC 7950 Section 7.17, increment
+processed so the augment retry loop does not spin, and skip target.merge.
+
+No upstream pull request is opened yet. Remove this patch when the pinned
+upstream release includes the correction. Apply after goyang-uses-augment.patch
+in the canonical sorted patch set.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
+module".
+
+diff --git a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+--- a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
++++ b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+@@ -1193,6 +1193,14 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
+ 			unapplied = append(unapplied, a)
+ 			continue
+ 		}
++		// RFC 7950 Section 7.17: "The target node MUST be either a container,
++		// list, choice, case, input, output, or notification node."
++		if !isAugmentTarget(target) {
++			e.errorf("%s: augment %s targets %s node, which cannot be augmented (RFC 7950 Section 7.17 permits container, list, choice, case, input, output, or notification)",
++				Source(a.Node), a.Name, augmentTargetKind(target))
++			processed++
++			continue
++		}
+ 		// Augments do not have a prefix we merge in, just a node.
+ 		// RFC 7950 Section 7.17.2: "All data nodes defined in the "augment"
+ 		// statement are defined as XML elements in the XML namespace of the
+@@ -1222,6 +1230,42 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
+ 	return processed, skipped
+ }
+ 
++// isAugmentTarget reports whether target is one of the seven schema node kinds
++// RFC 7950 Section 7.17 permits an augment statement to target: container,
++// list, choice, case, input, output, or notification.
++func isAugmentTarget(target *Entry) bool {
++	if target == nil || target.Dir == nil {
++		return false
++	}
++	switch target.Kind {
++	case DirectoryEntry:
++		switch target.Node.(type) {
++		case *Container, *List:
++			return true
++		default:
++			return false
++		}
++	case ChoiceEntry, CaseEntry, InputEntry, OutputEntry, NotificationEntry:
++		return true
++	default:
++		return false
++	}
++}
++
++// augmentTargetKind names target's YANG statement kind for diagnostics.
++func augmentTargetKind(target *Entry) string {
++	if target == nil {
++		return "unknown"
++	}
++	if target.IsLeafList() {
++		return "leaf-list"
++	}
++	if target.Node != nil {
++		return target.Node.Kind()
++	}
++	return strings.ToLower(target.Kind.String())
++}
++
+ // checkDeviationAdd refuses an add that would overwrite an explicit singleton.
+ // RFC 7950 Section 7.20.3.2: "If a property can only appear once, the property
+ // MUST NOT exist in the target node."

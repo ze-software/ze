@@ -37,6 +37,18 @@ This correction is retained in the goyang vendor patch
 <!-- source: vendor/github.com/openconfig/goyang/pkg/yang/yang.go -- Uses -->
 <!-- source: vendor/github.com/openconfig/goyang/pkg/yang/entry.go -- ToEntry, Augment -->
 
+An `augment` statement (top-level, cross-module, chained, uses-expanded or
+uses-local) can target only a `container`, `list`, `choice`, `case`, `input`,
+`output` or `notification` node (RFC 7950 Section 7.17). Before `Entry.Augment`
+merges nodes into the target, it checks that `target.Dir` is non-nil and that
+the target is one of those seven node kinds. Any other target (`leaf`,
+`leaf-list`, `anydata`, `anyxml`, `rpc`, `action`) is refused. The error names
+the augment location, target path, target node kind and RFC 7950 Section 7.17.
+This prevents the nil-map panic in `Entry.merge` on leaf targets and silent
+merges into non-augmentable nodes. This guard is retained in
+`internal/le/vendorpatch/patches/goyang-z-augment-target-kind.patch`.
+<!-- source: vendor/github.com/openconfig/goyang/pkg/yang/entry.go -- Augment, isAugmentTarget, augmentTargetKind -->
+
 `deviate add` refuses a singleton property already on its target, including
 one added by an earlier deviation. Explicit statement presence is retained
 separately from the value, so `config false`, `mandatory false`, `units ""`,
@@ -174,6 +186,9 @@ refusal names the module, the file location and the fault.
 
 | Structure refused | RFC 7950 | Why goyang misses it | Error |
 |-------------------|----------|----------------------|-------|
+| A `grouping` that references itself directly or indirectly through `uses` or nested `grouping` statements across modules or submodules. Checked in memory before `Modules.Process` runs via iterative three-color DFS | 7.12 | `ToEntry` writes `entryCache` only on deferred return, so any grouping cycle overflows the goroutine stack | `ErrCyclicGrouping` |
+| An `identity` whose `base` chain reaches itself directly or indirectly across modules or submodules. Checked in memory before `Modules.Process` runs via iterative three-color DFS | 7.18.2 | `addChildren` recurses over derived identities and never tracks visited nodes, so any identity cycle overflows the goroutine stack | `ErrCyclicIdentity` |
+| An `augment` (top-level, cross-module, chained, uses-expanded or uses-local) whose target is a `leaf`, `leaf-list`, `anydata`, `anyxml`, `rpc` or `action` | 7.17 | `Entry.Augment` calls `target.merge` and never checks `target.Dir` or target kind, panicking on nil `Dir` for leaves and silently merging into other non-augmentable nodes. Guarded by `goyang-z-augment-target-kind.patch` | goyang augment error (`Loader.process`) |
 | An `include` of a submodule whose `belongs-to` names a module other than the including module, or other than the module the including submodule belongs to | 7.2.2 | it finds an included submodule by its name alone and never reads its `belongs-to` | `ErrIncludeBelongsTo` |
 | A `length` whose parts, in the order written, overlap or descend, with `min` and `max` read as the bounds of the type being restricted | 9.4.4 | it sorts and coalesces the parts before it checks them | `ErrLengthOrder` |
 | An enumeration whose values break Section 9.6.4.2: a value outside int32, a value assigned twice, an enum with no value after one holding 2147483647 | 9.6.4.2 | it checks only an enumeration it resolves, and it resolves none in a grouping no schema node uses | `ErrEnumValue` |
@@ -249,9 +264,9 @@ and `max` read the typedef's bounds there too; a `length` over a typedef that
 goyang left unresolved and that names `min` or `max` is refused as unresolved
 rather than checked against a guessed span.
 
-<!-- source: internal/component/config/yang/loader.go -- Resolve, checkExtensions, DefaultLoader -->
+<!-- source: internal/component/config/yang/loader.go -- Resolve, process, checkExtensions, DefaultLoader -->
 <!-- source: internal/component/config/yang/enum_assignment.go -- parseEnumAssignment, assignEnumValues -->
-<!-- source: internal/component/config/yang/loader_structure.go -- checkStructure, moduleIncludeErrors, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
+<!-- source: internal/component/config/yang/loader_structure.go -- checkPreProcess, checkStructure, moduleIncludeErrors, restrictedLengthSpan, resolveProduction, extensionSubstatementError -->
 <!-- source: internal/component/config/yang/loader_reference.go -- checkReferences, checkLeafrefSchema, representsConfig -->
 <!-- source: internal/component/config/yang/reference_path.go -- leafrefTarget, checkPathKeys, checkPathPrefix, topLevelParents, pathStatement, prefixFix, dataParent, operationContext, outsideOperation, rootStepsFix -->
 <!-- source: internal/component/config/yang/loader_abnf.go -- parseYANGGrammar, rfc7950Grammar -->

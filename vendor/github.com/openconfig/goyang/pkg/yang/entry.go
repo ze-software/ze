@@ -1193,6 +1193,14 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
 			unapplied = append(unapplied, a)
 			continue
 		}
+		// RFC 7950 Section 7.17: "The target node MUST be either a container,
+		// list, choice, case, input, output, or notification node."
+		if !isAugmentTarget(target) {
+			e.errorf("%s: augment %s targets %s node, which cannot be augmented (RFC 7950 Section 7.17 permits container, list, choice, case, input, output, or notification)",
+				Source(a.Node), a.Name, augmentTargetKind(target))
+			processed++
+			continue
+		}
 		// Augments do not have a prefix we merge in, just a node.
 		// RFC 7950 Section 7.17.2: "All data nodes defined in the "augment"
 		// statement are defined as XML elements in the XML namespace of the
@@ -1220,6 +1228,42 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
 	}
 	e.Augments = unapplied
 	return processed, skipped
+}
+
+// isAugmentTarget reports whether target is one of the seven schema node kinds
+// RFC 7950 Section 7.17 permits an augment statement to target: container,
+// list, choice, case, input, output, or notification.
+func isAugmentTarget(target *Entry) bool {
+	if target == nil || target.Dir == nil {
+		return false
+	}
+	switch target.Kind {
+	case DirectoryEntry:
+		switch target.Node.(type) {
+		case *Container, *List:
+			return true
+		default:
+			return false
+		}
+	case ChoiceEntry, CaseEntry, InputEntry, OutputEntry, NotificationEntry:
+		return true
+	default:
+		return false
+	}
+}
+
+// augmentTargetKind names target's YANG statement kind for diagnostics.
+func augmentTargetKind(target *Entry) string {
+	if target == nil {
+		return "unknown"
+	}
+	if target.IsLeafList() {
+		return "leaf-list"
+	}
+	if target.Node != nil {
+		return target.Node.Kind()
+	}
+	return strings.ToLower(target.Kind.String())
 }
 
 // checkDeviationAdd refuses an add that would overwrite an explicit singleton.

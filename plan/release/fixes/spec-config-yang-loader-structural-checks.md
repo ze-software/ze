@@ -357,14 +357,150 @@ none
 ## Known Limitations
 - Non-crashing RFC 7950 structural conformance checks and remaining RFC 7950 audit verdicts are tracked in `plan/post-release/features/spec-config-yang-rfc7950-structural-conformance.md`.
 
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/config/yang/loader.go`: called `l.checkPreProcess()` inside `Loader.process()` immediately before `l.modules.Process()`, and short-circuited `Loader.Resolve()` on `ErrCyclicGrouping` / `ErrCyclicIdentity` (separate `if` guards) so post-`Process` checks never run on unprocessed ASTs.
+- `internal/component/config/yang/loader_structure.go`: exported `ErrCyclicGrouping` and `ErrCyclicIdentity`, implemented `checkPreProcess` with iterative 3-color DFS across loaded modules/submodules/imports strictly in memory (lexical scope + nested grouping + `uses`-augment edges), and wrapped cycle refusals in `cycleError{module, err}`. Left `includedSubmodule` byte-identical to HEAD so `RFC7950-7.2.2-1` stays fresh.
+- `internal/component/config/yang/join.go`: updated `resolveErrorOrigins` and `failingModule` so multi-module `yang.Join` attributes `*cycleError` to its owning module and skips `loader.moduleCheckErrors` on unprocessed ASTs.
+- `vendor/github.com/openconfig/goyang/pkg/yang/entry.go` + `internal/le/vendorpatch/patches/goyang-z-augment-target-kind.patch`: added Apache-2.0 vendor patch (stamped against `github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9`, sorted last) guarding `(*Entry).Augment` before `target.merge` against non-augmentable node kinds (`leaf`, `leaf-list`, `anydata`, `anyxml`, `rpc`, `action`) while allowing all seven RFC 7950 Section 7.17 kinds (`container`, `list`, `choice`, `case`, `input`, `output`, `notification`).
+- `internal/component/config/yang/loader_crash_guards_test.go`: added `TestLoaderRefusesCyclicGrouping`, `TestLoaderRefusesCyclicIdentity`, and `TestLoaderRefusesNonAugmentableTarget` covering direct/indirect/submodule/cross-module/nested/`uses`-augment cycles, all 6 forbidden and 7 permitted augment target kinds, `StageProcess`, unprocessed-AST short-circuiting, single- and multi-module `yang.Join`, diamond DAGs, and `DefaultLoader`.
+- `docs/architecture/config/yang-config-design.md`: documented all three guards, sentinels, and `goyang-z-augment-target-kind.patch` with source anchors.
+- `rfc/short/rfc7950.md`: repointed all 18 remaining `{gap}` pointers from this closing spec to `plan/post-release/features/spec-config-yang-rfc7950-structural-conformance.md`.
+
+### Bugs Found/Fixed
+- Round 1 review caught `Loader.Resolve()` falling through to `checkExtensions`/`checkPatterns`/`checkStructure` on unprocessed ASTs after `checkPreProcess` returned a cycle error -> fixed in `loader.go` with regression tests in `loader_crash_guards_test.go`.
+- Round 2 review caught the mirror path in `join.go::failingModule` calling `loader.moduleCheckErrors` on an unprocessed AST during multi-module `yang.Join` (blaming an innocent valid sibling plugin with `typedef` + `length "min..10"`) -> fixed with `cycleError` + `resolveErrorOrigins` + `skipPostProcess` in `join.go`/`loader_structure.go` and multi-module `yang.Join` regression tests in `loader_crash_guards_test.go`.
+
+### Documentation Updates
+- `docs/architecture/config/yang-config-design.md` (Section 1 vendor patch list, Section 2/3 refused structures, source anchors `Augment, isAugmentTarget, augmentTargetKind`, `Resolve, process`, `checkPreProcess`): updated; `./le doc ste check file docs/architecture/config/yang-config-design.md` OK.
+- `rfc/short/rfc7950.md`: repointed 18 `{gap}` rows to `plan/post-release/features/spec-config-yang-rfc7950-structural-conformance.md` so no dangling links remain after closure.
+
+### Deviations from Plan
+- Added `internal/component/config/yang/join.go` to the modified file list after Round 2 review revealed that multi-module `yang.Join` called `loader.moduleCheckErrors` on unprocessed ASTs when `checkPreProcess` skipped `Modules.Process()`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `Loader.Resolve()` and `join.go::failingModule` ran post-`Process` checks after `checkPreProcess` skipped `Modules.Process()` | Post-`Process` checks (`checkExtensions`, `checkStructure`) assume `typ.YangType != nil` and `Import.Module != nil` | Independent Review Gate Rounds 1 and 2 | Short-circuited `Resolve()` and `failingModule` on `ErrCyclicGrouping` / `ErrCyclicIdentity`, added `cycleError` ownership and regression tests |
+| approach | Added a 3-line `mod.Modules == nil` check inside `includedSubmodule` | `RFC7950-7.2.2-1` has a func-scoped audit verdict pinned to `includedSubmodule` | `./le rfc check` | Restored `includedSubmodule` byte-identical to HEAD and placed the nil guard in `reachableModulesInMemory` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Pre-process cyclic grouping guard (`ErrCyclicGrouping`) | Done | `internal/component/config/yang/loader_structure.go` (`checkPreProcess`, `cyclicGroupingErrors`) | Wired from `loader.go::process`, iterative 3-color DFS, in-memory only |
+| Pre-process cyclic identity guard (`ErrCyclicIdentity`) | Done | `internal/component/config/yang/loader_structure.go` (`checkPreProcess`, `cyclicIdentityErrors`) | Wired from `loader.go::process`, iterative 3-color DFS, in-memory only |
+| Augment target-kind guard in goyang + Apache-2.0 vendor patch | Done | `vendor/github.com/openconfig/goyang/pkg/yang/entry.go` (`(*Entry).Augment`, `isAugmentTarget`, `augmentTargetKind`), `internal/le/vendorpatch/patches/goyang-z-augment-target-kind.patch` | Refuses all 6 non-augmentable kinds without panic; permits all 7 RFC 7950 §7.17 kinds |
+| Multi-module `yang.Join` blames cyclic plugin without false positives | Done | `internal/component/config/yang/join.go` (`failingModule`, `resolveErrorOrigins`) | Added after Round 2 review |
+| Docs updated and `rfc/short/rfc7950.md` gap links repointed | Done | `docs/architecture/config/yang-config-design.md`, `rfc/short/rfc7950.md` | 0 dangling links to this spec |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestLoaderRefusesCyclicGrouping` (`internal/component/config/yang/loader_crash_guards_test.go`) | Direct, prefixed, indirect, container, submodule, sibling-submodule, cross-module, nested-outer, local-container, `uses`-augment, `StageProcess`, `Resolve` skip, single- and multi-module `yang.Join`, acyclic/diamond/shadowed, `DefaultLoader` |
+| AC-2 | Done | `TestLoaderRefusesCyclicIdentity` (`internal/component/config/yang/loader_crash_guards_test.go`) | Direct, prefixed, indirect, submodule, sibling-submodule, cross-module, `StageProcess`, `Resolve` skip, single- and multi-module `yang.Join`, acyclic/diamond, `DefaultLoader` |
+| AC-3 | Done | `TestLoaderRefusesNonAugmentableTarget` (`internal/component/config/yang/loader_crash_guards_test.go`) | All 6 forbidden kinds across top-level/cross-module/chained/`uses`-expanded/`uses`-local/`yang.Join`; all 7 permitted RFC 7950 §7.17 kinds verified on `resolved.GetEntry` |
+| AC-4 | Done | `internal/le/vendorpatch/` (`TestEveryVendorPatchIsApplied`, `TestPatchedVendorModulesMatchUpstream`), `./le go patch-stamps check`, `TestStagesRunEveryStageOfResolve`, `DefaultLoader` | All pass cleanly |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestLoaderRefusesCyclicGrouping` | Done | `internal/component/config/yang/loader_crash_guards_test.go` | Passed |
+| `TestLoaderRefusesCyclicIdentity` | Done | `internal/component/config/yang/loader_crash_guards_test.go` | Passed |
+| `TestLoaderRefusesNonAugmentableTarget` | Done | `internal/component/config/yang/loader_crash_guards_test.go` | Passed |
+| `TestEveryVendorPatchIsApplied` & `TestPatchedVendorModulesMatchUpstream` | Done | `internal/le/vendorpatch/` | Passed |
+| `TestStagesRunEveryStageOfResolve` | Done | `internal/component/config/yang/loader_stages_test.go` | Passed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/config/yang/loader.go` | Done | `checkPreProcess` call + `Resolve` short-circuit |
+| `internal/component/config/yang/loader_structure.go` | Done | Cycle guards + `cycleError` |
+| `internal/component/config/yang/join.go` | Changed | Added in Round 2 review to protect multi-module `Join` |
+| `internal/component/config/yang/loader_crash_guards_test.go` | Done | Created with AC-1..AC-3 + multi-module `Join` regression tests |
+| `vendor/github.com/openconfig/goyang/pkg/yang/entry.go` | Done | Augment target-kind guard |
+| `internal/le/vendorpatch/patches/goyang-z-augment-target-kind.patch` | Done | Created, Apache-2.0, stamped |
+| `docs/architecture/config/yang-config-design.md` | Done | Updated |
+| `rfc/short/rfc7950.md` | Done | 18 `{gap}` rows repointed |
+
+### Audit Summary
+- **Total items:** 17
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (`join.go` added per Round 2 review)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Refuse cyclic groupings before goyang stack overflow | Unit tests (`Loader.Resolve`, `StageProcess`, `yang.Join`) | `./le test unit pkg path ./internal/component/config/yang/ run 'TestLoaderRefuses|TestStagesRunEveryStageOfResolve|TestJoin'` (`exit 0, 1 package ok, test time 8.671s`) |
+| Refuse cyclic identities before goyang stack overflow | Unit tests (`Loader.Resolve`, `StageProcess`, `yang.Join`) | `./le test unit pkg path ./internal/component/config/yang/ run 'TestLoaderRefuses|TestStagesRunEveryStageOfResolve|TestJoin'` (`exit 0, 1 package ok, test time 8.671s`) |
+| Refuse non-augmentable augment targets without nil-map panic and preserve vendor patch integrity | Unit tests + vendorpatch round-trip + patch-stamps check | `./le test unit pkg path ./internal/component/config/yang/ path ./internal/le/vendorpatch/` (`ok`) and `./le go patch-stamps check` (`every patch stamp matches what it patches`) |
+
 ## Review Gate
 
-To be completed by an independent reviewer after implementation (`/ze-review` and `/ze-review-spec`), with round scopes recorded here before each round runs and the final artifact recorded via `./le spec review record`.
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/config-yang-loader-structural-checks-c6b20002-2222-4000-8000-000000000002.md` |
+| `./le spec review check` | `review_gate: OK` |
+| Rounds | 3 |
+| Reviewer lenses used | logic+wiring, multi-module `yang.Join` attribution, vendor patch hygiene, `go-standards.md`, RFC audit integrity, docs |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `Loader.Resolve()` ran post-`Process` checks on unprocessed ASTs after `checkPreProcess` returned a cycle error | `internal/component/config/yang/loader.go:409-415` | Added separate `ErrCyclicGrouping` / `ErrCyclicIdentity` early returns in `Resolve()` + regression tests |
+| 2 | BLOCKER | `join.go::failingModule` called `loader.moduleCheckErrors` on unprocessed ASTs in multi-module `yang.Join`, blaming innocent valid sibling plugins | `internal/component/config/yang/join.go:400-450` | Wrapped cycle errors in `cycleError{module, err}`, extracted `cycle.module` in `resolveErrorOrigins`, skipped `moduleCheckErrors` on cycle errors in `failingModule`, added multi-module `Join` tests; Round 3 CLEAN |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/yang/loader.go` | Yes | `-rw-rw-r-- 1 thomas thomas 30498 Nov 27 23:34 internal/component/config/yang/loader.go` |
+| `internal/component/config/yang/loader_structure.go` | Yes | `-rw-rw-r-- 1 thomas thomas 46139 Nov 27 23:52 internal/component/config/yang/loader_structure.go` |
+| `internal/component/config/yang/join.go` | Yes | `-rw-rw-r-- 1 thomas thomas 41468 Nov 27 23:46 internal/component/config/yang/join.go` |
+| `internal/component/config/yang/loader_crash_guards_test.go` | Yes | `-rw-rw-r-- 1 thomas thomas 26566 Nov 27 23:46 internal/component/config/yang/loader_crash_guards_test.go` |
+| `vendor/github.com/openconfig/goyang/pkg/yang/entry.go` | Yes | `-rw-rw-r-- 1 thomas thomas 57949 Nov 27 23:12 vendor/github.com/openconfig/goyang/pkg/yang/entry.go` |
+| `internal/le/vendorpatch/patches/goyang-z-augment-target-kind.patch` | Yes | `-rw-rw-r-- 1 thomas thomas 3666 Nov 27 23:13 internal/le/vendorpatch/patches/goyang-z-augment-target-kind.patch` |
+| `docs/architecture/config/yang-config-design.md` | Yes | `-rw-rw-r-- 1 thomas thomas 154627 Nov 27 23:15 docs/architecture/config/yang-config-design.md` |
+| `rfc/short/rfc7950.md` | Yes | `-rw-rw-r-- 1 thomas thomas 70677 Nov 27 23:35 rfc/short/rfc7950.md` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Cyclic groupings refused with `ErrCyclicGrouping` before goyang runs; valid chains/DAGs/`DefaultLoader` pass | `./le test unit pkg path ./internal/component/config/yang/ run 'TestLoaderRefuses|TestStagesRunEveryStageOfResolve|TestJoin'` (`exit 0, 1 package ok, 8.671s`); `./le go style check` (`OK`); 0 lint issues in touched files |
+| AC-2 | Cyclic identities refused with `ErrCyclicIdentity` before goyang runs; valid chains/DAGs/`DefaultLoader` pass | `./le test unit pkg path ./internal/component/config/yang/ run 'TestLoaderRefuses|TestStagesRunEveryStageOfResolve|TestJoin'` (`exit 0, 1 package ok, 8.671s`) |
+| AC-3 | All 6 non-augmentable kinds refused without panic; all 7 permitted RFC 7950 §7.17 kinds succeed | `./le test unit pkg path ./internal/component/config/yang/ run 'TestLoaderRefuses|TestStagesRunEveryStageOfResolve|TestJoin'` (`exit 0, 1 package ok, 8.671s`) |
+| AC-4 | Vendor patch applies, round-trips to upstream, patch stamps match, `TestStagesRunEveryStageOfResolve` passes, darwin vet clean | `./le test unit pkg path ./internal/le/vendorpatch/` (`ok`), `./le go patch-stamps check` (`every patch stamp matches what it patches`), `./le go vet-platforms darwin` (PASS) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `Loader.AddModuleFromText` -> `Loader.Resolve` / `yang.Join` -> `checkPreProcess` / `(*Entry).Augment` | N/A (embedded Ze modules never carry crash faults; external plugin join path proven in `loader_crash_guards_test.go` via `yang.Join`) | Yes (`TestLoaderRefusesCyclicGrouping`, `TestLoaderRefusesCyclicIdentity`, `TestLoaderRefusesNonAugmentableTarget`, `DefaultLoader`) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `DefaultLoader()` succeeds across every embedded and registered Ze module in `TestLoaderRefuses*` |
+| A-2 | confirmed | Cross-module, included-submodule, and sibling-submodule cycle tests pass strictly in-memory before `Modules.Process()` |
+| A-3 | confirmed | Top-level, cross-module, chained, `uses`-expanded, and `uses`-local invalid augments all return non-nil errors from `Loader.Resolve()` without retry loops |
+| A-4 | confirmed | `goyang-z-augment-target-kind.patch` sorts last and passes `internal/le/vendorpatch` + `./le go patch-stamps check` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/config/yang-config-design.md` (Section 1 patch list, Section 2/3 refused structures) | `loader.go`, `loader_structure.go`, `entry.go`, `goyang-z-augment-target-kind.patch` | Yes (`./le doc ste check file` OK) |
+| `rfc/short/rfc7950.md` 18 `{gap}` rows repointed | `plan/post-release/features/spec-config-yang-rfc7950-structural-conformance.md` | Yes (`git grep` confirms 0 remaining `rfc/short/` links to this spec) |
 
 ## Checklist
 
-- [ ] Tests written (`internal/component/config/yang/loader_crash_guards_test.go`)
-- [ ] Tests FAIL before the fix
-- [ ] Tests PASS after the fix
-- [ ] Scoped verification run by main thread: `./le test unit pkg path ./internal/component/config/yang/`, `./le test unit pkg path ./internal/le/vendorpatch/`, `./le go patch-stamps check`, `./le go lint run scope "./internal/component/config/yang/..."`, `./le doc check all`
-- [ ] Closure: append `plan/templates/TEMPLATE-CLOSURE.md`, complete `/ze-review` gate, repoint any remaining `rfc/short/rfc7950.md` `{gap}` pointers to `plan/post-release/features/spec-config-yang-rfc7950-structural-conformance.md`, land Commit A + Commit B (`remove plan/release/fixes/spec-config-yang-loader-structural-checks.md`)
+- [x] Tests written (`internal/component/config/yang/loader_crash_guards_test.go`)
+- [x] Tests FAIL before the fix
+- [x] Tests PASS after the fix
+- [x] Scoped verification run by main thread: `./le test unit pkg path ./internal/component/config/yang/`, `./le test unit pkg path ./internal/le/vendorpatch/`, `./le go patch-stamps check`, `./le go lint run scope "./internal/component/config/yang/..."`, `./le doc check all`
+- [x] Closure: append `plan/templates/TEMPLATE-CLOSURE.md`, complete `/ze-review` gate, repoint any remaining `rfc/short/rfc7950.md` `{gap}` pointers to `plan/post-release/features/spec-config-yang-rfc7950-structural-conformance.md`, land Commit A + Commit B (`remove plan/release/fixes/spec-config-yang-loader-structural-checks.md`)
