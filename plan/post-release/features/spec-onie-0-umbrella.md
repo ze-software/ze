@@ -8,7 +8,7 @@
 | Release reason | Installing Ze from ONIE on a switch is broader platform support, not a missing first-release installer artifact: the ISO and PXE installers already exist. |
 | RFC gaps | - |
 | Depends | spec-appliance-perm-grows-at-install (in progress: it wires the growth steps this work shares and must not be redesigned in parallel) |
-| Phase | DESIGN (direction approved 2026-11-28; the three children are written and await the design judge and Thomas's terminal approval) |
+| Phase | DESIGN (direction approved 2026-11-28; the three children were judged once, refused, and reworked for every finding. The judge could not record from the Mac: its identity and read records are local to the machine it runs on, so each child owes a fresh judgment by a judge running in this checkout, then Thomas's terminal approval) |
 | Handoff | - |
 | Design tier | strongest tier |
 | Updated | 2026-11-28 |
@@ -203,6 +203,6 @@ network device.
 | # | Question |
 |---|----------|
 | C-1 | DECIDED 2026-11-28: the QEMU harness may boot ONIE's own virtual machine image, pinned by checksum, as the third party under test. Recorded in `ai/META-DECISIONS-SITUATIONAL.md`, "Test systems and labs" |
-| C-2 | Design taken in `spec-onie-3-installer.md`: ONIE's boot code is saved in a checksummed record before Ze's replaces it, and the return command restores it |
+| C-2 | Design taken in `spec-onie-3-installer.md` after the first design judgment: Ze starts ONIE by loading ONIE's own kernel from ONIE-BOOT and jumping to it, writing nothing to disk, so a reboot from ONIE's rescue mode returns to Ze. ONIE's boot code is still saved in a checksummed record at install, as the manual fallback |
 | C-3 | DECIDED 2026-11-28: three children, as listed under "Children" |
 | C-4 | Raised by Thomas: "Can we update the kernel when we do an onie install?" The installed switch always runs Ze's kernel. Having the installer itself jump to Ze's installer kernel is recorded as an alternative set aside in `spec-onie-3-installer.md`, with the condition that reopens it |

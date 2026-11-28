@@ -22,7 +22,7 @@ Parent: `spec-onie-0-umbrella.md` (owner decision D-4: ONIE must survive a Ze in
 A Ze appliance must be able to live on a disk that already holds other
 partitions in front of it. On an ONIE switch the first GPT entries and the
 first sectors of the disk belong to ONIE and to the vendor's diagnostics, and
-Thomas ruled that both survive a Ze install.
+Thomas ruled that both survive a Ze install. Their partitions are never rewritten; the 440 bytes of boot code in the first sector are the one shared thing, and who owns them is `spec-onie-3-installer.md`'s subject.
 
 Today that is impossible. The image writes its four partitions (boot, root A,
 root B, persistent) at GPT entries 1 to 4 from sector 8192, and the running
@@ -65,6 +65,7 @@ switch. It contains no ONIE code.
 - The kernel's own root lookup is already relative: the command line is `root=PARTUUID=<boot>/PARTNROFF=1`. Only userland assumes entry numbers.
 - Three places assume numbers: gokrazy's `rootdev`, Ze's `gptdisk` and installer, and the BIOS boot code's absolute sectors.
 - A relocated install can only exist after this work, so the system running on one always carries the patched runtime.
+- `rootdev` lives in the module `github.com/gokrazy/internal`. Only `github.com/gokrazy/gokrazy` is checked in under `gokrazy/modcache/` and compared by the patch guard today (`gokrazyRuntimeModule`), so patching `rootdev` means carrying and guarding a second module.
 
 ## Current Behavior (MANDATORY)
 
@@ -75,7 +76,11 @@ switch. It contains no ONIE code.
 - [ ] `internal/core/gptdisk/gptdisk.go`, `grow.go` - `PersistentPartition` is the constant 4; `planGrowth` refuses any entry lying after partition 4.
 - [ ] `internal/install/disk/run.go` - `partitionPath(disk, 4)` in `runHTTP` and `growISOPerm`.
 - [ ] `internal/appliance/push_image.go` - `pushMBRCodeBytes` is 440; the payload is the image's own first 440 bytes.
-- [ ] `internal/le/test/qemu/install_boot.go` - `assertInstallGPT` compares the first four entries by index (reported by the research agent).
+- [ ] `internal/le/test/qemu/install_iso.go` - `assertInstallGPT` compares the first four entries by index (located by the design judge at line 526).
+- [ ] `internal/le/test/qemu/install_ota.go` - `executeApplianceOTA`: the manual proof that builds two images, pushes one onto the other, reboots and checks previous-slot recovery.
+- [ ] `internal/le/test/qemu/install_storage_grow.go` - the `appliance-storage` proof, registered with its body not yet written.
+- [ ] `internal/le/vendorpatch/gokrazy_runtime_patch_test.go` - `TestPinnedGokrazyRuntimeMatchesUpstream` compares one module, `github.com/gokrazy/gokrazy`.
+- [ ] `internal/le/vendorpatch/patches/` - the patches to the root `vendor/` tree, two of them for gokrazy code the build host runs.
 
 **Behavior to preserve:**
 - A device that owns its whole disk boots, mounts its persistent partition, takes a push, switches root slot, test-boots and grows exactly as today.
@@ -93,12 +98,15 @@ switch. It contains no ONIE code.
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Kernel root lookup | the image's command line, `root=PARTUUID=.../PARTNROFF=1` | Finds the root relative to the boot partition | does not apply: already relative; it is the model the rest follows |
 | gokrazy `rootdev` | `gokrazy/internal` `rootdev.go` `findGPTPartUUID`, `Partition` | Finds the disk by the first GPT entry and numbers partitions absolutely | extends, by a patch: every entry is searched and numbers count from the match |
-| gokrazy patch route | `gokrazy/patches/reboot-ack.patch`; `gokrazy-build-pins.md` | Carries Ze's diff to the pinned gokrazy runtime | extends: a second diff, for `gokrazy/internal` and the update handler |
+| gokrazy runtime patch route | `gokrazy/patches/reboot-ack.patch`; `gokrazy-build-pins.md` "Why a module cache is checked in"; `TestPinnedGokrazyRuntimeMatchesUpstream` | Carries Ze's diff to `github.com/gokrazy/gokrazy`, the one module checked in under the module cache and compared with upstream | extends: the update handler's change is a second diff to that module. The `rootdev` change needs `github.com/gokrazy/internal` checked in and guarded the same way, which the page does not allow today (a `departs` row) |
+| Vendor patch route | `internal/le/vendorpatch/patches/` (`gokrazy-packer-return-errors.patch`, `gokrazy-update-url-userinfo.patch`) | Patches the root `vendor/` tree the build host compiles, including `gokrazy/internal/mbr` | does not apply to the device runtime, which is built from the module cache; the re-target function Ze's installer uses is Ze's own code, not a vendored change |
+| The push proof | `internal/le/test/qemu/install_ota.go` `executeApplianceOTA` (`./le test qemu appliance-ota`) | Proves a real push, reboot and previous-slot recovery on a whole-disk device | extends: it is the regression evidence for AC-1, and the relocated proof reuses its push and test-boot steps |
+| The growth proof | `internal/le/test/qemu/install_storage_grow.go` (`./le test qemu appliance-storage`) | Registered; its body is owed by `spec-appliance-perm-grows-at-install` | does not change it: the relocated proof's growth leg waits on that spec and calls the same steps |
 | The GPT reader and grower | `internal/core/gptdisk` `Parse`, `Table`, `Grow`, `PersistentPartition` | Reads a table and grows entry 4 | extends: the persistent partition is the fourth of Ze's run, and a new function places a run after existing entries |
 | The installer's partition addressing | `internal/install/disk/run.go` `partitionPath` | Addresses the persistent partition as number 4 | extends: the number comes from where the run was written |
 | OTA push boot code | `internal/appliance/push_image.go` `pushMBRCodeBytes`; gokrazy `update.go` `/update/mbr` | Sends and writes 440 bytes computed for sector 8192 | extends: the device adds its own boot-partition offset to the two sector numbers before writing |
 | Boot code generator | `gokrazy/internal/mbr` `Configure` | Builds the 440 bytes from two sector numbers | extends: one function re-targets existing boot code by an offset |
-| Installed-layout assertion | `internal/le/test/qemu/install_boot.go` `assertInstallGPT` | Compares entries 1 to 4 by index | extends: compares Ze's run wherever it starts |
+| Installed-layout assertion | `internal/le/test/qemu/install_iso.go` `assertInstallGPT` | Compares entries 1 to 4 by index | extends: compares Ze's run wherever it starts |
 
 ## Design documents
 
@@ -108,14 +116,14 @@ switch. It contains no ONIE code.
 | `docs/architecture/appliance/on-device-installer.md` | Decisions | `// Design:` page of `gptdisk.go`, `grow.go`, `run.go`, `detect.go`; a page this spec modifies | "partition 4 to the disk's last usable sector, lowered to whole 4096-byte" | departs | The page says growth extends partition 4. After this work growth extends the fourth entry of Ze's run, which is partition 4 only on a disk Ze owns whole. See "Documents departed from" |
 | `ai/doors/core.md` | Where it sits | the door covering `internal/core/gptdisk` | "A core package is a library with no" | agrees | Placement is a pure library function in the `gptdisk` leaf, with no config lifecycle and no registry side effect |
 | `docs/architecture/appliance/iso-installer.md` | Decisions | anchored to `run.go`, `install_boot.go`, `actions.go` | "Disk safety, checksum validation, and success marking are shared concerns." | agrees | The ISO and PXE modes keep writing the whole image from sector 0; only how the persistent partition is addressed afterwards changes, and it resolves to the same partition |
-| `docs/architecture/doctor-and-health-checks.md` | BGP policy absences in the supplied configuration | anchored to `run.go` | | silent | The page covers doctor checks; this spec adds none and keeps the existing `doctor-storage-not-grown` report as it is |
+| `docs/architecture/doctor-and-health-checks.md` | Persistent storage smaller than its disk | anchored to `run.go` | | silent | The section describes the storage-not-grown report and names no partition number; this spec adds no check and keeps that report as it is |
 | `ai/doors/appliance.md` | Who depends on it from outside | the door covering `run.go`, `detect.go` | "An image already in the field is the contract." | agrees | A whole-disk device has its run at entry 1 and a shift of zero, so the patched lookup and the re-targeting give today's results; AC-1 and the critical review's field-contract row prove it |
 | `docs/architecture/testing/qemu-integration.md` | The two entry points | `// Design:` page of `install.go`, `install_boot.go`; a page this spec modifies | "The own-system command carrier can run a whole population in one VM. These" | agrees | The relocated proof is one more installer proof run by the same harness under Ze's own kernel; the page gains its description |
-| `docs/architecture/appliance/installer-initrd.md` | What is proven and what is not | anchored to `install.go`, `install_boot.go`, `actions.go` | | silent | The page covers the PID 1 program and what the installer proofs have shown; this spec changes neither the program's rules nor those results, and adds a separate proof |
+| `docs/architecture/appliance/installer-initrd.md` | What is proven and what is not | anchored to `install.go`, `install_boot.go`, `actions.go`; a page this spec modifies | "A skip is not a pass." | agrees | The section lists each installer proof and its recorded passes. It gains the relocated proof, listed as having no recorded pass until one is run |
 | `ai/doors/le-tooling.md` | Where it sits | the door covering the `internal/le/test/qemu` files | "A tool is one package under `internal/le/` that calls" | agrees | The proof is added inside the existing `test qemu` tool; installer proof kinds become a registered table in that package, so the new kind edits no switch (AC-12) |
 | `docs/architecture/core-design.md` | Command engine and composition roots | `// Design:` page of `actions.go` | | silent | The page documents the command engine le shares with ze; this spec adds one test action through it and changes nothing the page states |
-| `docs/architecture/appliance/gokrazy-build-pins.md` | Why a module cache is checked in | anchored to `actions.go`; a page this spec modifies | "The pinned runtime source also carries `gokrazy/patches/reboot-ack.patch`." | agrees | The runtime change is a second diff carried the same way and guarded by the same pin test; the page gains its name and what it changes |
-| `docs/architecture/testing/ci-workflows.md` | Where each suite runs | anchored to `actions.go` | | silent | The page maps workflows to actions; no workflow is added or renamed here, and the new action runs where the installer proofs already run |
+| `docs/architecture/appliance/gokrazy-build-pins.md` | Why a module cache is checked in | anchored to `actions.go`; a page this spec modifies | "`gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source" | departs | `rootdev` is in `github.com/gokrazy/internal`, which is neither checked in nor compared by the guard. This design checks that module in and widens the guard. See "Documents departed from" |
+| `docs/architecture/testing/ci-workflows.md` | Where each suite runs | anchored to `actions.go`; a page this spec modifies | "`./le test qemu appliance-ota` is a manual appliance-delivery proof, outside" | agrees | This spec changes the appliance update path, so that proof is run and is AC-1's evidence, as the page says it must be. The relocated proof is a manual proof of the same kind, and the page gains it |
 | `docs/architecture/testing/interop.md` | The suites, one per protocol area | anchored to `actions.go` | | silent | The page covers the Docker interop suites; this spec adds a QEMU installer proof and no interop scenario |
 | `docs/architecture/vrrp/vrrp-first-hop-redundancy.md` | Why the codec was written from the RFC tables alone | anchored to `actions.go` | | silent | The page covers VRRP; it is linked only through the shared QEMU action table |
 | `docs/architecture/appliance/ota-push.md` | Decisions | a page this spec modifies | "Write only the first 440 MBR bytes" | agrees | The push still sends and the device still writes exactly 440 bytes; the device re-targets the two sector numbers inside them, and the page gains that sentence |
@@ -147,7 +155,7 @@ switch. It contains no ONIE code.
 2. Partition n of Ze is entry base plus n minus 1; the active root is the second or third of the run.
 3. The update handler computes the device's shift (its boot partition's first sector minus 8192) and adds it to the two sector numbers of pushed boot code before writing.
 4. `gptdisk` reports Ze's run for a table given the boot ID, and `Grow` extends the fourth of the run.
-5. The placement function validates free space, appends four entries carrying the image's own IDs, types and names after the last existing entry, and returns their sector ranges.
+5. The placement function first looks for an earlier Ze run: four consecutive entries, the last on the disk, whose unique IDs share the fixed prefix the packer gives every Ze image and end in 01 to 04. If it finds one it removes those four entries. It then validates free space, appends four entries carrying the image's own IDs, types and names after the last remaining entry, and returns their sector ranges. It never rewrites or removes any other entry.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -175,7 +183,7 @@ switch. It contains no ONIE code.
 | push `mbr` stream | reader | gokrazy `update.go` `/update/mbr` | `update.go` | changed by patch as above |
 
 ### Integration Points
-- `rootdev` is used by gokrazy's mount of the persistent partition, its update handlers and its kexec reboot; all three follow the patched lookup.
+- `rootdev` is used by gokrazy's mount of the persistent partition, its update handlers, its kexec reboot (`reboot_amd64.go`), its status page (`status.go`), `gokrazy.go` and `eeprom.go`; all follow the patched lookup, and phase 3 reads each call.
 - `gptdisk.Grow` is called by the installer's growth step that `spec-appliance-perm-grows-at-install` wires.
 
 ### Architectural Verification
@@ -193,7 +201,7 @@ switch. It contains no ONIE code.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The patch route accepts a diff to `gokrazy/internal`, a second module beside `gokrazy/gokrazy` | `reboot-ack.patch` patches one module; the pin test names the runtime | The route needs extending before the patch can land | Read the patch applier and `TestPinnedGokrazyRuntimeMatchesUpstream` in phase 1 | unvalidated |
+| A-1 | Checking in `github.com/gokrazy/internal` under the module cache and adding it to the patch guard is all the route needs to carry a `rootdev` diff | The design judge read the guard: it names one module, and `git ls-files` holds nothing of `gokrazy/internal` | The route needs more (the `.gitignore` allow-list, the instance pins, Dependabot exclusions) | Phase 1 reads `gokrazy/modcache/.gitignore`, the guard and the pins before the patch is written | unvalidated |
 | A-2 | The two sector numbers sit at fixed offsets in the 440 bytes, so adding a shift re-targets the code | `mbr.Configure` takes them as two arguments | Re-targeting needs the generator and the file sectors read from the FAT instead | Read `mbr.go` and its template; a unit test round-trips `Configure` against the re-target function | unvalidated |
 | A-3 | UEFI firmware boots the removable-media path from a system partition that is not the first GPT entry | The UEFI boot manager scans system partitions; unverified on the Dell firmware | A UEFI device needs a firmware boot entry, which `spec-onie-3-installer` writes in any case | The UEFI QEMU proof of this spec | unvalidated |
 | A-4 | Every caller of `gptdisk` on the build host only ever sees whole-disk images | `on-device-installer.md` lists the callers | A build-host caller needs the relative lookup too | Phase 1 reads each caller | unvalidated |
@@ -205,7 +213,8 @@ switch. It contains no ONIE code.
 | R-1 | The patched lookup changes behaviour on a whole-disk device | The existing installer and push proofs fail | The base is entry 1 there, so every number is the same; the existing QEMU proofs are the regression evidence and are rerun |
 | R-2 | A push writes boot code for sector 8192 onto a relocated BIOS device | The device does not boot after a push | The handler re-targets; AC-4 pushes to a relocated device and boots it |
 | R-3 | Two disks each hold a partition with the boot ID (a cloned disk) | The runtime picks a different disk than the firmware booted | Today's behaviour with entry 1 already has this property; the patch keeps the first match and logs both |
-| R-4 | Placement or growth overwrites a foreign partition | A hash of the foreign partitions changes | Placement only appends after the last used sector and never rewrites an existing entry; every proof hashes the foreign partitions before and after |
+| R-4 | Placement or growth overwrites a foreign partition | A hash of the foreign partitions changes | Placement removes only an earlier Ze run, recognised by its ID prefix and by being the last four entries, and otherwise only appends; every proof hashes the foreign partitions before and after |
+| R-7 | A foreign partition is mistaken for an earlier Ze run | Another system's data is removed | The prefix is fixed by the packer for Ze images alone, all four IDs must match in order, and the four must be the last entries; anything less is treated as foreign |
 | R-5 | A stop during the table rewrite leaves no valid table | The disk has no partitions after a power cut | The backup table is written first and the primary second, as `Grow` already does; the existing stop-at-every-step test is extended to placement |
 | R-6 | The re-target logic exists twice, in the patched runtime and in Ze's installer, and drifts | The two give different bytes | One test feeds both the same inputs and compares the outputs byte for byte |
 
@@ -230,14 +239,14 @@ switch. It contains no ONIE code.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A whole-disk device built from this work | It boots, mounts the persistent partition, and answers `show version` over SSH, and the existing installer QEMU proofs pass unchanged | All of today's behaviour survives, because the base is entry 1 and every derived number equals today's |
+| AC-1 | A whole-disk device built from this work | It boots, mounts the persistent partition and answers `show version` over SSH (`./le test qemu installer`, `installer-iso`); it takes a push, reboots into the new image and recovers its previous slot (`./le test qemu appliance-ota`); and the boot code a push writes to it equals the pushed bytes | All of today's behaviour survives, because the base is entry 1, the shift is zero and every derived number equals today's |
 | AC-2 | An image placed after two foreign partitions, booted under legacy BIOS | The device boots, mounts the persistent partition from the fourth of its run, and answers `show version` over SSH | The two foreign partitions survive byte for byte, which is the purpose |
 | AC-3 | The same disk booted under UEFI | Same outcome as AC-2 | Same |
-| AC-4 | A push of a newer image to the relocated BIOS device, then a reboot | The device boots the pushed root, and the boot code on disk names sectors inside Ze's boot partition | The foreign partitions, the disk signature and the partition table survive, as the push contract already requires |
+| AC-4 | A push of a newer image to the relocated BIOS device, then a reboot | The device boots the pushed root, and the boot code on disk names sectors inside Ze's boot partition | The foreign partitions, the disk signature and the partition table survive, as the push contract already requires. The first sector's 440 bytes of boot code do not survive: a push rewrites them, as it does today |
 | AC-5 | A push with test-boot to a relocated device, then a second reboot without confirmation | The device boots the new slot once and returns to the old slot, as a whole-disk device does | The old root slot survives until the switch is confirmed |
 | AC-6 | Growth on a relocated disk larger than the image | The persistent partition, the fourth of Ze's run, extends to the last usable sector | Foreign partitions survive; a disk whose persistent partition is not last is still refused, because growth could overlap what follows |
 | AC-7 | Placement on a disk without room for the image's four partitions | Placement refuses before writing anything and names the space needed and the space free | The disk survives unchanged |
-| AC-8 | Placement on a disk that already holds a Ze run from an earlier install | The old run is replaced by the new one in the same position, and the result boots | Foreign partitions survive; the old Ze run does not, because a second install replaces the first |
+| AC-8 | Placement on a disk that already holds a Ze run from an earlier install, recognised as Data Flow step 5 states | The old run's four entries are removed and the new run is appended in their place, and the result boots | Foreign partitions survive; the old Ze run and its persistent data do not, because a second install replaces the first |
 | AC-9 | Placement on a disk with no GPT, or with a GPT the reader refuses | Placement refuses and says why the table is unusable | The disk survives unchanged |
 | AC-10 | The re-target function given whole-disk boot code and a shift of zero | It returns the same 440 bytes | The identity case survives, which is what keeps whole-disk devices unchanged |
 | AC-12 | A new installer proof kind is added to the QEMU harness | The kind registers itself in the harness's own table and runs, with no edit to a switch over proof kinds | The four existing proofs survive and run as before, registered the same way |
@@ -249,7 +258,7 @@ switch. It contains no ONIE code.
 |---|-----------|--------------------|-----------------------|
 | 1 | Boots a device whose disk holds other partitions first | firmware -> boot code or loader -> kernel -> patched runtime -> persistent mount -> SSH | `./le test qemu installer-relocated` |
 | 2 | Pushes a new image to such a device | `appliance push` -> update handlers -> re-targeted boot code -> reboot | `./le test qemu installer-relocated` (push leg) |
-| 3 | Keeps using a whole-disk device | unchanged | `./le test qemu installer`, `./le test qemu installer-iso` |
+| 3 | Keeps using a whole-disk device, including pushing to it | unchanged | `./le test qemu installer`, `./le test qemu installer-iso`, `./le test qemu appliance-ota` |
 
 ## 🧪 TDD Test Plan
 
@@ -263,10 +272,11 @@ switch. It contains no ONIE code.
 | `TestPlaceLeavesATableAtEveryStop` | `internal/core/gptdisk/place_test.go` | R-5 | |
 | `TestRunFoundFromBootID` | `internal/core/gptdisk/gptdisk_test.go` | Ze's run is reported for a boot ID at entry 1 and at entry 3 | |
 | `TestGrowExtendsTheFourthOfTheRun` | `internal/core/gptdisk/grow_test.go` | AC-6 | |
-| `TestRetargetIsIdentityAtZeroShift` | the package the re-target function lands in | AC-10 | |
-| `TestRetargetMatchesConfigure` | same | A-2: re-targeted code equals code generated for the shifted sectors | |
-| `TestRetargetAgreesWithTheRuntimePatch` | same | R-6 | |
-| `TestRootdevFindsABootIDAtAnyEntry` | the patched `rootdev` test file | AC-2, AC-11 | |
+| `TestRetargetIsIdentityAtZeroShift` | `internal/core/bootcode/retarget_test.go` | AC-10 | |
+| `TestRetargetMatchesConfigure` | `internal/core/bootcode/retarget_test.go` | A-2: re-targeted code equals code generated for the shifted sectors | |
+| `TestRetargetAgreesWithTheRuntimePatch` | `internal/le/vendorpatch/gokrazy_retarget_test.go` | R-6 | |
+| `TestRootdevFindsABootIDAtAnyEntry` | `rootdev_test.go` of `github.com/gokrazy/internal`, carried in `gokrazy/patches/relative-partitions.patch` | AC-2, AC-11 | |
+| `TestPlaceRecognisesOnlyAWholeZeRun` | `internal/core/gptdisk/place_test.go` | R-7 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -285,13 +295,18 @@ N-A: no wire protocol with a peer. The proof against ONIE itself belongs to `spe
 ## Files to Modify
 - `internal/core/gptdisk/gptdisk.go`, `grow.go` - Ze's run found from the boot ID; growth of its fourth entry
 - `internal/install/disk/run.go`, `detect.go` - the persistent partition addressed from the run
-- `internal/le/test/qemu/install.go`, `install_boot.go`, `actions.go` - installer proof kinds become a registered table; the relocated proof; the layout assertion
+- `internal/le/test/qemu/install.go`, `install_boot.go`, `install_iso.go`, `actions.go` - installer proof kinds become a registered table; the relocated proof; the layout assertion
+- `internal/le/vendorpatch/gokrazy_runtime_patch_test.go` - the guard compares `github.com/gokrazy/internal` too
+- `gokrazy/modcache/.gitignore` - the second module is checked in
+- `docs/architecture/testing/ci-workflows.md`, `docs/architecture/appliance/installer-initrd.md` - the relocated proof among the manual proofs and the recorded passes
 - `docs/architecture/appliance/on-device-installer.md`, `ota-push.md`, `gokrazy-build-pins.md` - relative addressing, the re-targeted boot code, the second patch
 - `docs/architecture/testing/qemu-integration.md`, `docs/functional-tests.md` - the new proof
 
 ## Files to Create
 - `internal/core/gptdisk/place.go` - placement of an image's run after existing entries
-- `gokrazy/patches/relative-partitions.patch` - the `rootdev` lookup and the update handler's re-targeting
+- `gokrazy/patches/relative-partitions.patch` - the `rootdev` lookup and its test, and the update handler's re-targeting
+- `internal/core/bootcode/retarget.go` - re-targeting 440 bytes of boot code by a sector shift, for Ze's installer
+- `internal/le/vendorpatch/gokrazy_retarget_test.go` - the comparison of Ze's function with the runtime patch's
 - `internal/le/test/qemu/install_relocated.go` - the relocated proof
 
 ### Integration Checklist
@@ -359,7 +374,9 @@ its disk sees no change at all.
 
 ### Documents departed from
 
-`docs/architecture/appliance/on-device-installer.md`, "Decisions". Before: "`Grow` extends partition 4 to the disk's last usable sector" and refuses "a partition 4 that is not the last". After: `Grow` extends the persistent partition, the fourth entry of Ze's run, to the disk's last usable sector, and refuses when that entry is not the last partition on the disk. On a disk Ze owns whole the run starts at entry 1, so the persistent partition is partition 4 exactly as the page says today. What an operator sees: nothing on a whole-disk device; on a shared disk, the persistent partition grows where today it could not exist.
+1. `docs/architecture/appliance/on-device-installer.md`, "Decisions". Before: "`Grow` extends partition 4 to the disk's last usable sector", changing "entry 4's last sector", with a protective record that "covers only the sectors before partition 1". After: `Grow` extends the persistent partition, the fourth entry of Ze's run, and changes that entry's last sector. On a disk Ze owns whole the run starts at entry 1, so this is partition 4 and entry 4 exactly as the page says today. The protective-record statement holds only for a disk the packer wrote; on a shared disk the first sector's record is the other system's and is left as found. What an operator sees: nothing on a whole-disk device; on a shared disk, the persistent partition grows where today it could not exist.
+
+2. `docs/architecture/appliance/gokrazy-build-pins.md`, "Why a module cache is checked in". Before: "`gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source", and the guard "compares the complete maintained" runtime source of that one module. After: the module cache also checks in `github.com/gokrazy/internal`, the module that holds `rootdev`, and the guard compares both modules with upstream. What an operator sees: nothing. What a maintainer sees: a second upstream module to review at each gokrazy update.
 
 ### Choices for Thomas
 
@@ -407,13 +424,13 @@ its disk sees no change at all.
 | The runtime patch | `gokrazy/patches/relative-partitions.patch` exists and the pin test passes |
 | Placement | the `TestPlace*` tests pass |
 | The relocated proof | `./le test qemu installer-relocated` passes on amd64 under BIOS and UEFI |
-| No regression | `./le test qemu installer` and `./le test qemu installer-iso` pass |
+| No regression | `./le test qemu installer`, `./le test qemu installer-iso` and `./le test qemu appliance-ota` pass |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | Placement trusts nothing in an existing table beyond what `Parse` already checks (checksums, bounds, overlaps) |
-| Data destruction | No write lands in a sector an existing entry owns; the test hashes foreign partitions |
+| Data destruction | No write lands in a sector a foreign entry owns, and only a whole Ze run is ever removed; the test hashes foreign partitions |
 | Boot ID collision | Two disks carrying the boot ID are logged, never silently resolved to the second |
 
 ### Failure Routing
@@ -439,6 +456,7 @@ its disk sees no change at all.
 |----------|------------------------|-----------|
 | One identity plus a count | Four identities; renumbering | Matches the kernel's own lookup and what the packer writes |
 | The device re-targets pushed boot code | The build host computes it per device | The device knows its offset; the push stays uniform |
+| A second gokrazy module is checked in and guarded | Reimplementing `rootdev`'s callers in Ze; forking | The lookup is used by seven places in the runtime; one patched function is smaller than seven changed callers, and a fork is ruled out by the dependency rules |
 | Placement lives in `gptdisk`, not in the ONIE installer | Placement in the installer | It is provable here without ONIE, and `gptdisk` is the one GPT reader and writer |
 
 ## Known Limitations

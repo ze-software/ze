@@ -29,12 +29,14 @@ nothing at all for the console, which is fixed for every image. Nothing in the
 builder knows what an N100 mini PC or a Dell S4048-ON is.
 
 After this work an operator names the box. A model is a small declared file
-that the builder discovers. It states the architecture, the installer kernel
-profile, the serial console, the firmware modes the box boots in, the kernel
-drivers the box cannot work without, and, for a switch, the ONIE platform
-strings its installer accepts. The builder fills the image options from the
-model, refuses a config that contradicts it, and refuses to build when a
-kernel lacks a driver the model requires.
+that the builder discovers. It states the installer kernel profile, the serial
+console, the firmware modes the box boots in, the kernel drivers the box
+cannot work without, and, for a switch, the ONIE platform strings its
+installer accepts. A model of one particular box also states its
+architecture; `generic` states none, so it serves both. The builder fills the
+image options from the model and refuses a config that contradicts it. Every
+driver a shipped model names is carried by the shared runtime kernel, and the
+registry reports a model whose driver no runtime kernel fragment sets.
 
 The first models are `generic` (exactly today's behaviour, and the default),
 `n100`, `dell-s4048-on` and `dell-s5232f-on`.
@@ -54,17 +56,21 @@ installer.
 - [ ] `docs/architecture/appliance/kernel-profiles.md`
   → Decision: a kernel profile is a pair of files in `tools/installer-kernel/`, found by directory scan (`registeredKernelProfiles`); a model is declared and found the same way.
   → Constraint: `image.kernel-profile` selects the installer kernel only; the runtime kernel is one shared profile, so a driver a model requires at runtime goes into the shared runtime fragments.
+  → Constraint: "there is no second check and no other kernel to check": the built runtime kernel is proven once, by `enforceKernelRequirements`. A model adds no check of a built kernel.
+  → Constraint: "Built in or loadable": a driver for physical hardware is loadable (`=m`), and the device loads it at `ze start` ("Loading driver modules on the device"). The requirement manifests accept only `=y`, so they cannot state a NIC driver.
 - [ ] `docs/architecture/appliance/builder.md`
   → Constraint: the appliance config is the unexported `applianceConfig`; `ImageConfig` holds arch, size, kernel profile, hugepages, isolated CPUs, crash dump and memory.
 - [ ] `docs/architecture/appliance/iso-installer.md`
-  → Constraint: names embedded in a kernel command line must match a strict pattern; a model name and a console value reach that command line, so both are validated the same way.
+  → Constraint: names embedded in a kernel command line pass a dedicated pattern of letters, digits, dot, underscore and hyphen. A model name passes that same pattern. A console value holds a comma (`ttyS0,115200n8`), so it has its own pattern: a device name, a comma, a speed from a fixed list, and optional parity and bits.
+  → Constraint: today's installer command line carries the screen console as well as the serial one; a model states the serial console only, and the screen console stays as it is.
 - [ ] `plan/post-release/features/spec-hardware-capacity-profile.md`
   → Constraint: that skeleton plans a runtime database matched on DMI facts. The model names of this spec are the names that database uses for the same boxes; neither spec defines a second vocabulary.
 
 **Key insights:**
 - No build-time model exists. The serial console is one fixed value in `gokrazy/ze/config.json`.
 - The builder already renders a derived gokrazy parent directory per build to carry kernel arguments (`resolveBuildParentDir`), which is where a per-model console can be written without touching the shared config.
-- No kernel fragment builds `ixgbe`, and `igb` is a module loaded at start.
+- No kernel fragment builds `ixgbe`; `igb` and `igc` are modules (`=m`) in `gokrazy/kernel/runtime.config`, loaded on the device at start.
+- The derived build directory is produced by `internal/appliance/instance` (`deriveConfigJSON`), which today patches only the kernel's extra arguments. The packer writes the serial console from the config's `SerialConsole` field. `docs/architecture/vpp-host-tuning.md` still names `materializeDerivedParent`, which no longer exists; that page is corrected in this work.
 
 ## Current Behavior (MANDATORY)
 
@@ -72,7 +78,10 @@ installer.
 - [ ] `internal/appliance/config.go` - `ImageConfig` fields as listed above; `Validate`, `DefaultConfig`, `LoadConfig`.
 - [ ] `internal/appliance/cmd_init.go` - `runInit` takes `--config`, `--cert`, `--key`, `--managed`, `--batch`; the interactive path does not ask for a kernel profile.
 - [ ] `internal/appliance/kernelreg.go` - `registeredKernelProfiles` scans a directory for `<name>.config`; `resolveKernelProfileFrom` validates the name and requires the paired manifest.
-- [ ] `internal/appliance/kernelargs.go` - `resolveBuildParentDir` writes a derived parent directory carrying hugepage, CPU isolation and crash-dump kernel arguments.
+- [ ] `internal/appliance/kernelargs.go` - `resolveBuildParentDir` asks for a derived parent directory carrying hugepage, CPU isolation and crash-dump kernel arguments.
+- [ ] `internal/appliance/instance/prepare.go` - `deriveConfigJSON` patches `KernelExtraArgs` only; `instance.Options` has no console field (read by the design judge, 2026-11-28).
+- [ ] `internal/appliance/cmd_kernel.go` - `runKernel` reads `image.kernel-profile` for the installer target.
+- [ ] `internal/appliance/kernelreq.go` - `readKernelConfig` counts a symbol as enabled only at `=y`; the manifest grammar refuses any other value (read by the design judge).
 - [ ] `internal/appliance/cmd_iso.go` - `isoKernelConsoleArgs` chooses the installer console by architecture only.
 - [ ] `internal/appliance/main.go` - `applianceCommands` is the package's own command table.
 - [ ] `gokrazy/ze/config.json` - `SerialConsole` is `ttyS0,115200` for every image.
@@ -85,16 +94,19 @@ installer.
 **Behavior to change:**
 - `image.model` exists, with a matching `--model` on `ze appliance init`.
 - The console of an image and of its installer follows the model.
-- A build refuses when a kernel lacks a driver the model requires.
+- The shared runtime kernel carries, as loadable modules, every driver a shipped model names, and the registry reports a model whose driver no runtime fragment sets.
 
 ## Existing Mechanisms (MANDATORY)
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Kernel-profile registry | `internal/appliance/kernelreg.go` `registeredKernelProfiles`, `resolveKernelProfileFrom` | Discovers profile file pairs by directory scan and validates the name | extends: the model registry is a second directory scanned by the same rules, and a model names the profile it uses |
-| Kernel requirement manifests | `internal/appliance/kernelreq.go` `universalKernelRequirements`, the `.require` files | State the kernel options a profile must carry and check a built config against them | extends: a model's required drivers are requirement lines checked by the same code against the runtime and installer kernels |
+| Kernel requirement manifests and the one kernel check | `internal/appliance/kernelreq.go` `enforceKernelRequirements`, the `.require` files | Prove a built kernel carries the `=y` symbols its manifests name | does not apply: a model adds no check of a built kernel, and NIC drivers are `=m`, which the manifests cannot state. The model check reads the runtime fragment files only |
+| Loadable hardware drivers | `gokrazy/kernel/runtime.config` (`CONFIG_IGB=m`); `kernel-profiles.md` "Built in or loadable", "Loading driver modules on the device" | Builds physical NIC drivers as modules and loads them at `ze start` | extends: each driver a shipped model names is added to the runtime fragment as a module, and the existing loader loads it |
+| Derived instance config | `internal/appliance/instance/prepare.go` `deriveConfigJSON`, `instance.Options` | Copies the gokrazy instance and patches its kernel arguments, for the appliance build and for `le build gokrazy` | extends: `Options` gains the serial console and the patch sets `SerialConsole`; an empty value leaves the field as the checked-in config has it |
+| Installer kernel selection | `internal/appliance/cmd_kernel.go` `runKernel`; `cmd_iso.go` `isoKernelCachePath` | Read `image.kernel-profile` | extends: both read the profile through one function that falls back to the model's |
 | Image options | `internal/appliance/config.go` `ImageConfig`, `Validate` | Hold and validate per-image facts | extends: gains `model`; the model supplies defaults and `Validate` refuses a contradiction |
-| Derived build directory | `internal/appliance/kernelargs.go` `resolveBuildParentDir` | Renders per-build kernel arguments beside the shared gokrazy config | extends: also renders the model's serial console |
+| Kernel arguments of a build | `internal/appliance/kernelargs.go` `resolveBuildParentDir` | Computes per-build kernel arguments from the config and asks `instance` for a derived directory | extends: also passes the model's serial console |
 | Installer console choice | `internal/appliance/cmd_iso.go` `isoKernelConsoleArgs` | Chooses the console by architecture | replaces: the console comes from the model, and `generic` states today's per-architecture values |
 | Runtime hardware facts | `internal/component/host/dmi_linux.go`; `spec-hardware-capacity-profile.md` part P5 | Reads DMI on the device; plans a matched capacity database | does not apply at build time; the names are shared so the two never diverge |
 
@@ -103,15 +115,16 @@ installer.
 | Document | Section | Derived from | Binding statement | Verdict | How this design stands against it |
 |----------|---------|--------------|-------------------|---------|-----------------------------------|
 | `ai/doors/system.md` | The core knows nothing, and everything registers | the door every change reads | "It never needs an edit to a switch, a factory, a field list, a" | agrees | A model is a file found by scan; no list, switch or help string names one |
-| `docs/architecture/appliance/builder.md` | Kernel command line | `// Design:` page of `config.go`, `cmd_init.go`, `cmd_build.go`, `main.go`; a page this spec modifies | "pure function of the config in `kernelargs.go`, and each answers nil when its" | agrees | The console is one more pure function of the config in the same file, and it answers nil for `generic`, so today's command line is unchanged. The page gains the model and the console as a fourth field |
+| `docs/architecture/appliance/builder.md` | Kernel command line | `// Design:` page of `config.go`, `cmd_init.go`, `cmd_build.go`, `main.go`; a page this spec modifies | "pure function of the config in `kernelargs.go`, and each answers nil when its" | agrees | The three fields stay pure functions of the config. The console is not a fourth of them: it comes from the model file and travels as its own field of the derived instance config, where it sets `SerialConsole`. With no console stated (`generic`) nothing is patched and the command line is unchanged. The page gains the model and says where the console comes from |
 | `ai/doors/appliance.md` | Boundaries | the door covering every `internal/appliance` file | "The `./ze` launcher binary has no `ze_setup`" | agrees | Every refusal and instruction of this spec names `ze-host` |
 | `docs/architecture/appliance/build-artifacts.md` | Decisions | `// Design:` page of `doctor_checks.go` | "Doctor checks test for the artifact, not for the build tool." | agrees | The model check tests the model files and the cached kernel's emitted config, never a tool |
 | `docs/architecture/appliance/gokrazy-build-pins.md` | Derived parent instances keep the builddir pins | anchored to `cmd_build.go`, `kernelargs.go` | "An appliance config that asks for hugepages cannot be built from the tracked" | agrees | The console travels through the same derived parent, so the pins this page protects are kept by the existing path |
 | `docs/architecture/appliance/ota-push.md` | Decisions | anchored to `cmd_build.go` | | silent | The page covers what a push sends to a device; a model changes nothing a push sends or validates |
-| `docs/architecture/vpp-host-tuning.md` | Kernel arguments go through a derived instance config | `// Design:` page of `kernelargs.go` | "The checked-in `gokrazy/ze/config.json` is never edited." | agrees | The model's console is patched into the derived config; the checked-in file keeps its one console value |
-| `docs/architecture/appliance/kernel-profiles.md` | Decisions | `// Design:` page of `kernelreq.go`; a page this spec modifies | "The registry is open. Adding a profile is adding two files, not editing a" | agrees | The model registry is open in the same way, and a model names a profile from this registry. The page gains the statement that a model may add requirement lines to the runtime kernel check |
-| `docs/architecture/appliance/iso-installer.md` | Traps | `// Design:` page of `cmd_iso.go`; a page this spec modifies | "Names embedded in the GRUB kernel command line must survive two parsers." | agrees | The console value from a model is pattern-checked before it reaches the GRUB command line. The page gains the statement that the installer console comes from the model |
-| `ai/doors/le-tooling.md` | Where it sits | the door covering the four `.ci` files | "Functional `.ci` files live under `test/<suite>/` and run through" | agrees | The four new tests are `.ci` files in the existing `test/appliance/` suite |
+| `docs/architecture/vpp-host-tuning.md` | Kernel arguments go through a derived instance config | `// Design:` page of `kernelargs.go` | "The checked-in `gokrazy/ze/config.json` is never edited." | agrees | The model's console is patched into the derived config; the checked-in file keeps its one console value. The page names `materializeDerivedParent`, which no longer exists (the producer is `instance.deriveConfigJSON`); this work corrects the name and adds the console as a second patched field |
+| `docs/architecture/appliance/kernel-profiles.md` | Decisions | `// Design:` page of `cmd_kernel.go`; anchored to `kernelargs.go`; a page this spec modifies | "there is no second check and no other kernel to check." | agrees | The built runtime kernel keeps its one check. The model comparison reads the fragment files and never a built kernel, so it is no second check of that kernel. Under "Built in or loadable" a physical NIC driver is a module, and that is how each model's driver is added. The page gains the model registry beside the profile registry, and the rule that a shipped model's drivers are in the runtime fragment |
+| `docs/architecture/appliance/iso-installer.md` | Traps | `// Design:` page of `cmd_iso.go`; a page this spec modifies | "Names embedded in the GRUB kernel command line must survive two parsers." | agrees | The page's pattern of letters, digits, dot, underscore and hyphen governs names; the model name passes it. A console value holds a comma, so it is checked by its own stricter-shaped pattern (device, comma, a speed from a fixed list, optional parity and bits), which also admits no space, quote or shell character. The page gains that pattern, the statement that the installer's serial console comes from the model, and the refusal of an ISO for a BIOS-only model, which follows from the page's own UEFI decision |
+| `docs/architecture/appliance-serial-login.md` | Appliance Serial Console Login | a page this spec modifies | "The gokrazy serial console (115200 baud on ttyS0) is the emergency access path." | departs | The page states one console for every appliance. After this work the serial console is the one the appliance's model states. See "Documents departed from" |
+| `ai/doors/le-tooling.md` | Where it sits | the door covering the `.ci` files | "Functional `.ci` files live under `test/<suite>/` and run through" | agrees | The four new tests are `.ci` files in the existing `test/appliance/` suite |
 | `docs/architecture/vpp-host-tuning.md` | Design decisions | decision of 2026-11-23 | "When Ze does not believe the host has enough resources for VPP to remain stable, it warns and still starts VPP. The requirement changes with the configuration and with what else runs on the host (on a general Linux install other programs take memory too), so the check runs at every start against the machine as it is then, and a warning tells the operator they are taking a risk. A measurement the operator recorded on their own hardware stops the warning on that hardware, and the operator can silence the warning with an environment value, set in the configuration or in the OS environment" | agrees | This spec adds no check of host resources and changes no VPP start behaviour; its one refusal is at build time, for a kernel that lacks a driver, which that decision does not cover |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -124,8 +137,9 @@ installer.
 1. The model directory is scanned; each file is parsed and validated into a model value.
 2. `init` resolves the named model and writes the appliance config with `image.model` set and the model's architecture and kernel profile filled in where the operator gave none.
 3. `Validate` reloads the model at every later command and refuses a config whose architecture contradicts it.
-4. `build` checks the model's required drivers against the runtime kernel's emitted config, then renders the model's console into the derived build directory.
-5. `iso` (and later `onie`) read the model for the installer console and the installer kernel profile.
+4. `build` passes the model's console to the derived instance config, where it becomes `SerialConsole`.
+5. The registry compares each model's driver symbols with the runtime kernel fragment files and reports a symbol no fragment sets, at every scan and in the doctor check.
+6. `iso`, `kernel` (and later `onie`) read the model for the installer console and the installer kernel profile. `iso` refuses a model whose firmware modes do not include UEFI, because the ISO boots under UEFI only.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -140,15 +154,19 @@ installer.
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | appliance config JSON, `image.model` | writer | `internal/appliance/cmd_init.go` `runInit`, `config.go` `saveConfig` | `ImageConfig` is marshalled by `saveConfig` | new optional field; an absent field reads as `generic` |
-| appliance config JSON, `image.model` | reader | `internal/appliance/config.go` `LoadConfig`, `Validate` | every command loads through `LoadConfig` | an existing config without the field keeps loading and building unchanged |
+| appliance config JSON, `image.model` | reader | `internal/appliance/config.go` `LoadConfig`, `Validate` | every command loads through `LoadConfig`, which refuses unknown fields | an existing config without the field keeps loading and building unchanged; a config with the field is refused by an older builder, which is the intended outcome |
+| appliance config JSON, `image.model` | reader | `internal/appliance/cmd_kernel.go` `runKernel`, `cmd_iso.go` `resolveISOInput` | both read `cfg.Image.KernelProfile` | changed: both take the profile through the model-aware accessor |
+| appliance config JSON, `image.model` | writer | `internal/le/test/qemu/install_build.go`, which rewrites the `image` object for the installer proofs | found by the design judge | preserved: it writes no model, so its appliances are `generic` |
+| appliance config JSON, `image.model` | reader | the export and import archive (`cmd_export.go`, `cmd_import.go`) | carries the config file whole | preserved: the field travels with the file |
+| appliance config JSON, `image.model` | reader | the examples in `docs/guide/appliance.md`, `docs/guide/ze-install.md` and `website/use-cases/appliance-lifecycle/index.md` | prose carriers | checked in the documentation phase; none becomes wrong, since the field is optional |
 | appliance config JSON, `image.model` | writer | an operator's own `--config` and `--batch` files, written by hand | `cmd_init.go` reads both | unchanged files stay valid |
 | model file | writer | a file under the model directory, written by hand | new | none to migrate |
 | model file | reader | the model registry of this spec | new | none to migrate |
 
 ### Integration Points
 - `registeredKernelProfiles` and its name validation - the model registry reuses the scan and the name rule.
-- `kernelreq` requirement checking - a model's driver list is checked by it.
-- `resolveBuildParentDir` - gains the console.
+- `instance.Options` and `deriveConfigJSON` - gain the console.
+- The runtime kernel fragments - gain each named driver as a module.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -165,7 +183,7 @@ installer.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The console can be set per build through the derived parent directory, without editing the shared gokrazy config | `docs/architecture/vpp-host-tuning.md`, "Kernel arguments go through a derived instance config": `materializeDerivedParent` writes a patched `config.json`, and `SerialConsole` is a field of that file | The console needs another route into the packer | Read `resolveBuildParentDir` and the packer's `writeCmdline` before phase 3; a unit test reads the built command line | unvalidated |
+| A-1 | The console can be set per build through the derived parent directory, without editing the shared gokrazy config | `internal/appliance/instance/prepare.go` `deriveConfigJSON` writes a patched `config.json` (read by the design judge); the packer's `writeCmdline` emits the console from that file's `SerialConsole` | The console needs another route into the packer | A unit test of `deriveConfigJSON` with a console, and the built image's command line in `TestBuildRendersModelConsole` | unvalidated |
 | A-2 | The S4048-ON and S5232F-ON facts in their model files match the units | Upstream ONIE and SONiC platform files only (umbrella, "The two switches") | A model accepts the wrong platform string or names the wrong console or driver | The switch commands in the umbrella, run by Thomas; the model files are corrected from their output before this spec closes | unvalidated |
 | A-3 | The N100 box needs the `hardware-kms` installer profile and boots under UEFI | `tools/installer-kernel/README.md` and `hardware-kms.config` name the N100 display loss | The `n100` model picks the wrong profile | Thomas confirms the profile he uses for the N100 | unvalidated |
 | A-4 | The amd64 runtime kernel lacks `ixgbe` | Only an arm64 emitted config was cached where the research ran; no fragment names it | The driver refusal for the S5232F-ON never fires, harmlessly | Read the amd64 runtime kernel's emitted config on the Linux server | unvalidated |
@@ -175,7 +193,8 @@ installer.
 |----|------|--------------|----------------------|
 | R-1 | A model silently changes an existing appliance's image | A rebuilt image differs with no config change | `generic` is the default and states today's values; a test compares the build inputs of a config with and without `generic` |
 | R-2 | A model and an explicit option disagree and the builder picks one silently | An image built for the wrong architecture | `Validate` refuses the disagreement and names both values |
-| R-3 | A model requires a driver and the build succeeds without it | The installed box has no management port | The build refuses, naming the driver, the kernel and the fragment to edit |
+| R-3 | A model names a driver that no runtime fragment sets | The installed box has no management port | The registry test fails for a shipped model, and the doctor check and `model show` report it for any model, naming the symbol and the fragment file to add it to as a module |
+| R-6 | A named module is built but never loaded on the device | The interface is absent after boot | The existing loader loads modules for the hardware it finds; the QEMU proofs cannot show a physical NIC, so each unit's first boot is the evidence, recorded on the feature page |
 | R-4 | A model name reaches a kernel command line unvalidated | A name with a space or quote | The model name uses the kernel-profile name rule; the console value has its own strict pattern |
 | R-5 | The model vocabulary drifts from the runtime capacity database | Two names for one box | The capacity spec cites this registry as the source of names |
 
@@ -194,18 +213,21 @@ installer.
 | `ze-host appliance init --model n100 lab` | → | model registry lookup, config written with the model's values | `test/appliance/appliance-model-init.ci` |
 | `ze-host appliance init --model no-such-box lab` | → | model registry refusal | `test/appliance/appliance-model-unknown.ci` |
 | `ze-host appliance model list` | → | model registry scan | `test/appliance/appliance-model-list.ci` |
-| `ze-host appliance build` of a model whose driver the kernel lacks | → | requirement check against the kernel config | `TestBuildRefusesModelDriverTheKernelLacks` |
+| A shipped model names a driver | → | the registry's comparison with the runtime fragments | `TestEveryShippedModelDriverIsInTheRuntimeFragments` |
+| `ze-host appliance iso` for a BIOS-only model | → | the firmware-mode refusal | `test/appliance/appliance-model-iso-needs-uefi.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | `init --model n100 lab` with no other image option | The written config holds `image.model` `n100` and the architecture and kernel profile the `n100` model states | An operator's explicit kernel profile survives, because a profile is a choice within a model, not a fact of it |
-| AC-2 | `init` with no `--model` and a config with no `image.model` | The appliance is created with model `generic`, and its build inputs equal those of the same config before this work | Every existing option survives unchanged, because `generic` states today's values |
+| AC-1 | `init --model n100 lab` with no other image option | The written config holds `image.model` `n100`, and every later command uses the architecture and the installer kernel profile the `n100` model states | An operator's explicit kernel profile survives, because a profile is a choice within a model, not a fact of it |
+| AC-2 | `init` with no `--model` and a config with no `image.model` | The appliance is created with model `generic`, which states no architecture, no profile and no console, so `DefaultConfig`'s values apply and the build inputs equal those of the same config before this work, on amd64 and on arm64 | Every existing option survives unchanged, because `generic` adds nothing |
 | AC-3 | `init --model no-such-box lab` | The command exits non-zero and prints the unknown name, the list of known models, and the `ze-host appliance model list` command | No appliance directory survives, because a config with an unknown model could never build |
-| AC-4 | A config whose `image.arch` differs from its model's architecture | `Validate` refuses at every command, naming both values and the edit that fixes it | A config whose architecture agrees survives, as does one that omits the architecture and takes the model's |
+| AC-4 | A config whose `image.arch` differs from the architecture its model states | `Validate` refuses at every command, naming both values and the edit that fixes it | A config whose architecture agrees survives; so does any architecture under a model that states none (`generic`) |
 | AC-5 | A new model file is dropped into the model directory | `model list` shows it and `init --model` accepts it, with no other file edited | No survivor question: nothing is removed |
-| AC-6 | `build` of an appliance whose model requires a driver absent from the runtime kernel's config | The build stops before packing and names the driver, the kernel, and the fragment file to add it to | A build whose kernel carries every required driver proceeds, which is the useful outcome |
+| AC-6 | A model names a driver symbol that no runtime kernel fragment sets to `=y` or `=m` | `model show` and the doctor check name the model, the symbol, and the fragment file to add it to as a module; for a shipped model the registry test fails | A model whose every symbol is set is reported clean, and the built kernel is still proven once, by the existing requirement check, which this spec leaves alone |
+| AC-12 | `iso` of an appliance whose model lists firmware modes without UEFI | The command refuses, names the model and its modes, and says the ISO boots under UEFI only | A model that lists UEFI, and `generic`, which lists both, build an ISO as today |
+| AC-13 | `ze-host appliance kernel` for an appliance whose config holds a model and no profile | The command builds the installer kernel profile the model states, the same one `iso` then uses | An explicit `--profile` or `image.kernel-profile` survives and wins |
 | AC-7 | `build` of an appliance whose model states a console other than the default | The built image's kernel command line names the model's console | The default console survives for `generic`, because that is today's behaviour |
 | AC-8 | `iso` of an appliance with a model | The installer's kernel command line names the model's console and the ISO uses the model's installer kernel profile | The per-architecture console survives for `generic` |
 | AC-9 | A malformed model file (unknown key, bad console, unknown kernel profile) | Every command that scans the registry names the file, the key and the accepted form, and the doctor check reports it | Well-formed models survive and stay usable, because one bad file must not hide the others |
@@ -231,7 +253,10 @@ installer.
 | `TestModelConsolePattern` | `internal/appliance/modelreg_test.go` | A console value outside the pattern is refused | |
 | `TestValidateRefusesArchAgainstModel` | `internal/appliance/config_test.go` | AC-4 | |
 | `TestGenericModelLeavesBuildInputsUnchanged` | `internal/appliance/config_test.go` | AC-2 | |
-| `TestBuildRefusesModelDriverTheKernelLacks` | `internal/appliance/cmd_build_test.go` | AC-6 | |
+| `TestEveryShippedModelDriverIsInTheRuntimeFragments` | `internal/appliance/modelreg_test.go` | AC-6 for the shipped set | |
+| `TestModelReportsADriverNoFragmentSets` | `internal/appliance/modelreg_test.go` | AC-6 for an added model | |
+| `TestDeriveConfigSetsSerialConsole` | `internal/appliance/instance/prepare_test.go` | The console reaches `SerialConsole`; an empty value leaves the field | |
+| `TestKernelCommandUsesTheModelProfile` | `internal/appliance/cmd_kernel_test.go` | AC-13 | |
 | `TestBuildRendersModelConsole` | `internal/appliance/kernelargs_test.go` | AC-7 | |
 | `TestISOConsoleFollowsModel` | `internal/appliance/cmd_iso_test.go` | AC-8 | |
 
@@ -247,6 +272,7 @@ installer.
 | `appliance-model-unknown` | `test/appliance/appliance-model-unknown.ci` | An unknown model is refused with the list and the fix | |
 | `appliance-model-list` | `test/appliance/appliance-model-list.ci` | The shipped models are listed, and one added file appears | |
 | `appliance-model-arch-mismatch` | `test/appliance/appliance-model-arch-mismatch.ci` | A config contradicting its model is refused through the CLI | |
+| `appliance-model-iso-needs-uefi` | `test/appliance/appliance-model-iso-needs-uefi.ci` | An ISO for a BIOS-only model is refused with the reason | |
 
 ### Interop Tests (Scope: protocol)
 N-A: no wire protocol and no peer. The ONIE proof belongs to `spec-onie-3-installer.md`.
@@ -254,14 +280,16 @@ N-A: no wire protocol and no peer. The ONIE proof belongs to `spec-onie-3-instal
 ## Files to Modify
 - `internal/appliance/config.go` - `image.model`, defaults from the model, the contradiction refusal
 - `internal/appliance/cmd_init.go` - `--model`, the interactive prompt, batch entries
-- `internal/appliance/cmd_build.go` - the required-driver check before packing
-- `internal/appliance/kernelargs.go` - the console in the derived build directory
-- `internal/appliance/cmd_iso.go` - console and installer profile from the model
-- `internal/appliance/kernelreq.go` - requirement lines supplied by a model
+- `internal/appliance/kernelargs.go` - the console passed to the derived instance
+- `internal/appliance/instance/prepare.go` - `Options` gains the console; the patch sets `SerialConsole`
+- `internal/appliance/cmd_iso.go` - console and installer profile from the model; the UEFI refusal
+- `internal/appliance/cmd_kernel.go` - the installer profile from the model
 - `internal/appliance/main.go` - the `model` command row
 - `internal/appliance/doctor_checks.go` - the model registry check
-- `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`, `tools/installer-kernel/hardware.config`, `tools/installer-kernel/hardware.require` - each driver a shipped model requires and a kernel lacks
+- `gokrazy/kernel/runtime.config` - each driver a shipped model names, as a module
 - `docs/architecture/appliance/builder.md`, `kernel-profiles.md`, `iso-installer.md` - the model, and the console no longer chosen by architecture
+- `docs/architecture/vpp-host-tuning.md` - the stale `materializeDerivedParent` name, and the console as a second patched field
+- `docs/architecture/appliance-serial-login.md` - the console is the model's, no longer one fixed value
 - `docs/guide/appliance.md` - naming a model
 
 ## Files to Create
@@ -270,7 +298,7 @@ N-A: no wire protocol and no peer. The ONIE proof belongs to `spec-onie-3-instal
 - `tools/appliance-models/generic.model`, `n100.model`, `dell-s4048-on.model`, `dell-s5232f-on.model` - the first models
 - `tools/appliance-models/README.md` - the file format and how to add a model
 - `docs/architecture/appliance/hardware-models.md` - the design page
-- `test/appliance/appliance-model-init.ci`, `appliance-model-unknown.ci`, `appliance-model-list.ci`, `appliance-model-arch-mismatch.ci`
+- `test/appliance/appliance-model-init.ci`, `appliance-model-unknown.ci`, `appliance-model-list.ci`, `appliance-model-arch-mismatch.ci`, `appliance-model-iso-needs-uefi.ci`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -285,7 +313,7 @@ N-A: no wire protocol and no peer. The ONIE proof belongs to `spec-onie-3-instal
 | Pipe completeness | Yes | `model list` and `model show` route output through the shared pipes |
 | Env var registration | No | No environment variable is added |
 | Doctor check for runtime dependencies | Yes | `internal/appliance/doctor_checks.go`: the model directory is a new file path the builder depends on |
-| Doctor code per problem class | Yes | `doctor-appliance-model`, build-host phase: a model file that does not parse, and a model whose required driver the cached kernel lacks |
+| Doctor code per problem class | Yes | `doctor-appliance-model`, build-host phase: a model file that does not parse, and a model that names a driver no runtime fragment sets |
 | Prometheus counters/metrics | N-A | Build-host tooling exports no metrics |
 | BGP family surface (new SAFI / capability / attribute) | N-A | Not BGP |
 
@@ -317,7 +345,8 @@ N-A: no wire protocol and no peer. The ONIE proof belongs to `spec-onie-3-instal
 An operator names the box an appliance is for. `ze-host appliance init --model
 n100 lab` writes a config whose architecture, installer kernel profile and
 console come from the `n100` model, and later commands refuse a config that
-contradicts its model or a kernel that lacks a driver the model requires. A
+contradicts its model. The shared runtime kernel carries the drivers the
+shipped models name, and the builder reports a model whose driver it lacks. A
 model is one file in `tools/appliance-models/`; adding a box is adding a file.
 An appliance with no model is `generic` and builds exactly as today.
 
@@ -326,7 +355,8 @@ An appliance with no model is `generic` and builds exactly as today.
 1. Creating an appliance for an N100. Before: the operator writes a JSON file setting the kernel profile and passes it with `--config`, and the console cannot be chosen. After: `ze-host appliance init --model n100 lab`.
 2. Listing what the builder knows. Before: nothing to list. After: `ze-host appliance model list` prints `generic`, `n100`, `dell-s4048-on` and `dell-s5232f-on`, each with its architecture and a one-line description.
 3. An unknown model. After: `init --model s4048` exits non-zero and says the model is unknown, lists the four known names, and names `ze-host appliance model list`.
-4. A kernel without a needed driver. Before: the image builds and the installed box has no management port. After: `build` stops and says which driver the model requires, which kernel lacks it, and which fragment file to add it to.
+4. A model whose driver the runtime kernel does not carry. Before: nothing says so, and the installed box has no management port. After: `ze-host appliance model show <name>` and the doctor check name the driver and the fragment file to add it to as a module.
+5. An ISO for a box that boots under legacy BIOS only. After: `ze-host appliance iso` refuses and says the ISO boots under UEFI only.
 
 ### Alternatives set aside
 
@@ -336,10 +366,11 @@ An appliance with no model is `generic` and builds exactly as today.
 | Models as Go values registered from `init()` | A model is data with no behaviour; the kernel-profile registry already discovers data files by scan, and a second way to register the same kind of thing would sit beside it |
 | Detect the model on the device from DMI at install time | The builder must know the model before any device exists, to choose the kernel profile and to stamp the installer; runtime matching is the capacity-profile spec's subject |
 | Fold the model into the kernel profile | A profile is a kernel build; one profile serves several models, and a model carries facts no kernel build has (firmware mode, ONIE strings) |
+| Check each model's drivers against the built runtime kernel at `build` | The kernel-profiles page states there is one check of the runtime kernel and no second. NIC drivers are also modules, which the requirement manifests cannot state. Comparing the model with the fragment files reports the same mistake earlier and adds no second kernel check |
 
 ### Documents departed from
 
-none
+`docs/architecture/appliance-serial-login.md`, opening paragraph. Before: "The gokrazy serial console (115200 baud on ttyS0) is the emergency access path." After: the serial console is the emergency access path, on the device and at the speed the appliance's model states, which is ttyS0 at 115200 for `generic` and for every appliance built before this work. What an operator sees: nothing changes unless they name a model whose console differs; then the login gate appears on that model's console instead of on a port the box may not have.
 
 ### Choices for Thomas
 
@@ -363,8 +394,8 @@ none
    - Files: `config.go`, `cmd_init.go`, `builder.md`
    - Verify: assumption A-1 is settled by reading the producer before this phase edits `kernelargs.go`
 4. **Phase: The model at build** -- the console and the required-driver check, and the drivers the shipped models need
-   - Tests: `TestBuildRendersModelConsole`, `TestBuildRefusesModelDriverTheKernelLacks`, `TestISOConsoleFollowsModel`
-   - Files: `kernelargs.go`, `cmd_build.go`, `cmd_iso.go`, `kernelreq.go`, the kernel fragments, `kernel-profiles.md`, `iso-installer.md`, `docs/guide/appliance.md`
+   - Tests: `TestBuildRendersModelConsole`, `TestDeriveConfigSetsSerialConsole`, `TestEveryShippedModelDriverIsInTheRuntimeFragments`, `TestModelReportsADriverNoFragmentSets`, `TestISOConsoleFollowsModel`, `TestKernelCommandUsesTheModelProfile`, `appliance-model-iso-needs-uefi.ci`
+   - Files: `kernelargs.go`, `instance/prepare.go`, `cmd_iso.go`, `cmd_kernel.go`, `runtime.config`, `kernel-profiles.md`, `iso-installer.md`, `vpp-host-tuning.md`, `appliance-serial-login.md`, `docs/guide/appliance.md`
    - Verify: the main thread runs the scoped appliance tests; a kernel fragment change owes a runtime kernel rebuild on the Linux server
 
 ### Critical Review Checklist
@@ -383,7 +414,7 @@ none
 |-------------|---------------------|
 | Four model files | `ze-host appliance model list` prints four rows |
 | `--model` at init | `./le test functional appliance` runs `appliance-model-init` |
-| The driver refusal | `TestBuildRefusesModelDriverTheKernelLacks` passes |
+| The driver report | `TestEveryShippedModelDriverIsInTheRuntimeFragments` and `TestModelReportsADriverNoFragmentSets` pass |
 | The design page | `docs/architecture/appliance/hardware-models.md` exists and the appliance README table lists it |
 
 ### Security Review Checklist
@@ -415,11 +446,13 @@ none
 |----------|------------------------|-----------|
 | A model is a data file found by scan | Go registration; flags | Same shape as kernel profiles; adding a box edits no code |
 | `generic` is an explicit model and the default | No model meaning "unset" | One code path; today's behaviour is stated, not implied by an empty value |
-| Required drivers refuse the build | A warning | A box with no management port is found only after install, on site |
+| A model's drivers are compared with the runtime fragments, and the shipped kernel carries them | A check of the built kernel at build | One kernel check exists already and the page forbids a second; the fragment comparison reports the gap without building anything |
 
 ## Known Limitations
 - The model says nothing about front-panel forwarding. A Broadcom switch installed with Ze has a management port only; that needs a datapath and is not this set's work.
 - Matching a running device to its model from DMI is `spec-hardware-capacity-profile.md`.
+- The PXE installer's console is chosen per architecture by the image server (`internal/plugins/imageserver/handler.go`) and does not follow the model: a PXE server serves many appliances and knows none of them. A box whose console differs from the default is installed from the ISO or from ONIE.
+- The installer kernel's own driver set is the profile's business and is proven by the profile's existing manifest; a model names runtime drivers only.
 
 ## Checklist
 
