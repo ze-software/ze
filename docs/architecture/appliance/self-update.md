@@ -82,3 +82,9 @@ field name carries the workaround.
 ## Related
 
 - `ota-push.md` for the bastion pushing an image instead
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| The automatic update is for Linux only. The appliance is immutable infrastructure. In Thomas's words (voice-transcribed): "The automatic update should only be for Linux, for the appliance it should be immutable infrastructure." | An appliance that installs, replaces or selects its own ze or VPP while it runs. An automatic update on the appliance | plan/release/delivery/spec-release-build.md | 2026-11-28 |

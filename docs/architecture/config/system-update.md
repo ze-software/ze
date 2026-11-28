@@ -116,3 +116,9 @@ names the target, redacted, and the fix: `set system update-check url
 redirect otherwise (`docs/architecture/appliance/self-update.md`).
 <!-- source: internal/component/config/system/update.go -- newUpdateClient, manifestFetchError -->
 <!-- source: internal/core/fetch/fetch.go -- SameOrigin, RedirectRefused -->
+
+## Design decisions
+
+| Decision | It forbids | Source | Date |
+|----------|------------|--------|------|
+| A Ze release is named by calendar version with a two-digit year, YY.MM.DD, and a day counter is added to it when a day has more than one release (YY.MM.DD.N). Go's module version rules do not constrain the name. In Thomas's words (voice-transcribed): "I thought we had settled on a Calver but adding effectively the day counter", "We want only two characters for the year."; on Go's module version rules: "Ze is not a library, it does not matter." This reverses the four-digit year, YYYY.MM.DD, that he chose on 2026-09-28 | A four-digit year, a v prefix or a semantic version in a release name. A second release of one day named by anything other than the day counter | plan/release/delivery/spec-release-build.md | 2026-11-28 |

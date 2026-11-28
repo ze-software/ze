@@ -22,7 +22,7 @@ The file keeps its name because other specs and pages cite it. Since 2026-11-28 
 
 Ze starts and supervises VPP itself, but it does not carry VPP. The VPP component runs the program at a fixed host path, `/usr/bin/vpp`, and expects an operator to have installed it there. The gokrazy appliance has no package manager and no C library, so nothing can put VPP at that path: an appliance configured for the VPP backend cannot start its data plane. On a plain Linux host the operator installs a distribution VPP, which the PPPoE backend then refuses, because it needs Ze's patched build.
 
-Goal: Ze's own VPP build is always installed with Ze. The image build places it in the appliance image. A Ze package installs it on Linux. Ze finds it by scanning its own folder and starts it. Whether Ze ever starts another VPP is not decided: choice C-1.
+Goal: Ze's own VPP build is always installed with Ze. The image build places it in the appliance image. A Ze package installs it on Linux. Ze finds it by scanning its own folder and starts it. Ze starts only that VPP: with none in its folder it starts none (owner, 2026-11-28). That VPP is one version, v26.06, carrying every Ze patch (owner, 2026-11-28).
 
 A second defect is fixed here because the goal depends on it. A VPP that Ze starts loads only the plugins Ze names, and Ze names none for firewall rules, NAT, VXLAN tunnels or GRE tunnels. Ze's backends call the APIs of those plugins. So on a VPP that Ze started, that configuration is accepted and then refused by VPP when applied. It is unnoticed today because the only proofs of those features run against a VPP the lab starts itself with every plugin on.
 
@@ -39,6 +39,13 @@ His messages are voice-transcribed and are read for their meaning.
 | 2026-11-28 | "ok for having a .deb for installation too follow the usal debian packaging method in repos", "One package", "you can do rpm too" | One package carries `ze` and the VPP files. The DEB and the RPM get the same treatment. There is no second package, so no relation between packages and no version coupling |
 | 2026-11-28 | "same for vpp install it in the same folder as ze and make sure ze will scan that folder" | VPP sits in the same Ze folder as `ze`, and Ze finds it by scanning that folder, not by a fixed path |
 | 2026-11-28 | "install following the FSB on a linux FS (probably /usr/local/) and then add a script in /usr/local/bin so we can have multiple version installed and change based on a env variable", "old version are kept the ze script providing an uninstall option a bit like we do with ./le", and "lgtm" to a version listing and a version uninstall | An install that is not a package lives under `/usr/local`, one directory per version holding `ze` and its VPP together, with a launcher script. That design is not in this spec (Not in scope). This spec keeps one rule so that it works there: Ze finds VPP relative to the `ze` that runs |
+| 2026-11-28 | Asked whether a VPP at `/usr/bin/vpp` is ever started when Ze finds none in its folder: "No, the only start is on VPP." | Ze starts only its own VPP. With none in its folder, VPP stays down and `ze doctor` gives the fix. The fallback to `/usr/bin/vpp` kept on 2026-11-19 is withdrawn, and the constant path is deleted |
+| 2026-11-28 | Asked where the Ze folder is (A: `ze` at `<prefix>/bin/ze` and the folder at `<prefix>/lib/ze`; B: `ze` itself inside the folder, with `/usr/bin/ze` a link; C: `/usr/libexec/ze`): "Neither, like B, but the /usr/bin/ze is a script, not a symlink." | The real `ze` sits inside the Ze folder with `vpp` beside it. The entry in the bin directory is a launcher script, which `spec-release-build` owns |
+| 2026-11-28 | Asked whether a package install uses the same layout as `/usr/local`, with the example `/usr/bin/ze` (the launcher), `/usr/lib/ze/2026.11.28/ze` and `/usr/lib/ze/2026.11.28/vpp/`: "a" | On a DEB or RPM install the Ze folder is `/usr/lib/ze/<release>/`. The example he was shown used a four-digit year, which he reversed the same day: the directory is named `YY.MM.DD` or `YY.MM.DD.N` |
+| 2026-11-28 | Asked which patched VPP is ours ((a) v26.06 with the IPsec patch; (b) v25.10 with the PPPoE patches; (c) both patch sets on one version before the first release): "Oh, we should port all our patches to version 26 and use that version everywhere. C" | Every Ze patch is ported to v26.06 before the first release, and v26.06 is the one VPP Ze builds, ships and tests against. The port is a prerequisite of the bundle and is this spec's first phase. Whether "everywhere" includes the GoVPP bindings vendored from upstream is choice N-7; whether the PPPoE feature's acceptance moves with the port is choice N-8 |
+| 2026-11-28 | Asked whether every image carries VPP, test images included ((a) yes, one path and no setting; (b) a field in the appliance config leaves it out): "A" | Every appliance image carries the bundle, and no field leaves it out. The size check of the image root (AC-7) is this design's consequence, not his words |
+| 2026-11-28 | "The automatic update should only be for Linux, for the appliance it should be immutable infrastructure." | On the appliance `ze` and its VPP are files of the image, in one version, and they change only when the image is replaced. This design places no version directory and no launcher there |
+| 2026-11-28 | Not asked (the earlier choice C-3). Asked who installs a self-update: "C We do not require root users to run Ze. It could be run as a Ze user, provided the capability required to run the programs is available." | An update on plain Linux installs a version directory, `ze` and its VPP together, so no `ze` runs beside the VPP of another release. `spec-release-build` owns that update; nothing in between is built here |
 
 ### The standards he named
 
@@ -48,7 +55,7 @@ He said LSB. The LSB text itself was not read for this spec (its site refused th
 |--------|----------------|----------|
 | FHS 3.0, 4.6.1 | "/usr/lib includes object files and libraries. On some systems, it may also include internal binaries that are not intended to be executed directly by users or shell scripts." | VPP is an internal binary: Ze runs it, an operator does not |
 | FHS 3.0, 4.6.1 | "Applications may use a single subdirectory under /usr/lib. If an application uses a subdirectory, all architecture-dependent data exclusively used by the application must be placed within that subdirectory." | The whole bundle (program, plugins, libraries) sits under the one Ze subdirectory |
-| FHS 3.0, 4.7.1 | "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec." and "Applications which use /usr/libexec in this way must not also use /usr/lib to store internal binaries" | The alternative home. The bundle mixes a program with libraries and plugins, so splitting it over both trees is what this clause forbids. Choice C-2 |
+| FHS 3.0, 4.7.1 | "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec." and "Applications which use /usr/libexec in this way must not also use /usr/lib to store internal binaries" | The alternative home. The bundle mixes a program with libraries and plugins, so splitting it over both trees is what this clause forbids. Decided on 2026-11-28: the folder is under `/usr/lib/ze` |
 | FHS 3.0, 4.9.1 | "Locally installed software must be placed within /usr/local rather than /usr unless it is being installed to replace or upgrade software in /usr." | An install that is not a package goes under `/usr/local` |
 | Debian Policy, 9.1.1 | "The location of all files and directories must comply with the Filesystem Hierarchy Standard (FHS), version 3.0, with the exceptions noted below" | The DEB follows the FHS clauses above |
 | Debian Policy, 9.1.1, exception 1 | "a subdirectory of ``/usr/lib`` may be used by a package (or a collection of packages) to hold a mixture of architecture-independent and architecture-dependent files." | The manifest and licence texts may sit beside the binaries |
@@ -61,7 +68,7 @@ Debian Policy 9.1.1 does not mention `/usr/libexec` at all (searched, no match).
 | Item | Why | Where it lives |
 |------|-----|----------------|
 | Assembling the DEB, the RPM and the tarball | `spec-release-build` owns package assembly. This spec produces the bundle archive and names the amendment that spec owes | `plan/release/delivery/spec-release-build.md`, `plan/release/delivery/spec-release-distribution.md` |
-| The `/usr/local` install with one directory per version, its launcher script, the version listing and uninstall, and a self-update that installs a version directory | A design of its own: it changes the tarball, `install.sh` and the self-updater, and none of it is VPP. The spec that owns the tarball, `install.sh`, the install marker and the self-update refusal takes it; it was not amended by this work (Work Not Done) | `plan/release/delivery/spec-release-build.md` |
+| The versioned install: one directory per version under `/usr/local/lib/ze` and `/usr/lib/ze`, the launcher script, the version listing and removal, the tarball, and a self-update that installs a version directory | A design of its own, none of it VPP. It was written into the spec that owns the tarball, the packages and the self-update refusal on 2026-11-28 | `plan/release/delivery/spec-release-build.md` |
 | A second program in the Ze folder (a switch chip daemon) | Owner decision: reusable shape only | None yet; the owner opens it |
 | Changing how Ze supervises VPP once it runs | The supervisor exists | `plan/post-release/features/spec-vpp-failure-lifecycle.md` |
 | New VPP features | The four plugin declarations make existing backends work on a managed VPP | - |
@@ -95,7 +102,7 @@ Debian Policy 9.1.1 does not mention `/usr/libexec` at all (searched, no match).
   → Constraint: a cached artifact has two tiers, its cache entry or a native build on a host of the target's architecture. A build for another architecture is refused before it starts, with the command that works
   → Constraint: a test never builds an artifact
 - [ ] `third_party/vpp-patches/README.md` and `third_party/vpp-patches-v26.06/README.md`
-  → Constraint: Ze holds two patched VPP builds at two versions: v25.10 with the PPPoE series, and v26.06 with the IPsec patch. No build holds both. Choice C-4
+  → Constraint: Ze holds two patched VPP builds at two versions: v25.10 with the PPPoE series, and v26.06 with the IPsec patch. No build holds both. Decided on 2026-11-28: every patch moves to v26.06, in this spec's first phase
 - [ ] `ai/rules/config.md`, `ai/rules/repo-maintenance.md`
   → Constraint: an environment key is registered with `env.MustRegister` beside its reader
   → Constraint: a new runtime dependency owes a registered doctor check, an `ai/INDEX.md` row and its page in the same work
@@ -157,12 +164,13 @@ Debian Policy 9.1.1 does not mention `/usr/libexec` at all (searched, no match).
 - The whole supervision loop: config generation, NIC binding and restoration, the connect bound, the process witness, the restart backoff, the events
 - The operator-supervised mode (`external true`) as it stands today: Ze runs nothing. Its removal is owned by `spec-vpp-failure-lifecycle`
 - A build without the VPP tag refuses a `vpp` config exactly as today
-- The lab images, `./le build vpp run`, `./le build vpp deployment` and their proofs
+- The lab actions `./le build vpp run` and `./le build vpp deployment` and their proofs. After the port phase both build the one VPP version, v26.06
 - The PPPoE startup registration and its doctor check
 - The appliance image's kernel notice entry and every other field of the prepared config
 
 **Behavior to change:** (only what the user asked for)
-- A managed start runs the VPP found in Ze's own folder. Whether `/usr/bin/vpp` is still used when none is found is choice C-1
+- A managed start runs the VPP found in Ze's own folder and no other. `/usr/bin/vpp` is never started
+- Ze's patches live on one VPP version, v26.06. The v25.10 patch directory, its pin and its lab image are deleted once the ported series passes its proofs
 - Every appliance image carries Ze's VPP bundle in its root file system
 - A managed start loads the ACL, NAT, VXLAN and GRE plugins when the configuration uses them
 - The linux-cp plugin check stops running `vppctl` and reads the running VPP's API message table
@@ -172,21 +180,21 @@ Debian Policy 9.1.1 does not mention `/usr/libexec` at all (searched, no match).
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | VPP process supervisor | `internal/component/vpp/vpp.go`, `VPPManager.runWithOps`, `runOnce` | Writes the config, binds NICs, runs one program path, connects, restarts | Extends: it is handed a command of several arguments, of which today's one path is the one-element case. Nothing else in the loop changes |
-| Fixed program path | `internal/component/vpp/register.go`, `defaultVPPBinary` | The one source of the program path | Replaces: the program comes from the bundle found in the Ze folder. The constant is deleted under the recommended answer to C-1 |
+| Fixed program path | `internal/component/vpp/register.go`, `defaultVPPBinary` | The one source of the program path | Replaces: the program comes from the bundle found in the Ze folder. The constant is deleted (owner, 2026-11-28) |
 | Extra files in the image root | `vendor/github.com/gokrazy/internal/config/config.go`, `ExtraFilePaths`; `vendor/github.com/gokrazy/tools/internal/packer/packer.go`, `FindExtraFiles` | Places a tar archive or a host directory at a root path. Used by `gokrazy/docker-host/config.json` | Extends: the appliance image gains one entry, the bundle archive at the Ze folder |
 | Prepared image config rewrite | `internal/appliance/instance/kernelpkg.go`, `addLinuxNotice`; `prepare.go`, `Prepare` | Adds the kernel notice to the `cmd/ze` package's `ExtraFileContents` in the prepared config, refusing an entry already there | Extends: a sibling step adds the `ExtraFilePaths` entry and the environment value that names the Ze folder, with the same refusal. The checked-in `gokrazy/ze/config.json` is not changed, because the archive path is a cache path known only at build |
 | Environment of the appliance `ze` | `gokrazy/ze/config.json`, `Environment` (`ze.config.dir=/perm/ze`) | Tells `ze` where its directories are on the appliance | Extends: the same list names the Ze folder, because gokrazy puts `ze` in its own `/user` directory |
-| Prefix derived from the binary | `internal/plugins/local/native.go`, `packageOwnership`; `internal/component/config/system/selfupdate.go`, `resolveTarget` | Resolves the executable through links, and finds `share/ze/install-method` under the prefix of its `bin` directory | Extends: the Ze folder is found from the same resolved executable and the same prefix |
+| Prefix derived from the binary | `internal/plugins/local/native.go`, `packageOwnership`; `internal/component/config/system/selfupdate.go`, `resolveTarget` | Resolves the executable through links, and finds `share/ze/install-method` under the prefix of its `bin` directory | Extends: the Ze folder is the directory that holds the same resolved executable. The prefix rule for the config directory and the marker is `spec-release-build`'s |
 | Keyed artifact cache with native builds | `docs/architecture/appliance/build-artifacts.md`, "The runtime kernel the appliance image boots"; `internal/appliance/cache.go`, `kernelTreeCachePath`, `KernelCacheNamespaces` | A slow native build is cached under a key of its inputs, refused for another architecture, preserved by cleanup | Extends: the bundle is one more artifact in that cache, and its directory joins the preserved namespaces |
 | Reachability refusal before an image build | `internal/appliance/cmd_build.go`, `buildOne`, `runtimeKernelReachable` | Refuses before anything is written when the kernel can be neither found nor built here | Extends: the bundle is checked at the same place, the same way |
-| Patched VPP build actions | `internal/le/build/vpp/register.go`, actions `run` and `deployment`; `third_party/vpp-patches/`, `third_party/vpp-patches-v26.06/` | Build two lab images from two pins, each for the build host's CPU, neither with DPDK | Extends: a `bundle` action in the same area builds the product bundle. Which pin it builds is choice C-4 |
+| Patched VPP build actions | `internal/le/build/vpp/register.go`, actions `run` and `deployment`; `third_party/vpp-patches/`, `third_party/vpp-patches-v26.06/` | Build two lab images from two pins, each for the build host's CPU, neither with DPDK | Replaces the two pins with one: the port phase moves the PPPoE series to v26.06 and deletes the v25.10 directory (owner, 2026-11-28). Extends: a `bundle` action in the same area builds the product bundle from that pin |
 | Startup feature registry | `internal/component/vpp/startup_feature.go`, `RegisterStartupFeature` | A feature declares its plugin, config section, API messages and doctor code | Extends: firewall, NAT, VXLAN and GRE register. The section becomes optional. The registry is the list the bundle's plugins derive from |
 | Per-feature API doctor check | `internal/component/vpp/startup_doctor.go`, `registerStartupDoctor` | Compares the running VPP's message table with a feature's messages | Extends: it stays the proof that a running VPP has the API Ze needs. The bundle check below answers before a start, this one after |
 | VPP doctor checks with overridable roots | `internal/component/vpp/doctor_linux.go`, `vppHugepagesDoctorCheck`, `doctorHugepagesRootEnv` | A registered check reads host files behind roots a registered private key overrides | Extends: the bundle check is built the same way |
 | Core leaf registry | `ai/doors/core.md`, "Boundaries"; `internal/core/ipsecinventory` | A core package holds a registry, the owner registers from `init()`, and no registration answers an error | Extends: the program registry copies that shape |
 | Image validation before a push | `docs/architecture/appliance/ota-push.md`, the row "Validate GPT checksums, partition bounds, FAT and SquashFS lengths before contacting the device" | A push checks the root file system's length against the partition | Extends: the build refuses an oversized root too, so the failure is met at build, not at the first push (A-4) |
-| In-place self-update | `internal/component/config/system/selfupdate.go`, `stageBinary` | Renames a new binary over the running one | Does not apply here: it replaces one file and cannot carry a bundle. Its replacement is the `/usr/local` version design (Work Not Done). Until that lands, C-3 says what a self-updated Ze does |
-| The `./le` launcher and its build store | the `le` script at the repository root; `docs/contributing/running-commands.md` | Keeps several builds, selects one by an environment value, sets a failed one aside | Does not apply here: the owner named it as the model for the `/usr/local` launcher, which is the other design. It was not read for this spec |
+| In-place self-update | `internal/component/config/system/selfupdate.go`, `stageBinary` | Renames a new binary over the running one | Does not apply here: it replaces one file and cannot carry a bundle. Its replacement, an update that installs a version directory with `ze` and its VPP together, is designed in `spec-release-build`. Nothing in between is built here |
+| The `./le` launcher and its build store | the `le` script at the repository root; `docs/contributing/running-commands.md` | Keeps several builds, selects one by an environment value, sets a failed one aside | Does not apply here: the owner named it as the model for the `ze` launcher, which `spec-release-build` designs |
 | Packaging tag `ze_vpp_runtime`, unpack library, `storage` leaf, `/perm/ze/runtime` | The first version of this spec | Never built | Removed from the design: nothing is embedded, so nothing is tagged, unpacked, repaired or cleaned, and no path is added under `/perm` |
 | Ze-run container images | `plan/post-release/features/spec-container-0-umbrella.md` | In progress, after the release | Does not apply: the owner chose files on disk |
 
@@ -215,6 +223,10 @@ Debian Policy 9.1.1 does not mention `/usr/libexec` at all (searched, no match).
 | `ai/rules/repo-maintenance.md` | Directives | the `// Design:` page of `internal/plugins/iface/vpp/doctor.go` | | silent | The rule is followed, not changed: the checks stay with the backend that owns the dependency |
 | `docs/architecture/core-design.md` | Design decisions | an owner rule added beyond the derivation, decision of 2026-11-26 | "Ze always starts. The configuration of one service never makes `ze start` exit or refuse to start: a service whose configuration cannot be served is not started, ze runs with its other services, and the service is reported with its fix by an error line in the log under a doctor code and by `ze doctor` under the same code." | agrees | A missing or wrong bundle keeps VPP down and is reported; Ze starts (AC-4) |
 | `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-28 | "Ze's own VPP build is always installed with Ze: no installation of Ze is without it. On the appliance the image build places the built VPP bundle as files in the image's root file system. On Linux the VPP files are installed in a Ze-owned folder for internal binaries, placed as the Filesystem Hierarchy Standard says, and Ze finds its VPP by scanning its own folder. One package carries ze and the VPP files, as a DEB built the usual Debian way and as an RPM. In Thomas's words (voice-transcribed): "on the appliance we should manage the VPP binary. Can we generate it and add it to the file system ?", "So we should always install our VPP with the software.", "VPP bundle placed in the image's file system", "for linux it should be installed in a ze folder for binaries following the LSB", "ok for having a .deb for installation too follow the usal debian packaging method in repos", "One package", "you can do rpm too", "same for vpp install it in the same folder as ze and make sure ze will scan that folder". This supersedes his decision of 2026-11-19 that the runtime lives inside the ze binary, and the words "as it does with the embedded runtime" of the row "Ze knows how to manage and restart an external VPP"; correcting that row needs Thomas's decision-change" | agrees | This design is that decision |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-28 | "Ze starts only its own VPP, the one installed with Ze. When Ze finds no VPP in its own folder it starts none: a VPP at /usr/bin/vpp is never started in its place. In Thomas's words (voice-transcribed), asked whether a VPP at /usr/bin/vpp is ever started when Ze finds none in its folder: "No, the only start is on VPP." This withdraws the fallback to an operator-installed /usr/bin/vpp that he kept on 2026-11-19" | agrees | The constant path is deleted, and a missing bundle keeps VPP down (AC-4) |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-28 | "Every Ze patch is ported to VPP version 26, and that one version is used everywhere. In Thomas's words (voice-transcribed), asked which patched VPP is ours, (a) v26.06 with the IPsec patch, (b) v25.10 with the PPPoE patches, or (c) both patch sets on one version before the first release: "Oh, we should port all our patches to version 26 and use that version everywhere. C"" | agrees | The port phase is this spec's first phase, and AC-18 holds the tree to one pin. Whether the bindings vendored from upstream are included is choice N-7 |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-28 | "Every appliance image carries Ze's VPP, test images included, by one path and with no setting that leaves it out. In Thomas's words (voice-transcribed), asked whether every image carries VPP, test images included, (a) yes, one path and no setting, or (b) a field in the appliance config leaves it out: "A"" | agrees | The image build places the bundle in every image and adds no field (AC-1, AC-7) |
+| `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-28 | "The DEB "built the usual Debian way" of the row "Ze's own VPP build is always installed with Ze" means this: nFPM stays the tool that assembles the package, the package follows Debian Policy, and the APT and DNF repository comes after the first release. In Thomas's words (voice-transcribed), asked what "the usual Debian packaging method in repos" changes, (A) nFPM stays, the package follows Debian Policy for file locations, maintainer scripts and configuration kept on removal, and the APT and DNF repository stays after the first release, (B) the repository in the first release, or (C) debhelper in place of nFPM: "a"" | agrees | This spec builds the bundle archive only. The package that carries it is assembled with nFPM by `spec-release-build` |
 | `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-23 | "Ze refuses to run VPP unmanaged. When VPP is external, the operator accepts that Ze may terminate and restart it" | agrees | This design changes where the program comes from, not who supervises it |
 | `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-23 | "Ze knows how to manage and restart an external VPP: through a systemd unit, or by starting the binary directly, as it does with the embedded runtime" | agrees | Ze still starts the binary directly. The words "the embedded runtime" name what the 2026-11-28 row withdrew; that row says so, and correcting this one needs Thomas's decision-change |
 | `docs/research/vpp-deployment-reference.md` | Design decisions | decision of 2026-11-23 | "After a failure, when the VPP process is alive, forwarding continued, and Ze reconnects and can read the state it configured, Ze continues from where it is" | agrees | The restart path is untouched |
@@ -243,16 +255,16 @@ Debian Policy 9.1.1 does not mention `/usr/libexec` at all (searched, no match).
 
 ### The Ze folder
 
-The Ze folder is the one directory of an installation that holds the programs Ze runs and an operator does not. Each program is a subdirectory holding a manifest. VPP is the subdirectory `vpp`.
+The Ze folder is the directory of an installation that holds `ze` and the programs Ze runs and an operator does not. Each such program is a subdirectory holding a manifest. VPP is the subdirectory `vpp`.
 
 | Installation | Where `ze` is | The Ze folder | How Ze learns it |
 |--------------|---------------|---------------|------------------|
-| DEB or RPM | `/usr/bin/ze` | `/usr/lib/ze` | From the resolved executable: the `lib/ze` directory of the prefix whose `bin` holds it |
-| `/usr/local` version directory (the other design) | `<version directory>/bin/ze` | `<version directory>/lib/ze` | The same rule. A launcher that replaces itself with that `ze`, and a link in `/usr/local/bin`, both resolve to the real file |
+| DEB or RPM | `/usr/lib/ze/<release>/ze`, started by the launcher `/usr/bin/ze` | `/usr/lib/ze/<release>` | It is the directory that holds the resolved executable |
+| `/usr/local` install | `/usr/local/lib/ze/<release>/ze`, started by the launcher `/usr/local/bin/ze` | `/usr/local/lib/ze/<release>` | The same rule. The launcher replaces itself with that `ze`, so the resolved executable is the real file |
 | Appliance | `/user/ze`, chosen by gokrazy (`findBins`) | `/usr/lib/ze` | The environment value the image build writes, because `/user` is gokrazy's directory |
 | A test | the test binary | a fixture directory | The same environment value |
 
-One registered environment key names the Ze folder and wins when set. Unset, the folder is derived from the resolved executable, as `packageOwnership` derives the install marker. This layout keeps `ze` at `<prefix>/bin/ze` everywhere. The literal reading of "the same folder as ze" is choice C-2.
+One registered environment key names the Ze folder and wins when set. Unset, the folder is the directory that holds the resolved executable: his "same folder as ze", read literally (owner, 2026-11-28). `<release>` is the release string, `YY.MM.DD` or `YY.MM.DD.N`. The appliance has one version and no launcher, so its folder carries no release name.
 
 ### The bundle
 
@@ -268,14 +280,14 @@ The bundle is one archive, the same bytes for the appliance, the package and a v
 
 ### How the program is run
 
-The first version of this spec chose to run the bundled loader directly with the library directory, because the unpack location varied. That reason was re-examined. The location still varies: `/usr/lib/ze/vpp` in a package and on the appliance, and a different directory for every version under `/usr/local`. A program file cannot name its loader by a relative path, so a bundle linked for one prefix cannot run from a version directory. The decision therefore stands, on its merits: Ze runs the bundled loader, with the bundle's library directory, the program and the config argument. One archive then serves every installation.
+The first version of this spec chose to run the bundled loader directly with the library directory, because the unpack location varied. That reason was re-examined. The location still varies: `/usr/lib/ze/vpp` on the appliance, and a different directory for every version in a package and under `/usr/local`. A program file cannot name its loader by a relative path, so a bundle linked for one prefix cannot run from a version directory. The decision therefore stands, on its merits: Ze runs the bundled loader, with the bundle's library directory, the program and the config argument. One archive then serves every installation.
 
 Costs accepted: the process's executable is the loader, so `/proc/<pid>/exe` and the short process name show the loader and not `vpp`. The command sets the program name the process reports where the loader allows it (A-7). The bundle check and the witness are built for this (A-6).
 
 ### Transformation Path
-1. Build. `./le build vpp bundle` builds the pinned VPP in a container for the host's architecture, collects the parts above, writes the manifest, and stores the archive and the source archive of every LGPL component in the keyed cache
+1. Build. `./le build vpp bundle` builds the one pinned VPP, v26.06 with every Ze patch (the port phase makes that pin), in a container for the host's architecture, collects the parts above, writes the manifest, and stores the archive and the source archive of every LGPL component in the keyed cache
 2. Image placement. `ze appliance build` resolves the archive for the image's architecture, and the prepared config gains two things for the `cmd/ze` package: an `ExtraFilePaths` entry from `/usr/lib/ze/vpp` to the cached archive, and the environment value naming `/usr/lib/ze`
-3. Package placement. The release build places the same archive's files under `/usr/lib/ze/vpp` in the one `ze` package (owned by `spec-release-build`)
+3. Package placement. The release build places the same archive's files under `/usr/lib/ze/<release>/vpp` in the one `ze` package, and under `usr/local/lib/ze/<release>/vpp` in the Linux tarball (owned by `spec-release-build`)
 4. Scan. At a managed start the VPP component asks the program registry for `vpp`. The registry lists the Ze folder, reads the manifest in the `vpp` subdirectory, and answers the bundle or the reason it has none
 5. Start check. Before the program runs, Ze compares the manifest's name, architecture, VPP version, source commit and patch digest with the identity compiled into this `ze`, and checks that the entry program and the loader exist and can be executed. It does not hash every file at each start
 6. Run. The component generates the config with the bundle's plugin directory and hands the supervisor the command
@@ -358,15 +370,17 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 | A-11 | The licences of DPDK and of each bundled library permit shipping them in the image and the package with their notices | Only LGPL 2.1 and Apache 2.0 were read. The full list is known once the bundle is built | A library cannot be shipped this way | The build phase lists every file's licence in the manifest; each distribution clause relied on is quoted in the bundle's README before the bundle is used | unvalidated |
 | A-12 | A bundle carrying its own C library runs on every distribution of the package test matrix | The bundle depends on the kernel only | Linux needs a build per distribution | The container proof runs on the matrix `spec-release-distribution` names | unvalidated |
 | A-13 | gokrazy does not start or otherwise read what sits under `/usr/lib/ze` | Not read | A file there is treated as a service | The QEMU proof | unvalidated |
+| A-15 | Each of the seven patches under `third_party/vpp-patches/` applies to v26.06 or has an equivalent there, and the PPPoE plugin with Ze's API additions builds and passes its proofs on v26.06 | Not read: no patch was tried against v26.06 for this spec | The port is more than a rebase, and the first release waits on it or the owner decides the one-version question again | The port phase: each patch applied with no fuzz, and the PPPoE proofs re-run on v26.06 | unvalidated |
 | A-14 | A failed managed start of VPP can be kept from ending `ze start`. Today `runVPPEngine` returns the error of `vppLifecycle.Start` from the plugin's `OnStarted`, bounded by `startupReadyTimeout`, and `ai/doors/hub-engine.md` says one plugin failure aborts the whole startup tier. What the plugin server does with that error was not traced | `internal/component/vpp/register.go` `runVPPEngine`; `startup_lifecycle.go` `Start`, `replace` | AC-4 and AC-5 need a change outside the VPP component, or the "Ze always starts" decision already has an owner for this path | The second phase traces `OnStarted` to the plugin server before any code. When a bundle refusal would end the start, the component reports it and starts without VPP, and that change is in this spec | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | VPP has never run on the appliance, so the first real start meets host assumptions this spec did not list | The QEMU proof fails after the program starts | The proof is an acceptance criterion and runs in the first phase. Each failure is fixed inside this spec |
-| R-2 | Every appliance image build needs the bundle, so a first build on a machine costs a VPP build, and every test that builds an image needs a warm cache | An image build that started at once now refuses or runs a container | The cache is keyed and preserved. The refusal names the command. CI caches the bundle as it caches the kernel. Choice C-5 |
-| R-3 | A self-updated `ze` runs beside the bundle of the release it replaced | The start check reports another identity | C-3 |
-| R-4 | No build holds both the PPPoE series and the IPsec patch | One backend's API check fails on the product bundle | C-4 |
+| R-2 | Every appliance image build needs the bundle, so a first build on a machine costs a VPP build, and every test that builds an image needs a warm cache | An image build that started at once now refuses or runs a container | The cache is keyed and preserved. The refusal names the command. CI caches the bundle as it caches the kernel. Every image carries it (owner, 2026-11-28) |
+| R-3 | A self-updated `ze` runs beside the bundle of the release it replaced | The start check reports another identity | An update installs a version directory, `ze` and its VPP together (`spec-release-build`). Until that lands, the start check refuses the old bundle and `ze doctor` names the fix |
+| R-4 | No build holds both the PPPoE series and the IPsec patch | One backend's API check fails on the product bundle | The port phase moves every patch to v26.06 before the bundle is built (owner, 2026-11-28) |
+| R-12 | The port changes the patch directory and the bindings that `spec-pppoe-vpp-dataplane`, in progress in another session, works on | Conflicting edits under `third_party/vpp-patches/` or in the PPPoE bindings | The port lands as one phase. That spec is amended to build on v26.06 (Work Not Done), and its session is told before the phase starts |
 | R-5 | The container base image changes between builds | Two builds of the same inputs differ | The Dockerfile pins the base image by digest and every package by version; the cache key includes the Dockerfile |
 | R-6 | A backend added later calls a plugin API and declares no startup feature | A feature works on a lab VPP and fails on a managed one | `TestBackendPluginAPIsAreDeclared` |
 | R-7 | The image is built for an architecture whose bundle is not cached | `ze appliance build` cannot place a bundle | It refuses before writing anything, with the cache path and the command for a host of that architecture |
@@ -391,6 +405,7 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 | The same config, the Ze folder holding no bundle | → | Ze starts, VPP stays down, the doctor finding names the fix | `test/vpp/bundle-missing.ci` |
 | A firewall rule under `backend vpp` | → | The firewall backend's startup registration selects the ACL plugin | `TestFirewallConfigEnablesACLPlugin` |
 | `./le build vpp bundle` | → | The bundle build writes an archive and manifest into the keyed cache | `TestBundleActionWritesCacheEntry` |
+| `./le build vpp run`, after the port phase | → | The lab image is built from the one v26.06 pin, PPPoE series included | `TestOneVPPPin` |
 | `ze appliance build` | → | The prepared config places the bundle and names the Ze folder, or the build refuses | `TestPrepareAddsBundleEntry`, `TestApplianceBuildRefusesMissingBundle` |
 | An appliance image booted in QEMU with a managed VPP config | → | The image's `ze` starts real VPP from the image's root | `./le test qemu vpp-bundle` |
 
@@ -399,9 +414,9 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | An appliance image built by `ze appliance build`, booted with a config that enables a managed VPP | The image root holds the bundle under `/usr/lib/ze/vpp`, the image's `ze` starts VPP from it, the API answers with the bundle's VPP version, and Ze publishes `connected` | The operator-supervised mode stays as it is, because its removal belongs to another spec |
-| AC-2 | A Linux container holding `/usr/bin/ze` and the bundle under `/usr/lib/ze/vpp`, with no C library and no other VPP | `ze` finds the bundle from its own path, with no setting, starts VPP and the API answers with the bundle's VPP version | A distribution VPP at `/usr/bin/vpp` on the same host stays as installed, because Ze's files do not share its paths |
-| AC-3 | The same `ze` and bundle moved together to another prefix, as `bin/ze` and `lib/ze/vpp` | Ze finds the bundle under the new prefix, starts VPP from it, and the API answers with the bundle's VPP version, with every setting unchanged | The bundle at the old prefix, when left in place, is ignored, because the scan follows the `ze` that runs |
-| AC-4 | A managed VPP config, and the Ze folder holds no `vpp` bundle | `ze start` succeeds and its other services run. VPP is not started. One error line and one `ze doctor` finding, under the same code, name the folder that was scanned and the fix | Under answer (b) of C-1 a VPP at `/usr/bin/vpp` is started instead, and the finding becomes a warning |
+| AC-2 | A Linux container holding `/usr/lib/ze/<release>/ze` and the bundle beside it under `/usr/lib/ze/<release>/vpp`, with no C library and no other VPP | `ze` finds the bundle in its own directory, with no setting, starts VPP and the API answers with the bundle's VPP version | A distribution VPP at `/usr/bin/vpp` on the same host stays as installed, because Ze's files do not share its paths |
+| AC-3 | The same directory, `ze` and `vpp` together, moved to another path | Ze finds the bundle in the new directory, starts VPP from it, and the API answers with the bundle's VPP version, with every setting unchanged | The bundle at the old prefix, when left in place, is ignored, because the scan follows the `ze` that runs |
+| AC-4 | A managed VPP config, and the Ze folder holds no `vpp` bundle | `ze start` succeeds and its other services run. VPP is not started. One error line and one `ze doctor` finding, under the same code, name the folder that was scanned and the fix | A VPP at `/usr/bin/vpp` on the same host is left alone and is not started, because Ze starts only its own (owner, 2026-11-28) |
 | AC-5 | The Ze folder holds a bundle whose identity is not the one this `ze` was built for | `ze start` succeeds, VPP is not started, and the finding names both identities and the fix | A bundle of the right identity starts, because the identity is what the API bindings were generated from |
 | AC-6 | One bundle file altered after installation | `ze doctor` names the file and its expected checksum, and the fix | A managed start still passes its check when the altered file is neither the program nor the loader, because the full comparison is doctor's |
 | AC-7 | `ze appliance build` for an architecture whose bundle is not cached, or whose root file system exceeds the root partition | The build is refused before the image is written, naming the cache path or the two sizes, and ending with the command that works | A warm cache and a root that fits build as today, because neither refusal applies |
@@ -414,6 +429,8 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 | AC-14 | `vpp.lcp` enabled on a managed VPP on the appliance, where no `vppctl` exists | The linux-cp check answers from the API message table and reports the plugin loaded | The check keeps reporting "unknown" when the API socket cannot be reached, because that is not evidence about plugins |
 | AC-15 | The QEMU proof repeated with a CPU model other than the build host's | VPP starts and the API answers with the bundle's VPP version | The build host's own CPU model stays a valid target, because the bundle is portable, not foreign |
 | AC-16 | A second program registered with the program registry in a test, its bundle placed in the Ze folder | The registry answers that program's bundle by the same scan, while no file of the registry or of the scan names it | `vpp` is still found beside it, because each program is its own subdirectory |
+| AC-18 | The tree after the port phase | One patch directory and one pin, v26.06, hold the IPsec patch and the ported PPPoE series. `./le build vpp run`, `./le build vpp deployment` and `./le build vpp bundle` build from that pin, Ze's own generated bindings are generated from it, and no build action, Dockerfile, lab image or page names another version as a VPP Ze builds or tests against | The GoVPP bindings vendored from upstream stay as they are until N-7 is answered, because that question is open |
+| AC-19 | A PPPoE config under the VPP backend, on a VPP started from the bundle | The PPPoE startup feature's API check passes: the bundle's VPP answers every message the PPPoE backend needs | PPPoE on VPP is not announced as a feature while N-8 is open, because the port moves the patches and not the feature's acceptance |
 | AC-17 | An operator reads the VPP guide, the appliance guide and the `vpp` config help after this work | Each says where VPP comes from on the appliance and on Linux, how to tell which VPP a `ze` runs, and what `ze doctor` reports when it is missing | The operator-supervised section stays while that mode stays |
 
 ## End-to-End User Stories
@@ -433,7 +450,7 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 |------|------|-----------|--------|
 | `TestRegistryFindsRegisteredProgram` | `internal/core/programbundle/registry_test.go` | A registered name with a bundle in the folder is found | |
 | `TestRegistryAnswersErrorWithNothingRegistered` | `internal/core/programbundle/registry_test.go` | An unregistered name answers an error, not an empty result | |
-| `TestFolderDerivedFromExecutablePrefix` | `internal/core/programbundle/folder_test.go` | `bin/ze` under a prefix yields that prefix's `lib/ze`, through a link | |
+| `TestFolderIsTheExecutableDirectory` | `internal/core/programbundle/folder_test.go` | The folder is the directory that holds the resolved executable, through a link | |
 | `TestFolderEnvironmentValueWins` | `internal/core/programbundle/folder_test.go` | The environment value replaces the derived folder | |
 | `TestManifestRefusesPathOutsideBundle` | `internal/core/programbundle/manifest_test.go` | A manifest entry naming a path outside the bundle is refused | |
 | `TestVerifyNamesAlteredFile` | `internal/core/programbundle/verify_test.go` | One altered file is named with its expected checksum | |
@@ -456,6 +473,7 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 | `TestBundlePluginListMatchesDeclarations` | `internal/le/build/vpp/bundle_test.go` | The committed plugin list equals the built-in list plus the registry | |
 | `TestBundlePinMatchesPatchDirectory` | `internal/le/build/vpp/bundle_test.go` | The identity compiled into `ze` equals the pin and patch digest the build reads | |
 | `TestBundleActionWritesCacheEntry` | `internal/le/build/vpp/bundle_test.go` | The action writes archive, manifest and source archive under the key | |
+| `TestOneVPPPin` | `internal/le/build/vpp/bundle_test.go` | One patch directory and one pin exist, every build action reads that pin, and the directory holds the IPsec patch and the PPPoE series | |
 | `TestBundleArchiveHoldsOnlyWhatThePackerKeeps` | `internal/le/build/vpp/bundle_test.go` | An archive with a hard link or an empty file is refused | |
 | `TestBundleCacheKeyChangesWithPin` | `internal/appliance/vppbundle_test.go` | Each input changes the key | |
 | `TestBundleCacheIsPreservedByCleanup` | `internal/appliance/vppbundle_test.go` | The bundle's cache directory is among the preserved namespaces | |
@@ -478,12 +496,12 @@ The labs under `internal/le/test/deployment/` write their own VPP config for a V
 | `bundle-mismatch` | `test/vpp/bundle-mismatch.ci` | A bundle of another identity is not started and both identities are named | |
 | `bundle-damaged` | `test/vpp/bundle-damaged.ci` | `ze doctor` names an altered file | |
 | `vpp-bundle` | `./le test qemu vpp-bundle` | A real image boots, its `ze` starts real VPP, a firewall rule is applied and read back, and the run repeats on a second CPU model | |
-| `vpp-bundle` | `./le test deployment vpp-bundle` | A container with no C library runs `ze` and real VPP starts from `/usr/lib/ze/vpp` | |
+| `vpp-bundle` | `./le test deployment vpp-bundle` | A container with no C library runs `ze` and real VPP starts from `/usr/lib/ze/<release>/vpp` | |
 
 The stub tests build a small bundle holding the existing Go VPP stub in a fixture directory and point the Ze folder at it with the environment value. No VPP is built.
 
 ## Files to Modify
-- `internal/component/vpp/register.go` - `runConfiguredVPP` asks the program registry and hands the supervisor a command; the constant path goes (C-1)
+- `internal/component/vpp/register.go` - `runConfiguredVPP` asks the program registry and hands the supervisor a command; the constant path is deleted
 - `internal/component/vpp/vpp.go` - the supervisor runs a command of several arguments
 - `internal/component/vpp/startupconf.go` - plugin directory in the plugins section; built-in plugin names read from one declaration
 - `internal/component/vpp/startup_feature.go` - the config section becomes optional
@@ -494,7 +512,9 @@ The stub tests build a small bundle holding the existing Go VPP stub in a fixtur
 - `internal/le/build/vpp/register.go` - the `bundle` action
 - `internal/appliance/cache.go`, `internal/appliance/cmd_build.go` - bundle cache path, preserved namespace, the reachability refusal and the root size refusal in `buildOne`
 - `internal/appliance/instance/prepare.go` - `Prepare` calls the bundle step
-- `third_party/vpp-patches/README.md` or `third_party/vpp-patches-v26.06/README.md` (C-4) - the bundle build, its plugin list, the licences read
+- `third_party/vpp-patches-v26.06/README.md` - the one patch directory: the ported PPPoE series, the bundle build, its plugin list, the licences read
+- `third_party/vpp-patches-v26.06/Dockerfile` - builds the one pin with every patch, the PPPoE plugin included
+- `third_party/vpp-patches/README.md` - removed with its directory by the port phase, once the seven patches, the API Dockerfile and the proofs have their v26.06 form
 - `docs/guide/vpp.md`, `docs/guide/appliance.md` - where VPP comes from, how to check it
 - `docs/research/vpp-deployment-reference.md` - the design page of the VPP component
 - `docs/architecture/appliance/build-artifacts.md` - the bundle as a cached artifact, with its measured sizes and the measured root size
@@ -512,7 +532,8 @@ The stub tests build a small bundle holding the existing Go VPP stub in a fixtur
 - `internal/appliance/vppbundle.go` - cache key, path and resolution
 - `internal/appliance/instance/bundle.go` - the prepared config step
 - `internal/appliance/rootsize.go` - the root size refusal
-- A `Dockerfile.bundle` and a `bundle-plugins.txt` beside the pin C-4 selects
+- `third_party/vpp-patches-v26.06/Dockerfile.bundle`, `bundle-plugins.txt` - the product bundle build and its plugin list
+- The seven patches of the PPPoE series, in their v26.06 form, under `third_party/vpp-patches-v26.06/`
 - `internal/le/test/qemu/vppbundle.go`, `internal/le/test/deployment/vppbundle.go` - the two proofs
 - `test/vpp/bundle-start.ci`, `bundle-missing.ci`, `bundle-mismatch.ci`, `bundle-damaged.ci`
 - The unit test files named in the test plan
@@ -559,15 +580,15 @@ The stub tests build a small bundle holding the existing Go VPP stub in a fixtur
 
 ### What changes
 
-Ze stops expecting someone else to install VPP. Ze's own VPP build is a set of files in a Ze folder beside `ze`: the appliance image build puts it in the image, and the one Ze package installs it on Linux. Ze finds it by scanning that folder and starts it. When it is missing or is not the build this Ze was made for, Ze still starts, keeps VPP down, and `ze doctor` says what to do. Nothing is embedded in the `ze` binary and nothing is unpacked.
+Ze stops expecting someone else to install VPP, and starts no VPP but its own. Ze has one patched VPP, v26.06 with every Ze patch. That build is a set of files in the Ze folder, beside `ze`: the appliance image build puts it in the image, and the one Ze package installs it on Linux. Ze finds it by scanning that folder and starts it. When it is missing or is not the build this Ze was made for, Ze still starts, keeps VPP down, and `ze doctor` says what to do. Nothing is embedded in the `ze` binary and nothing is unpacked.
 
 ### Before and after
 
 1. **Appliance, VPP enabled.** Before: the image holds no VPP program, so the start of `/usr/bin/vpp` fails and nothing forwards. What the daemon as a whole does when the VPP plugin's start fails was not traced for this spec (A-14). After: the image holds `/usr/lib/ze/vpp`, `ze` starts VPP from it and logs the VPP process started and connected. The operator installs nothing.
 
-2. **Ubuntu, VPP enabled.** Before: the operator installs a VPP package from the distribution or from FD.io so that `/usr/bin/vpp` exists. Ze starts it. A PPPoE config on VPP then fails `ze doctor` with "VPP PPPoE plugin APIs unavailable", because a stock VPP lacks Ze's patches, and the fix is to build a VPP by hand. After: the operator installs the Ze package. It places `/usr/bin/ze` and `/usr/lib/ze/vpp`. Ze starts that VPP. A distribution `vpp` package can stay installed; Ze does not read it and the two share no file.
+2. **Ubuntu, VPP enabled.** Before: the operator installs a VPP package from the distribution or from FD.io so that `/usr/bin/vpp` exists. Ze starts it. A PPPoE config on VPP then fails `ze doctor` with "VPP PPPoE plugin APIs unavailable", because a stock VPP lacks Ze's patches, and the fix is to build a VPP by hand. After: the operator installs the Ze package. It places the launcher `/usr/bin/ze` and the directory `/usr/lib/ze/<release>/`, which holds `ze` and `vpp`. Ze starts that VPP. A distribution `vpp` package can stay installed; Ze does not read it and the two share no file.
 
-3. **A Ze whose VPP files are missing.** Before: not a case, since Ze never looked for its own. After, in `ze doctor`: an error under `doctor-vpp-bundle-missing` saying that Ze's VPP was not found in `/usr/lib/ze`, that VPP was not started and Ze's other services run, and the command that reinstalls the package (or, on the appliance, the instruction to rebuild the image).
+3. **A Ze whose VPP files are missing.** Before: not a case, since Ze never looked for its own. After, in `ze doctor`: an error under `doctor-vpp-bundle-missing` saying that Ze's VPP was not found in `/usr/lib/ze/<release>`, that VPP was not started and Ze's other services run, and the command that reinstalls the package (or, on the appliance, the instruction to rebuild the image).
 
 4. **A Ze and a VPP of different builds.** After, in `ze doctor`: an error under `doctor-vpp-bundle-mismatch` naming the build this Ze needs and the build found, and the fix.
 
@@ -575,10 +596,18 @@ Ze stops expecting someone else to install VPP. Ze's own VPP build is a set of f
 
 6. **Firewall on a VPP that Ze started.** Before: the rule is accepted at commit and VPP refuses it when applied, because Ze did not load the ACL plugin. After: Ze loads the plugin when the configuration has a firewall rule, and the rule is applied.
 
+7. **One VPP version.** Before: v25.10 with the PPPoE patches for the PPPoE lab, and v26.06 with the IPsec patch for the deployment run. After: v26.06 with every patch, for the bundle, for both lab actions and for Ze's generated bindings.
+
+8. **A host with a distribution VPP and no Ze VPP.** Before (the 2026-11-19 design): Ze starts `/usr/bin/vpp` as a fallback. After: Ze starts no VPP, and `ze doctor` reports `doctor-vpp-bundle-missing` with the command that reinstalls Ze.
+
 ### Alternatives set aside
 
 | Alternative | Why set aside |
 |-------------|---------------|
+| A fallback to `/usr/bin/vpp` when Ze's own VPP is missing | Withdrawn by the owner on 2026-11-28 |
+| v26.06 for the first release, with the PPPoE patches ported after it | The owner chose both patch sets on one version before the first release |
+| `ze` at `<prefix>/bin/ze` with the Ze folder at `<prefix>/lib/ze` | The owner chose the real `ze` inside the folder, behind a launcher script |
+| A field that leaves the bundle out of a test image | The owner chose one path and no setting |
 | The bundle embedded in the `ze` binary and unpacked at start (the 2026-11-19 design) | Withdrawn by the owner on 2026-11-28. It also needed a packaging tag, an unpack library, a storage setting and a permanent path under `/perm` |
 | A bundle linked for one fixed prefix, started as an ordinary program | It cannot run from a version directory under `/usr/local`, where the owner wants several versions side by side. The process would show as `vpp`, which is its only gain |
 | A host directory, not an archive, in the image config | The packer follows symbolic links in a directory, so every library link would become a second copy of the library |
@@ -595,27 +624,28 @@ none
 
 | # | Choice | Options | Decision |
 |---|--------|---------|----------|
-| C-1 | Is a VPP at `/usr/bin/vpp` ever started when Ze finds none in its own folder? On 2026-11-19 you kept it as a fallback for a Ze built without the runtime. Example: an Ubuntu host with FD.io's VPP installed and Ze's VPP files deleted. Your words since ("always install our VPP", "make sure ze will scan that folder") read as no | (a) recommended: no. Ze starts only its own VPP; with none it keeps VPP down and `ze doctor` gives the fix. The 2026-11-19 fallback is withdrawn. (b) yes: Ze starts `/usr/bin/vpp` and warns. A stock VPP then fails the PPPoE check, and two code paths stay | |
-| C-2 | Where exactly is the Ze folder, given "a ze folder for binaries following the LSB" and "the same folder as ze"? | (a) recommended: `ze` stays at `<prefix>/bin/ze` and the Ze folder is `<prefix>/lib/ze`: `/usr/bin/ze` with `/usr/lib/ze/vpp`, and under `/usr/local` each version directory holds `bin/ze` and `lib/ze/vpp`. It keeps `/usr/bin/ze`, which the release build spec and the install marker code expect. (b) literal: the `ze` program itself sits in the Ze folder beside `vpp` (`/usr/lib/ze/ze`, `/usr/lib/ze/vpp`), with `/usr/bin/ze` a link. One simpler rule, but it moves the binary the package spec fixed at `/usr/bin/ze`, and code that derives the config directory from the binary's path would have to be checked. (c) `/usr/libexec/ze` in place of `/usr/lib/ze`: the FHS allows it, Debian Policy does not mention it, and the bundle's libraries would then sit under a directory meant for programs | |
-| C-3 | What does a Ze that updates itself in place do about VPP, until the `/usr/local` version design replaces that updater? Example: a tarball install self-updates to a release whose VPP pin changed; the new `ze` finds the old VPP files | (a) recommended: the updater is left as it is, the start check refuses the old bundle, and `ze doctor` names the fix. The gap closes when updates install a whole version directory. (b) this spec also teaches the updater to refuse an update whose VPP differs. It is work thrown away by the version design | |
-| C-4 | Which VPP does the product bundle build? Ze has two patched builds: v25.10 with the PPPoE patches (the PPPoE backend refuses any other), and v26.06 with the IPsec patch (the deployment run and the config generator target it). No build has both | (a) recommended: v26.06 with the IPsec patch for the first release, because that is the VPP the release evidence runs on; `spec-pppoe-vpp-dataplane`, which is after the release, moves the PPPoE patches to v26.06 before PPPoE on VPP ships. (b) v25.10 with the PPPoE patches, and the IPsec patch moved back to it. (c) both patch sets on one version before the first release | |
-| C-5 | Does every image carry VPP, test images included? "Always install our VPP" reads as yes | (a) recommended: yes, one path and no setting; CI caches the bundle as it caches the kernel. (b) a field in the appliance config leaves it out | |
+| N-8 | Does accepting PPPoE on VPP as a feature move into the first release with the port? You decided that every patch moves to v26.06 before the first release. The port itself (patches, pin, Ze's generated bindings, the PPPoE proofs re-run) is therefore first-release work, and this spec carries it as its first phase. `plan/post-release/features/spec-pppoe-vpp-dataplane.md` is after the release and in progress. Example: the first release ships a bundle whose VPP has the PPPoE plugin with Ze's patches; does the release also announce and test "PPPoE subscribers terminated in VPP"? | (a) recommended: only the port moves. PPPoE on VPP stays a feature after the release, is not announced, and its spec builds on v26.06 from then on. (b) the feature's acceptance moves into the first release too, and that spec moves to the release bucket | |
+| N-7 | Does "use that version everywhere" include the GoVPP bindings every VPP backend links? They are vendored from upstream GoVPP v0.13.0, which upstream generated from VPP 25.10 (`vendor/go.fd.io/govpp/binapi`, 32 packages, headers "VPP: 25.10-release"; recorded by the server session in handover 64, not re-read here). Ze's own generated bindings (PPPoE, feature, memclnt) are regenerated from v26.06 in any case. A second case of the same question is `third_party/vpp-linux-cp`, a reference copy of the linux-cp plugin source whose README says it is frozen at v25.10. Example: the interface backend calls a message through a binding generated from 25.10 while the VPP it talks to is 26.06 | (a) recommended, by your word "everywhere": regenerate them from Ze's v26.06 into the tree, so no binding comes from another version, and refresh the reference copy to v26.06. Its cost is not measured: which messages differ between 25.10 and 26.06 was not read. (b) keep upstream's bindings and the reference copy at v25.10, and rely on the message check Ze runs against the live VPP at connect | |
 
 ## Implementation Steps
 
-1. **Phase: Bundle build and the two real proofs (FIRST)** -- the archive, the cache, real VPP on the appliance and in a container
+1. **Phase: Port every patch to v26.06 (FIRST)** -- one patched VPP version (owner, 2026-11-28)
+   - Tests: `TestOneVPPPin`, the PPPoE proofs under the patch directory re-run on v26.06, `./le build vpp run` and `./le build vpp deployment` built from the one pin
+   - Files: `third_party/vpp-patches-v26.06/` receives the seven patches of `third_party/vpp-patches/`, its Dockerfile gains the PPPoE plugin, Ze's generated bindings are regenerated, `internal/le/build/vpp/register.go` reads one pin, `third_party/vpp-patches/` is removed
+   - Verify: A-15 settled patch by patch before anything else. A patch with no v26.06 form stops the phase and is reported to the owner. The session working `spec-pppoe-vpp-dataplane` is told before the phase starts (R-12)
+2. **Phase: Bundle build and the two real proofs** -- the archive, the cache, real VPP on the appliance and in a container
    - Tests: `TestBundleActionWritesCacheEntry`, `TestBundleArchiveHoldsOnlyWhatThePackerKeeps`, `TestBundleCacheKeyChangesWithPin`, `TestBundleCacheIsPreservedByCleanup`, a first form of `./le test qemu vpp-bundle` and `./le test deployment vpp-bundle` that start VPP by hand from the placed bundle
    - Files: `Dockerfile.bundle`, `bundle.go`, `vppbundle.go`
    - Verify: A-2, A-3, A-4, A-5, A-7, A-8, A-9, A-11, A-12 and A-13 settled before any daemon code depends on them. The sizes recorded on the build-artifacts page
-2. **Phase: Program registry and the VPP component** -- the registry, the folder rule, the checks, the command
+3. **Phase: Program registry and the VPP component** -- the registry, the folder rule, the checks, the command
    - Tests: every `internal/core/programbundle` row, `TestManagedStart*`, `TestExternalModeNeverScans`, `TestStartupConfNamesBundlePluginDirectory`, `TestBuiltinPluginsDeclaredOnce`, `TestBundleDoctorCheck`, `TestBundlePinMatchesPatchDirectory`, the four `.ci` tests
    - Files: `internal/core/programbundle/`, `bundle.go`, `bundle_pin.go`, `register.go`, `vpp.go`, `startupconf.go`, the YANG descriptions
    - Verify: the wiring test passes with the stub bundle. A-6 settled
-3. **Phase: Image placement** -- the prepared config, the two refusals
+4. **Phase: Image placement** -- the prepared config, the two refusals
    - Tests: `TestPrepareAddsBundleEntry`, `TestPrepareRefusesTakenDestination`, `TestApplianceBuildRefusesMissingBundle`, `TestApplianceBuildRefusesOversizedRoot`, the full `./le test qemu vpp-bundle`
    - Files: `instance/bundle.go`, `prepare.go`, `cmd_build.go`, `rootsize.go`
    - Verify: the image's own `ze` starts real VPP
-4. **Phase: Plugin declarations** -- ACL, NAT, VXLAN, GRE; the linux-cp check
+5. **Phase: Plugin declarations** -- ACL, NAT, VXLAN, GRE; the linux-cp check
    - Tests: the four plugin-selection rows, `TestStartupFeatureWithoutSection`, `TestBackendPluginAPIsAreDeclared`, `TestBundlePluginListMatchesDeclarations`, `TestLCPPluginCheckReadsAPITable`, the firewall step of the QEMU proof
    - Files: the two `register_startup.go` files, `startup_feature.go`, `iface/vpp/doctor.go`, the PPPoE diagnostic text
    - Verify: the firewall step is run before the declaration and recorded red (A-10), then green. Each declaration is its own commit
@@ -627,7 +657,8 @@ Each phase edits the pages its changes make wrong before the next phase starts (
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
-| One program source | No code path tries the bundle and then another path, unless C-1 is answered (b) |
+| One program source | No code path tries the bundle and then another path |
+| One VPP version | No patch directory, pin, Dockerfile or lab image names a VPP version other than v26.06 |
 | No VPP name in the registry | `internal/core/programbundle` names no VPP file, plugin or path |
 | One declaration per plugin | No plugin file name appears in two Go literals. The bundle's list is written from the declarations |
 | Ze always starts | No bundle failure ends `ze start` |
@@ -651,7 +682,7 @@ Each phase edits the pages its changes make wrong before the next phase starts (
 | Check | What to look for |
 |-------|-----------------|
 | Manifest entries | Paths are relative and stay inside the bundle |
-| Who can write the Ze folder | Root only, in the package and in the image. The start check refuses a bundle directory that others can write |
+| Who can write the Ze folder | Root, in the package and in the image. On a `/usr/local` install the `ze` user may own the version directory (owner, 2026-11-28); which owners are accepted is choice Q-4 of `spec-release-build`. The start check refuses a bundle directory that group or others can write |
 | The environment value | It selects a directory of programs Ze runs with VPP's privileges. Only whoever starts Ze can set it |
 | Build provenance | The VPP source archive checksum is verified, patches apply with no fuzz, the base image is pinned by digest |
 | Error text | A finding names paths and causes and never prints file contents |
@@ -665,17 +696,18 @@ Each phase edits the pages its changes make wrong before the next phase starts (
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | A-2 proves false (the loader cannot be run directly) | DESIGN: the bundle is linked for one prefix, and the version directory design is told it cannot move the bundle |
 | A-4 proves false (the root does not fit) | Stop and report the measured sizes to the owner |
+| A-15 proves false (a patch has no v26.06 form) | Stop and report the patch and the upstream change to the owner: one version is his decision |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Work Not Done
 
 | Item | Why not here | Spec that owns it |
 |------|--------------|-------------------|
-| The DEB and RPM payload gains `/usr/lib/ze/vpp`. `spec-release-build` AC-14 says the contents are "Exactly" four paths, and its A-1 requires byte-identical artifacts from a macOS host and Linux CI, so the bundle must enter as a digest-pinned cached input | That spec owns package assembly. Not edited by this work | `plan/release/delivery/spec-release-build.md` (AC-14, the Artifacts row, A-1) |
-| The sentence "The package must install only the normal `ze` Linux daemon and its operational support files" and AC-10 ("no ... undeclared payload") must declare the VPP directory, and the LGPL source archive must be published beside each package | That spec owns the payload rule. Not edited by this work | `plan/release/delivery/spec-release-distribution.md` |
-| The `/usr/local` install: one directory per version, the launcher script, version listing and uninstall, self-update installing a version directory | A design of its own, none of it VPP. That spec owns the tarball, `install.sh`, the install marker and the self-update refusal. Not amended by this work: the amendment needs the `./le` launcher, `ai/rules/cli.md` and the existing `ze version` command read first | `plan/release/delivery/spec-release-build.md` |
-| `ze.vpp.binary`, R-2 and the "Embedded runtime start" row name the embedded runtime | That spec is the reader of this design | `plan/post-release/features/spec-vpp-failure-lifecycle.md` |
-| The PPPoE patch series on the bundle's VPP version (C-4) | It is PPPoE work | `plan/post-release/features/spec-pppoe-vpp-dataplane.md` |
+| The DEB, the RPM and the Linux tarball carry `<prefix>/lib/ze/<release>/vpp`, and the bundle enters the release build as a digest-pinned input | That spec owns package assembly. Written into it on 2026-11-28 (its Data Flow, "What the release artifacts carry", AC-13 and AC-14); its design is not yet approved | `plan/release/delivery/spec-release-build.md` |
+| The versioned install: version directories, the launcher, the listing and removal, the tarball with final paths, a self-update that installs a version directory | A design of its own, none of it VPP. Written into that spec on 2026-11-28; its design is not yet approved | `plan/release/delivery/spec-release-build.md` |
+| The package payload rule and AC-10 declare the launcher and the version directory with its VPP, and the LGPL source archives are published beside each package | That spec owns the payload rule. AC-9, AC-10 and its Task were amended on 2026-11-28; the sentence "The package must install only the normal `ze` Linux daemon and its operational support files" sits in its historical record and is superseded by the amended AC-10 | `plan/release/delivery/spec-release-distribution.md` |
+| `ze.vpp.binary`, R-2 and the "Embedded runtime start" row name the embedded runtime and a program path | That spec is the reader of this design. Not edited by this work | `plan/post-release/features/spec-vpp-failure-lifecycle.md` |
+| That spec's patches, Dockerfiles, proofs and bindings are named at v25.10 (`third_party/vpp-patches/`). After the port phase of this spec they live on v26.06. Whether the feature's acceptance moves too is choice N-8 | It is PPPoE work, in progress in another session. Not edited by this work | `plan/post-release/features/spec-pppoe-vpp-dataplane.md` |
 
 ## Design Insights
 
@@ -693,7 +725,10 @@ Each phase edits the pages its changes make wrong before the next phase starts (
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | The bundle is files in a Ze folder beside `ze` | Embedded in `ze`; a container image | Owner decision, 2026-11-28 |
-| Ze finds the folder from its resolved executable, or from one environment value | A compiled-in path; a config leaf | Owner decision ("scan that folder"). The value exists because gokrazy chooses where `ze` sits |
+| Ze starts only its own VPP | A fallback to `/usr/bin/vpp` | Owner decision, 2026-11-28 |
+| One VPP version, v26.06, with every Ze patch | Two pins; the PPPoE series ported after the release | Owner decision, 2026-11-28 |
+| Every image carries the bundle | A field that leaves it out | Owner decision, 2026-11-28 |
+| The folder is the directory of the resolved executable, or the one a single environment value names | A compiled-in path; a config leaf; `<prefix>/lib/ze` beside `<prefix>/bin/ze` | Owner decisions ("scan that folder", "like B"). The value exists because gokrazy chooses where `ze` sits |
 | The loader is run directly with the library directory | A bundle linked for one prefix | The bundle must run from any version directory |
 | The bundle is an archive in the image config, not a directory | A host directory | The packer copies through symbolic links in a directory |
 | The start check compares identity; the full comparison is doctor's | Hashing at each start | Restart time after a crash |
