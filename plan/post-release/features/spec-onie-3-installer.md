@@ -74,7 +74,8 @@ reboot comes straight back to Ze.
 - ONIE keeps ONIE-BOOT mounted read-write while the installer runs, so the kernel cannot reread the whole partition table; new partitions are announced to the kernel one by one.
 - Under legacy BIOS there is no boot menu between ONIE and Ze: whichever boot code sits in the first sector wins. Under UEFI the firmware's boot order decides. A way back that rewrites either one makes a visit to ONIE one-way.
 - Ze's runtime kernel can load another kernel from a file and jump to it (`CONFIG_KEXEC_FILE=y` in `gokrazy/kernel/kernel.config`; gokrazy's own reboot uses it). ONIE's kernel and initial ramdisk are files on ONIE-BOOT.
-- In install mode ONIE reinstalls its own boot code in the first sector by itself (`bios_boot_onie_install`), so reinstalling and uninstalling need no help from Ze to give the disk back to ONIE.
+- ONIE reinstalls its own boot code in the first sector only while no operating system is marked installed: with the mark set, its install mode returns early (`boot-mode.sh`, `check_nos_mode_arch`). A reinstall therefore starts with Ze's boot code still in place, and the installer itself must give the boot path back to ONIE before it removes anything.
+- Ze's kernel loads another kernel from a file only if that kernel speaks boot protocol 2.12 or later (`bzImage64_probe`, `arch/x86/kernel/kexec-bzimage64.c`: "Must be at least protocol version 2.12"), which means Linux 3.8 or later. Upstream ONIE for the S4048-ON builds 3.2.69, which that loader refuses.
 
 ## Current Behavior (MANDATORY)
 
@@ -175,11 +176,12 @@ reboot comes straight back to Ze.
 1. Build: the installer program is cross-compiled for the model's architecture by the Go toolchain the builder already runs for the initrd; the image is gzip-compressed; a description is written (format version, model, accepted platform strings, firmware modes, the image's four partition entries, SHA-256 of the compressed payload and of each partition's bytes); program, payload and description are concatenated, with a fixed-size footer locating them.
 2. Build refusals: a model with no ONIE platform strings; a file larger than half the model's stated memory; a file containing ONIE's updater marker string.
 3. Install, checks (nothing written yet): the footer and description are read and the payload's digest verified; the machine file's platform string must be one the model accepts; the firmware mode is read; the one disk holding an ONIE-BOOT partition is found; every other partition is classified as ONIE's, the vendor's diagnostics, an earlier Ze run, or foreign, and a foreign partition is refused.
-4. Install, writes that leave ONIE bootable: Ze's run is placed after the existing entries; each new partition is announced to the kernel; the four partitions are streamed from the payload and their digests verified; the persistent partition is grown.
-5. Install, the last two writes: first the boot switch. Under BIOS the first sector's 440 bytes of ONIE boot code are saved in a checksummed record, read back, and replaced by Ze's boot code re-targeted for the run's position; under UEFI a firmware boot entry for Ze's boot partition is created and put first, ONIE's entry staying in the list. Then ONIE's boot environment is marked as holding an installed operating system. If the mark fails after the switch, the program exits non-zero; ONIE re-runs it, and the repeat is safe.
-6. Install, end: buffers are flushed and the program reboots the switch itself.
-7. Start ONIE: the plugin mounts ONIE-BOOT read-only, reads ONIE's kernel and initial ramdisk and the kernel arguments ONIE's own boot files state, appends the boot reason for the requested mode, runs the daemon's graceful shutdown, and jumps to ONIE's kernel. Nothing on disk is written.
-8. Back to Ze: from rescue mode, ONIE's own reboot goes through the firmware to the boot path, which is still Ze's. From install mode ONIE takes the boot path back itself and the installer runs again. From uninstall mode ONIE erases Ze's partitions.
+4. Install, on a reinstall only (an earlier Ze run was found): the first write gives the boot path back to ONIE. Under BIOS the saved record is verified and ONIE's boot code is restored to the first sector; under UEFI ONIE's boot entry is put first; then the installed mark is cleared. Only after that is the earlier run removed, so a failure at any later point leaves a switch that boots ONIE.
+5. Install, writes that leave ONIE bootable: Ze's run is placed after the existing entries; each new partition is announced to the kernel; the four partitions are streamed from the payload and their digests verified; the persistent partition is grown.
+6. Install, the last two writes: first the boot switch. Under BIOS the first sector's 440 bytes of ONIE boot code are saved in a checksummed record, read back, and replaced by Ze's boot code re-targeted for the run's position; under UEFI a firmware boot entry for Ze's boot partition is created and put first, ONIE's entry staying in the list. Then ONIE's boot environment is marked as holding an installed operating system. If the mark fails after the switch, the program exits non-zero; ONIE re-runs it, and the repeat is safe.
+7. Install, end: buffers are flushed and the program reboots the switch itself.
+8. Start ONIE: the plugin mounts ONIE-BOOT read-only, reads ONIE's kernel and initial ramdisk and the kernel arguments ONIE's own boot files state, appends the boot reason for the requested mode, runs the daemon's graceful shutdown, and jumps to ONIE's kernel. Nothing on disk is written.
+9. Back to Ze: from rescue mode, ONIE's own reboot goes through the firmware to the boot path, which is still Ze's. From install mode the installer runs again and takes step 4. From uninstall mode ONIE erases Ze's partitions.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -207,8 +209,8 @@ reboot comes straight back to Ze.
 | EFI boot variables | reader | the UEFI firmware | outside the repository | the entry layout is read from the UEFI specification in phase 1 (assumption A-4) |
 | saved boot code record | writer | the installer of this spec | new | versioned and checksummed |
 | saved boot code record | reader | the runtime plugin of this spec, for `show onie` only | new | same |
-| first-sector boot code | writer | the installer (Ze's code) | a new writer beside those of `spec-onie-2` | 440 bytes only; the disk signature and MBR partition records stay |
-| first-sector boot code | writer | ONIE in install mode, which reinstalls its own boot code on every boot until an operating system is marked installed | ONIE `onie-blkdev-common` `bios_boot_onie_install` | relied on: it is how a reinstall or an uninstall gives the boot path back to ONIE |
+| first-sector boot code | writer | the installer (Ze's code at a first install; ONIE's saved code first, on a reinstall) | a new writer beside those of `spec-onie-2` | 440 bytes only; the disk signature and MBR partition records stay |
+| first-sector boot code | writer | ONIE in install mode, which reinstalls its own boot code on every boot until an operating system is marked installed | ONIE `onie-blkdev-common` `bios_boot_onie_install` | not relied on for a reinstall: with the installed mark set ONIE skips it, so the installer restores ONIE's code itself. After an uninstall ONIE's own behaviour applies (assumption A-10) |
 | GPT | writer | the installer, through `gptdisk` placement | `spec-onie-2` | ONIE's and the diagnostics entries are never rewritten |
 | GPT | writer | ONIE's uninstall, which deletes every partition that is not ONIE's or diagnostics | ONIE `uninstall-arch` (assumption A-10) | relied on by AC-10 |
 | first-sector boot code | reader | the BIOS, then ONIE's or Ze's boot code itself | outside the repository | preserved: the disk signature and the MBR partition records are untouched, and only one of the two known 440-byte programs is ever in place |
@@ -244,14 +246,14 @@ reboot comes straight back to Ze.
 | A-6 | ONIE's virtual machine image, as published by the SONiC project, runs an unsigned installer in BIOS mode and in UEFI mode with Secure Boot not enforcing | The machine is built with Secure Boot extensions; the SONiC build installs through it | The UEFI leg needs firmware without Secure Boot enforcement, or another ONIE build | The first run of the proof | unvalidated |
 | A-7 | The S5232F-ON does not enforce Secure Boot | Unverified | Ze's unsigned loader does not start there | Secure Boot state read on the switch | unvalidated |
 | A-8 | The compressed image fits in half the S4048-ON's memory | The image is 2 GiB and mostly empty; no compressed size is recorded; the switch's memory is unverified | The download fails | The build measures the file and refuses above the model's limit | unvalidated |
-| A-9 | Ze's kernel can load ONIE's kernel and ramdisk from ONIE-BOOT and start it in the requested mode, with arguments built from ONIE's own boot files | Ze's kernel has file-based kernel loading; ONIE's GRUB starts the same two files with a `boot_reason` argument (`50_onie_grub`, `grub-common.cfg`, reported by the research agent) | The start command cannot work, and the fallback is restoring the saved boot code, which makes a visit one-way under BIOS | Phase 1 reads ONIE's boot files on the virtual machine's ONIE-BOOT and starts ONIE by hand from a Ze guest, under both firmwares; the S4048-ON's 3.2 kernel is the harder case and needs the unit | unvalidated |
+| A-9 | Ze's kernel can load ONIE's kernel and ramdisk from ONIE-BOOT and start it in the requested mode, with arguments built from ONIE's own boot files | Ze's kernel has file-based kernel loading; ONIE's GRUB starts the same two files with a `boot_reason` argument (`50_onie_grub`, `grub-common.cfg`, reported by the research agent) | The start command cannot work on that switch | Verified in part on 2026-11-28: Ze's file-based loader refuses a kernel older than 3.8, so it refuses upstream's 3.2.69 ONIE kernel for the S4048-ON. Whether the unit's factory ONIE is that old is settled by `uname -r` on the switch. For newer ONIE kernels (the virtual machine's 5.4), phase 1 starts ONIE by hand from a Ze guest under both firmwares. What the S4048-ON does instead is choice C-5 | unvalidated |
 | A-10 | ONIE's uninstall removes every partition that is not ONIE's or diagnostics, and Ze's EFI boot entry | Reported through a summarising fetch of `uninstall-arch`, not read verbatim | AC-10 fails: Ze's partitions or its boot entry outlive an uninstall | Read `uninstall-arch` verbatim in phase 1; the uninstall leg of the proof | unvalidated |
 | A-11 | Ze's kernel mounts ONIE-BOOT, an ext4 filesystem made by ONIE's old tools, read-only | ext4 is forward compatible | The plugin reads the two files and the environment block through its own minimal reader instead | The state leg of the proof | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A failure mid-install leaves neither system bootable | Any step before the boot switch fails | The boot switch is the last write; before it ONIE boots as before and re-runs the installer, whose earlier steps are repeatable (placement replaces an earlier Ze run) |
+| R-1 | A failure mid-install leaves neither system bootable | Any step before the boot switch fails | At a first install the boot switch is the last write, and before it ONIE boots as before. At a reinstall the first write gives the boot path back to ONIE, before the earlier run is touched. In both cases ONIE re-runs the installer, whose steps are repeatable |
 | R-2 | The boot switch is half done at a power cut | The switch does not boot | Under BIOS the write is one sector, done after the saved record is verified on disk; under UEFI the entry is created before the order is changed |
 | R-3 | The installer runs on the wrong switch | A platform string outside the model's list | Refused before any write, naming the string found and the strings accepted |
 | R-4 | The disk holds another operating system | A partition that is neither ONIE's, diagnostics, nor Ze's | Refused before any write, with the instruction to run `onie-uninstall` first |
@@ -293,8 +295,10 @@ reboot comes straight back to Ze.
 | AC-5 | ONIE's virtual machine in install mode, BIOS firmware, with a partition labelled as vendor diagnostics added to its disk, given the file's URL | ONIE runs the file; the switch reboots into Ze; an SSH login with the embedded credentials answers `show version` | GRUB-BOOT and the diagnostics partition survive byte for byte. On ONIE-BOOT every file keeps its content except the boot environment file, where two variables change; the filesystem's own metadata may differ, because ONIE keeps it mounted read-write during the install. D-4 requires all of this to survive |
 | AC-6 | The same under UEFI firmware | Same outcome, and the firmware's boot order has Ze first and ONIE's entry still present | Same |
 | AC-7 | On the installed switch, `show onie` | It reports that ONIE is present, the firmware mode, ONIE's recorded mode, whether ONIE's kernel and ramdisk are readable, and whether the manual fallback is intact (the saved boot code record under BIOS, ONIE's boot entry under UEFI) | Read-only: nothing changes |
-| AC-8 | `request onie start mode rescue`, then `reboot` typed at ONIE's rescue prompt | ONIE's rescue prompt appears; after the reboot the switch boots Ze and answers `show version` over SSH, under BIOS and under UEFI | Ze's partitions, its boot code and its boot entry survive the visit, because starting ONIE writes nothing to disk and rescue installs nothing |
-| AC-9 | `request onie start mode install`, then a second run of the installer from ONIE | The switch reinstalls Ze in place: the earlier run is replaced and the result boots | ONIE and the diagnostics partition survive; the earlier Ze does not, because a reinstall replaces it |
+| AC-8 | `request onie start mode rescue`, then `reboot` typed at ONIE's rescue prompt, on a switch whose ONIE kernel Ze's loader accepts (Linux 3.8 or later) | ONIE's rescue prompt appears; after the reboot the switch boots Ze and answers `show version` over SSH, under BIOS and under UEFI | Ze's partitions, its boot code and its boot entry survive the visit, because starting ONIE writes nothing to disk and rescue installs nothing |
+| AC-22 | `request onie start mode ...` on a switch whose ONIE kernel Ze's loader refuses | The command refuses before shutting anything down, names the kernel version it found and the version the loader needs, and says what choice C-5 settles for that switch | The running system survives untouched, because the check comes before the shutdown |
+| AC-23 | A reinstall interrupted after the earlier run is removed and before the boot switch | The switch boots ONIE, and ONIE's re-run of the file completes the install | ONIE's boot path survives, because the reinstall restored it first |
+| AC-9 | A second run of the installer on a switch that already runs Ze, reached through ONIE's install mode | The installer first gives the boot path back to ONIE, then replaces the earlier run, and the result boots | ONIE and the diagnostics partition survive; the earlier Ze does not, because a reinstall replaces it |
 | AC-10 | `request onie start mode uninstall` | ONIE starts in uninstall mode, erases Ze's partitions and its boot entry, takes the boot path back, and returns to its install prompt | ONIE and the diagnostics partition survive; Ze does not, because that is what uninstall means |
 | AC-11 | The file run on a machine whose platform string the model does not list | It exits non-zero before any write, naming the string found, the strings accepted, and the appliance model to build for | The disk survives unchanged |
 | AC-12 | The file run on a disk that holds a foreign operating system's partitions | It exits non-zero before any write, names the partitions, and gives `onie-uninstall` as the fix | The disk survives unchanged |
@@ -338,6 +342,8 @@ reboot comes straight back to Ze.
 | `TestSavedBootCodeRecord` | `internal/core/bootcoderecord/record_test.go` | The record round-trips; a wrong checksum or version is refused; a non-zero sector not written by Ze is refused | |
 | `TestSourceModesRegister` | `internal/install/disk/run_test.go` | AC-19 | |
 | `TestONIERefusesTwoONIEDisks` | `internal/install/disk/onie_test.go` | AC-21 | |
+| `TestONIEReinstallGivesTheBootPathBackFirst` | `internal/install/disk/onie_test.go` | AC-23: with a write recorder, the restore of ONIE's code and the cleared mark precede the removal of the earlier run | |
+| `TestONIEStartRefusesAnOldKernel` | `internal/plugins/onie/onie_test.go` | AC-22: a kernel image whose boot protocol is below 2.12 is refused before shutdown | |
 | `TestONIEKernelArgumentsFromBootFiles` | `internal/plugins/onie/onie_test.go` | The arguments are read from fixture copies of ONIE's boot files, and the boot reason is appended for each mode | |
 | `TestONIEStartRefusesWithoutONIE` | `internal/plugins/onie/onie_test.go` | AC-17 | |
 
@@ -430,7 +436,8 @@ An operator builds one file for a switch and installs Ze from the switch's own
 ONIE prompt. ONIE and the vendor diagnostics stay on the disk, Ze is added
 after them, and one command on the running switch starts ONIE to run
 diagnostics, to reinstall, or to remove Ze; a reboot from ONIE's rescue mode
-comes back to Ze. The file is a Go program with the image appended. On the
+comes back to Ze. That start needs an ONIE kernel of Linux 3.8 or later; what
+a switch with an older ONIE does is choice C-5. The file is a Go program with the image appended. On the
 switch nothing is a shell script or an external tool; on the build host the
 command runs the Go toolchain it already uses for the initrd, and nothing
 else.
@@ -469,6 +476,7 @@ none
 | C-1 | The command words | (a) `show onie` and `request onie start mode <install\|rescue\|uninstall>`, recommended; (b) other words | |
 | C-2 | Whether `request onie start mode uninstall` exists at all | (a) yes, recommended: it is how an operator hands the switch back, and it must be typed whole; (b) no: an operator who wants that goes to ONIE's install or rescue mode first and runs `onie-uninstall` there | |
 | C-3 | Your question, "Can we update the kernel when we do an onie install?": whether the installer should jump to Ze's installer kernel before writing, so the install runs under Ze's kernel | (a) no, install under ONIE's kernel, recommended: the jump from ONIE's 3.2 kernel needs a hand-built hand-off, and the program must start under ONIE's kernel either way; (b) yes, design the jump now | |
+| C-5 | How a switch whose ONIE kernel is older than 3.8 gets to ONIE from Ze. Upstream ONIE for the S4048-ON is 3.2.69, and Ze's kernel refuses to start a kernel that old | (a) restore ONIE's saved boot code and reboot, recommended as the route for such switches only: it works with what the install already saves, but leaving ONIE's rescue mode then does not come back to Ze until the installer is run again; (b) write the older, segment-based kernel start, which needs a hand-built hand-off and a kernel option Ze does not enable; (c) such a switch has its ONIE updated first | |
 | C-4 | What happens if `uname -r` on the S4048-ON shows a kernel older than 3.2, where a Go program cannot start | (a) that model is marked as needing an ONIE update first, recommended; (b) another route is designed for it | |
 
 ## Implementation Steps
@@ -558,7 +566,8 @@ none
 | The boot switch is the last write | Switching first and writing after | ONIE re-runs a failed installer, which only helps while ONIE still boots |
 | ONIE's boot code is saved in a checksummed record in the unused sectors before the first partition | A file on ONIE-BOOT; only in Ze's store | No ONIE partition is modified, and no filesystem of Ze's has to be mounted under ONIE's kernel |
 | The installer reboots the switch itself | Exit 0 and let ONIE reboot | ONIE's bare-name reboot fails over SSH |
-| ONIE is started from Ze by loading its kernel, not by changing the boot path | Restoring ONIE's boot code; the firmware's next-boot variable | Nothing on disk changes, so a visit to rescue mode returns to Ze by a plain reboot, under both firmwares |
+| ONIE is started from Ze by loading its kernel, not by changing the boot path | Restoring ONIE's boot code; the firmware's next-boot variable | Nothing on disk changes, so a visit to rescue mode returns to Ze by a plain reboot, under both firmwares. It needs an ONIE kernel of 3.8 or later, which is why C-5 exists |
+| A reinstall gives the boot path back to ONIE as its first write | Relying on ONIE to retake it | ONIE skips that step while an operating system is marked installed |
 | The plugin is linked with the on-device runtime features | A new feature gate | `ze_appliance` already exists for exactly this, and `coldplug` is linked the same way |
 
 ## Known Limitations
@@ -566,7 +575,7 @@ none
 - arm64 and U-Boot ONIE machines are out of scope (owner decision D-1).
 - Secure Boot is not supported: Ze's boot loader is unsigned.
 - Updating ONIE itself on a switch is the vendor's operation and is never done by Ze.
-- The saved boot code record has no command that restores it. It is the manual route to ONIE if ONIE's kernel cannot be started from Ze on some unit; a restore command is designed only if a unit needs it.
+- The saved boot code record is restored by the installer at a reinstall. No runtime command restores it until choice C-5 is made.
 
 ## Checklist
 

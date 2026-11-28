@@ -107,7 +107,7 @@ installer.
 | Installer kernel selection | `internal/appliance/cmd_kernel.go` `runKernel`; `cmd_iso.go` `isoKernelCachePath` | Read `image.kernel-profile` | extends: both read the profile through one function that falls back to the model's |
 | Image options | `internal/appliance/config.go` `ImageConfig`, `Validate` | Hold and validate per-image facts | extends: gains `model`; the model supplies defaults and `Validate` refuses a contradiction |
 | Kernel arguments of a build | `internal/appliance/kernelargs.go` `resolveBuildParentDir` | Computes per-build kernel arguments from the config and asks `instance` for a derived directory | extends: also passes the model's serial console |
-| Installer console choice | `internal/appliance/cmd_iso.go` `isoKernelConsoleArgs` | Chooses the console by architecture | replaces: the console comes from the model, and `generic` states today's per-architecture values |
+| Installer console choice | `internal/appliance/cmd_iso.go` `isoKernelConsoleArgs` | Chooses the console by architecture | replaces: the serial console comes from the model. `generic` states none, and the per-architecture values of today then apply, in one place |
 | Runtime hardware facts | `internal/component/host/dmi_linux.go`; `spec-hardware-capacity-profile.md` part P5 | Reads DMI on the device; plans a matched capacity database | does not apply at build time; the names are shared so the two never diverge |
 
 ## Design documents
@@ -191,7 +191,7 @@ installer.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A model silently changes an existing appliance's image | A rebuilt image differs with no config change | `generic` is the default and states today's values; a test compares the build inputs of a config with and without `generic` |
+| R-1 | A model silently changes an existing appliance's image | A rebuilt image differs with no config change | `generic` is the default and states nothing, so every value comes from where it comes from today; a test compares the build inputs of a config with and without `generic` |
 | R-2 | A model and an explicit option disagree and the builder picks one silently | An image built for the wrong architecture | `Validate` refuses the disagreement and names both values |
 | R-3 | A model names a driver that no runtime fragment sets | The installed box has no management port | The registry test fails for a shipped model, and the doctor check and `model show` report it for any model, naming the symbol and the fragment file to add it to as a module |
 | R-6 | A named module is built but never loaded on the device | The interface is absent after boot | The existing loader loads modules for the hardware it finds; the QEMU proofs cannot show a physical NIC, so each unit's first boot is the evidence, recorded on the feature page |
@@ -240,7 +240,7 @@ installer.
 |---|-----------|--------------------|-----------------------|
 | 1 | Creates an appliance for an N100 by naming it | `init --model` -> registry -> config -> `build` -> image command line | `test/appliance/appliance-model-init.ci`, `TestBuildRendersModelConsole` |
 | 2 | Adds a new box by writing one file | model directory -> registry scan -> `model list` | `test/appliance/appliance-model-list.ci` |
-| 3 | Is stopped before building an image that cannot work | `build` -> requirement check -> refusal with the fix | `TestBuildRefusesModelDriverTheKernelLacks` |
+| 3 | Learns that a model names a driver the runtime kernel lacks | registry scan -> comparison with the runtime fragments -> `model show` and the doctor check, with the fix | `TestModelReportsADriverNoFragmentSets` |
 
 ## 🧪 TDD Test Plan
 
@@ -445,7 +445,7 @@ An appliance with no model is `generic` and builds exactly as today.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | A model is a data file found by scan | Go registration; flags | Same shape as kernel profiles; adding a box edits no code |
-| `generic` is an explicit model and the default | No model meaning "unset" | One code path; today's behaviour is stated, not implied by an empty value |
+| `generic` is an explicit model and the default, and it states no fact | No model meaning "unset"; a `generic` that restates today's values | One code path, and no second copy of the defaults `DefaultConfig` already holds |
 | A model's drivers are compared with the runtime fragments, and the shipped kernel carries them | A check of the built kernel at build | One kernel check exists already and the page forbids a second; the fragment comparison reports the gap without building anything |
 
 ## Known Limitations
