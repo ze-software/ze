@@ -190,6 +190,22 @@ the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.
 <!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
 
+### Where the VPP program comes from
+
+Today Ze starts the program at `/usr/bin/vpp` and does not install it. On a
+Linux host you install VPP yourself, from your distribution or from FD.io. A
+PPPoE configuration on VPP needs Ze's patched build, which
+`third_party/vpp-patches/README.md` describes. The appliance image holds no VPP
+program, so a managed VPP cannot start there yet.
+<!-- source: internal/component/vpp/register.go -- defaultVPPBinary, runConfiguredVPP -->
+
+The owner decided on 2026-11-28 that Ze's own VPP build is always installed
+with Ze: the appliance image build places it in the image, the Ze
+package installs it in a Ze folder beside `ze`, and Ze finds it by scanning
+that folder
+(`docs/research/vpp-deployment-reference.md`, "Design decisions"). That is not
+built yet; `plan/release/delivery/spec-vpp-embedded-runtime.md` owns it.
+
 Binding changes only the configured PCI device. Ze uses its `driver_override`
 and the driver's exact-address `bind` file, without adding a vendor/device-wide
 VFIO registration or rescanning the bus. Cleanup keeps the original state until
@@ -318,8 +334,6 @@ bind. Ze owns the API socket conversation and the FIB programming.
 Use this for:
 - **Systemd deployments:** the system VPP unit starts before ze, ze
   connects to its API socket on startup.
-- **Gokrazy containers:** a sidecar image bundles `vpp` and `ze`; the
-  supervisor starts VPP first, then ze with `external true`.
 - **Functional tests:** `./le test functional vpp` drives the compiled Go VPP
   stub instead of a real VPP. See `docs/functional-tests.md` for the harness.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
