@@ -745,7 +745,9 @@ type Command struct {
 	// AuditAction is the audit action a successful run of this command records
 	// (recordCommandAudit), from its builtin RPC registration. Empty means the
 	// command records no audit entry.
-	AuditAction    string
+	AuditAction string
+	// HandlerTimeout optionally returns the execution timeout budget for a
+	// single invocation of this command. Nil uses the dispatcher default.
 	HandlerTimeout func(command.ValidatedArgs) time.Duration
 }
 
@@ -789,7 +791,7 @@ type RegisterOptions struct {
 	Owner                     string                                    // The wire method of the builtin RPC registering the command (empty = none declared)
 	Complete                  ArgCompleter                              // The argument completer the builtin RPC declares (nil = none declared)
 	AuditAction               string                                    // The audit action a successful run records (empty = no audit entry)
-	HandlerTimeout            func(command.ValidatedArgs) time.Duration // Optional per-command execution timeout.
+	HandlerTimeout            func(command.ValidatedArgs) time.Duration // Optional per-command execution timeout hook
 }
 
 // ErrCommandHeld is the refusal Dispatcher.RegisterWithOptions returns for a
@@ -798,15 +800,16 @@ var ErrCommandHeld = errors.New("command name already registered")
 
 // Dispatcher routes commands to handlers.
 type Dispatcher struct {
-	commands               map[string]*Command
-	sortedKeys             []string          // sorted keys for longest-match lookup (longest first)
-	registry               *CommandRegistry  // Plugin commands
-	pending                *PendingRequests  // In-flight plugin requests
-	subsystems             *SubsystemManager // Forked subsystem processes
-	authorizer             aaa.Authorizer    // Authorization checker (nil = allow all)
-	accountant             aaa.Accountant    // Accounting recorder (nil = disabled)
-	audit                  audit.Recorder    // Local audit recorder (nil = disabled)
-	handlerTimeoutOverride time.Duration     // Optional timeout override for tests
+	commands         map[string]*Command
+	sortedKeys       []string          // sorted keys for longest-match lookup (longest first)
+	registry         *CommandRegistry  // Plugin commands
+	pending          *PendingRequests  // In-flight plugin requests
+	subsystems       *SubsystemManager // Forked subsystem processes
+	authorizer       aaa.Authorizer    // Authorization checker (nil = allow all)
+	accountant       aaa.Accountant    // Accounting recorder (nil = disabled)
+	audit            audit.Recorder    // Local audit recorder (nil = disabled)
+	handlerTimeoutMu sync.RWMutex
+	handlerTimeout   time.Duration
 }
 
 // NewDispatcher creates a new command dispatcher.
