@@ -206,3 +206,44 @@ network device.
 | C-2 | Design taken in `spec-onie-3-installer.md` after the first design judgment: Ze starts ONIE by loading ONIE's own kernel from ONIE-BOOT and jumping to it, writing nothing to disk, so a reboot from ONIE's rescue mode returns to Ze. ONIE's boot code is still saved in a checksummed record at install, as the manual fallback |
 | C-3 | DECIDED 2026-11-28: three children, as listed under "Children" |
 | C-4 | Raised by Thomas: "Can we update the kernel when we do an onie install?" The installed switch always runs Ze's kernel. Having the installer itself jump to Ze's installer kernel is recorded as an alternative set aside in `spec-onie-3-installer.md`, with the condition that reopens it |
+## Design judgment, round 2 (2026-11-28): all three children refused
+
+Recorded by three independent judges with `./le spec design judge` in the Mac
+checkout, on copies identical to commit 9c4b846e8f. Each row is owed before the
+child is judged again.
+
+### spec-onie-1-hardware-model (digest b726b9ec8e97)
+
+| # | Finding | Fix owed |
+|---|---------|----------|
+| 1 | The `build-artifacts.md` row says the model check reads "the cached kernel's emitted config"; the rest of the spec says fragment files only | Reword the row: fragment files only |
+| 2 | The `vpp-host-tuning.md` decision row speaks of a build-time refusal for a missing driver, which the design no longer has | Reword: the refusals are AC-3, AC-4 and AC-12 |
+| 3 | The `builder.md` row is marked agrees, but the page says three config fields reach the kernel command line and the console becomes a fourth | Make it a `departs` row with before and after |
+| 4 | AC-4 says `Validate` refuses "at every command"; it is called from init, build, iso and kernel only | Scope the AC to those, or name the commands that gain the call |
+| 5 | Census lacks two writers of the `image` object: `cmd_clone.go` and `editImageConfig` in `internal/le/test/qemu/hugepages.go` | Add both rows |
+| 6 | Existing Mechanisms lacks `RuntimeKernelLayers`, `applianceDoctorChecks` and `applianceCommands` | Add three rows |
+| 7 | The Task says a model's driver "is carried by" the runtime kernel; AC-6 proves only that a fragment requests it | Reword the Task, or prove carriage inside the one existing kernel check |
+| 8 | Minor: five `.ci` tests are listed where rows say four; AC-12 says `generic` lists both firmware modes while AC-2 says it states nothing; A-4 still says "driver refusal"; "as a module" is wrong for a boot-critical device | Correct each |
+
+### spec-onie-2-relative-partitions (digest 9007085d5579)
+
+| # | Finding | Fix owed |
+|---|---------|----------|
+| 1 | Existing Mechanisms has no row for the installer proof kind dispatch that AC-12 replaces (`InstallKind` and its three switches in `install.go`, `runInstallerHere` in `actions.go`) | Add the row, marked replaces |
+| 2 | AC-8 removes an earlier Ze run and its data, and R-7 says another gokrazy system would be replaced too; neither the Task nor the Design presentation says so | State it in both, or put replace versus refuse to Thomas as a choice |
+| 3 | Census lacks the install-time writer of re-targeted boot code (`internal/core/bootcode`), the installer's whole-image write as a GPT and MBR writer, and `internal/le/setup/docker/host/perm.go`, which reads `gptdisk.PersistentPartition` | Add the rows and the file |
+| 4 | Not a ground: one patch file spans two modules, while the guard takes one patch per module; R-5's test is in `grow_integration_linux_test.go` | Split the patch, name the test |
+
+Every Design documents row of this child held, including both `departs` rows.
+
+### spec-onie-3-installer (digest ea23848c4b46)
+
+| # | Finding | Fix owed |
+|---|---------|----------|
+| 1 | The `system-plugins.md` row still says the plugin compiles out under `ze_onie`, which the spec now rejects | Settle the gate (finding 2), then make the row match |
+| 2 | Linking the plugin by a hand import behind `ze_appliance` departs from the system door: generated files own the blank imports, and a gated feature is declared in `feature-gates.txt`. `./le repo update` would link the plugin into every flavor. `coldplug` is no precedent: it is a start step, not a registry plugin | Redesign: a real gate in `feature-gates.txt` is the likely answer, which was the first design |
+| 3 | `test/plugin/onie-show-absent.ci` runs a `ze` built without `ze_appliance`, where the commands would be absent | Follows from finding 2 |
+| 4 | The reboot after graceful shutdown is done by the hub (`cmd/ze/hub/main.go`, `internal/core/reboot`), after every plugin has stopped; a plugin cannot jump to ONIE's kernel after that | Design the seam: the hub or `core/reboot` takes a registered end-of-shutdown action |
+| 5 | Census lacks the wires the start-ONIE design added: ONIE's kernel, ramdisk and boot files (reader: the plugin), and the kernel command line with the boot reason (writer: the plugin, reader: ONIE) | Add the rows |
+| 6 | AC-20 requires a rescue round trip on a real S4048-ON, which AC-22 and C-5 say the loader refuses | Decide C-5 first, then make AC-20 follow it |
+| 7 | The Task carries neither the reinstall's first write nor the 3.8 kernel limit | Add both to the Task |
