@@ -878,10 +878,11 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	}
 	copy(s.writeBuf.Buffer()[message.HeaderLen:], body)
 	body = s.writeBuf.Buffer()[message.HeaderLen : message.HeaderLen+len(body)]
-	// RFC 4271 Section 4.3, RFC 8092 Section 3, RFC 8669 Section 3.1: on every
-	// write, the raw diagnostic one included (owner, Q-3 (a), 2026-10-14).
-	// RFC 8277 Section 2.4 as well, in the same walk and for the same reason.
-	body = body[:normalizeTransmittedUpdate(body, ownership.encoding)]
+	// RFC 4271 Section 4.3, RFC 8092 Section 3, RFC 8097 Section 2, RFC 8669
+	// Section 3.1: on every write, the raw diagnostic one included (owner,
+	// Q-3 (a), 2026-10-14). RFC 8277 Section 2.4 as well, in the same walk and
+	// for the same reason.
+	body = body[:normalizeTransmittedUpdateWith(body, ownership.encoding, !s.originValidationStateSendAllowedHeld())]
 	// RFC 7311 Section 3.4.3: a route withheld because its AIGP increment is
 	// unknown stays owed to this recipient, and a later known distance
 	// re-advertises it. The filter below drops the withdrawal of a key this

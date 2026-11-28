@@ -48,6 +48,8 @@ bgp {
 			route-reflector-client true;
 			cluster-id 8.8.8.8;
 			accept-srv6-prefix-sid true;
+			accept-origin-validation-state true;
+			send-origin-validation-state true;
 			link-local fe80::1;
 			community { send [ standard large ]; }
 			family {
@@ -85,6 +87,8 @@ bgp {
 			route-reflector-client true;
 			cluster-id 8.8.8.8;
 			accept-srv6-prefix-sid true;
+			accept-origin-validation-state true;
+			send-origin-validation-state true;
 			link-local fe80::1;
 			community { send [ standard large ]; }
 			family {

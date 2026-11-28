@@ -1,0 +1,219 @@
+# Test: RFC 8097 Section 2 -- Origin Validation State extended community (0x43/0x00) eBGP boundary
+#
+# ONE QUESTION: Does the live ze daemon enforce both halves of RFC 8097 Section 2
+# end-to-end across real TCP sessions, YANG config parsing, bgp-rib selection and
+# readvertisement, and Session.writeUpdateBody? Unit tests cover sanitizeOriginValidationState
+# and normalizeTransmittedUpdateWith in isolation; this test proves the real daemon wires
+# both directional defaults and both directional YANG overrides across five live peers in one run.
+#
+# Inbound eBGP boundary (RFC 8097 Section 2): ebgp-default-in (AS 65001,
+#   accept-origin-validation-state omitted) sends 10.1.0.0/24 carrying target:65001:7 and
+#   0x43/0x00:valid. ibgp-peer (AS 65000) receives 10.1.0.0/24 with target:65001:7 intact and
+#   0x43/0x00 removed, and ebgp-send-dst (send-origin-validation-state true) receives 10.1.0.0/24
+#   without 0x43/0x00 because it was dropped on ingress. ebgp-accept-in (AS 65002,
+#   accept-origin-validation-state true) sends 10.2.0.0/24 carrying target:65001:7 and
+#   0x43/0x00:valid; ibgp-peer receives both intact.
+# RFC requirement: RFC8097-2-9 positive -- "Similarly, by default, an implementation SHOULD NOT
+#   send the community to EBGP peers." ibgp-peer (AS 65000) sends 10.3.0.0/24 carrying
+#   target:65000:9 and 0x43/0x00:valid (with non-zero Reserved octets AABBCCDDEE). ebgp-default-dst
+#   (AS 65003, send-origin-validation-state omitted) receives 10.2.0.0/24 and 10.3.0.0/24 with
+#   their sibling Route Targets intact and 0x43/0x00 stripped in place.
+# RFC requirement: RFC8097-2-9 negative -- ebgp-send-dst (AS 65004, send-origin-validation-state
+#   true) retains 0x43/0x00:valid (with Reserved octets [2..6] zeroed to 0000000000) alongside
+#   sibling Route Targets on 10.2.0.0/24 and 10.3.0.0/24.
+# RFC requirement: RFC8097-2-10 positive -- setting accept-origin-validation-state true on
+#   ebgp-accept-in and send-origin-validation-state true on ebgp-send-dst enables receiving and
+#   sending 0x43/0x00 across those configured eBGP peers independently.
+# RFC requirement: RFC8097-2-10 negative -- omitting accept-origin-validation-state on
+#   ebgp-default-in and send-origin-validation-state on ebgp-default-dst keeps default eBGP
+#   drop/strip enforced independently of the opted-in peers.
+#
+# Linux-only: static `next { interface lo { } }` resolves loopback `lo` via the Linux netlink socket.
+option=needs-linux
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=5
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+# Bind conn=N by Ze's local source IP (127.0.0.11..127.0.0.15) rather than accept order.
+option=conn_map:value=remote-ip
+# Hold all five sockets open until the observer's quiesce and shutdown finish.
+option=linger:value=true
+
+# conn=1 (127.0.0.11 -> ebgp-default-in, AS 65001, accept-origin-validation-state ABSENT):
+# Announce 10.1.0.0/24 carrying target:65001:7 + 0x43/0x00:valid.
+#   ORIGIN:   40010100                                           (4)
+#   AS_PATH:  40020602010000FDE9                                 (9) [65001]
+#   NEXT_HOP: 40030401010101                                     (7) 1.1.1.1
+#   EXTCOMM:  C010100002FDE9000000074300000000000000            (19) [target:65001:7, ov:valid]
+#   NLRI:     180A0100                                           (4) 10.1.0.0/24
+# attr len = 39 = 0x0027; total = 19+2+2+39+4 = 66 = 0x0042.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004202000000274001010040020602010000FDE940030401010101C010100002FDE9000000074300000000000000180A0100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# conn=2 (127.0.0.12 -> ebgp-accept-in, AS 65002, accept-origin-validation-state TRUE):
+# Announce 10.2.0.0/24 carrying target:65001:7 + 0x43/0x00:valid.
+#   AS_PATH:  40020602010000FDEA                                 (9) [65002]
+#   NLRI:     180A0200                                           (4) 10.2.0.0/24
+# attr len = 39 = 0x0027; total = 66 = 0x0042.
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004202000000274001010040020602010000FDEA40030401010101C010100002FDE9000000074300000000000000180A0200
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# conn=3 (127.0.0.13 -> ibgp-peer, AS 65000, iBGP):
+# Send 10.3.0.0/24 carrying LOCAL_PREF 100, target:65000:9, and 0x43/0x00:valid with non-zero
+# Reserved octets (AABBCCDDEE) to prove RFC 8097 Section 2 Reserved zeroing on allowed egress.
+#   ORIGIN:     40010100                                         (4)
+#   AS_PATH:    400200                                           (3) []
+#   NEXT_HOP:   40030401010101                                   (7) 1.1.1.1
+#   LOCAL_PREF: 40050400000064                                   (7) 100
+#   EXTCOMM:    C010100002FDE8000000094300AABBCCDDEE00          (19) [target:65000:9, ov:valid(dirty)]
+#   NLRI:       180A0300                                         (4) 10.3.0.0/24
+# attr len = 40 = 0x0028; total = 19+2+2+40+4 = 67 = 0x0043.
+action=send:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00430200000028400101004002004003040101010140050400000064C010100002FDE8000000094300AABBCCDDEE00180A0300
+# Receive 10.1.0.0/24 (from ebgp-default-in): 0x43/0x00 DROPPED on inbound, target:65001:7 intact.
+#   ORIGIN(4) + AS_PATH[65001](9) + NEXT_HOP 1.1.1.1(7) + LOCAL_PREF 100(7) + EXTCOMM[rt](11) = 38 = 0x0026; total = 65 = 0x0041.
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004102000000264001010040020602010000FDE94003040101010140050400000064C010080002FDE900000007180A0100
+# Receive 10.2.0.0/24 (from ebgp-accept-in): BOTH target:65001:7 and 0x43/0x00:valid intact.
+#   ORIGIN(4) + AS_PATH[65002](9) + NEXT_HOP 1.1.1.1(7) + LOCAL_PREF 100(7) + EXTCOMM[rt,ov](19) = 46 = 0x002E; total = 73 = 0x0049.
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0049020000002E4001010040020602010000FDEA4003040101010140050400000064C010100002FDE9000000074300000000000000180A0200
+
+# conn=4 (127.0.0.14 -> ebgp-default-dst, AS 65003, send-origin-validation-state ABSENT):
+# Every route arrives with sibling Route Target intact and ZERO 0x43/0x00 entries.
+# 10.1.0.0/24: ORIGIN(4)+AS_PATH[65000,65001](13)+NEXT_HOP 127.0.0.14(7)+EXTCOMM[target:65001:7](11)=35(0x23); total=62(0x3E).
+expect=bgp:conn=4:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000FDE80000FDE94003047F00000EC010080002FDE900000007180A0100
+# 10.2.0.0/24 (accepted inbound, STRIPPED outbound on default eBGP): attr len=35(0x23); total=62(0x3E).
+expect=bgp:conn=4:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000FDE80000FDEA4003047F00000EC010080002FDE900000007180A0200
+# 10.3.0.0/24 (learned from iBGP, STRIPPED outbound on default eBGP):
+#   ORIGIN(4)+AS_PATH[65000](9)+NEXT_HOP 127.0.0.14(7)+EXTCOMM[target:65000:9](11)=31(0x1F); total=58(0x3A).
+expect=bgp:conn=4:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020602010000FDE84003047F00000EC010080002FDE800000009180A0300
+
+# conn=5 (127.0.0.15 -> ebgp-send-dst, AS 65004, send-origin-validation-state TRUE):
+# 10.1.0.0/24 was dropped on inbound -> still carries target:65001:7 only (no 0x43/0x00).
+expect=bgp:conn=5:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020A02020000FDE80000FDE94003047F00000FC010080002FDE900000007180A0100
+# 10.2.0.0/24 (accepted inbound AND allowed outbound): target:65001:7 + 0x43/0x00:valid intact.
+#   ORIGIN(4)+AS_PATH[65000,65002](13)+NEXT_HOP 127.0.0.15(7)+EXTCOMM[rt,ov](19)=43(0x2B); total=70(0x46).
+expect=bgp:conn=5:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0046020000002B4001010040020A02020000FDE80000FDEA4003047F00000FC010100002FDE9000000074300000000000000180A0200
+# 10.3.0.0/24 (learned from iBGP AND allowed outbound): target:65000:9 + 0x43/0x00:valid (Reserved zeroed).
+#   ORIGIN(4)+AS_PATH[65000](9)+NEXT_HOP 127.0.0.15(7)+EXTCOMM[rt,ov](19)=39(0x27); total=66(0x42).
+expect=bgp:conn=5:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004202000000274001010040020602010000FDE84003047F00000FC010100002FDE8000000094300000000000000180A0300
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bus {
+	endpoint rs {
+		internal bgp-rib;
+	}
+	endpoint adj-rib-in {
+		internal bgp-adj-rib-in;
+		send {
+			message bgp:update {
+				to none;
+			}
+		}
+	}
+	endpoint shutdown-after-up {
+		external {
+			run "le test fixture plugin/rpki-ov-community-ebgp-boundary";
+		}
+		encoding json;
+	}
+}
+fib {
+	dummy { }
+}
+static {
+	table default {
+		route 1.1.1.1/32 { next { interface lo { } } }
+	}
+}
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer ebgp-default-in {
+		connection {
+			remote { ip 127.0.0.1 }
+			local { ip 127.0.0.11; accept false }
+		}
+		filter {
+			import { final accept; }
+			export { final reject; }
+		}
+		session {
+			asn { local 65000; remote 65001 }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+	peer ebgp-accept-in {
+		connection {
+			remote { ip 127.0.0.2 }
+			local { ip 127.0.0.12; accept false }
+		}
+		filter {
+			import { final accept; }
+			export { final reject; }
+		}
+		session {
+			asn { local 65000; remote 65002 }
+			router-id 1.2.3.4
+			accept-origin-validation-state true
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+	peer ibgp-peer {
+		connection {
+			remote { ip 127.0.0.3 }
+			local { ip 127.0.0.13; accept false }
+		}
+		session {
+			asn { local 65000; remote 65000 }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+	peer ebgp-default-dst {
+		connection {
+			remote { ip 127.0.0.4 }
+			local { ip 127.0.0.14; accept false }
+		}
+		session {
+			asn { local 65000; remote 65003 }
+			router-id 1.2.3.4
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+	peer ebgp-send-dst {
+		connection {
+			remote { ip 127.0.0.5 }
+			local { ip 127.0.0.15; accept false }
+		}
+		session {
+			asn { local 65000; remote 65004 }
+			router-id 1.2.3.4
+			send-origin-validation-state true
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			capability { graceful-restart disable }
+		}
+		behavior { group-updates disable }
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -54,6 +54,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bgp-attribute-default-localpref-gobgp":    checkAttributeDefaultLocalPref,
 	"bgp-local-pref-strip-gobgp":               checkLocalPrefStrip,
 	"bgp-med-across-as-gobgp":                  checkMEDAcrossAS,
+	scenarioRPKIOVEBGPBoundary:                 checkRPKIOVEBGPBoundary,
 	"bgp-med-increment-gobgp":                  checkMEDIncrementFromRouteValue,
 	"bgp-med-remove-configured-gobgp":          checkMEDRemovalConfiguration,
 	scenarioWireEditAPIOriginBIRD:              checkWireEditAPIOriginBIRD,

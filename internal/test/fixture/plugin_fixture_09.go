@@ -64,6 +64,7 @@ func init() {
 	Register("plugin/metrics-name-show", metricsNameShow09, StopsDaemon)
 	Register("plugin/metrics-session-lifecycle", metricsLifecycle09, StopsDaemon)
 	Register("plugin/modify-accumulator-per-peer-isolation", accumulatorIsolation09, StopsDaemon)
+	Register("plugin/rpki-ov-community-ebgp-boundary", rpkiOVBoundary09, StopsDaemon)
 }
 
 type commandResult09 struct {

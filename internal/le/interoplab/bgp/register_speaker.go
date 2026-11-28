@@ -10,6 +10,8 @@ var speakerRunners = map[string]func(speakerOptions, io.Writer) error{
 	speakerOracleNoUnrecognizedEVPNType:   runOracleSpeaker,
 	speakerOracleBFDStrictHold:            runOracleSpeaker,
 	speakerOracleNoRepeatedLargeCommunity: runOracleSpeaker,
+	speakerOracleRFC8097EBGPStrip:         runOracleSpeaker,
+	speakerOracleRFC8097EBGPOptIn:         runOracleSpeaker,
 }
 
 // speakerRelayRunners contains only explicit relay personalities. The existing
@@ -23,4 +25,6 @@ var speakerUpdateOracles = map[string]func(speakerUpdate, *speakerVerdict){
 	speakerOracleNoDuplicateAttribute:     applyNoDuplicateAttributeOracle,
 	speakerOracleNoUnrecognizedEVPNType:   applyEVPNOracle,
 	speakerOracleNoRepeatedLargeCommunity: applyNoRepeatedLargeCommunityOracle,
+	speakerOracleRFC8097EBGPStrip:         applyRFC8097EBGPStripOracle,
+	speakerOracleRFC8097EBGPOptIn:         applyRFC8097EBGPOptInOracle,
 }

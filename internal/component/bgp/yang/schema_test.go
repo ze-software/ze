@@ -149,6 +149,56 @@ func TestSchemaAcceptOriginValidationStateDefaultsFalse(t *testing.T) {
 	}
 }
 
+// TestSchemaSendOriginValidationStateDefaultsFalse proves RFC 8097 Section 2
+// at the YANG schema boundary: session/send-origin-validation-state is a
+// boolean leaf defaulting to "false" across group and peer scopes.
+//
+// VALIDATES: AC-4 -- session/send-origin-validation-state is boolean, defaults to false, and rejects non-booleans across group, group-peer, and peer scopes.
+// PREVENTS: Missing or mistyped outbound RFC 8097 override leaf in ze-bgp-conf.yang.
+func TestSchemaSendOriginValidationStateDefaultsFalse(t *testing.T) {
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	schema, err := loader.Resolve()
+	require.NoError(t, err)
+
+	mod := schema.GetModule("ze-bgp-conf")
+	require.NotNil(t, mod)
+	var found bool
+	for _, g := range mod.Grouping {
+		if g.Name != "peer-fields" {
+			continue
+		}
+		for _, c := range g.Container {
+			if c.Name != "session" {
+				continue
+			}
+			for _, leaf := range c.Leaf {
+				if leaf.Name != "send-origin-validation-state" {
+					continue
+				}
+				found = true
+				require.NotNil(t, leaf.Type)
+				assert.Equal(t, "boolean", leaf.Type.Name)
+				require.NotNil(t, leaf.Default)
+				assert.Equal(t, "false", leaf.Default.Name)
+			}
+		}
+	}
+	require.True(t, found, "ze-bgp-conf peer-fields/session must declare send-origin-validation-state leaf")
+
+	validator := yang.NewValidator(schema)
+	for _, path := range []string{
+		"bgp/group/session/send-origin-validation-state",
+		"bgp/group/peer/session/send-origin-validation-state",
+		"bgp/peer/session/send-origin-validation-state",
+	} {
+		require.NoError(t, validator.Validate(path, false), path)
+		require.NoError(t, validator.Validate(path, true), path)
+		require.Error(t, validator.Validate(path, "not-a-bool"), path)
+	}
+}
+
 // TestSchemaFlowSpecRedirectNextHopDefaultsFalse proves RFC 8955 Section 4 at
 // the YANG schema boundary: session/flowspec-redirect-next-hop is a boolean
 // leaf defaulting to "false" across group and peer scopes.

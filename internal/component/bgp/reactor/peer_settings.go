@@ -583,6 +583,15 @@ type PeerSettings struct {
 	// Has no effect on IBGP sessions (always processed).
 	AcceptOriginValidationState bool
 
+	// SendOriginValidationState allows the RFC 8097 Prefix Origin Validation
+	// State extended community (0x43/0x00) to be sent to EBGP peers.
+	// RFC 8097 Section 2: "Similarly, by default, an implementation SHOULD NOT
+	// send the community to EBGP peers." "However, it SHOULD be possible to
+	// configure an implementation to send or accept the community when
+	// warranted." Default false = strip 0x43/0x00 on egress to EBGP.
+	// Has no effect on IBGP sessions (always sent).
+	SendOriginValidationState bool
+
 	// PropagateSRv6PrefixSID allows the PrefixSID attribute (code 40) to be
 	// advertised to this EBGP peer.
 	// RFC 8669 Section 8: "The propagation to other ASes MUST be explicitly

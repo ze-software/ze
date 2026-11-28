@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -414,6 +415,10 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		// RFC 8097 Section 2: accept Origin Validation State extended community from EBGP only when configured.
 		if v, ok := mapBool(sessionMap, "accept-origin-validation-state"); ok {
 			ps.AcceptOriginValidationState = v
+		}
+		// RFC 8097 Section 2: send Origin Validation State extended community to EBGP only when configured.
+		if v, ok := configvalue.Bool(sessionMap["send-origin-validation-state"]); ok {
+			ps.SendOriginValidationState = v
 		}
 		// RFC 8955 Section 4 / draft-simpson-idr-flowspec-redirect-02 Section 3:
 		// carry MP_REACH next hop for 0x0800 FlowSpec redirect only when configured.

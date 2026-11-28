@@ -1,0 +1,16 @@
+# RFC 8097 Section 2 iBGP peer (AS 65001): receives inbound-relayed routes from
+# Ze (proving default eBGP drop vs accept-origin-validation-state true via
+# gobgp-paths ExtcommsJSON) and originates 10.97.3.0/24 carrying target:65000:9
+# and 0x43/0x00:valid for Ze's outbound eBGP boundary speakers.
+[global.config]
+  as = 65001
+  router-id = "172.30.0.5"
+  port = 179
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.30.0.2"
+    peer-as = 65001
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"

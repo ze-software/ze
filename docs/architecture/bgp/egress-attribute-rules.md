@@ -322,6 +322,34 @@ the clause. They show that placement is the whole question. An implementation
 that can place removal after selection owes the restricted comparison until that
 path is removed, guarded, or proven unreachable.
 
+## RFC 8097 Origin Validation State (`0x43/0x00`) eBGP boundary
+
+RFC 8097 Section 2 recommends not sending type `0x43`, sub-type `0x00` to eBGP
+peers by default. Operators can still enable it explicitly on trusted eBGP
+boundaries such as IXP route servers or adjacent ASes under common
+administration.
+
+Unlike `LOCAL_PREF` and `MULTI_EXIT_DISC`, RFC 8097 removes only `0x43/0x00`
+members inside `EXTENDED_COMMUNITIES` (code 16) across every egress rail
+(forwarded, route server fast path, originated, policy-tagged, and raw writes).
+`Session.writeUpdateBody` runs `normalizeTransmittedUpdateWith` once on the
+session's private `writeBuf` copy before ownership filtering, Adj-RIB-Out
+recording, and `DirectionSent` events:
+
+- `originValidationStateSendAllowedHeld` returns `true` on iBGP sessions
+  (including RFC 7705 Section 4.2 AS-migration iBGP via `PeerSettings.IsEBGP`)
+  and on eBGP sessions with `session { send-origin-validation-state true; }`
+  (default `false`).
+- When `false`, `compactWithoutOriginValidationState` removes every `0x43/0x00`
+  entry in place with zero heap allocations. Sibling extended communities and
+  header flags (`FlagPartial`, `FlagExtLength`) stay intact, and attribute 16
+  is omitted when `0x43/0x00` was its sole entry.
+- When `true`, `ZeroOriginValidationStateReservedBytes` zeroes Reserved octets
+  `[2..6]` in place so even raw writes satisfy RFC 8097 Section 2.
+<!-- source: internal/component/bgp/reactor/session_origin_validation.go -- originValidationStateSendAllowedTo, Session.originValidationStateSendAllowedHeld -->
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdateWith, compactWithoutOriginValidationState -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- Session.writeUpdateBody -->
+
 ## Proof
 
 | Rule | Unit | Functional | Interop |
@@ -330,6 +358,7 @@ path is removed, guarded, or proven unreachable.
 | MULTI_EXIT_DISC, the propagation rule | `forward_med_test.go`, `rfc4271_originated_med_established_test.go` | `test/plugin/med-not-propagated-across-as.ci`, `test/plugin/med-locally-set-reaches-peer.ci` | `test/interop/scenarios/bgp-med-across-as-gobgp/` |
 | MULTI_EXIT_DISC, the configured removal | `forward_med_test.go`, `filter_modify/rfc4271_modify_test.go` | `test/plugin/med-removal-configured.ci`, `test/plugin/med-removal-before-decision.ci`, `test/plugin/med-removal-export-refused.ci` | `test/interop/scenarios/bgp-med-remove-configured-gobgp/` |
 | MULTI_EXIT_DISC, IBGP post-selection preservation | `forward_med_test.go`, `rfc4271_ordinary_med_readvertisement_test.go` | `test/plugin/med-ibgp-post-selection-removal.ci` (route-server rail), `test/plugin/med-ibgp-ordinary-post-selection-removal.ci` (ordinary `bgp-rib` rail) | `test/interop/scenarios/bgp-med-ibgp-post-selection-removal-gobgp/` (route-server rail), `test/interop/scenarios/bgp-med-ibgp-ordinary-post-selection-removal-gobgp/` (ordinary `bgp-rib` rail) |
+| Origin Validation State (`0x43/0x00`), eBGP boundary | `rfc8097_origin_validation_state_test.go` | `test/plugin/rpki-ov-community-ebgp-boundary.ci` | `test/interop/scenarios/bgp-rpki-ov-ebgp-boundary-gobgp/` |
 
 Each functional test carries its confining negative in the same run: one
 UPDATE, several destinations, opposite transforms, so neither half can pass by

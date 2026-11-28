@@ -496,50 +496,183 @@ not remove existing features to improve a conformance figure.
 | RFC 8097 Section 2 (`RFC8097-2-9`, `RFC8097-2-10`) | `session send-origin-validation-state` defaults `false`; `Session.writeUpdateBody` / `normalizeTransmittedUpdateWith` strips every `0x43/0x00` on egress to an eBGP peer (removing code 16 when sole) | `session send-origin-validation-state true` sends `0x43/0x00` (with Reserved `[2..6]` zeroed) to a trusted eBGP peer; iBGP always sends when present | `TestRFC8097EgressEBGPStripsOriginValidationByDefault`, `test/plugin/rpki-ov-community-ebgp-boundary.ci`, `bgp-rpki-ov-ebgp-boundary-gobgp` | `TestRFC8097EgressIBGPAndConfiguredEBGPRetainOriginValidation`, `test/plugin/rpki-ov-community-ebgp-boundary.ci`, `bgp-rpki-ov-ebgp-boundary-gobgp` |
 | RFC 8097 Section 2 (`RFC8097-2-1`) | Reserved octets `[2..6]` zeroed on every transmitted `0x43/0x00` (including raw writes via `normalizeTransmittedUpdateWith`) | Non-`0x43/0x00` opaque extended communities (`0x43/0x01`, `0x43/0x0b`) keep all payload octets verbatim | `TestRFC8097ReservedFieldZeroOnSend`, `TestRFC8097EgressIBGPAndConfiguredEBGPRetainOriginValidation` | `TestRFC8097ReservedFieldZeroOnSend`, `TestRFC8097EgressEBGPStripsOriginValidationByDefault` |
 
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/bgp/yang/ze-bgp-conf.yang`: added `leaf send-origin-validation-state` (`boolean`, default `false`) under `grouping peer-fields / container session` beside `accept-origin-validation-state`; refreshed `internal/le/site/testdata/published-configuration.md` and `published-yang-config-tree.json`.
+- `internal/component/bgp/reactor/peer_settings.go` & `config.go`: added `SendOriginValidationState bool` to `PeerSettings`, parsed `session > send-origin-validation-state` via `configvalue.Bool` (`internal/core/configvalue`), verified restart-scoped reload in `peer_settings_reload_test.go`, and added dynamic listen-range group parity in `internal/component/bgp/config/dynamic_group_parity_test.go`.
+- `internal/component/bgp/reactor/session_origin_validation.go`: added `originValidationStateSendAllowedTo`, `sessionIsEBGPFrom` (aligning fallback to `s.settings.IsEBGP()` for RFC 7705), `sessionIsEBGPHeld`, and `originValidationStateSendAllowedHeld` (safe under `writeMu` with zero lock-order inversion).
+- `internal/component/bgp/reactor/session_egress_normalize.go` & `session_write.go`: added `normalizeTransmittedUpdateWith` and zero-alloc in-place `compactWithoutOriginValidationState` wired in `Session.writeUpdateBody` across all egress rails; strips `0x43/0x00` for default eBGP (omitting sole code 16 without skipping trailing attributes, preserving sibling RTs, `0x43/0x01`, `FlagPartial`, and `FlagExtLength`) and zeroes Reserved `[2..6]` on allowed sends without mutating shared fan-out buffers.
+- `internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go`: added `TestRFC8097EgressEBGPStripsOriginValidationByDefault` and `TestRFC8097EgressIBGPAndConfiguredEBGPRetainOriginValidation` (including zero-alloc `testing.AllocsPerRun` proof); re-sealed shifted `rfc/audit/rfc8097/RFC8097-2-{2,3,4,5}.json`.
+- `test/plugin/rpki-ov-community-ebgp-boundary.ci` + `internal/test/fixture/plugin_fixture_09*.go`: 5-peer end-to-end daemon test covering inbound and outbound defaults and independent overrides (80/80 `stress-repro` pass under load, promoted live).
+- `test/interop/scenarios/bgp-rpki-ov-ebgp-boundary-gobgp/` + `internal/le/interoplab/bgp/check_rfc8097*.go`, `register_speaker.go`, `check_special.go`, `bgp_test.go`: GoBGP + 2 raw-wire eBGP speaker oracles (`rfc8097-ebgp-strip`, `rfc8097-ebgp-optin`) Docker interop scenario (`1 passed, 0 failed`).
+- `docs/architecture/wire/attributes.md`, `docs/architecture/bgp/egress-attribute-rules.md`, `rfc/short/rfc8097.md`, `plan/journal/scoped-attribute-relayed-past-its-boundary.md`: documented RFC 8097 `0x43/0x00` boundary handling and closed the `2026-10-30` journal row.
+
+### Bugs Found/Fixed
+- Round 1 review caught `_ = json.Unmarshal(entry.Value, &ovState)` in `check_rfc8097.go` (could silently leave `ovState == 0`) and multi-ID `# RFC requirement:` tag syntax in `.ci` -> fixed with explicit error return + negative unit test (`"value":"valid"`) and single-ID tags; Round 2 CLEAN.
+- Scoped lint caught 3 minor items (`normalizeTransmittedUpdate` unused `int` return, `rfc8097BGPConfigTreeWithSend` unused param + unchecked type assertions, 5 `stringConcatSimplify` in `check_rfc8097_test.go`) -> fixed cleanly.
+
+### Documentation Updates
+- `docs/architecture/wire/attributes.md` (`Attribute Flags`, Section 16 `EXTENDED_COMMUNITY`): updated with source anchors (`ste check: OK`).
+- `docs/architecture/bgp/egress-attribute-rules.md`: added RFC 8097 eBGP boundary section and `## Proof` row (`ste check: OK`).
+- `rfc/short/rfc8097.md`: updated `Meta` for `RFC8097-2-9` and `RFC8097-2-10` (`ste check: OK`).
+- `internal/le/site/testdata/published-configuration.md` & `published-yang-config-tree.json`: updated with `send-origin-validation-state` (`TestTheConfiguration` PASS).
+
+### Deviations from Plan
+- Used two raw-wire native eBGP speaker oracles (`rfc8097-ebgp-strip` and `rfc8097-ebgp-optin`) alongside iBGP GoBGP (`ExtcommsJSON`) in `bgp-rpki-ov-ebgp-boundary-gobgp` to eliminate the GoBGP eBGP receive-strip vacuity trap completely.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | First `inject.msg` waited on an ordered `10.97.3.0/24` barrier and used off-subnet `198.51.100.1` NEXT_HOP | `ze-peer`'s `10.97.2.0/24` raced ahead on export, and one-hop eBGP rejects off-subnet NEXT_HOP per RFC 4271 §6.3 | Live Docker interop run | Set `export { final reject; }` on `ebgp-default-in`, `option=linger:value=true` in `inject.msg`, and base-network NEXT_HOP `172.30.0.9` (`AC1E0009`); scenario passed `1 passed, 0 failed` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| YANG `session > send-origin-validation-state` (default `false`) | Done | `internal/component/bgp/yang/ze-bgp-conf.yang:934-943` | Tested in `schema_test.go` + `internal/le/site/` |
+| `PeerSettings.SendOriginValidationState` + `configvalue.Bool` + reload + dynamic parity | Done | `peer_settings.go`, `config.go`, `peer_settings_reload_test.go`, `dynamic_group_parity_test.go` | Independent of `accept-origin-validation-state` |
+| Egress eBGP strip across all rails in `Session.writeUpdateBody` / `normalizeTransmittedUpdateWith` | Done | `session_origin_validation.go`, `session_egress_normalize.go`, `session_write.go` | Zero-alloc compaction; Reserved `[2..6]` zeroed on allowed sends |
+| End-to-end `.ci` functional test | Done | `test/plugin/rpki-ov-community-ebgp-boundary.ci`, `plugin_fixture_09*.go` | 80/80 `stress-repro`, live PASS (`1.4s`) |
+| GoBGP + raw-wire speaker Docker interop | Done | `test/interop/scenarios/bgp-rpki-ov-ebgp-boundary-gobgp/`, `check_rfc8097*.go` | `1 passed, 0 failed` (`6m34s`) |
+| Docs, RFC summary, re-sealed audits, journal closure | Done | `attributes.md`, `egress-attribute-rules.md`, `rfc8097.md`, `RFC8097-2-{2..5}.json`, `scoped-attribute-relayed-past-its-boundary.md` | All checked clean |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestRFC8097EgressEBGPStripsOriginValidationByDefault`, `rpki-ov-community-ebgp-boundary.ci`, `bgp-rpki-ov-ebgp-boundary-gobgp` | Mixed eBGP strip across all rails preserving sibling RTs, `0x43/0x01`, flags, NLRI |
+| AC-2 | Done | `TestRFC8097EgressEBGPStripsOriginValidationByDefault` | Sole `0x43/0x00` removes code 16 cleanly without skipping trailing attrs |
+| AC-3 | Done | `TestRFC8097EgressIBGPAndConfiguredEBGPRetainOriginValidation`, `rpki-ov-community-ebgp-boundary.ci`, `bgp-rpki-ov-ebgp-boundary-gobgp` | iBGP & opted-in eBGP retain with Reserved `[2..6]` zeroed; fan-out buffer unmutated |
+| AC-4 | Done | `TestSchemaSendOriginValidationStateDefaultsFalse`, `TestPeerSettingsEqualDetectsEachSignificantField`, `TestDynamicGroupParity`, `TestTheConfiguration` | YANG, `configvalue.Bool`, dynamic group parity, reload diff, site goldens all green |
+| AC-5 | Done | `test/plugin/rpki-ov-community-ebgp-boundary.ci` (80/80 stress + live PASS), `bgp-rpki-ov-ebgp-boundary-gobgp` (`1 passed, 0 failed`) | Full daemon inbound + outbound defaults & overrides proven |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSchemaSendOriginValidationStateDefaultsFalse` | Done | `internal/component/bgp/yang/schema_test.go` | PASS |
+| `TestPeerSettingsEqualDetectsEachSignificantField` | Done | `internal/component/bgp/reactor/peer_settings_reload_test.go` | PASS (20x `-race`) |
+| `TestDynamicGroupParity` | Done | `internal/component/bgp/config/dynamic_group_parity_test.go` | PASS |
+| `TestRFC8097EgressEBGPStripsOriginValidationByDefault` & `TestRFC8097EgressIBGPAndConfiguredEBGPRetainOriginValidation` | Done | `internal/component/bgp/reactor/rfc8097_origin_validation_state_test.go` | PASS (20x `-race`, 0 allocs) |
+| `TestRequireGoBGPRPKIOVPathsPolarity` & `TestRFC8097WireOraclesAndReportPolarity` | Done | `internal/le/interoplab/bgp/check_rfc8097_test.go` | PASS |
+| `rpki-ov-community-ebgp-boundary` | Done | `test/plugin/rpki-ov-community-ebgp-boundary.ci` | 80/80 stress + `1.4s` live PASS |
+| `bgp-rpki-ov-ebgp-boundary-gobgp` | Done | `test/interop/scenarios/bgp-rpki-ov-ebgp-boundary-gobgp/` | `1 passed, 0 failed` (`6m34s`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 19 modified + 10 created files | Done | All present and verified |
+
+### Audit Summary
+- **Total items:** 24
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Default eBGP strips `0x43/0x00` on egress across all rails while preserving sibling communities and NLRI, and independent `send-origin-validation-state` opt-in preserves `0x43/0x00` with zeroed Reserved octets | Unit (20x `-race`), functional `.ci` (80/80 stress + live), and real GoBGP + wire-speaker Docker interop | `go test -race -count=20 -run 'TestRFC8097\|TestPeerSettingsEqualDetectsEachSignificantField' ./internal/component/bgp/reactor/` (`ok 11.043s`); `./le test bgp plugin --pattern rpki-ov-community-ebgp-boundary` (`PASS 1.4s`, 80/80 `stress-repro`); `INTEROP_SCENARIO=bgp-rpki-ov-ebgp-boundary-gobgp ./le test integration interop` (`1 passed, 0 failed`, `6m34s`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | All in-scope work completed | - |
+
 ## Review Gate
 
-| Round | Scope | Reviewer | Verdict | Notes |
-|-------|-------|----------|---------|-------|
-| | | | | |
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-rpki-ov-community-ebgp-boundary-c6c30003-3333-4000-8000-000000000003.md` |
+| `./le spec review check` | `review_gate: OK` |
+| Rounds | 2 |
+| Reviewer lenses used | lock ordering (`s.mu`->`s.writeMu`), zero-alloc compaction, YANG/config/reload/dynamic parity, RFC 8097 audit/discrimination freshness, `.ci` hygiene, GoBGP/raw-wire oracle non-vacuity, docs & journal |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | `RFC8097-2-4` tags in `.ci` staled sealed MUST audit verdict and created unproven gated-MUST tag entries | `test/plugin/rpki-ov-community-ebgp-boundary.ci` | Converted inbound `RFC8097-2-4` comments to plain prose, kept clean single-ID `RFC8097-2-9`/`2-10` tags, re-sealed shifted `RFC8097-2-{2..5}.json` via `./le rfc reseal stem rfc8097` |
+| 2 | ISSUE | `_ = json.Unmarshal(entry.Value, &ovState)` discarded error and risked vacuous `0` pass | `internal/le/interoplab/bgp/check_rfc8097.go:174` | Checked and returned unmarshal error + added negative unit test in `check_rfc8097_test.go` |
+| 3 | ISSUE | Multi-ID tag lines dropped secondary IDs in `parseTagRest` | `test/plugin/rpki-ov-community-ebgp-boundary.ci:16,25` | Split to one requirement ID + polarity per line; Round 2 CLEAN |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/rpki-ov-community-ebgp-boundary.ci` | Yes | `-rw-rw-r-- 1 thomas thomas 10792 Nov 28 00:18 test/plugin/rpki-ov-community-ebgp-boundary.ci` |
+| `test/interop/scenarios/bgp-rpki-ov-ebgp-boundary-gobgp/*` | Yes | 7 files (`gobgp.toml`, `inject-args`, `inject.msg`, `speaker2-args`, `speaker-args`, `ze-peer.conf`, `ze.conf`) |
+| `internal/le/interoplab/bgp/check_rfc8097.go` & `_test.go` | Yes | `14743B` & `6505B` |
+| `internal/component/bgp/reactor/session_{origin_validation,egress_normalize,write}.go` | Yes | All present |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | Egress strip, sole-attr removal, iBGP & opted-in retention, zeroed Reserved, 0 allocs | `go test -race -count=20 ./internal/component/bgp/reactor/` (`ok 11.043s`) |
+| AC-4 | YANG leaf, `configvalue.Bool`, dynamic parity, reload, site goldens | `./le test unit pkg path ./internal/component/bgp/yang/ path ./internal/component/bgp/config/ path ./internal/le/site/` (`ok`), `./le config claims` (`OK`), `./le config coercion check` (`OK`) |
+| AC-5 | Live `.ci` + GoBGP + wire-speaker Docker interop | `./le test bgp plugin --pattern rpki-ov-community-ebgp-boundary` (`PASS 1.4s`, 80/80 stress); `INTEROP_SCENARIO=bgp-rpki-ov-ebgp-boundary-gobgp ./le test integration interop` (`1 passed, 0 failed`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze-bgp-conf.yang` -> `PeersFromTree` -> `Session.ReadAndProcess` & `Session.writeUpdateBody` | `test/plugin/rpki-ov-community-ebgp-boundary.ci` + `test/interop/scenarios/bgp-rpki-ov-ebgp-boundary-gobgp/` | Yes (both PASS) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `Session.writeUpdateBody` -> `normalizeTransmittedUpdateWith` strips `0x43/0x00` on private `s.writeBuf` across all rails with zero shared-buffer mutation |
+| A-2 | confirmed | `publishNegotiation` writes `s.negotiated` under both `s.mu` and `s.writeMu`; `sessionIsEBGPHeld()` reads safely under `writeMu` (`20x -race` clean) |
+| A-3 | confirmed | `TestRFC8097WireOraclesAndReportPolarity` + `bgp-rpki-ov-ebgp-boundary-gobgp` native speakers inspect raw wire bytes directly without GoBGP eBGP receive-strip masking |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/wire/attributes.md` & `docs/architecture/bgp/egress-attribute-rules.md` | `session_origin_validation.go`, `session_egress_normalize.go`, `session_write.go` | Yes (`ste check: OK`) |
+| `rfc/short/rfc8097.md` & `rfc/audit/rfc8097/RFC8097-2-{2..5}.json` | Re-sealed (`0 refused`) | Yes |
+| `plan/journal/scoped-attribute-relayed-past-its-boundary.md` | Row length 511 chars (`<= 600`) | Yes |
 
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
-- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
-- [ ] `ai/INDEX.md` keyword table checked
-- [ ] An `rfc/short/` summary exists for every RFC referenced
-- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
-- [ ] No code snippets
-- [ ] Files to Modify names feature code, not only tests
-- [ ] Current Behavior and Data Flow sections completed
-- [ ] AC-N rows carry testable assertions
-- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
-- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
-- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+- [x] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [x] `ai/INDEX.md` keyword table checked
+- [x] An `rfc/short/` summary exists for every RFC referenced
+- [x] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [x] No code snippets
+- [x] Files to Modify names feature code, not only tests
+- [x] Current Behavior and Data Flow sections completed
+- [x] AC-N rows carry testable assertions
+- [x] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [x] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [x] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
-- [ ] Every user story has a working path and a passing test
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
-- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
-- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
-- [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+- [x] AC-1..AC-5 all demonstrated
+- [x] Every user story has a working path and a passing test
+- [x] Wiring Test table complete: every row a concrete test name, none deferred
+- [x] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
+- [x] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [x] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [x] Architectural Verification table filled, including registration over hardcoding
+- [x] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
+- [x] Every A-N confirmed or broken, none `unvalidated`
+- [x] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
-- [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [x] Tests written
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
+- [x] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [x] Functional `.ci` tests for end-to-end behavior
+- [x] Interop tests for protocol features (or N-A with a reason)
 
 ### Closure
-- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
-- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
-- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
-- [ ] **Commit B:** `remove plan/release/fixes/spec-bgp-rpki-ov-community-ebgp-boundary.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+- [x] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [x] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [x] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [x] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [x] **Commit B:** `remove plan/release/fixes/spec-bgp-rpki-ov-community-ebgp-boundary.md` only, in the same `./le commit create` script (commit A preserves the spec in history)

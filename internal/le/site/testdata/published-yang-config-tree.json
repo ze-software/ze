@@ -3569,6 +3569,14 @@
                     "short-help": "Mark this peer as an RS-client for transparent AS-path forwarding.",
                     "source": "config",
                     "type": "boolean"
+                  },
+                  {
+                    "description": "RFC 8097 Section 2 recommends not sending the BGP Prefix Origin Validation State extended\ncommunity (type 0x43, sub-type 0x00) to an EBGP peer by default. Ze therefore strips type 0x43/0x00\nfrom every UPDATE sent to an EBGP peer that does not set this leaf. Set this leaf to true only for\na trusted EBGP peer (such as an IXP route-server client or adjacent AS under common administration)\nto send the community. Has no effect on IBGP sessions, where the community is always sent.",
+                    "kind": "leaf",
+                    "name": "send-origin-validation-state",
+                    "short-help": "Send RFC 8097 Origin Validation State extended community to this EBGP peer.",
+                    "source": "config",
+                    "type": "boolean"
                   }
                 ],
                 "description": "The container holds the ASN, the capabilities, the address families, and the\ncommunity control. A peer inherits these from its group, and a peer value overrides the group value.",
@@ -5008,6 +5016,14 @@
                 "kind": "leaf",
                 "name": "rs-client",
                 "short-help": "Mark this peer as an RS-client for transparent AS-path forwarding.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "RFC 8097 Section 2 recommends not sending the BGP Prefix Origin Validation State extended\ncommunity (type 0x43, sub-type 0x00) to an EBGP peer by default. Ze therefore strips type 0x43/0x00\nfrom every UPDATE sent to an EBGP peer that does not set this leaf. Set this leaf to true only for\na trusted EBGP peer (such as an IXP route-server client or adjacent AS under common administration)\nto send the community. Has no effect on IBGP sessions, where the community is always sent.",
+                "kind": "leaf",
+                "name": "send-origin-validation-state",
+                "short-help": "Send RFC 8097 Origin Validation State extended community to this EBGP peer.",
                 "source": "config",
                 "type": "boolean"
               }
@@ -7369,6 +7385,14 @@
                 "kind": "leaf",
                 "name": "rs-client",
                 "short-help": "Mark this peer as an RS-client for transparent AS-path forwarding.",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
+                "description": "RFC 8097 Section 2 recommends not sending the BGP Prefix Origin Validation State extended\ncommunity (type 0x43, sub-type 0x00) to an EBGP peer by default. Ze therefore strips type 0x43/0x00\nfrom every UPDATE sent to an EBGP peer that does not set this leaf. Set this leaf to true only for\na trusted EBGP peer (such as an IXP route-server client or adjacent AS under common administration)\nto send the community. Has no effect on IBGP sessions, where the community is always sent.",
+                "kind": "leaf",
+                "name": "send-origin-validation-state",
+                "short-help": "Send RFC 8097 Origin Validation State extended community to this EBGP peer.",
                 "source": "config",
                 "type": "boolean"
               }

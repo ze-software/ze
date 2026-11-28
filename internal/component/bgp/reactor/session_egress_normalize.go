@@ -1,8 +1,9 @@
-// Design: docs/architecture/wire/attributes.md -- attribute flags and LARGE_COMMUNITY on send
+// Design: docs/architecture/wire/attributes.md -- attribute flags, RFC 8097 egress strip, and LARGE_COMMUNITY on send
 // Overview: session_write.go -- writeUpdateBody, the writer every UPDATE funnels through
 // Related: session_prefix_sid.go -- clearLabelIndexTLVs, the Prefix-SID step
+// Related: session_origin_validation.go -- originValidationStateSendAllowedHeld, the RFC 8097 EBGP boundary check
 // Related: rfc8092_large_community.go -- largeCommunityRedundant, the repeat check
-// RFC: rfc/short/rfc4271.md, rfc/short/rfc8092.md, rfc/short/rfc8669.md, rfc/short/rfc8277.md
+// RFC: rfc/short/rfc4271.md, rfc/short/rfc8092.md, rfc/short/rfc8097.md, rfc/short/rfc8669.md, rfc/short/rfc8277.md
 
 package reactor
 
@@ -18,15 +19,30 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// attrFlagsUnusedMask is the lower-order four bits of the Attribute Flags octet.
-const attrFlagsUnusedMask = 0x0F
+const (
+	// attrFlagsUnusedMask is the lower-order four bits of the Attribute Flags octet.
+	attrFlagsUnusedMask = 0x0F
+	// extCommunityOctets is the RFC 4360 Section 2 wire length of one extended community.
+	extCommunityOctets = 8
+)
 
-// normalizeTransmittedUpdate applies, in one walk over the path attributes, the
-// four rules that bind what Ze transmits whatever produced the attribute: a
+// normalizeTransmittedUpdate applies normalizeTransmittedUpdateWith without
+// stripping RFC 8097 Origin Validation State extended communities (preserving
+// the non-EBGP default for direct callers and tests).
+func normalizeTransmittedUpdate(body []byte, encoding *bgpctx.EncodingContext) {
+	normalizeTransmittedUpdateWith(body, encoding, false)
+}
+
+// normalizeTransmittedUpdateWith applies, in one walk over the path attributes,
+// the rules that bind what Ze transmits whatever produced the attribute: a
 // local encoder, a policy edit, a relay of the received bytes, or a plugin's raw
-// body. It returns the body's new length; only a LARGE_COMMUNITY repeat shortens
-// it. encoding is the session's send context, read for the ADD-PATH framing of a
-// labeled MP_UNREACH_NLRI (setWithdrawalCompatibility).
+// body. It returns the body's new length; LARGE_COMMUNITY deduplication and
+// RFC 8097 EBGP stripping of 0x43/0x00 can shorten it. encoding is the session's
+// send context, read for the ADD-PATH framing of a labeled MP_UNREACH_NLRI
+// (setWithdrawalCompatibility). When stripOriginValidationState is true, every
+// RFC 8097 Origin Validation State extended community (0x43/0x00) is removed in
+// place (omitting EXTENDED_COMMUNITIES altogether when it was the sole entry);
+// when false, its Reserved octets [2..6] are zeroed in place.
 //
 // body MUST be the session's private write buffer: received bytes are shared by
 // every destination and the forward cache, and are never edited.
@@ -50,7 +66,7 @@ const attrFlagsUnusedMask = 0x0F
 //	|  Attr. Flags  |Attr. Type Code| Length (1, or 2 when Extended |
 //	|O|T|P|E|0 0 0 0|               |  Length is set)               |
 //	+---------------+---------------+---------------+---------------+
-func normalizeTransmittedUpdate(body []byte, encoding *bgpctx.EncodingContext) int {
+func normalizeTransmittedUpdateWith(body []byte, encoding *bgpctx.EncodingContext, stripOriginValidationState bool) int {
 	sections, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		return len(body)
@@ -88,6 +104,46 @@ func normalizeTransmittedUpdate(body []byte, encoding *bgpctx.EncodingContext) i
 			// RFC 8277 Section 2.4
 			setWithdrawalCompatibility(value, encoding)
 		}
+		if code == attribute.AttrExtCommunity {
+			if length%extCommunityOctets == 0 {
+				if stripOriginValidationState {
+					// RFC 8097 Section 2: "Similarly, by default, an implementation
+					// SHOULD NOT send the community to EBGP peers."
+					kept := compactWithoutOriginValidationState(value)
+					if kept < length {
+						if kept == 0 {
+							gap := header + length
+							attrEnd := attrStart + valueStart + length
+							copy(body[attrStart+pos:], body[attrEnd:end])
+							end -= gap
+							attrsLen -= gap
+							//nolint:gosec // attrsLen only shrank from a 16-bit length.
+							binary.BigEndian.PutUint16(body[attrStart-2:], uint16(attrsLen))
+							continue
+						}
+						gap := length - kept
+						valueEnd := attrStart + valueStart + length
+						copy(body[valueEnd-gap:], body[valueEnd:end])
+						end -= gap
+						attrsLen -= gap
+						length = kept
+						if header == 4 {
+							//nolint:gosec // kept is at most the received length, which fit in 16 bits.
+							binary.BigEndian.PutUint16(body[attrStart+pos+2:], uint16(kept))
+						} else {
+							//nolint:gosec // kept is at most the received length, which fit in 8 bits.
+							body[attrStart+pos+2] = byte(kept)
+						}
+						//nolint:gosec // attrsLen only shrank from a 16-bit length.
+						binary.BigEndian.PutUint16(body[attrStart-2:], uint16(attrsLen))
+					}
+				} else {
+					// RFC 8097 Section 2: "The Reserved field MUST be set to 0
+					// and ignored upon the receipt of this community."
+					attribute.ZeroOriginValidationStateReservedBytes(value)
+				}
+			}
+		}
 		if code == attribute.AttrLargeCommunity && length%largeCommunityOctets == 0 && largeCommunityRedundant(value) {
 			// RFC 8092 Section 3: "Duplicate BGP Large Community values MUST NOT
 			// be transmitted."
@@ -111,6 +167,26 @@ func normalizeTransmittedUpdate(body []byte, encoding *bgpctx.EncodingContext) i
 		pos = valueStart + length
 	}
 	return end
+}
+
+// compactWithoutOriginValidationState removes every RFC 8097 Origin Validation
+// State extended community (type 0x43, sub-type 0x00) from value in place,
+// preserving the order of all other 8-octet extended communities, and returns
+// the number of octets kept. It allocates nothing.
+func compactWithoutOriginValidationState(value []byte) int {
+	kept := 0
+	for off := 0; off+extCommunityOctets <= len(value); off += extCommunityOctets {
+		if value[off] == attribute.ExtCommTypeNonTransOpaque {
+			if value[off+1] == attribute.ExtCommSubTypeOriginValidation {
+				continue
+			}
+		}
+		if kept != off {
+			copy(value[kept:kept+extCommunityOctets], value[off:off+extCommunityOctets])
+		}
+		kept += extCommunityOctets
+	}
+	return kept
 }
 
 // compactLargeCommunities keeps the first occurrence of each 12-octet value in

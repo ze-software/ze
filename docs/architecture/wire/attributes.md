@@ -62,8 +62,10 @@ in the session's private copy of the body, the raw diagnostic write included,
 in the same walk that removes LARGE_COMMUNITY repeats, clears the Prefix-SID
 Label-Index fields, and writes 0x800000 into the Compatibility field of every
 labeled-unicast and VPN withdrawal in MP_UNREACH_NLRI (RFC 8277 Section 2.4).
+`normalizeTransmittedUpdateWith` also strips RFC 8097 `0x43/0x00` entries on
+default eBGP egress and zeroes Reserved octets `[2..6]` on allowed sends.
 No other flag bit is touched.
-<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdate -->
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdate, normalizeTransmittedUpdateWith -->
 
 ### Flag Combinations
 
@@ -594,7 +596,32 @@ RFC 4360 - Extended community values.
 | 0x01:0x02 | Route Target (IPv4) |
 | 0x06:0x00 | EVPN MAC Mobility |
 | 0x06:0x01 | EVPN ESI Label |
+| 0x43:0x00 | Origin Validation State (RFC 8097) |
 <!-- source: internal/core/bgp/attribute/community.go -- ExtendedCommunity, ExtendedCommunities -->
+
+**RFC 8097 Origin Validation State (`0x43/0x00`) eBGP boundary.** RFC 8097
+Section 2 restricts type `0x43`, sub-type `0x00` to an autonomous system by
+default, with independent operator overrides for trusted eBGP boundaries:
+
+- **Inbound:** `Session.sanitizeOriginValidationState` drops every `0x43/0x00`
+  entry from an eBGP peer unless `session accept-origin-validation-state` is
+  `true` (default `false`). It skips further validation and logs nothing for
+  dropped eBGP entries. On iBGP or opted-in eBGP sessions, it ignores Reserved
+  octets `[2..6]`, discards and logs values above `2`, and keeps the greatest
+  valid state (`2 > 1 > 0`).
+- **Outbound:** `Session.writeUpdateBody` runs `normalizeTransmittedUpdateWith`
+  on the session's private `writeBuf` copy before ownership tracking, socket
+  write, and `DirectionSent` events. When `originValidationStateSendAllowedHeld`
+  is `false` (an eBGP peer without `session send-origin-validation-state true`),
+  `compactWithoutOriginValidationState` strips every `0x43/0x00` entry in place
+  with zero allocations. Sibling extended communities and header flags
+  (`FlagPartial`, `FlagExtLength`) stay intact, and attribute 16 is omitted
+  when `0x43/0x00` was its sole entry. When allowed (iBGP or opted-in eBGP),
+  `ZeroOriginValidationStateReservedBytes` zeroes Reserved octets `[2..6]` in
+  place.
+<!-- source: internal/core/bgp/attribute/origin_validation_state.go -- SanitizeOriginValidationStateAttr, ZeroOriginValidationStateReservedBytes -->
+<!-- source: internal/component/bgp/reactor/session_origin_validation.go -- Session.sanitizeOriginValidationState, Session.originValidationStateSendAllowedHeld, originValidationStateSendAllowedTo -->
+<!-- source: internal/component/bgp/reactor/session_egress_normalize.go -- normalizeTransmittedUpdateWith, compactWithoutOriginValidationState -->
 
 The separate IPv6 extended-community attribute (code 25, RFC 5701) carries
 20-octet values. RFC 8956 Section 6.1 assigns the complete type `0x000d` to

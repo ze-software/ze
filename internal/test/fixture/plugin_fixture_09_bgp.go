@@ -133,6 +133,38 @@ func localPrefStrip09(ctx context.Context, _ []string) error {
 	})
 }
 
+func rpkiOVBoundary09(ctx context.Context, _ []string) error {
+	return observe09(ctx, "rpki-ov-boundary", func(ctx context.Context, p *sdk.Plugin) error {
+		if err := p12WaitPeersEOR(ctx, p, "ebgp-default-in", "ebgp-accept-in", "ibgp-peer", "ebgp-default-dst", "ebgp-send-dst"); err != nil {
+			return err
+		}
+		targets := []struct {
+			peer string
+			want int
+		}{
+			{peer: "ibgp-peer", want: 2},
+			{peer: "ebgp-default-dst", want: 3},
+			{peer: "ebgp-send-dst", want: 3},
+		}
+		for _, target := range targets {
+			command := "show bgp peer " + target.peer + " detail"
+			if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
+				r := dispatch09(ctx, p, command)
+				for _, row := range peerRows09(r) {
+					if number09(row["updates-sent"])-number09(row["eor-sent"]) >= target.want {
+						return true
+					}
+				}
+				return false
+			}) {
+				return fmt.Errorf("%s never received %d forwarded UPDATEs", target.peer, target.want)
+			}
+		}
+		fmt.Fprintln(os.Stderr, "OK: rpki-ov-boundary delivered all inbound and outbound control UPDATEs")
+		return nil
+	})
+}
+
 func mcpHiddenCommand09(ctx context.Context, _ []string) error {
 	registration := sdk.Registration{Commands: []sdk.CommandDecl{
 		{Name: "show mcpgate visible", ShortHelp: "visible probe command"},
