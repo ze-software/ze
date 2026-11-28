@@ -18,7 +18,10 @@ const (
 	// CodeDoctorManagedReportFailed reports a managed client that failed to
 	// collect or push a periodic fleet inventory or health report to its hub.
 	CodeDoctorManagedReportFailed = "doctor-managed-report-failed"
-	exampleShowDoctor             = "ze show doctor"
+	// CodeDoctorManagedAuditReceiptGap reports overflow loss or unreadable state
+	// in a device's offline fleet mode-change audit receipt outbox.
+	CodeDoctorManagedAuditReceiptGap = "doctor-managed-audit-receipt-gap"
+	exampleShowDoctor                = "ze show doctor"
 )
 
 // doctorDiagnosticCodes is the explanation metadata for the doctor codes this package owns.
@@ -79,7 +82,7 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"the hash of the active configuration is not the baseline in meta/managed/base-version. " +
 			"The difference can come from a local change or from a recovery that replaced the configuration. " +
 			"`show fleet status` shows both hashes.",
-		Examples:     []string{exampleShowDoctor, "ze show fleet status", "ze show diagnostic doctor-managed-diverged"},
+		Examples:     []string{exampleShowDoctor, chainDriftFix, "ze show diagnostic doctor-managed-diverged"},
 		RelatedCodes: []string{codeDoctorHubClientMissing},
 	},
 	{
@@ -90,6 +93,14 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 			"Configuration synchronization and heartbeats continue; the warning clears on the next accepted report of that kind.",
 		Examples:     []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-managed-report-failed"},
 		RelatedCodes: []string{codeHubUnreachable, CodeDoctorManagedDiverged},
+	},
+	{
+		Code:  CodeDoctorManagedAuditReceiptGap,
+		Title: "Managed client offline audit receipt outbox lost entries or cannot be read",
+		Description: "This device's bounded offline fleet mode-change audit receipt outbox (`meta/managed/audit-receipts`) exceeded 1,024 unacknowledged entries and evicted oldest receipts, or the outbox key could not be read or decoded. " +
+			"The device retains the sequence gap and lost count and reports the gap to its hub on the next authenticated reconnect.",
+		Examples:     []string{exampleShowDoctor, chainDriftFix, "ze show diagnostic doctor-managed-audit-receipt-gap"},
+		RelatedCodes: []string{codeHubUnreachable, "doctor-managed-audit-dropped"},
 	},
 }
 

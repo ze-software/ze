@@ -4752,7 +4752,9 @@ a table; `ze-managed:show-fleet-sample-series` serves `show fleet sample series`
 table; `ze-managed:show-fleet-sample-storage` serves `show fleet sample storage`
 as a document; `ze-managed:show-fleet-alarm` serves `show fleet alarm` as a
 tabulated envelope; and `ze-managed:show-fleet-alarm-history` serves
-`show fleet alarm history device <name>` as a tabulated envelope. Name
+`show fleet alarm history device <name>` as a tabulated envelope.
+`ze-managed:show-fleet-audit` serves `show fleet audit` as a table
+(`ShapeTab`). Name
 completion reads the hub's registry in memory for all four per-device commands. The device table declares the `label` pipe operation with a
 `key=value` argument; multiple label operations select rows matching every pair.
 The per-device inventory and health commands return explicit `reported`,
@@ -4779,6 +4781,7 @@ budgeting, and ranking are registered as command-specific pipe operations via
 | `show fleet sample storage` | document | (generic pipes only) | Authorizes the exact storage path before exposing hub-wide capacity, retention, and checkpoint health; filters per-device `devices` rows through the caller's local device scope. |
 | `show fleet alarm` | tab (`ShapeTab`) | `severity <level>`, `kind <kind>`, `device <name>`, `hidden <true\|false>`, `cursor <token>`, `limit <1..1024>` | Authorizes caller device scope before deriving same-device `hidden-behind` causes, filtering, counting, sorting, or issuing a snapshot-bound continuation cursor. Unfiltered returns all open alarms with `hidden-behind` on hidden rows (omitted on shown rows); `hidden true` selects hidden rows, `hidden false` selects shown rows, and other values are refused. Returns bounded pages (up to 1,024 rows) plus complete authorized `total` and severity/visibility `counts` (`visible`, `hidden`) across all pages. |
 | `show fleet alarm history device <name>` | tab (`ShapeTab`) | `cursor <token>`, `limit <1..512>` | Returns newest-first bounded pages (up to 512 events) of one authorized device's open and closed alarm episodes with derived cause-overlap fields (`hidden`, `hidden-behind`, `hidden-unknown`), `retained-since`, `truncated`, and snapshot-bound continuation cursor; refuses unauthorized or unknown devices uniformly. |
+| `show fleet audit` | tab (`ShapeTab`) | `device <name>`, `type <event-type>`, `since <RFC3339>`, `until <RFC3339>` | Scans one pinned published hub audit generation newest-first (`seq` descending). Authorizes each device through the caller's per-device scope (`show fleet device name <device>`) first, then applies exact `device`/`type` and inclusive `since`/`until` selectors. <!-- source: internal/component/managed/cmd_audit.go -- registerAuditCommands, handleFleetAudit --> |
 
 On managed devices, each feature that contributes metric readings registers a
 hidden read-only command under `show fleet source <owner>` (`host`, `iface`,

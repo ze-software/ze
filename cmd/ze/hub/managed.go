@@ -31,6 +31,9 @@ func wireManagedCommit(client *managed.ClientConfig, store storage.Storage, conf
 	if client.Chain == nil && store != nil {
 		client.Chain = managed.NewChainAccess(store)
 	}
+	if client.ReceiptStore == nil {
+		client.ReceiptStore = store
+	}
 	client.CommitOver = func(data []byte, check func(active []byte) error) error {
 		var open *confirm.Window
 		if window != nil {

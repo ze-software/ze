@@ -72,6 +72,12 @@ const (
 	CodeDoctorManagedChainDrift = "doctor-managed-chain-drift"
 	// CodeDoctorManagedChainUnreadable reports a persisted managed configuration hash chain key that could not be read or decoded.
 	CodeDoctorManagedChainUnreadable = "doctor-managed-chain-unreadable"
+	// CodeDoctorManagedAuditWriteFailed reports that persisting hub fleet audit pages or manifest failed.
+	CodeDoctorManagedAuditWriteFailed = "doctor-managed-audit-write-failed"
+	// CodeDoctorManagedAuditDropped reports that hub fleet audit events were dropped on queue saturation or a device reported a receipt outbox overflow gap.
+	CodeDoctorManagedAuditDropped = "doctor-managed-audit-dropped"
+	// CodeDoctorManagedAuditCorrupt reports unreadable hub fleet audit manifest or page keys skipped on startup load.
+	CodeDoctorManagedAuditCorrupt = "doctor-managed-audit-corrupt"
 	// CodeDoctorPluginRemovalUnrecovered is the doctor diagnostic code "doctor-plugin-removal-unrecovered".
 	CodeDoctorPluginRemovalUnrecovered = "doctor-plugin-removal-unrecovered"
 	// CodeDoctorPluginCapabilitiesNotRestored is the doctor diagnostic code "doctor-plugin-capabilities-not-restored".
@@ -342,8 +348,32 @@ var doctorDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "A persisted managed configuration hash chain key (`meta/managed/chain-state` on a client or `meta/managed/client/<name>/chain` on a hub) failed storage read, write, or JSON decoding. " +
 			"Because the stored chain head is unreadable, Ze does not treat it as absent and waits for the next successful full configuration replay to overwrite and heal it. " +
 			"Run `ze show data check` to inspect the state store for damaged keys.",
-		Examples:     []string{exampleShowDoctor, "ze show data check", "ze show diagnostic doctor-managed-chain-unreadable"},
+		Examples:     []string{exampleShowDoctor, managedChainCheckFix, "ze show diagnostic doctor-managed-chain-unreadable"},
 		RelatedCodes: []string{CodeDoctorManagedChainDrift, CodeDoctorManagedDeviceRecordUnreadable},
+	},
+	{
+		Code:  CodeDoctorManagedAuditWriteFailed,
+		Title: "Managed fleet audit log write failed",
+		Description: "The hub could not persist a batch of fleet audit pages or its manifest to the live state store. " +
+			"Configuration delivery continues without blocking and previously published audit history remains readable until a later write succeeds.",
+		Examples:     []string{exampleShowDoctor, managedChainCheckFix, "ze show diagnostic doctor-managed-audit-write-failed"},
+		RelatedCodes: []string{CodeDoctorManagedAuditDropped, CodeDoctorManagedAuditCorrupt},
+	},
+	{
+		Code:  CodeDoctorManagedAuditDropped,
+		Title: "Managed fleet audit events dropped or receipt gap reported",
+		Description: "The hub's bounded fleet audit admission queue dropped one or more events under overload, or a managed device reported an overflow gap in its offline fleet mode-change receipt outbox. " +
+			"Configuration delivery continues without blocking while evidence of the loss stays visible.",
+		Examples:     []string{exampleShowDoctor, fixShowWarnings, "ze show diagnostic doctor-managed-audit-dropped"},
+		RelatedCodes: []string{CodeDoctorManagedAuditWriteFailed, "doctor-managed-audit-receipt-gap"},
+	},
+	{
+		Code:  CodeDoctorManagedAuditCorrupt,
+		Title: "Stored managed fleet audit history cannot be read",
+		Description: "One or more persisted fleet audit manifest or page keys failed read, size, or strict JSON validation on startup load and were skipped while healthy audit pages remained readable. " +
+			"New fleet audit entries continue with strictly higher sequence numbers.",
+		Examples:     []string{exampleShowDoctor, managedChainCheckFix, "ze show diagnostic doctor-managed-audit-corrupt"},
+		RelatedCodes: []string{CodeDoctorManagedAuditWriteFailed, CodeDoctorManagedDeviceRecordUnreadable},
 	},
 	{
 		Code:  CodeDoctorPluginRemovalUnrecovered,

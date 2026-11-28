@@ -3,6 +3,7 @@ module ze-managed-cmd {
     prefix managedcmd;
     import ze-extensions { prefix ze; }
     description "Fleet commands of a managed device. Owned by the managed component, which reads the managed flag, the hub block and the baseline these commands report. See ai/rules/plugins.md.";
+    revision 2026-11-28 { description "Added show fleet audit command for querying centralized hub-side fleet audit log entries with command-specific pipe filters."; }
     revision 2026-11-27 { description "Added show fleet alarm and show fleet alarm history device commands for hub-derived open fleet alarms and bounded per-device alarm history."; }
     revision 2026-11-26 { description "Added show fleet device inventory name, show fleet device health name, show fleet health, and show fleet sample latest, series, and storage commands for managed device inventory, component health, and hub metric history."; }
     revision 2026-11-19 { description "Added show fleet status, which the caller's own process answers from the store and the daemon serves under the same path, and request fleet disable and enable, which take the device out of the fleet and put it back. Added the hub's fleet divergence commands: show fleet divergence list and name, update fleet divergence name adopt and request fleet divergence name revert, which show and resolve a managed client that holds."; }
@@ -303,6 +304,13 @@ module ze-managed-cmd {
                              ze show fleet status answers with no daemon too, and the answer
                              says whether a running daemon gave it.";
                 ze:help "Whether this device follows a hub and matches its last configuration.";
+            }
+
+            container audit {
+                config false;
+                ze:command "ze-managed:show-fleet-audit";
+                description "Show centralized hub-side fleet audit entries newest first across authorized managed devices. Narrow entries with command-specific pipe filters: device, type, since, and until.";
+                ze:help "Show centralized fleet audit log entries.";
             }
 
             container divergence {

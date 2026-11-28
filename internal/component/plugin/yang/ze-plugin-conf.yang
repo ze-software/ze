@@ -663,6 +663,20 @@ module ze-plugin-conf {
                     ze:help "Maximum closed alarm episodes retained across the hub (1..65536).";
                 }
             }
+
+            container audit {
+                description "Configures the centralized hub-side fleet audit log retention ceiling.";
+                ze:help "Managed fleet audit log retention settings.";
+
+                leaf max-entries {
+                    type uint32 {
+                        range "100..100000";
+                    }
+                    default 10000;
+                    description "Maximum number of fleet audit entries retained in the hub store before oldest entries are pruned on publication. Allowed range is 100..100000.";
+                    ze:help "Maximum retained fleet audit entries (100..100000).";
+                }
+            }
         }
     }
 }

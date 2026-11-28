@@ -1,0 +1,21 @@
+# QUESTION: Does a real ze hub record live fleet events (device.connect,
+# config.fetch, config.ack, config.push, device.disconnect), ingest and
+# deduplicate device offline mode-change receipts over fleet-audit-receipts,
+# serve show fleet audit with device/type/since pipes over SSH CLI, and preserve
+# monotonic audit sequence order across a hub restart?
+# WHY NOT A UNIT TEST: end-to-end TLS authentication, hub write-observer
+# config-changed delivery, async ZeFS page and manifest persistence on disk,
+# SSH CLI pipe dispatch, and post-restart recovery with monotonic sequence
+# continuation run through the real ze hub daemon and its disk ZeFS store.
+# VALIDATES: spec-fleet-3 AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8, AC-9,
+# AC-10, AC-12, AC-14. The fixture connects edge-01 to a real hub, verifies
+# newest-first entries and device/type/since pipes over SSH CLI, triggers a
+# config push, sends and replays a fleet-audit-receipts batch to prove
+# deduplication with actor device:edge-01, disconnects edge-01, restarts the
+# hub on the same disk store, and verifies exact preservation plus monotonic
+# sequence continuation on reconnect.
+option=storage:value=disk
+option=timeout:value=180s
+cmd=foreground:seq=1:exec=le test fixture managed/fleet-audit-log $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: fleet audit log recorded live events, filtered by device/type/since, deduplicated receipts, and survived hub restart

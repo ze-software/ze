@@ -3,6 +3,8 @@
 
 package zefs
 
+import "strings"
+
 // Registered storage keys, shared by live trees and ZeFS artifacts. Callers
 // reference these declarations instead of hardcoding registered key strings.
 var (
@@ -211,3 +213,47 @@ var (
 	KeyManagedChainState  = MustRegister(KeyEntry{Pattern: "meta/managed/chain-state", Description: "Persisted SHA-1 configuration hash chain state for a managed client (JSON)", Private: true, ValueMax: ManagedChainStateValueMax})
 	KeyManagedClientChain = MustRegister(KeyEntry{Pattern: "meta/managed/client/{name}/chain", Description: "Hub-side persisted SHA-1 configuration hash chain state for one managed client (JSON)", Private: true, ValueMax: ManagedClientChainValueMax})
 )
+
+// Per-key value byte bounds and ListKeys prefixes for the hub-side fleet audit
+// log and device-side offline mode-change receipt outbox. FleetAuditPagePrefix
+// and FleetAuditPrefix include their trailing slashes because callers enumerate
+// keys through storage.Storage.ListKeys.
+const (
+	FleetAuditManifestValueMax   = 256 << 10
+	FleetAuditPageValueMax       = 512 << 10
+	ManagedAuditReceiptsValueMax = 1536 << 10
+	ManagedAuditIntentValueMax   = 8 << 10
+
+	FleetAuditPagePrefix = "meta/fleet/audit/page/"
+	FleetAuditPrefix     = "meta/fleet/audit/"
+)
+
+// Hub-side fleet audit log and device-side receipt keys. Each key family is
+// Private and bounded by its ValueMax constant; live mutation through daemon
+// data-key commands is refused while the daemon runs. Kept in their own
+// declaration so documentation drift checks read each key group separately.
+var (
+	KeyFleetAuditManifest   = MustRegister(KeyEntry{Pattern: "meta/fleet/audit/manifest", Description: "Hub fleet audit log manifest holding immutable page references, sequence bounds, and device receipt cursors (JSON)", Private: true, ValueMax: FleetAuditManifestValueMax})
+	KeyFleetAuditPage       = MustRegister(KeyEntry{Pattern: "meta/fleet/audit/page/{page}", Description: "Immutable page of up to 128 hub fleet audit log entries (JSON)", Private: true, ValueMax: FleetAuditPageValueMax})
+	KeyManagedAuditReceipts = MustRegister(KeyEntry{Pattern: "meta/managed/audit-receipts", Description: "Bounded device-side outbox of offline fleet mode-change audit receipts awaiting hub acknowledgement (JSON)", Private: true, ValueMax: ManagedAuditReceiptsValueMax})
+	KeyManagedAuditIntent   = MustRegister(KeyEntry{Pattern: "meta/managed/audit-intent", Description: "Recoverable write intent guarding managed mode transition and audit receipt recording (JSON)", Private: true, ValueMax: ManagedAuditIntentValueMax})
+)
+
+// IsFleetAuditProtectedKey reports whether key belongs to the hub fleet audit
+// manifest, journal pages, cursors, or device-side audit receipt namespace that
+// live daemon data-key mutations must refuse.
+func IsFleetAuditProtectedKey(key string) bool {
+	if KeyFleetAuditManifest.Matches(key) {
+		return true
+	}
+	if KeyFleetAuditPage.Matches(key) {
+		return true
+	}
+	if KeyManagedAuditReceipts.Matches(key) {
+		return true
+	}
+	if KeyManagedAuditIntent.Matches(key) {
+		return true
+	}
+	return strings.HasPrefix(key, FleetAuditPrefix)
+}

@@ -28,6 +28,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -646,4 +647,53 @@ func diagnoseManagedChainDrift(state ClientState) []diagnostic.Diagnostic {
 		})
 	}
 	return diags
+}
+
+// managedAuditReceiptsDoctorCheck reports overflow gaps or unreadable state in
+// a device's offline fleet mode-change audit receipt outbox
+// (zefs.KeyManagedAuditReceipts). Registered from register.go in post-config
+// phase so `ze doctor` reports loss whether the daemon is running or stopped.
+var managedAuditReceiptsDoctorCheck = diagnostic.DoctorCheck{
+	Name:         "managed-audit-receipts",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        737,
+	Component:    doctorComponent,
+	Dependencies: []string{doctorNeedsConfigTree},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{CodeDoctorManagedAuditReceiptGap},
+	Check:        checkManagedAuditReceipts,
+}
+
+func checkManagedAuditReceipts(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	if ctx.Store == nil {
+		return nil
+	}
+	lost, gapFrom, gapTo, lastOverflowAt, unreadableErr := auditReceiptOutboxHealth(ctx.Store)
+	if unreadableErr != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     CodeDoctorManagedAuditReceiptGap,
+			Severity: diagnostic.SeverityWarning,
+			Message:  "the managed fleet audit receipt outbox (" + zefs.KeyManagedAuditReceipts.Pattern + ") could not be read or decoded: " + unreadableErr.Error(),
+			Help:     "offline fleet disable/enable receipts cannot be drained while the outbox key is unreadable",
+			Fix:      fixCheckStore,
+		}}
+	}
+	if lost == 0 {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("the managed fleet audit receipt outbox overflowed its 1024-entry ceiling and evicted ").
+		Uint(lost).Str(" offline mode-change receipt(s) (sequence gap ").
+		Uint(gapFrom).Str("..").Uint(gapTo).Byte(')')
+	if !lastOverflowAt.IsZero() {
+		message.Str(" at ").Str(lastOverflowAt.UTC().Format(time.RFC3339))
+	}
+	message.Str("; evicted receipts cannot be delivered to the hub, and the gap is reported on reconnect")
+	return []diagnostic.Diagnostic{{
+		Code:     CodeDoctorManagedAuditReceiptGap,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(),
+		Help:     "inspect local audit logs for the disconnected period and verify hub connectivity so retained receipts drain",
+		Fix:      chainDriftFix,
+	}}
 }

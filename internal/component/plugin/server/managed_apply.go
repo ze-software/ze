@@ -38,7 +38,7 @@ func cloneManagedListeners(listens []ManagedListener) []ManagedListener {
 }
 
 // ManagedListenerPlan carries the certificate resolved against the candidate
-// PKI store, optional validated history and alarm settings, and the
+// PKI store, optional validated history, alarm, and audit settings, and the
 // declarations to install after configuration promotion.
 type ManagedListenerPlan struct {
 	listens     []ManagedListener
@@ -49,19 +49,21 @@ type ManagedListenerPlan struct {
 	hasHistory  bool
 	alarms      plugin.HubAlarmsConfig
 	hasAlarms   bool
+	audit       plugin.HubAuditConfig
+	hasAudit    bool
 }
 
 // PrepareManagedListeners validates the next configuration without changing any
 // active listener, including when only the material behind a name changed.
 func (s *ManagedServer) PrepareManagedListeners(listens []ManagedListener, certificate string) (*ManagedListenerPlan, error) {
-	return s.prepareManagedListeners(listens, certificate, plugin.HubHistoryConfig{}, false, plugin.HubAlarmsConfig{}, false)
+	return s.prepareManagedListeners(listens, certificate, plugin.HubHistoryConfig{}, false, plugin.HubAlarmsConfig{}, false, plugin.HubAuditConfig{}, false)
 }
 
 // PrepareManagedListenersWithHistory validates the next listener declarations,
 // certificate, and hub metric history settings without changing any active
 // listener or running history store.
 func (s *ManagedServer) PrepareManagedListenersWithHistory(listens []ManagedListener, certificate string, history plugin.HubHistoryConfig) (*ManagedListenerPlan, error) {
-	return s.prepareManagedListeners(listens, certificate, history, true, plugin.HubAlarmsConfig{}, false)
+	return s.prepareManagedListeners(listens, certificate, history, true, plugin.HubAlarmsConfig{}, false, plugin.HubAuditConfig{}, false)
 }
 
 // PrepareManagedListenersWithHistoryAndAlarms validates the next listener
@@ -73,7 +75,21 @@ func (s *ManagedServer) PrepareManagedListenersWithHistoryAndAlarms(
 	history plugin.HubHistoryConfig,
 	alarms plugin.HubAlarmsConfig,
 ) (*ManagedListenerPlan, error) {
-	return s.prepareManagedListeners(listens, certificate, history, true, alarms, true)
+	return s.prepareManagedListeners(listens, certificate, history, true, alarms, true, plugin.HubAuditConfig{}, false)
+}
+
+// PrepareManagedListenersWithHistoryAlarmsAndAudit validates the next listener
+// declarations, certificate, hub metric history settings, hub alarm settings,
+// and hub fleet audit retention settings without changing any active listener
+// or running store.
+func (s *ManagedServer) PrepareManagedListenersWithHistoryAlarmsAndAudit(
+	listens []ManagedListener,
+	certificate string,
+	history plugin.HubHistoryConfig,
+	alarms plugin.HubAlarmsConfig,
+	audit plugin.HubAuditConfig,
+) (*ManagedListenerPlan, error) {
+	return s.prepareManagedListeners(listens, certificate, history, true, alarms, true, audit, true)
 }
 
 func (s *ManagedServer) prepareManagedListeners(
@@ -83,6 +99,8 @@ func (s *ManagedServer) prepareManagedListeners(
 	hasHistory bool,
 	alarms plugin.HubAlarmsConfig,
 	hasAlarms bool,
+	audit plugin.HubAuditConfig,
+	hasAudit bool,
 ) (*ManagedListenerPlan, error) {
 	if hasHistory {
 		history = normalizeHistoryConfig(history)
@@ -99,6 +117,12 @@ func (s *ManagedServer) prepareManagedListeners(
 	if hasAlarms {
 		alarms = normalizeAlarmsConfig(alarms)
 		if err := plugin.ValidateHubAlarmsConfig(alarms); err != nil {
+			return nil, err
+		}
+	}
+	if hasAudit {
+		audit = normalizeAuditConfig(audit)
+		if err := plugin.ValidateHubAuditConfig(audit); err != nil {
 			return nil, err
 		}
 	}
@@ -123,6 +147,8 @@ func (s *ManagedServer) prepareManagedListeners(
 		hasHistory:  hasHistory,
 		alarms:      alarms,
 		hasAlarms:   hasAlarms,
+		audit:       audit,
+		hasAudit:    hasAudit,
 	}, nil
 }
 
@@ -294,6 +320,13 @@ func (s *ManagedServer) ApplyManagedListeners(plan *ManagedListenerPlan) {
 		s.alarms.SyncDeclarations(declaredSet)
 		if s.history != nil {
 			s.alarms.OnHistoryHealth(s.history.HealthSnapshot(s.currentTime()))
+		}
+	}
+	if s.audit != nil {
+		if plan.hasAudit {
+			if err := s.audit.SetMaxEntries(plan.audit.MaxEntries); err != nil {
+				managedLogger().Warn("failed to update fleet audit retention ceiling", "code", CodeDoctorManagedAuditWriteFailed, "error", err)
+			}
 		}
 	}
 

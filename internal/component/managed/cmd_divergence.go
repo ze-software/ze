@@ -80,6 +80,10 @@ type DivergenceTarget struct {
 	// its configuration changed, so it fetches. Revert calls it after storing
 	// its decision, because it writes no client-<name>.conf.
 	NotifyConfigChanged func(name string)
+	// RecordAudit optionally publishes a fleet audit entry to the running hub's
+	// non-blocking audit log. Nil disables audit recording (used by unit tests
+	// that do not attach a hub audit store).
+	RecordAudit func(pluginserver.FleetAuditEntry) bool
 }
 
 // divergenceTarget holds the target while the daemon's managed server runs.
@@ -142,6 +146,19 @@ func handleDivergenceRevert(cmdCtx *pluginserver.CommandContext, validated comma
 	reverted, refusal := revertHeld(target.Store, target.ServesClient, client, version, hubVersion, user, time.Now())
 	if refusal != nil {
 		return plugin.OperatorErrorResponse(refusal), nil
+	}
+	if target.RecordAudit != nil {
+		actor, surface := divergenceAuditContext(cmdCtx)
+		target.RecordAudit(pluginserver.FleetAuditEntry{
+			Type:            pluginserver.FleetAuditDivergenceRevert,
+			Device:          client,
+			Actor:           actor,
+			Surface:         surface,
+			Outcome:         auditReceiptOutcomeSuccess,
+			Version:         reverted.HubVersion,
+			PreviousVersion: reverted.DeviceVersion,
+			Metadata:        map[string]string{"winner": "hub"},
+		})
 	}
 	// The decision writes no client-<name>.conf, so the store's write
 	// observer tells the client nothing: it is told here. A client that is
@@ -407,7 +424,7 @@ type divergenceAdopted struct {
 // handleDivergenceAdopt answers `update fleet divergence name <client> adopt
 // version <hash>` in the daemon. It acts on the store handle the daemon owns,
 // so the write observer of the hub's managed server tells the client.
-func handleDivergenceAdopt(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleDivergenceAdopt(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	client, version, refusal := adoptArgs(validated)
 	if refusal != nil {
 		return plugin.OperatorErrorResponse(refusal), nil
@@ -424,7 +441,37 @@ func handleDivergenceAdopt(_ *pluginserver.CommandContext, validated command.Val
 	if refusal != nil {
 		return plugin.OperatorErrorResponse(refusal), nil
 	}
+	if target.RecordAudit != nil {
+		actor, surface := divergenceAuditContext(cmdCtx)
+		target.RecordAudit(pluginserver.FleetAuditEntry{
+			Type:    pluginserver.FleetAuditDivergenceAdopt,
+			Device:  client,
+			Actor:   actor,
+			Surface: surface,
+			Outcome: auditReceiptOutcomeSuccess,
+			Version: adopted.DeviceVersion,
+			Metadata: map[string]string{
+				"winner": "device",
+				"stamp":  adopted.Stamp,
+			},
+		})
+	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: adopted}, nil
+}
+
+func divergenceAuditContext(cmdCtx *pluginserver.CommandContext) (actor, surface string) {
+	actor = auditReceiptDefaultActor
+	surface = "system"
+	if cmdCtx == nil {
+		return actor, surface
+	}
+	if cmdCtx.Username != "" {
+		actor = cmdCtx.Username
+	}
+	if cmdCtx.Surface != "" {
+		surface = cmdCtx.Surface
+	}
+	return actor, surface
 }
 
 // updateDivergenceAdoptLocal is `ze update fleet divergence name <client>

@@ -227,7 +227,7 @@ command first and a page second.
   → Constraint: the event stream carries no data of the estate; each event names the stale regions
 - [ ] `plan/post-release/features/spec-fleet-ui-2-estate-tree-and-device-tables.md` - "Moved from fleet-1 (owner ruling 2026-11-23)", "The fleet interface parts after the split": `ActivityPart`, `EventPart`, `SettingsPart` (the section moved there from `fleet-1` by the owner ruling of 2026-11-23)
   → Constraint: the part's methods, arguments and bounds stay as `fleet-ui-2` fixes them
-- [ ] `plan/post-release/features/spec-fleet-3-audit-trail.md` - the permanent record a task links to
+- [ ] `docs/architecture/fleet-config.md`, "Fleet audit trail", and `docs/guide/audit.md` (`spec-fleet-3-audit-trail`, closed 2026-11-28) - the permanent record a task links to
 
 **Key insights:**
 - The prototype (`fleet-ui-1`) already draws every page, panel, toast and the event stream over the sample source; this spec answers them for real.
@@ -271,7 +271,7 @@ command first and a page second.
 | The alarm tab registry | `internal/component/web/fleetui/handler_alarms.go` `mustRegisterAlarmTab`, filled by `register_activity_pages.go` `registerAlarmTabs` | Maps a kind's name to the device tab where it is examined | Extends: unchanged; a kind with no entry links the device's dashboard |
 | The sample alarms | `internal/component/web/fleetui/sample/activity.go` `alarmRows`, `alarmsAt` | Twelve open alarms and a script in which a device goes offline and comes back | Extends: the sample answers the hidden-behind fact for its rows, so the prototype shows the hidden form and a browser test can step through it (moved from `fleet-ui-8`) |
 | Runtime state store | `internal/core/statestore`, keys in `pkg/zefs/keys.go` (`ai/doors/core.md`) | The daemon's one store for runtime state | Extends: persist each task before dispatch and persist per-device completion before publishing progress |
-| The audit trail | `plan/post-release/features/spec-fleet-3-audit-trail.md`; `TaskDetail.AuditIDs`, `AuditEntry.TaskID` | Planned: the permanent record of who did what. The page types already link a task and its audit entries both ways | Extends: keep task progress separately from the audit, link each authorized entry by its stable ID, and expose an unavailable link when the optional audit owner is absent |
+| The audit trail | `docs/architecture/fleet-config.md`, "Fleet audit trail", and `docs/guide/audit.md` (`spec-fleet-3-audit-trail`, closed 2026-11-28); `TaskDetail.AuditIDs`, `AuditEntry.TaskID` | Implemented: the permanent record of who did what. The page types already link a task and its audit entries both ways | Extends: keep task progress separately from the audit, link each authorized entry by its stable ID, and expose an unavailable link when the optional audit owner is absent |
 | Dashboard counts and device rows | `DeriveDevices`, `Figures`, `TopAlarms`, `alarmsCardView` and `devicesAlarmRows` in the fleet UI | Derive device and estate displays from source facts | Feed the same authorized, visibility-filtered rows into the card, the badge and its link. |
 | Task panel and stream settings | `taskPanelTab`, `Settings` and `Feed.Subscribe` in the fleet UI | The panel selects active and completed tasks. The feed currently checks a fixed subscription limit. | Use the same durable task results as the task page, and honor the configured stream limit at subscription. A full stream pool still permits ordinary page reads. |
 

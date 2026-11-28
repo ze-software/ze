@@ -9,8 +9,10 @@ package fleet
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -33,6 +35,9 @@ const (
 	// VerbSampleReport is sent by a managed client to push its periodic fixed
 	// set of scalar metric readings to its hub.
 	VerbSampleReport = "sample-report"
+	// VerbFleetAuditReceipts is sent by a managed client to deliver locally
+	// recorded offline fleet mode-change audit receipts to its hub.
+	VerbFleetAuditReceipts = "fleet-audit-receipts"
 )
 
 // Fetch delivery modes, resync requests, and rejection classifications carried
@@ -201,3 +206,169 @@ func BoundAckError(text string) string {
 // other code, or none, is a hub that does not take config-held at all: a hub
 // built before the verb answers it as an unknown method.
 const HeldRefusedCode = "config-held-refused"
+
+// Bounds and action identifiers for device-side offline fleet audit receipts
+// delivered over VerbFleetAuditReceipts.
+const (
+	FleetAuditReceiptsOutboxMax    = 1024
+	FleetAuditReceiptsBatchMax     = 32
+	FleetAuditReceiptEntryBytesMax = 1024
+	FleetAuditReceiptBatchBytesMax = 64 << 10
+	FleetAuditReceiptAckBytesMax   = 4 << 10
+	FleetAuditReceiptEpochMax      = 64
+	FleetAuditReceiptActorMax      = 128
+	FleetAuditReceiptSurfaceMax    = 32
+
+	FleetAuditReceiptActionDisable = "fleet.disable"
+	FleetAuditReceiptActionEnable  = "fleet.enable"
+
+	fleetAuditReceiptOutcomeSuccess = "success"
+)
+
+// AuditReceiptEntry is one locally observed fleet mode transition recorded by a
+// managed device in its durable receipt outbox for later delivery to the hub.
+type AuditReceiptEntry struct {
+	Seq     uint64    `json:"seq"`
+	Action  string    `json:"action"`
+	Actor   string    `json:"actor"`
+	Surface string    `json:"surface"`
+	EventAt time.Time `json:"event-at"`
+	Outcome string    `json:"outcome"`
+}
+
+// Validate checks every field and the serialized byte bound of an
+// AuditReceiptEntry.
+func (e AuditReceiptEntry) Validate() error {
+	if e.Seq == 0 {
+		return errors.New("fleet: audit receipt seq must be positive")
+	}
+	switch e.Action {
+	case FleetAuditReceiptActionDisable, FleetAuditReceiptActionEnable:
+	default:
+		return fmt.Errorf("fleet: invalid audit receipt action %q", e.Action)
+	}
+	if e.EventAt.IsZero() {
+		return errors.New("fleet: audit receipt event-at must be set")
+	}
+	if e.Outcome != fleetAuditReceiptOutcomeSuccess {
+		return fmt.Errorf("fleet: invalid audit receipt outcome %q", e.Outcome)
+	}
+	if !validBoundedPrintable(e.Actor, FleetAuditReceiptActorMax) {
+		return errors.New("fleet: audit receipt actor must be non-empty printable UTF-8 within 128 bytes")
+	}
+	if !validBoundedPrintable(e.Surface, FleetAuditReceiptSurfaceMax) {
+		return errors.New("fleet: audit receipt surface must be non-empty printable UTF-8 within 32 bytes")
+	}
+	raw, err := json.Marshal(e)
+	if err != nil {
+		return fmt.Errorf("fleet: marshal audit receipt entry: %w", err)
+	}
+	if len(raw) > FleetAuditReceiptEntryBytesMax {
+		return fmt.Errorf("fleet: audit receipt entry exceeds %d bytes (%d)", FleetAuditReceiptEntryBytesMax, len(raw))
+	}
+	return nil
+}
+
+// AuditReceiptBatch is the request payload of VerbFleetAuditReceipts carrying
+// an ordered slice of device-side audit receipts and optional overflow-gap
+// accounting for one persistent device epoch.
+type AuditReceiptBatch struct {
+	Epoch   string              `json:"epoch"`
+	Entries []AuditReceiptEntry `json:"entries,omitempty"`
+	Lost    uint64              `json:"lost,omitempty"`
+	GapFrom uint64              `json:"gap-from,omitempty"`
+	GapTo   uint64              `json:"gap-to,omitempty"`
+}
+
+// Validate checks epoch syntax, batch size limits, overflow-gap consistency,
+// strictly increasing entry sequences, and every contained entry.
+func (b AuditReceiptBatch) Validate() error {
+	if !validAuditReceiptEpoch(b.Epoch) {
+		return errors.New("fleet: audit receipt epoch must be non-empty printable ASCII without whitespace within 64 bytes")
+	}
+	if len(b.Entries) > FleetAuditReceiptsBatchMax {
+		return fmt.Errorf("fleet: audit receipt batch exceeds %d entries (%d)", FleetAuditReceiptsBatchMax, len(b.Entries))
+	}
+	if b.Lost == 0 {
+		if b.GapFrom != 0 {
+			return errors.New("fleet: audit receipt gap-from requires lost > 0")
+		}
+		if b.GapTo != 0 {
+			return errors.New("fleet: audit receipt gap-to requires lost > 0")
+		}
+		if len(b.Entries) == 0 {
+			return errors.New("fleet: audit receipt batch must contain entries or a declared loss gap")
+		}
+	} else {
+		if b.GapFrom == 0 {
+			return errors.New("fleet: audit receipt gap-from must be positive when lost > 0")
+		}
+		if b.GapTo < b.GapFrom {
+			return errors.New("fleet: audit receipt gap-to must be >= gap-from when lost > 0")
+		}
+		if len(b.Entries) > 0 {
+			if b.Entries[0].Seq <= b.GapTo {
+				return errors.New("fleet: audit receipt first entry seq must follow gap-to")
+			}
+		}
+	}
+	var prevSeq uint64
+	for i := range b.Entries {
+		entry := b.Entries[i]
+		if err := entry.Validate(); err != nil {
+			return fmt.Errorf("entry %d: %w", i, err)
+		}
+		if i > 0 {
+			if entry.Seq <= prevSeq {
+				return fmt.Errorf("fleet: audit receipt entries must have strictly increasing seq (got %d after %d)", entry.Seq, prevSeq)
+			}
+		}
+		prevSeq = entry.Seq
+	}
+	return nil
+}
+
+// AuditReceiptAck is the hub's response payload for VerbFleetAuditReceipts
+// acknowledging the highest contiguous device receipt sequence durably
+// committed for Epoch.
+type AuditReceiptAck struct {
+	Epoch     string `json:"epoch"`
+	Committed uint64 `json:"committed"`
+}
+
+func validAuditReceiptEpoch(epoch string) bool {
+	if epoch == "" {
+		return false
+	}
+	if len(epoch) > FleetAuditReceiptEpochMax {
+		return false
+	}
+	for i := range len(epoch) {
+		ch := epoch[i]
+		if ch < 0x21 {
+			return false
+		}
+		if ch > 0x7e {
+			return false
+		}
+	}
+	return true
+}
+
+func validBoundedPrintable(text string, maxBytes int) bool {
+	if text == "" {
+		return false
+	}
+	if len(text) > maxBytes {
+		return false
+	}
+	if !utf8.ValidString(text) {
+		return false
+	}
+	for _, r := range text {
+		if !unicode.IsPrint(r) {
+			return false
+		}
+	}
+	return true
+}

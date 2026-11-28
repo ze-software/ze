@@ -8,6 +8,7 @@
 // Related: cmd_reports.go -- the hub device inventory, health, and estate summary commands
 // Related: cmd_history.go -- the hub metric history query commands and pipe filters
 // Related: cmd_alarms.go -- the hub open alarm and alarm history query commands and pipe filters
+// Related: cmd_audit.go -- the hub fleet audit log query command and pipe filters
 // Related: alarm_resync.go -- registers the config-resync-failed hub alarm kind
 
 package managed
@@ -68,6 +69,7 @@ func init() {
 	})
 	registerHistoryCommands()
 	registerAlarmCommands()
+	registerAuditCommands()
 	registerResyncFailedAlarm()
 
 	for _, check := range []diagnostic.DoctorCheck{
@@ -78,6 +80,7 @@ func init() {
 		hubSessionDoctorCheck,
 		managedChainDoctorCheck,
 		managedChainDriftDoctorCheck,
+		managedAuditReceiptsDoctorCheck,
 	} {
 		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
 			panic("BUG: managed doctor check registration refused: " + err.Error())

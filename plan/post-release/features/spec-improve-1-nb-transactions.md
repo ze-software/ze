@@ -44,7 +44,7 @@ SetResponse extension mechanism where it fits. No new custom proto.
   → Constraint: rollback-to-transaction must reuse the commit path, not write files directly
 - [ ] `ai/rules/cli.md` - keywords before values for new CLI verbs
   → Constraint: (fill during design)
-- [ ] `plan/post-release/features/spec-fleet-3-audit-trail.md` - hub-side audit trail spec; overlap check
+- [ ] `docs/architecture/fleet-config.md`, "Fleet audit trail", and `docs/guide/audit.md` (`spec-fleet-3-audit-trail`, closed 2026-11-28) - hub-side audit trail; overlap check
   → Decision: (fill during design -- transaction records are the device-local half of an audit story)
 
 ### RFC Summaries (MUST for protocol work)

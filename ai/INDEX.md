@@ -624,6 +624,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
 | fleet drift, hash chain, SHA-1 chain, diff resync, FoldFull, FoldDiff, ComputeDiff, ApplyDiff, config-resync-failed, doctor-managed-chain-drift, doctor-managed-chain-unreadable | `docs/architecture/fleet-config.md` (Configuration hash chain and diff-based resync), `docs/architecture/fleet-alarms.md`, `pkg/fleet/chain.go`, `pkg/fleet/diff.go`, `internal/component/managed/chain.go`, `internal/component/plugin/server/managed_chain.go` |
 | fleet alarms, show fleet alarm, show fleet alarm history, ManagedAlarmStore, AlarmKindRegistry, bus hub alarms | `docs/architecture/fleet-alarms.md`, `internal/component/plugin/server/managed_alarms.go`, `internal/component/managed/cmd_alarms.go` |
+| fleet audit, show fleet audit, ManagedAuditStore, bus hub audit, fleet-audit-receipts, doctor-managed-audit-write-failed, doctor-managed-audit-dropped, doctor-managed-audit-corrupt, doctor-managed-audit-receipt-gap | `docs/architecture/fleet-config.md`, `docs/guide/audit.md`, `docs/architecture/zefs-format.md`, `internal/component/plugin/server/audit.go`, `internal/component/managed/cmd_audit.go`, `internal/component/managed/audit_receipts.go` |
 | fleet interface, /fleet/, fleetui, estate page, sample estate, ze_fleet_ui, ze_fleet_ui_sample, review build | `fleet-interface.md`, `internal/component/web/fleetui/` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |

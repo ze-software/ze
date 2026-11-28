@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry") |
 | Phase | 3/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
-| Updated | 2026-11-25 |
+| Updated | 2026-11-28 |
 
 ## Post-Compaction Recovery
 
@@ -178,21 +178,21 @@ A producer added later (templates, rollout or relay) registers its structured fl
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Fleet operation to Audit | Audit.Append() call after operation | [ ] |
-| Audit to ZeFS | Publish a durable bounded history generation | [ ] |
-| Audit to CLI/Web | Query API with filters | [ ] |
+| Fleet operation to Audit | `ManagedServer.RecordAudit` -> `ManagedAuditStore.Append` non-blocking enqueue | [x] |
+| Audit to ZeFS | Immutable pages (`meta/fleet/audit/page/{page}`) + atomic manifest (`meta/fleet/audit/manifest`) | [x] |
+| Audit to CLI/Web | `show fleet audit` (`ze-managed:show-fleet-audit`) with `device`/`type`/`since`/`until` pipes and `FleetDeviceScope` | [x] |
 
 ### Integration Points
-- `ManagedConfigService` -- audit calls in ConfigReader, HandleConfigFetch and BuildConfigChanged; managed_serve.go owns session admission and disconnect
-- `DeviceRegistry` from fleet-1 -- device context for audit entries
-- CLI -- `show fleet audit` command family
-- Web -- audit log table on fleet page
+- `ManagedConfigService` -- audit calls in `managed_serve.go`, `managed_registry.go`, `managed_held.go`, `cmd_divergence.go`, and `cmd_fleet.go`
+- `DeviceRegistry` from fleet-1 -- device context and per-device authorization scope
+- CLI -- `show fleet audit` command family across CLI, SSH, REST, gRPC, MCP, and web command surfaces
+- Web -- Fleet UI-6 consumes the same authorized query contract
 
 ### Architectural Verification
-- [ ] No bypassed layers (audit hooks into existing operation path)
-- [ ] No unintended coupling (audit is append-only observer; removal has no functional impact)
-- [ ] No duplicated functionality (separate from config archive)
-- [ ] Zero-copy preserved where applicable
+- [x] No bypassed layers (audit hooks into existing operation paths)
+- [x] No unintended coupling (audit is non-blocking append-only observer; failures never stall config delivery)
+- [x] No duplicated functionality (separate from config archive and local JSONL audit)
+- [x] Zero-copy and bounded allocations preserved (pinned generations, pre-decode byte bounds)
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -229,18 +229,18 @@ A producer added later (templates, rollout or relay) registers its structured fl
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAuditLogAppend` | `internal/component/plugin/server/audit_test.go` | Entry appended and retrievable | |
-| `TestAuditLogPersist` | `internal/component/plugin/server/audit_test.go` | Entries survive restart from the live store | |
-| `TestAuditLogFilterDevice` | `internal/component/plugin/server/audit_test.go` | Filter by device name | |
-| `TestAuditLogFilterType` | `internal/component/plugin/server/audit_test.go` | Filter by event type | |
-| `TestAuditLogFilterSince` | `internal/component/plugin/server/audit_test.go` | Filter by timestamp | |
-| `TestAuditLogPrune` | `internal/component/plugin/server/audit_test.go` | Oldest entries pruned at max capacity | |
-| `TestAuditLogAsyncNonBlocking` | `internal/component/plugin/server/audit_test.go` | Append does not block caller | |
+| `TestAuditLogAppend` | `internal/component/plugin/server/audit_test.go` | Entry appended and retrievable | PASS |
+| `TestAuditLogPersist` | `internal/component/plugin/server/audit_test.go` | Entries survive restart from the live store | PASS |
+| `TestAuditLogFilterDevice` | `internal/component/plugin/server/audit_test.go` | Filter by device name | PASS |
+| `TestAuditLogFilterType` | `internal/component/plugin/server/audit_test.go` | Filter by event type | PASS |
+| `TestAuditLogFilterSince` | `internal/component/plugin/server/audit_test.go` | Filter by timestamp | PASS |
+| `TestAuditLogPrune` | `internal/component/plugin/server/audit_test.go` | Oldest entries pruned at max capacity | PASS |
+| `TestAuditLogAsyncNonBlocking` | `internal/component/plugin/server/audit_test.go` | Append does not block caller | PASS |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `fleet-audit-log` | `test/managed/fleet-audit-log.ci` | Device connects, fetches config, disconnects; all events in audit log | |
+| `fleet-audit-log` | `test/managed/fleet-audit-log.ci` | Device connects, fetches config, disconnects; all events in audit log | PASS |
 
 ## Files to Modify
 - `internal/component/plugin/server/managed_serve.go` — observe authenticated sessions, offers and acknowledgements and accept receipt batches
@@ -315,45 +315,237 @@ The choices in the Task are settled. No further operator decision is needed for 
 | Information leakage | Audit entries do not contain config content or secrets; only version hashes |
 | Resource exhaustion | Max entries bounded; pruning prevents unbounded growth |
 
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **ZeFS namespace & live-mutation protection** (`pkg/zefs/keys.go`, `pkg/zefs/keys_test.go`, `internal/component/config/storage/cli/data_rpc.go`, `data_rpc_test.go`, `data_rpc_update_test.go`): registered `KeyFleetAuditManifest`, `KeyFleetAuditPage`, `KeyManagedAuditReceipts`, and `KeyManagedAuditIntent` with explicit `Private: true` and `ValueMax` ceilings, plus `IsFleetAuditProtectedKey`. `handleDataKeyDelete` and `handleDataKeyUpdate` refuse direct live mutation of all four key families and any key under `meta/fleet/audit/`.
+- **Wire envelope for offline device receipts** (`pkg/fleet/envelope.go`, `pkg/fleet/envelope_test.go`): added `VerbFleetAuditReceipts` (`fleet-audit-receipts`), `AuditReceiptEntry`, `AuditReceiptBatch`, and `AuditReceiptAck` with explicit bounds (`FleetAuditReceiptsOutboxMax = 1024`, `FleetAuditReceiptsBatchMax = 32`, `FleetAuditReceiptEntryBytesMax = 1024`, `FleetAuditReceiptBatchBytesMax = 64 KiB`, `FleetAuditReceiptAckBytesMax = 4 KiB`) and strict validation.
+- **YANG configuration & live reload** (`internal/component/plugin/yang/ze-plugin-conf.yang`, `internal/component/plugin/types.go`, `internal/component/config/loader_extract.go`, `hub_audit_config_test.go`, `internal/component/plugin/server/managed_apply.go`, `cmd/ze/hub/managed_server.go`): added `bus hub audit max-entries` (`100..100000`, default `10000`), `HubAuditConfig` / `ValidateHubAuditConfig`, `extractHubAuditConfig`, and `PrepareManagedListenersWithHistoryAlarmsAndAudit` + `ApplyManagedListeners` live ceiling updates.
+- **Centralized hub audit store & live producers** (`internal/component/plugin/server/audit.go`, `audit_test.go`, `audit_wiring_test.go`, `managed_serve.go`, `managed_registry.go`, `managed_held.go`, `cmd/ze/hub/main.go`, `internal/component/managed/cmd_divergence.go`): implemented `ManagedAuditStore` with a single long-lived async writer goroutine draining a bounded 1,024-entry queue into immutable 128-entry pages + atomic manifest, generation-pinned concurrent readers, orphan/obsolete page GC, startup corrupt-key recovery, per-device receipt deduplication across lost acks and retention pruning, and live event hooks for `device.connect`, `device.disconnect`, `config.fetch`, `config.push`, `config.ack`, `config.reject` (safe enum classification, never raw peer errors), `config.held`, `divergence.adopt`, `divergence.revert`, `fleet.disable`, `fleet.enable`, and `fleet.receipt.gap`.
+- **Device-side offline receipt outbox & recoverable write intent** (`internal/component/managed/audit_receipts.go`, `audit_receipts_test.go`, `cmd_fleet.go`, `client.go`, `cmd/ze/hub/managed.go`): guarded `request fleet disable` and `request fleet enable` (running daemon and stopped store) under `executeManagedModeChange` and `recoverAuditReceiptIntent`, storing receipts in `meta/managed/audit-receipts` (max 1,024 with overflow gap tracking) and draining batches on authenticated reconnect via `drainAuditReceipts` with backward compatibility for older hubs returning `unknown method`.
+- **Authorized query command & pipes** (`internal/component/managed/yang/ze-managed-cmd.yang`, `internal/component/managed/cmd_audit.go`, `cmd_audit_test.go`, `register.go`, `internal/component/plugin/all/testdata/wire-methods.snapshot`): registered `show fleet audit` (`ze-managed:show-fleet-audit`, `ShapeTab`) with command-specific pipes `device`, `type`, `since`, and `until`, enforcing per-device `FleetDeviceScope` authorization (`show fleet device name <device>`) with per-query caching before predicates.
+- **Runtime and post-config doctor checks** (`internal/component/plugin/server/managed_doctor.go`, `doctor_codes.go`, `internal/component/plugin/doctor/check_managed_runtime.go`, `check_managed_runtime_test.go`, `register_external.go`, `internal/component/managed/doctor.go`, `register_doctor_codes.go`): registered `doctor-managed-audit-write-failed`, `doctor-managed-audit-dropped`, `doctor-managed-audit-corrupt`, and `doctor-managed-audit-receipt-gap`.
+- **End-to-end functional test & news fragment** (`test/managed/fleet-audit-log.ci`, `internal/test/fixture/misc_fixture_managed_fleet_audit.go`, `register_managed_fleet_audit.go`, `website/changes/fragments/fleet-3-audit-trail.md`).
+
+### Bugs Found/Fixed
+- **Run 1 BLOCKER 1 (`wire-methods.snapshot`):** added `ze-managed:show-fleet-audit` in sorted order; covered by `TestRegisteredWireMethods`.
+- **Run 1 BLOCKER 2 (pre-decode byte bounds):** added `FleetAuditReceiptBatchBytesMax` (64 KiB) check before `json.NewDecoder` in `ManagedServer.handleFleetAuditReceipts` and `FleetAuditReceiptAckBytesMax` (4 KiB) check in `decodeAuditReceiptAck`; covered by `TestManagedServerAuditReceiptsRejectsOversizedPayload` and `TestAuditReceiptAckRejectsOversizedPayload`.
+- **Run 1 ISSUE 3 (32-bit `strconv.Atoi` allowlist):** switched `extractHubAuditConfig` to 64-bit `strconv.ParseInt` with `[math.MinInt32, math.MaxInt32]` clamp; covered by `TestExtractHubConfigAudit` and `./le repo check`.
+- **Run 1 ISSUE 4 (missing hub runtime doctor unit tests):** added `TestCheckManagedAuditWrite`, `TestCheckManagedAuditDropped`, and `TestCheckManagedAuditCorrupt` in `internal/component/plugin/doctor/check_managed_runtime_test.go`.
+- **Run 1 ISSUE 5 (missing discovery docs):** added `show fleet audit` entries and source anchors to `ai/INDEX.md`, `docs/guide/command-reference.md`, and `docs/architecture/api/commands.md`.
+- **Run 1 ISSUE 6 (unnecessary exports in `audit_receipts.go`):** unexported `recoverAuditReceiptIntent`, `executeManagedModeChange`, `drainAuditReceipts`, and `auditReceiptOutboxHealth` and updated callers and doc anchors.
+- **Run 1 ISSUE 7 (shared dirty `internal/component/plugin/types.go`):** isolated only the `HubAuditConfig` hunk into `tmp/fleet3-types.patch` for `hunks` recording and Commit A.
+
+### Documentation Updates
+- `docs/architecture/zefs-format.md`: documented `KeyFleetAuditManifest`, `KeyFleetAuditPage`, `KeyManagedAuditReceipts`, `KeyManagedAuditIntent`, `ValueMax` bounds, and `IsFleetAuditProtectedKey` live-mutation refusal (`<!-- source: pkg/zefs/keys.go ... -->`, `<!-- source: internal/component/config/storage/cli/data_rpc.go ... -->`, `<!-- source: internal/component/plugin/server/audit.go ... -->`, `<!-- source: internal/component/managed/audit_receipts.go ... -->`).
+- `docs/architecture/fleet-config.md`: added `Fleet audit trail` section (observation points, async writer/pages/retention, offline receipt outbox & write intent, doctor codes, authorized query contract), `fleet-audit-receipts` wire verb row, doctor table rows, and `bus/hub/audit/max-entries` config rows with source anchors and test anchor `<!-- test: test/managed/fleet-audit-log.ci -->`.
+- `docs/guide/audit.md`: added `## Fleet Audit Trail` operator guide covering event types, `show fleet audit` pipes, per-device authorization, retention config, offline receipts, and doctor diagnostics with source anchors.
+- `docs/guide/command-reference.md`: added `show fleet audit` row anchored to `internal/component/managed/yang/ze-managed-cmd.yang -- container audit`.
+- `docs/architecture/api/commands.md`: documented `ze-managed:show-fleet-audit` and `show fleet audit` pipe filters anchored to `internal/component/managed/cmd_audit.go -- registerAuditCommands, handleFleetAudit`.
+- `ai/INDEX.md`: added keyword row for `fleet audit, show fleet audit, ManagedAuditStore, bus hub audit, fleet-audit-receipts` and all four audit doctor codes.
+- `./le doc ste check`: `ste check: OK -- no habit grew in 5 changed document(s)`.
+- `./le doc check all`: 0 findings across all fleet-3 docs and source anchors (3 pre-existing unrelated findings in `catalog.go`, `ze-policy-conf`, and `flow-export-1-counter-export.md`).
+
+### Deviations from Plan
+- **Reload helper naming:** added `PrepareManagedListenersWithHistoryAlarmsAndAudit` beside `PrepareManagedListenersWithHistoryAndAlarms` in `internal/component/plugin/server/managed_apply.go` so existing history and alarm unit tests stay intact while `cmd/ze/hub/managed_server.go` passes `cfg.Audit`.
+- **Extra test and fixture files:** added dedicated test files (`audit_wiring_test.go`, `audit_receipts_test.go`, `cmd_audit_test.go`, `hub_audit_config_test.go`) and the compiled functional fixture (`misc_fixture_managed_fleet_audit.go`, `register_managed_fleet_audit.go`) to keep tests focused and match the managed suite's fixture pattern.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | First implementation pass omitted `ze-managed:show-fleet-audit` from `internal/component/plugin/all/testdata/wire-methods.snapshot` and omitted pre-decode byte caps on `fleet-audit-receipts` request/ack payloads | New wire methods require updating the hand-maintained golden snapshot, and every network JSON decoder requires an explicit byte cap before `json.NewDecoder` | Closure Run 1 independent review (`aed4514b`) | Updated `wire-methods.snapshot`, added `FleetAuditReceiptBatchBytesMax` / `FleetAuditReceiptAckBytesMax` pre-decode checks with regression tests, and added hub doctor unit tests and discovery docs |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Append-only hub audit log in live ZeFS store keyed by hub commit sequence | Done | `internal/component/plugin/server/audit.go` (`ManagedAuditStore`, `commitMutation`, `persistAuditGeneration`) | Immutable 128-row pages + atomic manifest under `FleetAuditLockKey` |
+| Structured JSON entries with sequence, UTC event/receipt times, type, device, actor, surface, outcome, safe metadata | Done | `internal/component/plugin/server/audit.go` (`FleetAuditEntry`, `sanitizeAuditEntry`) | No raw config text, secrets, or free-form peer errors |
+| Configurable retention (default 10,000; range 100..100,000) with oldest pruned on overflow and live reload | Done | `internal/component/plugin/yang/ze-plugin-conf.yang`, `internal/component/plugin/types.go`, `internal/component/config/loader_extract.go`, `internal/component/plugin/server/managed_apply.go` | `bus hub audit max-entries` validated and applied on start and reload |
+| Non-blocking async hub writer that never stalls config delivery | Done | `internal/component/plugin/server/audit.go` (`Append`, `runWriter`, `Stop`) | Bounded 1,024-entry queue; drops and write errors surfaced in doctor |
+| Live fleet event hooks (connect, disconnect, fetch, push, ack, reject, held, adopt, revert) | Done | `internal/component/plugin/server/managed_registry.go`, `managed_serve.go`, `managed_held.go`, `internal/component/managed/cmd_divergence.go`, `cmd/ze/hub/main.go` | Holding vs ordinary reject distinguished; safe enum diagnostics only |
+| Offline device `fleet disable`/`enable` durable outbox, write intent, bounded replay, and dedup | Done | `pkg/fleet/envelope.go`, `internal/component/managed/audit_receipts.go`, `cmd_fleet.go`, `client.go`, `cmd/ze/hub/managed.go`, `internal/component/plugin/server/managed_serve.go` (`handleFleetAuditReceipts`) | Max 1,024 outbox, 32-entry batches, epoch+seq dedup across lost acks and pruning |
+| Shared dispatcher query `show fleet audit` with `device`, `type`, `since`, `until` pipes and per-device RBAC | Done | `internal/component/managed/yang/ze-managed-cmd.yang`, `internal/component/managed/cmd_audit.go`, `internal/component/plugin/server/audit.go` (`Query`, `auditEntryAuthorized`) | Per-device `FleetDeviceScope` cached per query before filters |
+| Live-store mutation refusal for audit & receipt keys | Done | `pkg/zefs/keys.go` (`IsFleetAuditProtectedKey`), `internal/component/config/storage/cli/data_rpc.go` (`handleDataKeyDelete`, `handleDataKeyUpdate`) | Refuses direct `update data key` and `delete data key` while daemon runs |
+| Doctor diagnostics for write failures, drops, corruption, and receipt gaps | Done | `internal/component/plugin/server/managed_doctor.go`, `doctor_codes.go`, `internal/component/plugin/doctor/check_managed_runtime.go`, `register_external.go`, `internal/component/managed/doctor.go`, `register_doctor_codes.go` | 3 hub runtime checks + 1 device post-config check registered |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `ManagedServer.admitOnListener` (`managed_registry.go`); `TestManagedServerAuditWiringEndToEnd`, `test/managed/fleet-audit-log.ci` | Records `device.connect` with `ConnectedSince` and source address metadata |
+| AC-2 | Done | `ManagedServer.disconnectDevice` (`managed_registry.go`); `TestManagedServerAuditWiringEndToEnd`, `test/managed/fleet-audit-log.ci` | Records `device.disconnect` at disconnect time |
+| AC-3 | Done | `ManagedServer.handleRequest` (`managed_serve.go`); `TestManagedServerAuditWiringEndToEnd`, `test/managed/fleet-audit-log.ci` | Records `config.fetch` with version, previous-version, and mode; current fetch emits none |
+| AC-4 | Done | `ManagedServer.handleConfigAck` (`managed_serve.go`); `TestManagedServerAuditWiringEndToEnd`, `test/managed/fleet-audit-log.ci` | Records `config.ack` with `outcome=success` and version |
+| AC-5 | Done | `ManagedServer.recordConfigRejectAudit` (`managed_serve.go`); `TestManagedServerAuditWiringEndToEnd` | Records `config.reject` with safe enum `DiagnosticCode` and `Summary`, never raw `ack.Error` |
+| AC-6 | Done | `ManagedServer.pushConfigChanged` (`managed_serve.go`); `TestManagedServerAuditWiringEndToEnd`, `test/managed/fleet-audit-log.ci` | Records `config.push` when `config-changed` succeeds |
+| AC-7 | Done | `handleFleetAudit` (`cmd_audit.go`), `ManagedAuditStore.Query` (`audit.go`); `TestShowFleetAuditQueryFiltersAndGenericPipes`, `test/managed/fleet-audit-log.ci` | Returns authorized rows newest first (`seq` descending) |
+| AC-8 | Done | `parseAuditPipeQuery` (`cmd_audit.go`), `auditEntryMatchesQuery` (`audit.go`); `TestAuditLogFilterDevice`, `TestShowFleetAuditQueryFiltersAndGenericPipes`, `test/managed/fleet-audit-log.ci` | Filters exact device after per-device RBAC |
+| AC-9 | Done | `parseAuditPipeQuery` (`cmd_audit.go`), `auditEntryMatchesQuery` (`audit.go`); `TestAuditLogFilterType`, `TestShowFleetAuditQueryFiltersAndGenericPipes`, `test/managed/fleet-audit-log.ci` | Filters exact dot-separated kebab-case type |
+| AC-10 | Done | `parseAuditInstant` (`cmd_audit.go`), `auditEntryMatchesQuery` (`audit.go`); `TestAuditLogFilterSince`, `TestShowFleetAuditQueryFiltersAndGenericPipes`, `test/managed/fleet-audit-log.ci` | Inclusive RFC 3339 lower (`since`) and upper (`until`) bounds |
+| AC-11 | Done | `buildNextAuditPages` (`audit.go`), `SetMaxEntries`, `extractHubAuditConfig` (`loader_extract.go`); `TestAuditLogPrune`, `TestExtractHubConfigAudit`, `TestManagedServerAuditReloadRetentionAndDoctorHealth` | Default 10,000, configurable 100..100,000, oldest pruned on publication |
+| AC-12 | Done | `ManagedAuditStore.LoadFromStore` & `Stop` (`audit.go`), `ManagedServer.Start` & `Stop` (`managed_serve.go`); `TestAuditLogPersist`, `TestAuditLogDiskTreeAndBlobSequentialBatches`, `test/managed/fleet-audit-log.ci` | Preserves pages, cursors, and monotonic sequence across hub restart |
+| AC-13 | Done | `ManagedAuditStore.Append` & `publishAsyncBatch` (`audit.go`), `checkManagedAuditWrite` (`check_managed_runtime.go`); `TestAuditLogAsyncNonBlocking`, `TestAuditLogWriteFailureRecovery`, `TestCheckManagedAuditWrite` | Non-blocking enqueue; failed writes preserve prior generation and surface in doctor |
+| AC-14 | Done | `executeManagedModeChange`, `recoverAuditReceiptIntent`, `drainAuditReceipts` (`audit_receipts.go`), `handleFleetAuditReceipts` (`managed_serve.go`), `IngestReceipts` (`audit.go`); `audit_receipts_test.go`, `TestAuditLogIngestReceipts`, `test/managed/fleet-audit-log.ci` | Offline disable/enable recorded via write intent, replayed on reconnect, deduplicated across lost ack |
+| AC-15 | Done | `handleConfigHeld` (`managed_held.go`), `handleDivergenceAdopt` & `handleDivergenceRevert` (`cmd_divergence.go`), `cmd/ze/hub/main.go`; `TestDivergenceAdoptAndRevertEmitAudit`, `TestManagedServerAuditWiringEndToEnd` | Separate `config.held`, `divergence.adopt`, and `divergence.revert` rows with actor, winner, and version |
+| AC-16 | Done | `ValidFleetAuditEventType`, `auditEntryAuthorized`, `Query` (`audit.go`), `handleFleetAudit` (`cmd_audit.go`); `TestAuditLogPerDeviceAuthorizationAndCaching`, `TestShowFleetAuditPerDeviceAuthorization` | Producer-agnostic types; no secrets/config text; per-device RBAC cached before filters |
+| AC-17 | Done | `commitMutation`, `LoadFromStore`, `Health` (`audit.go`), `check_managed_runtime.go`, `doctor.go`, `data_rpc.go`; `audit_test.go`, `audit_wiring_test.go`, `check_managed_runtime_test.go`, `data_rpc_test.go`, `data_rpc_update_test.go` | Equal-time ordering, overflow/corrupt/write-failure diagnostics, retention reduction, protected keys |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestAuditLogAppend` | Done | `internal/component/plugin/server/audit_test.go` | Plus 12 additional unit tests in `audit_test.go` and 3 wiring/regression tests in `audit_wiring_test.go` |
+| `TestAuditLogPersist` | Done | `internal/component/plugin/server/audit_test.go` | Also disk tree + blob sequential batches in `TestAuditLogDiskTreeAndBlobSequentialBatches` |
+| `TestAuditLogFilterDevice` | Done | `internal/component/plugin/server/audit_test.go` | Also CLI pipe tests in `internal/component/managed/cmd_audit_test.go` |
+| `TestAuditLogFilterType` | Done | `internal/component/plugin/server/audit_test.go` | Also CLI pipe validation in `TestShowFleetAuditPipeValidationRefusals` |
+| `TestAuditLogFilterSince` | Done | `internal/component/plugin/server/audit_test.go` | Covers inclusive `since` and `until` bounds |
+| `TestAuditLogPrune` | Done | `internal/component/plugin/server/audit_test.go` | Also live reload pruning in `TestManagedServerAuditReloadRetentionAndDoctorHealth` |
+| `TestAuditLogAsyncNonBlocking` | Done | `internal/component/plugin/server/audit_test.go` | Verifies queue saturation drops without blocking caller |
+| `fleet-audit-log` | Done | `test/managed/fleet-audit-log.ci` | Driven by `internal/test/fixture/misc_fixture_managed_fleet_audit.go` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/plugin/server/managed_serve.go` | Done | Session fetch/push/ack/reject hooks, `handleFleetAuditReceipts`, `ManagedAuditQuery`, `RecordAudit`, `Start`/`Stop` |
+| `internal/component/plugin/server/managed_registry.go` | Done | `device.connect` and `device.disconnect` hooks |
+| `internal/component/plugin/server/managed_held.go` | Done | `config.held` hook |
+| `internal/component/plugin/server/managed_apply.go` | Done | `PrepareManagedListenersWithHistoryAlarmsAndAudit` and live `SetMaxEntries` apply |
+| `internal/component/plugin/server/managed_doctor.go` | Done | `ManagedDoctorRecord.Audit` and `appendAuditHealth` |
+| `internal/component/plugin/server/doctor_codes.go` | Done | Registered 3 hub audit doctor codes |
+| `internal/component/plugin/doctor/check_managed_runtime.go` | Done | `checkManagedAuditWrite`, `checkManagedAuditDropped`, `checkManagedAuditCorrupt` |
+| `internal/component/plugin/doctor/check_managed_runtime_test.go` | Done | `TestCheckManagedAuditWrite`, `TestCheckManagedAuditDropped`, `TestCheckManagedAuditCorrupt` |
+| `internal/component/plugin/doctor/register_external.go` | Done | Registered 3 runtime doctor checks (orders 724–726) |
+| `internal/component/managed/cmd_divergence.go` | Done | `divergence.adopt` and `divergence.revert` audit emission |
+| `internal/component/managed/cmd_fleet.go` | Done | `executeManagedModeChange` wrapping daemon and stopped disable/enable |
+| `internal/component/managed/client.go` | Done | `ReceiptStore` and `drainAuditReceipts` in `runConnection` |
+| `internal/component/managed/doctor.go` | Done | `managedAuditReceiptsDoctorCheck` and `checkManagedAuditReceipts` |
+| `internal/component/managed/register.go` | Done | `registerAuditCommands` and `managedAuditReceiptsDoctorCheck` registration |
+| `internal/component/managed/register_doctor_codes.go` | Done | `CodeDoctorManagedAuditReceiptGap` registration |
+| `internal/component/managed/yang/ze-managed-cmd.yang` | Done | `show fleet audit` (`ze-managed:show-fleet-audit`) |
+| `internal/component/plugin/all/testdata/wire-methods.snapshot` | Done | Added `ze-managed:show-fleet-audit` |
+| `internal/component/plugin/yang/ze-plugin-conf.yang` | Done | `bus/hub/audit/max-entries` (`100..100000`, default `10000`) |
+| `internal/component/config/loader_extract.go` | Done | `extractHubAuditConfig` + `ExtractHubConfig` wiring |
+| `internal/component/config/hub_audit_config_test.go` | Done | `TestExtractHubConfigAudit` |
+| `internal/component/plugin/types.go` | Done | `HubAuditConfig` hunk isolated via `tmp/fleet3-types.patch` |
+| `cmd/ze/hub/managed_server.go`, `cmd/ze/hub/main.go`, `cmd/ze/hub/managed.go` | Done | Wired `Audit`, `RecordAudit`, and `ReceiptStore` |
+| `pkg/fleet/envelope.go`, `pkg/fleet/envelope_test.go` | Done | `VerbFleetAuditReceipts`, batch/entry/ack types, bounds, validation, round-trip tests |
+| `internal/component/config/storage/cli/data_rpc.go`, `data_rpc_test.go`, `data_rpc_update_test.go` | Done | Refuses live delete/update of protected fleet audit & receipt keys |
+| `pkg/zefs/keys.go`, `pkg/zefs/keys_test.go` | Done | 4 registered key families + `IsFleetAuditProtectedKey` |
+| `internal/component/plugin/server/audit.go`, `audit_test.go`, `audit_wiring_test.go` | Done | Created hub audit store, writer, query, unit & wiring tests |
+| `internal/component/managed/cmd_audit.go`, `cmd_audit_test.go` | Done | Created `show fleet audit` command, pipes, RBAC tests |
+| `internal/component/managed/audit_receipts.go`, `audit_receipts_test.go` | Done | Created device outbox, recoverable write intent, drain, tests |
+| `test/managed/fleet-audit-log.ci`, `internal/test/fixture/misc_fixture_managed_fleet_audit.go`, `register_managed_fleet_audit.go` | Done | Created end-to-end functional test and compiled fixture |
+| `docs/architecture/zefs-format.md`, `docs/architecture/fleet-config.md`, `docs/guide/audit.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md`, `ai/INDEX.md` | Done | Updated architecture, guide, command reference, and index with source anchors |
+| `website/changes/fragments/fleet-3-audit-trail.md` | Done | Operator-facing change fragment |
+
+### Audit Summary
+- **Total items:** 17 ACs, 8 TDD plan tests (+ 25 extra unit/wiring/regression tests), 48 files (including 7 repointed citer specs and `types.go` hunk)
+- **Done:** 17/17 ACs, 8/8 TDD plan tests, all planned files
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (recorded in Deviations from Plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Record every significant fleet operation centrally on the hub with monotonic sequence, UTC timestamps, actor, device, outcome, and safe metadata (no secrets/config text) | Unit + Wiring + Functional | `TestManagedServerAuditWiringEndToEnd` (`audit_wiring_test.go`), `TestDivergenceAdoptAndRevertEmitAudit` (`audit_receipts_test.go`), `test/managed/fleet-audit-log.ci` (`misc_fixture_managed_fleet_audit.go`) |
+| Persist append-only bounded history in the hub's ZeFS store surviving restarts and retention pruning without blocking config delivery | Unit + Functional | `TestAuditLogPersist`, `TestAuditLogPrune`, `TestAuditLogAsyncNonBlocking`, `TestAuditLogWriteFailureRecovery`, `TestAuditLogCorruptRecoveryAndOrphanGC`, `TestAuditLogDiskTreeAndBlobSequentialBatches` (`audit_test.go`), `test/managed/fleet-audit-log.ci` |
+| Capture offline device `fleet disable`/`enable` mode transitions with crash-safe write intent and deduplicated reconnect delivery | Unit + Wiring + Functional | `TestAuditReceiptsRecoverableIntentCrashBeforeAndAfterFlagWrite`, `TestAuditReceiptsOfflineDisableEnableLostAckDedup`, `TestAuditReceiptsOverflowGapDoctorAndHubReport`, `TestAuditReceiptsUnknownMethodBackwardCompatible` (`audit_receipts_test.go`), `TestAuditLogIngestReceipts` (`audit_test.go`), `test/managed/fleet-audit-log.ci` |
+| Query audit history through the shared dispatcher (`show fleet audit`) with `device`, `type`, `since`, `until` pipes and per-device RBAC | Unit + Functional | `TestFleetAuditCommandRegistrationAndCompletion`, `TestShowFleetAuditQueryFiltersAndGenericPipes`, `TestShowFleetAuditPerDeviceAuthorization` (`cmd_audit_test.go`), `test/managed/fleet-audit-log.ci` |
+| Protect live audit and receipt keys from direct daemon mutation and surface audit health in `ze doctor` | Unit | `TestDeleteKeyRefusesFleetAuditProtectedKeys` (`data_rpc_test.go`), `TestUpdateKeyRefusesFleetAuditProtectedKeys` (`data_rpc_update_test.go`), `TestCheckManagedAuditWrite`, `TestCheckManagedAuditDropped`, `TestCheckManagedAuditCorrupt` (`check_managed_runtime_test.go`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Template change (`template.change`) producer hook | Config templates do not exist yet; this spec provides the producer-agnostic `ManagedAuditStore.Append` + `ValidFleetAuditEventType` contract that `fleet-2` calls when committing template changes | `plan/post-release/features/spec-fleet-2-config-templates.md` |
+| Staged rollout producer hooks | Staged rollouts do not exist yet; `fleet-5` calls the producer-agnostic audit contract | `plan/post-release/features/spec-fleet-5-staged-rollout.md` |
+| Web UI audit page and export table | Task explicitly assigns web audit views and export to `fleet-ui-6`, consuming the authorized `show fleet audit` contract built here | `plan/post-release/features/spec-fleet-ui-6-config-rollout-audit-admin.md` |
+
 ## Review Gate
 
-<!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
-<!-- the final review before closure, run AFTER the inline critical/security/doc reviews, over the complete diff. -->
-<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
-<!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
-<!-- NOTE-only findings do not block — record them and proceed. -->
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fleet-3-audit-trail-0cfcb484-f28a-4e4e-b1d1-85693900af06.md` |
+| `./le spec review check` | clean |
+| Rounds | 2 (Run 1 `aed4514b` found 2 BLOCKERs + 5 ISSUEs; all fixed; Run 2 `9e5357b5` independent reviewer verified CLEAN: 0 BLOCKER, 0 ISSUE) |
+| Reviewer lenses used | logic + wiring, security + edge-cases + bounds, config/YANG/snapshot surface, doctor/docs/anchors, Ze Go style pass (7 questions) |
 
-### Run 1 (initial)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | New wire method `ze-managed:show-fleet-audit` missing from golden snapshot | `internal/component/plugin/all/testdata/wire-methods.snapshot` | Added `ze-managed:show-fleet-audit` in sorted order; `TestRegisteredWireMethods` passes |
+| 2 | BLOCKER | `handleFleetAuditReceipts` and `decodeAuditReceiptAck` lacked pre-decode raw byte bounds before `json.NewDecoder` | `pkg/fleet/envelope.go`, `internal/component/plugin/server/managed_serve.go`, `internal/component/managed/audit_receipts.go` | Added `FleetAuditReceiptBatchBytesMax` (64 KiB) and `FleetAuditReceiptAckBytesMax` (4 KiB) pre-decode checks + `TestManagedServerAuditReceiptsRejectsOversizedPayload` and `TestAuditReceiptAckRejectsOversizedPayload` |
+| 3 | ISSUE | `extractHubAuditConfig` used 32-bit `strconv.Atoi` violating `numberparse-allowlist` | `internal/component/config/loader_extract.go` | Switched to 64-bit `strconv.ParseInt` with `[math.MinInt32, math.MaxInt32]` clamp; `./le repo check` allowlist clean |
+| 4 | ISSUE | New hub runtime audit doctor checks lacked dedicated unit tests | `internal/component/plugin/doctor/check_managed_runtime_test.go` | Added `TestCheckManagedAuditWrite`, `TestCheckManagedAuditDropped`, `TestCheckManagedAuditCorrupt` |
+| 5 | ISSUE | `show fleet audit` missing from discovery surfaces | `ai/INDEX.md`, `docs/guide/command-reference.md`, `docs/architecture/api/commands.md` | Added entries and source anchors across all three discovery surfaces (`./le doc ste check` OK, `./le doc check all` 0 fleet-3 findings) |
+| 6 | ISSUE | Four package-internal helpers in `audit_receipts.go` were exported with no cross-package non-test caller | `internal/component/managed/audit_receipts.go` | Unexported `recoverAuditReceiptIntent`, `executeManagedModeChange`, `drainAuditReceipts`, `auditReceiptOutboxHealth` and updated callers + doc anchors |
+| 7 | ISSUE | `internal/component/plugin/types.go` carried a concurrent session's unrelated line-963 comment hunk | `internal/component/plugin/types.go`, `tmp/fleet3-types.patch` | Isolated only the `HubAuditConfig` hunk into `tmp/fleet3-types.patch` for `hunks` recording and Commit A |
 
-### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+### Run 2 (final)
+- Independent fresh reviewer (`9e5357b5`) verified all 7 Run 1 fixes against source, audited AC-1..AC-17, security/bounds/concurrency, `Design documents`, docs/anchors, and all 7 `ze-go-style.md` questions (`./le go style check`: `go style: OK`; `./le doc ste check`: `OK`; `./le test weakened check`: 0 fleet-3 findings; `./le spec citation`: 0 fleet-3 citations).
+- Verdict: **CLEAN** (`0 BLOCKER, 0 ISSUE, 0 NOTE`).
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+## Pre-Commit Verification
 
-### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/plugin/server/audit.go` | Yes | `-rw-r--r-- 1 thomas thomas 48093 Nov 28 02:34 internal/component/plugin/server/audit.go` |
+| `internal/component/plugin/server/audit_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 32142 Nov 28 02:35 internal/component/plugin/server/audit_test.go` |
+| `internal/component/plugin/server/audit_wiring_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 13908 Nov 28 02:35 internal/component/plugin/server/audit_wiring_test.go` |
+| `internal/component/managed/cmd_audit.go` | Yes | `-rw-r--r-- 1 thomas thomas 9050 Nov 28 01:23 internal/component/managed/cmd_audit.go` |
+| `internal/component/managed/cmd_audit_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 16582 Nov 28 01:23 internal/component/managed/cmd_audit_test.go` |
+| `internal/component/managed/audit_receipts.go` | Yes | `-rw-r--r-- 1 thomas thomas 22571 Nov 28 02:37 internal/component/managed/audit_receipts.go` |
+| `internal/component/managed/audit_receipts_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 18055 Nov 28 02:38 internal/component/managed/audit_receipts_test.go` |
+| `internal/component/config/hub_audit_config_test.go` | Yes | `-rw-r--r-- 1 thomas thomas 3613 Nov 28 00:54 internal/component/config/hub_audit_config_test.go` |
+| `internal/test/fixture/misc_fixture_managed_fleet_audit.go` | Yes | `-rw-r--r-- 1 thomas thomas 15791 Nov 28 02:37 internal/test/fixture/misc_fixture_managed_fleet_audit.go` |
+| `internal/test/fixture/register_managed_fleet_audit.go` | Yes | `-rw-r--r-- 1 thomas thomas 294 Nov 28 01:23 internal/test/fixture/register_managed_fleet_audit.go` |
+| `test/managed/fleet-audit-log.ci` | Yes | `-rw-r--r-- 1 thomas thomas 1461 Nov 28 01:23 test/managed/fleet-audit-log.ci` |
+| `website/changes/fragments/fleet-3-audit-trail.md` | Yes | `-rw-r--r-- 1 thomas thomas 2407 Nov 28 01:24 website/changes/fragments/fleet-3-audit-trail.md` |
 
-## Checklist
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | `device.connect` recorded on authenticated connect | `internal/component/plugin/server/managed_registry.go` (`admitOnListener` -> `FleetAuditDeviceConnect`); `TestManagedServerAuditWiringEndToEnd`; `test/managed/fleet-audit-log.ci` |
+| AC-2 | `device.disconnect` recorded on disconnect | `internal/component/plugin/server/managed_registry.go` (`disconnectDevice` -> `FleetAuditDeviceDisconnect`); `TestManagedServerAuditWiringEndToEnd`; `test/managed/fleet-audit-log.ci` |
+| AC-3 | `config.fetch` recorded on served config | `internal/component/plugin/server/managed_serve.go` (`handleRequest` -> `FleetAuditConfigFetch`); `TestManagedServerAuditWiringEndToEnd`; `test/managed/fleet-audit-log.ci` |
+| AC-4 | `config.ack` recorded on ok ack | `internal/component/plugin/server/managed_serve.go` (`handleConfigAck` -> `FleetAuditConfigAck`); `TestManagedServerAuditWiringEndToEnd`; `test/managed/fleet-audit-log.ci` |
+| AC-5 | `config.reject` recorded with safe diagnostic | `internal/component/plugin/server/managed_serve.go` (`recordConfigRejectAudit` -> `safeRejectDiagnosticCode`/`safeRejectSummary`, never `ack.Error`); `TestManagedServerAuditWiringEndToEnd` |
+| AC-6 | `config.push` recorded on `config-changed` | `internal/component/plugin/server/managed_serve.go` (`pushConfigChanged` -> `FleetAuditConfigPush`); `TestManagedServerAuditWiringEndToEnd`; `test/managed/fleet-audit-log.ci` |
+| AC-7 | `show fleet audit` newest first, authorized only | `internal/component/managed/cmd_audit.go` (`handleFleetAudit`), `internal/component/plugin/server/audit.go` (`Query`); `TestShowFleetAuditQueryFiltersAndGenericPipes`; `test/managed/fleet-audit-log.ci` |
+| AC-8 | `show fleet audit \| device <name>` | `internal/component/managed/cmd_audit.go` (`parseAuditPipeQuery`), `audit.go` (`auditEntryMatchesQuery`); `TestAuditLogFilterDevice`; `test/managed/fleet-audit-log.ci` |
+| AC-9 | `show fleet audit \| type <event-type>` | `internal/component/managed/cmd_audit.go` (`parseAuditPipeQuery`), `audit.go` (`auditEntryMatchesQuery`); `TestAuditLogFilterType`; `test/managed/fleet-audit-log.ci` |
+| AC-10 | `show fleet audit \| since <RFC3339>` (and `until`) | `internal/component/managed/cmd_audit.go` (`parseAuditInstant`), `audit.go` (`auditEntryMatchesQuery`); `TestAuditLogFilterSince`; `test/managed/fleet-audit-log.ci` |
+| AC-11 | Max entries (default 10,000, configurable 100..100,000) prunes oldest | `internal/component/plugin/server/audit.go` (`buildNextAuditPages`), `loader_extract.go` (`extractHubAuditConfig`), `managed_apply.go` (`SetMaxEntries`); `TestAuditLogPrune`, `TestExtractHubConfigAudit`, `TestManagedServerAuditReloadRetentionAndDoctorHealth` |
+| AC-12 | Hub restart preserves audit log and monotonic seq | `internal/component/plugin/server/audit.go` (`LoadFromStore`, `Stop`), `managed_serve.go` (`Start`, `Stop`); `TestAuditLogPersist`, `TestAuditLogDiskTreeAndBlobSequentialBatches`, `test/managed/fleet-audit-log.ci` |
+| AC-13 | Storage failure never blocks config-fetch; exposed in doctor | `internal/component/plugin/server/audit.go` (`Append`, `publishAsyncBatch`), `check_managed_runtime.go` (`checkManagedAuditWrite`); `TestAuditLogAsyncNonBlocking`, `TestAuditLogWriteFailureRecovery`, `TestCheckManagedAuditWrite` |
+| AC-14 | Offline disable/enable receipts, write intent, reconnect dedup | `internal/component/managed/audit_receipts.go` (`executeManagedModeChange`, `recoverAuditReceiptIntent`, `drainAuditReceipts`), `managed_serve.go` (`handleFleetAuditReceipts`), `audit.go` (`IngestReceipts`); `audit_receipts_test.go`, `TestAuditLogIngestReceipts`, `test/managed/fleet-audit-log.ci` |
+| AC-15 | Held copy, adopt, and revert recorded distinctly with actor/winner/version | `internal/component/plugin/server/managed_held.go` (`handleConfigHeld`), `internal/component/managed/cmd_divergence.go` (`handleDivergenceAdopt`, `handleDivergenceRevert`); `TestDivergenceAdoptAndRevertEmitAudit`, `TestManagedServerAuditWiringEndToEnd` |
+| AC-16 | Producer-agnostic types; secret-free; per-device RBAC before filters | `internal/component/plugin/server/audit.go` (`ValidFleetAuditEventType`, `auditEntryAuthorized`), `cmd_audit.go` (`handleFleetAudit`); `TestAuditLogPerDeviceAuthorizationAndCaching`, `TestShowFleetAuditPerDeviceAuthorization` |
+| AC-17 | Equal-time ordering, queue overflow/corrupt/write-fail diagnostics, retention shrink, key protection | `audit.go`, `check_managed_runtime.go`, `doctor.go`, `data_rpc.go`; `TestAuditLogCorruptRecoveryAndOrphanGC`, `TestCheckManagedAuditDropped`, `TestCheckManagedAuditCorrupt`, `TestDeleteKeyRefusesFleetAuditProtectedKeys`, `TestUpdateKeyRefusesFleetAuditProtectedKeys` |
 
-### Goal Gates (MUST pass)
-- [ ] AC-1 through AC-17 demonstrated
-- [ ] Wiring Test table complete
-- [ ] `./le verify worktree` passes
-- [ ] Feature code integrated (`internal/*`, `cmd/*`)
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Device TLS connect -> `device.connect` -> `show fleet audit` over SSH CLI | `test/managed/fleet-audit-log.ci` | Yes (read `test/managed/fleet-audit-log.ci` and `internal/test/fixture/misc_fixture_managed_fleet_audit.go`: verifies connect, fetch, ack, push, deduplicated receipts, disconnect, pipes, and hub restart survival) |
+| Hub write-observer config import -> `config.push` + `config.fetch` -> `show fleet audit` | `test/managed/fleet-audit-log.ci` | Yes (`s.hubImport` -> `verifyPushAndReceipts` verifies `config.push` version and newest-first sequence) |
+| `fleet-audit-receipts` replay + hub restart on disk ZeFS -> `show fleet audit \| device/type/since` | `test/managed/fleet-audit-log.ci` | Yes (`sendAndReplayAuditReceipts` sends batch twice confirming `count == 1`, `actor == "device:edge-01"`, then `s.restartHub` confirms exact row preservation and `Seq > beforeMaxSeq` on reconnect) |
 
-### Design
-- [ ] No premature abstraction
-- [ ] No speculative features
-- [ ] Single responsibility per component
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| none | confirmed | Spec declared no separate `A-N` Risks & Assumptions table; all design constraints in `Required Reading`, `Existing Mechanisms`, and `Design documents` were verified against live source (`ManagedAuditStore` non-blocking async queue, ZeFS immutable pages + atomic manifest, `FleetDeviceScope` per-device RBAC, pre-decode wire byte bounds, and live-store mutation refusal). |
 
-### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| ZeFS key registry & protected live mutation (`docs/architecture/zefs-format.md`) | `pkg/zefs/keys.go` (`KeyFleetAuditManifest`, `KeyFleetAuditPage`, `KeyManagedAuditReceipts`, `KeyManagedAuditIntent`, `IsFleetAuditProtectedKey`), `internal/component/config/storage/cli/data_rpc.go` (`handleDataKeyDelete`, `handleDataKeyUpdate`) | Yes (`./le doc check all`: 0 fleet-3 anchor issues; `./le doc ste check`: OK) |
+| Hub audit architecture, wire verb, doctor codes, config leaves (`docs/architecture/fleet-config.md`) | `internal/component/plugin/server/audit.go`, `managed_serve.go`, `managed_apply.go`, `managed_doctor.go`, `doctor_codes.go`, `internal/component/managed/audit_receipts.go`, `cmd_audit.go`, `pkg/fleet/envelope.go`, `ze-plugin-conf.yang` | Yes (`./le doc check all`: 0 fleet-3 anchor issues; `./le doc ste check`: OK) |
+| Operator audit guide (`docs/guide/audit.md`) | `internal/component/managed/cmd_audit.go`, `ze-managed-cmd.yang`, `audit.go`, `audit_receipts.go`, `check_managed_runtime.go`, `doctor.go` | Yes (`./le doc check all`: 0 fleet-3 anchor issues; `./le doc ste check`: OK) |
+| CLI & API command reference (`docs/guide/command-reference.md`, `docs/architecture/api/commands.md`, `ai/INDEX.md`) | `internal/component/managed/yang/ze-managed-cmd.yang` (`container audit`), `internal/component/managed/cmd_audit.go` (`registerAuditCommands`, `handleFleetAudit`) | Yes (`./le doc check all`: 0 fleet-3 anchor issues; `./le doc ste check`: OK) |
+| News fragment (`website/changes/fragments/fleet-3-audit-trail.md`) | Verified front matter (`spec: fleet-3-audit-trail`, `topic: Fleet`, `feature: fleet-management`) and six fixed headings (`Before`, `After`, `Corrects`, `Exposure`, `Upstream`, `Asked by`) | Yes |

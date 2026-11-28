@@ -127,7 +127,7 @@ moved in its Task section. Where a row below says "web", that part is the
 |-------|------|-------|---------|
 | 1 | `spec-fleet-1-device-registry` (closed 2026-11-25; design in `docs/architecture/fleet-config.md`, "Device registry") | Hub-side persistent device registry. `show fleet devices` and `show fleet device name <name>` on every command surface. Device metadata (name, config version, last-seen, labels; health is `fleet-4`'s). Labels on the hub's client entry. The fleet web pages are `fleet-ui-2`'s, after the first release | - |
 | 2 | `plan/post-release/features/spec-fleet-2-config-templates.md` | Named config templates with variable substitution. Group-based assignment. The device fetches its admitted rendered version. YANG schema for templates and groups | fleet-1 |
-| 3 | `plan/post-release/features/spec-fleet-3-audit-trail.md` | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. Commands on every command surface; the audit web views are `fleet-ui-6`'s. Structured log entries in ZeFS | fleet-1 |
+| 3 | `spec-fleet-3-audit-trail` (closed 2026-11-28; documented in `docs/architecture/fleet-config.md`, "Fleet audit trail", and `docs/guide/audit.md`) | Centralized audit log for fleet operations: config push/ack/reject, device connect/disconnect, template changes. Commands on every command surface; the audit web views are `fleet-ui-6`'s. Structured log entries in ZeFS | fleet-1 |
 | 4 | `spec-fleet-4-inventory-health` (closed 2026-11-26; design in `docs/architecture/fleet-config.md`, "Inventory and health reporting") | New `inventory-report` and `health-report` RPC verbs. Devices push on connect and periodically. Hub stores per-device inventory and health. `show fleet device inventory name <name>`, `show fleet device health name <name>` and `show fleet health` on every command surface. The inventory and health web views are `fleet-ui-2`'s, `fleet-ui-3`'s and `fleet-ui-4`'s, after the first release | fleet-1 |
 | 5 | `plan/post-release/features/spec-fleet-5-staged-rollout.md` | Percentage-based config push targeting device groups. Rollout state machine (pending, rolling, paused, complete, failed). Automatic pause on ACK failure threshold. CLI rollout commands | fleet-2, fleet-4 |
 | 6 | `spec-fleet-6-config-freeze` (closed 2026-11-19; design in `docs/architecture/fleet-config.md`, "The baseline and the hold" and "The freeze") | Persisted baseline and reconnect hold (no silent stomp); `request fleet disable` and `enable` with immediate sever, `show fleet status`; best-effort freeze of operator edits on a managed device; declared-client guard on every hub writer. See the Direction Update of 2026-11-19 | - |
@@ -490,7 +490,8 @@ longer plans, the child wins.
    - Files: `template.go`, `managed.go` (shared desired-config reader for fetch and notification)
    - Verify: group members receive rendered config, template change triggers config-changed
 
-3. **Phase: Audit Trail (fleet-3, `plan/post-release/features/spec-fleet-3-audit-trail.md`)** -- centralized fleet operation logging
+3. **Phase: Audit Trail (fleet-3, `spec-fleet-3-audit-trail`, closed 2026-11-28)** -- centralized fleet operation logging
+   - Design: `docs/architecture/fleet-config.md`, "Fleet audit trail", and `docs/guide/audit.md`
    - Tests: `TestAuditLogAppend`, `fleet-audit-log.ci`
    - Files: `audit.go`, `managed.go` (hook audit on connect/config-ack/disconnect)
    - Verify: audit entries queryable through commands on every command surface; the audit web view is `fleet-ui-6`'s

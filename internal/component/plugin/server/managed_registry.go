@@ -211,6 +211,19 @@ func (s *ManagedServer) admitOnListener(name string, addr netip.Addr, conn *rpc.
 	if s.alarms != nil {
 		s.alarms.OnDeviceConnected(name, device.ConnectedSince)
 	}
+	var connectMeta map[string]string
+	if device.SourceAddress.IsValid() {
+		connectMeta = map[string]string{"source-address": device.SourceAddress.String()}
+	}
+	s.recordAudit(FleetAuditEntry{
+		EventTime: device.ConnectedSince,
+		Type:      FleetAuditDeviceConnect,
+		Device:    name,
+		Actor:     fleetAuditActorHub,
+		Surface:   fleetAuditSurfaceSession,
+		Outcome:   fleetAuditDefaultOutcome,
+		Metadata:  connectMeta,
+	})
 	return nil
 }
 
@@ -228,6 +241,15 @@ func (s *ManagedServer) disconnectDevice(name string, conn *rpc.MuxConn) {
 	close(device.sessionDone)
 	device.sessionDone = nil
 	delete(s.pending, name)
+	disconnectedAt := s.now().UTC()
+	s.recordAudit(FleetAuditEntry{
+		EventTime: disconnectedAt,
+		Type:      FleetAuditDeviceDisconnect,
+		Device:    name,
+		Actor:     fleetAuditActorHub,
+		Surface:   fleetAuditSurfaceSession,
+		Outcome:   fleetAuditDefaultOutcome,
+	})
 	if device.forgetOnDisconnect {
 		device.forgetOnDisconnect = false
 		if !device.declared {
@@ -235,7 +257,7 @@ func (s *ManagedServer) disconnectDevice(name string, conn *rpc.MuxConn) {
 			return
 		}
 	}
-	device.LastSeen = s.now().UTC()
+	device.LastSeen = disconnectedAt
 	s.dirtyDeviceLocked(name)
 	if s.alarms != nil {
 		s.alarms.OnDeviceDisconnected(name, device.LastSeen)

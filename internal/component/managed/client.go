@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -103,6 +104,11 @@ type ClientConfig struct {
 	// under meta/managed/chain-state. Optional: nil keeps chain state in memory
 	// only for unit tests that do not wire persistence.
 	Chain *ChainAccess
+	// ReceiptStore is the borrowed daemon store holding zefs.KeyManagedAuditReceipts
+	// and zefs.KeyManagedAuditIntent so retained offline fleet mode-change receipts
+	// drain to the hub after authentication and config negotiation. Nil disables
+	// receipt draining.
+	ReceiptStore storage.Storage
 	// Metrics is the optional Prometheus metrics registry used for client chain
 	// mismatch and resync counters. Nil disables metrics cleanly.
 	Metrics metrics.Registry
@@ -168,6 +174,9 @@ type ClientConfig struct {
 	sampleTimeout time.Duration
 	// sampleNow overrides time.Now for sample collection timestamps when non-nil.
 	sampleNow func() time.Time
+	// receiptTimeout bounds each VerbFleetAuditReceipts RPC round-trip when
+	// positive; zero uses defaultReceiptTimeout.
+	receiptTimeout time.Duration
 }
 
 // heldUploadTimeout bounds one config-held round-trip, the write of the copy
@@ -358,6 +367,14 @@ func (cfg *ClientConfig) reportCallTimeout() time.Duration {
 		return cfg.reportTimeout
 	}
 	return defaultReportCallTimeout
+}
+
+// receiptCallTimeout returns the bound on one fleet audit receipt batch RPC.
+func (cfg *ClientConfig) receiptCallTimeout() time.Duration {
+	if cfg.receiptTimeout > 0 {
+		return cfg.receiptTimeout
+	}
+	return defaultReceiptTimeout
 }
 
 // configuredReportProducers returns the fleet report producers scheduled for
@@ -561,6 +578,16 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 			logLocalCommitTwice(cfg, err)
 		}
 		return err
+	}
+
+	// Drain locally recorded offline mode-change audit receipts after
+	// authentication and config negotiation. A non-fatal drain error is logged
+	// and retried on the next reconnect without tearing down config sync.
+	if cfg.ReceiptStore != nil {
+		if drainErr := drainAuditReceipts(ctx, mc, cfg.ReceiptStore, cfg.receiptCallTimeout()); drainErr != nil {
+			logger().Warn("failed to drain offline fleet audit receipts; will retry on next reconnect",
+				"code", CodeDoctorManagedAuditReceiptGap, "name", cfg.Name, "error", drainErr)
+		}
 	}
 
 	// Start periodic inventory and health reporting for this authenticated

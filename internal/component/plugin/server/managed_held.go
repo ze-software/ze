@@ -454,6 +454,19 @@ func (s *ManagedServer) handleConfigHeld(name string, mc *rpc.MuxConn, req *rpc.
 		_ = mc.SendError(s.ctx, req.ID, "the hub could not store the copy: "+err.Error())
 		return
 	}
+	var heldAuditMeta map[string]string
+	if !record.editedAt.IsZero() {
+		heldAuditMeta = map[string]string{"edited-at": record.editedAt.UTC().Format(time.RFC3339Nano)}
+	}
+	s.recordAudit(FleetAuditEntry{
+		Type:     FleetAuditConfigHeld,
+		Device:   name,
+		Actor:    fleetAuditActorHub,
+		Surface:  fleetAuditSurfaceSession,
+		Outcome:  fleetAuditDefaultOutcome,
+		Version:  record.version,
+		Metadata: heldAuditMeta,
+	})
 	s.mHeld.With("stored").Inc()
 	if s.chains != nil {
 		s.chains.clearResyncFailure(name)

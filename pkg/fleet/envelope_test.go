@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -620,5 +621,149 @@ func TestManagedReplyToleratesLegacyEmptyOK(t *testing.T) {
 
 	if _, err := DecodeManagedReply(json.RawMessage(`{"chain-hash":`)); err == nil {
 		t.Fatalf("expected error on truncated JSON")
+	}
+}
+
+func TestAuditReceiptEnvelopeRoundTripAndValidation(t *testing.T) {
+	// VALIDATES: AuditReceiptEntry, AuditReceiptBatch, and AuditReceiptAck
+	// marshal under exact lowercase kebab-case JSON keys, omit zero optional
+	// fields, round-trip cleanly, and enforce all field, epoch, ordering, gap,
+	// and byte-size invariants in Validate().
+	// PREVENTS: Malformed or oversized device receipts bypassing protocol
+	// bounds or JSON field mismatches between device and hub.
+	if VerbFleetAuditReceipts != "fleet-audit-receipts" {
+		t.Fatalf("VerbFleetAuditReceipts = %q, want %q", VerbFleetAuditReceipts, "fleet-audit-receipts")
+	}
+
+	at1 := time.Date(2026, 11, 28, 1, 0, 0, 0, time.UTC)
+	at2 := time.Date(2026, 11, 28, 1, 5, 0, 0, time.UTC)
+
+	batch := AuditReceiptBatch{
+		Epoch: "epoch-001",
+		Entries: []AuditReceiptEntry{
+			{
+				Seq:     4,
+				Action:  FleetAuditReceiptActionDisable,
+				Actor:   "admin",
+				Surface: "cli",
+				EventAt: at1,
+				Outcome: "success",
+			},
+			{
+				Seq:     5,
+				Action:  FleetAuditReceiptActionEnable,
+				Actor:   "admin",
+				Surface: "ssh",
+				EventAt: at2,
+				Outcome: "success",
+			},
+		},
+		Lost:    3,
+		GapFrom: 1,
+		GapTo:   3,
+	}
+	if err := batch.Validate(); err != nil {
+		t.Fatalf("valid batch rejected: %v", err)
+	}
+
+	raw, err := json.Marshal(batch)
+	if err != nil {
+		t.Fatalf("marshal batch: %v", err)
+	}
+	wantJSON := `{"epoch":"epoch-001","entries":[` +
+		`{"seq":4,"action":"fleet.disable","actor":"admin","surface":"cli","event-at":"2026-11-28T01:00:00Z","outcome":"success"},` +
+		`{"seq":5,"action":"fleet.enable","actor":"admin","surface":"ssh","event-at":"2026-11-28T01:05:00Z","outcome":"success"}],` +
+		`"lost":3,"gap-from":1,"gap-to":3}`
+	if string(raw) != wantJSON {
+		t.Fatalf("batch json = %s, want %s", raw, wantJSON)
+	}
+
+	var back AuditReceiptBatch
+	if err := json.Unmarshal(raw, &back); err != nil {
+		t.Fatalf("unmarshal batch: %v", err)
+	}
+	if err := back.Validate(); err != nil {
+		t.Fatalf("round-tripped batch invalid: %v", err)
+	}
+	if back.Epoch != batch.Epoch || back.Lost != batch.Lost || back.GapFrom != batch.GapFrom || back.GapTo != batch.GapTo || len(back.Entries) != 2 {
+		t.Fatalf("round-trip mismatch: got %+v, want %+v", back, batch)
+	}
+
+	ack := AuditReceiptAck{Epoch: "epoch-001", Committed: 5}
+	ackRaw, err := json.Marshal(ack)
+	if err != nil {
+		t.Fatalf("marshal ack: %v", err)
+	}
+	if want := `{"epoch":"epoch-001","committed":5}`; string(ackRaw) != want {
+		t.Fatalf("ack json = %s, want %s", ackRaw, want)
+	}
+	var ackBack AuditReceiptAck
+	if err := json.Unmarshal(ackRaw, &ackBack); err != nil {
+		t.Fatalf("unmarshal ack: %v", err)
+	}
+	if ackBack != ack {
+		t.Fatalf("ack round-trip: got %+v, want %+v", ackBack, ack)
+	}
+
+	// Gap-only batch (no entries, valid loss gap) is valid.
+	gapOnly := AuditReceiptBatch{Epoch: "epoch-001", Lost: 2, GapFrom: 1, GapTo: 2}
+	if err := gapOnly.Validate(); err != nil {
+		t.Fatalf("gap-only batch rejected: %v", err)
+	}
+
+	validEntry := AuditReceiptEntry{
+		Seq:     1,
+		Action:  FleetAuditReceiptActionDisable,
+		Actor:   "admin",
+		Surface: "cli",
+		EventAt: at1,
+		Outcome: "success",
+	}
+	tooManyEntries := make([]AuditReceiptEntry, FleetAuditReceiptsBatchMax+1)
+	for i := range tooManyEntries {
+		e := validEntry
+		e.Seq = uint64(i + 1)
+		tooManyEntries[i] = e
+	}
+
+	invalidCases := []struct {
+		name  string
+		batch AuditReceiptBatch
+	}{
+		{name: "empty epoch", batch: AuditReceiptBatch{Epoch: "", Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "epoch with space", batch: AuditReceiptBatch{Epoch: "epoch 1", Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "epoch with control char", batch: AuditReceiptBatch{Epoch: "epoch\n1", Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "epoch non-ascii", batch: AuditReceiptBatch{Epoch: "epoch-\u00e9", Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "epoch exceeds 64 bytes", batch: AuditReceiptBatch{Epoch: strings.Repeat("a", FleetAuditReceiptEpochMax+1), Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "empty entries and no loss", batch: AuditReceiptBatch{Epoch: "e1"}},
+		{name: "gap-from without lost", batch: AuditReceiptBatch{Epoch: "e1", GapFrom: 1, Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "gap-to without lost", batch: AuditReceiptBatch{Epoch: "e1", GapTo: 1, Entries: []AuditReceiptEntry{validEntry}}},
+		{name: "lost without gap-from", batch: AuditReceiptBatch{Epoch: "e1", Lost: 1, GapTo: 1}},
+		{name: "gap-to before gap-from", batch: AuditReceiptBatch{Epoch: "e1", Lost: 1, GapFrom: 5, GapTo: 4}},
+		{name: "entry seq overlaps gap", batch: AuditReceiptBatch{Epoch: "e1", Lost: 2, GapFrom: 1, GapTo: 2, Entries: []AuditReceiptEntry{{Seq: 2, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: "cli", EventAt: at1, Outcome: "success"}}}},
+		{name: "too many entries", batch: AuditReceiptBatch{Epoch: "e1", Entries: tooManyEntries}},
+		{name: "duplicate seq", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{validEntry, validEntry}}},
+		{name: "decreasing seq", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{
+			{Seq: 3, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: "cli", EventAt: at1, Outcome: "success"},
+			{Seq: 2, Action: FleetAuditReceiptActionEnable, Actor: "admin", Surface: "cli", EventAt: at2, Outcome: "success"},
+		}}},
+		{name: "zero seq", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 0, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: "cli", EventAt: at1, Outcome: "success"}}}},
+		{name: "invalid action", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: "config.push", Actor: "admin", Surface: "cli", EventAt: at1, Outcome: "success"}}}},
+		{name: "zero event-at", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: "cli", Outcome: "success"}}}},
+		{name: "invalid outcome", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: "cli", EventAt: at1, Outcome: "error"}}}},
+		{name: "empty actor", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: "", Surface: "cli", EventAt: at1, Outcome: "success"}}}},
+		{name: "control char actor", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: "admin\x00", Surface: "cli", EventAt: at1, Outcome: "success"}}}},
+		{name: "oversize actor", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: strings.Repeat("x", FleetAuditReceiptActorMax+1), Surface: "cli", EventAt: at1, Outcome: "success"}}}},
+		{name: "empty surface", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: "", EventAt: at1, Outcome: "success"}}}},
+		{name: "oversize surface", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: "admin", Surface: strings.Repeat("s", FleetAuditReceiptSurfaceMax+1), EventAt: at1, Outcome: "success"}}}},
+		{name: "oversize marshaled entry", batch: AuditReceiptBatch{Epoch: "e1", Entries: []AuditReceiptEntry{{Seq: 1, Action: FleetAuditReceiptActionDisable, Actor: strings.Repeat("<", FleetAuditReceiptActorMax), Surface: strings.Repeat("<", FleetAuditReceiptSurfaceMax), EventAt: at1, Outcome: "success"}}}},
+	}
+
+	for _, tc := range invalidCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.batch.Validate(); err == nil {
+				t.Fatalf("expected validation error for %s, got nil", tc.name)
+			}
+		})
 	}
 }

@@ -12,12 +12,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"net"
 	"net/netip"
@@ -151,6 +153,10 @@ type ManagedServerConfig struct {
 	// software-behind threshold, and episode history retention. The zero value
 	// uses plugin.DefaultHubAlarmsConfig().
 	Alarms plugin.HubAlarmsConfig
+
+	// Audit configures hub-side fleet audit log retention ceiling. The zero
+	// value uses plugin.DefaultHubAuditConfig().
+	Audit plugin.HubAuditConfig
 }
 
 // managedLeafCommonName names the managed listener in the subject of the leaf
@@ -177,6 +183,7 @@ type ManagedServer struct {
 	chains               *managedChainStore
 	history              *ManagedHistoryStore
 	alarms               *ManagedAlarmStore
+	audit                *ManagedAuditStore
 	detachConfigObserver func()
 	devices              map[string]*managedDevice
 	now                  func() time.Time
@@ -297,6 +304,10 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if err := plugin.ValidateHubAlarmsConfig(alarmsCfg); err != nil {
 		return nil, err
 	}
+	auditCfg := normalizeAuditConfig(cfg.Audit)
+	if err := plugin.ValidateHubAuditConfig(auditCfg); err != nil {
+		return nil, err
+	}
 	readBaseVersion := cfg.ReadBaseVersion
 	if readBaseVersion == nil && cfg.Store != nil {
 		readBaseVersion = NewStoreBaseVersionReader(cfg.Store)
@@ -359,6 +370,15 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		DeclaredClients: len(devices),
 		OnHealthChanged: srv.alarms.OnHistoryHealth,
 	})
+	auditStore, err := NewManagedAuditStore(ManagedAuditStoreConfig{
+		Store:      cfg.Store,
+		MaxEntries: auditCfg.MaxEntries,
+		Now:        srv.currentTime,
+	})
+	if err != nil {
+		return nil, err
+	}
+	srv.audit = auditStore
 	svc.sampleInterval = srv.history.IntervalSeconds
 	svc.onHeldCleared = srv.refreshDeviceConfigAlarm
 	srv.mDeclared.Set(float64(len(devices)))
@@ -546,10 +566,25 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 		}
 		s.alarms.Tick(s.currentTime())
 	}
+	if s.audit != nil {
+		if err := s.audit.LoadFromStore(); err != nil {
+			if s.recordIO != nil {
+				if s.recordIO.subscription != nil {
+					s.recordIO.subscription.Unsubscribe()
+				}
+			}
+			return err
+		}
+	}
 	if s.recordIO != nil {
 		s.detachConfigObserver = s.recordIO.store.SetWriteObserver(s.observeClientConfigWrite)
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
+	if s.audit != nil {
+		// Use a non-canceled child context so Stop's s.audit.Stop() drains every
+		// final device.disconnect entry enqueued while s.wg.Wait() finishes.
+		s.audit.Start(context.WithoutCancel(s.ctx))
+	}
 	s.ApplyManagedListeners(&ManagedListenerPlan{listens: s.listens, source: s.source, bindErr: s.initialCertErr, certificate: s.certConfig.Certificate})
 	s.listens = nil
 	if s.recordIO != nil {
@@ -864,6 +899,20 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 			} else {
 				session.lastDiffReason = diffReason
 			}
+			fetchMode := resp.Mode
+			if fetchMode == "" {
+				fetchMode = fleet.FetchModeFull
+			}
+			s.recordAudit(FleetAuditEntry{
+				Type:            FleetAuditConfigFetch,
+				Device:          name,
+				Actor:           fleetAuditActorHub,
+				Surface:         fleetAuditSurfaceSession,
+				Outcome:         fleetAuditDefaultOutcome,
+				Version:         resp.Version,
+				PreviousVersion: fr.Version,
+				Metadata:        map[string]string{"mode": fetchMode},
+			})
 		}
 		if err := mc.SendResult(s.ctx, req.ID, resp); err != nil {
 			s.noteConfigFetchDeliveryFailure(name, mc, err)
@@ -888,6 +937,9 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 
 	case fleet.VerbConfigHeld:
 		s.handleConfigHeld(name, mc, req)
+
+	case fleet.VerbFleetAuditReceipts:
+		s.handleFleetAuditReceipts(name, mc, req)
 
 	case fleet.VerbPing:
 		var pr fleet.PingRequest
@@ -1015,6 +1067,14 @@ func (s *ManagedServer) handleConfigAck(name string, mc *rpc.MuxConn, ack fleet.
 		if err := s.checkActiveSession(name, mc, "config-ack"); err == nil {
 			s.refreshDeviceConfigAlarm(name)
 		}
+		s.recordAudit(FleetAuditEntry{
+			Type:    FleetAuditConfigAck,
+			Device:  name,
+			Actor:   fleetAuditActorHub,
+			Surface: fleetAuditSurfaceSession,
+			Outcome: fleetAuditDefaultOutcome,
+			Version: ack.Version,
+		})
 		managedLogger().Info("managed client applied config", "name", name, "version", ack.Version)
 		expected, _ := s.svc.ExpectedChainHash(name)
 		return expected, nil
@@ -1028,6 +1088,7 @@ func (s *ManagedServer) handleConfigAck(name string, mc *rpc.MuxConn, ack fleet.
 		}
 		s.doctor.clearRejected(name)
 		s.refreshDeviceConfigAlarm(name)
+		s.recordConfigRejectAudit(name, ack)
 		managedLogger().Info("managed client holds a configuration of its own, and the hub keeps a copy of it",
 			"name", name, "version", ack.Version)
 		expected, _ := s.svc.ExpectedChainHash(name)
@@ -1036,6 +1097,7 @@ func (s *ManagedServer) handleConfigAck(name string, mc *rpc.MuxConn, ack fleet.
 	if err := s.recordAck(name, mc, ack, ManagedAckRefused); err != nil {
 		return "", err
 	}
+	s.recordConfigRejectAudit(name, ack)
 	if !ack.Holding && isResyncRejectKind(ack.RejectKind) {
 		s.doctor.clearRejected(name)
 		s.recordAckResyncFailure(name, ack, session, fleet.BoundAckError(ack.Error))
@@ -1310,6 +1372,14 @@ func (s *ManagedServer) pushConfigChanged(name string) {
 	raw, err := mc.CallRPC(pushCtx, fleet.VerbConfigChanged, changed)
 	if err == nil {
 		s.mPushed.Inc()
+		s.recordAudit(FleetAuditEntry{
+			Type:    FleetAuditConfigPush,
+			Device:  name,
+			Actor:   fleetAuditActorHub,
+			Surface: fleetAuditSurfaceSession,
+			Outcome: fleetAuditDefaultOutcome,
+			Version: changed.Version,
+		})
 		if reply, decErr := fleet.DecodeManagedReply(raw); decErr == nil {
 			if reply.ChainHash != "" && changed.ChainHash != "" && reply.ChainHash != changed.ChainHash {
 				s.incChainMismatches()
@@ -1369,6 +1439,9 @@ func (s *ManagedServer) Stop() {
 		}
 		s.wg.Wait()
 		s.stopDeviceRecords() // final disconnects may follow writer cancellation
+		if s.audit != nil {
+			s.audit.Stop()
+		}
 		if s.history != nil {
 			if err := s.history.FlushFinal(); err != nil {
 				managedLogger().Warn("fleet metric history final shutdown flush failed",
@@ -1383,6 +1456,169 @@ func (s *ManagedServer) Stop() {
 		}
 		withdrawManagedDoctor(s)
 	})
+}
+
+const (
+	fleetAuditActorHub        = "service:managed-hub"
+	fleetAuditSurfaceSession  = "managed-session"
+	fleetAuditOutcomeHolding  = "holding"
+	fleetAuditOutcomeRejected = "rejected"
+)
+
+func normalizeAuditConfig(cfg plugin.HubAuditConfig) plugin.HubAuditConfig {
+	if cfg.MaxEntries == 0 {
+		cfg.MaxEntries = plugin.DefaultAuditMaxEntries
+	}
+	return cfg
+}
+
+// Audit returns the server's hub fleet audit store. Safe for concurrent use.
+func (s *ManagedServer) Audit() *ManagedAuditStore {
+	return s.audit
+}
+
+// RecordAudit enqueues one fleet audit entry on the server's non-blocking audit
+// writer. Returns false when no audit store is configured or the queue drops
+// the entry. Safe for concurrent use.
+func (s *ManagedServer) RecordAudit(entry FleetAuditEntry) bool {
+	if s == nil {
+		return false
+	}
+	if s.audit == nil {
+		return false
+	}
+	return s.audit.Append(entry)
+}
+
+func (s *ManagedServer) recordAudit(entry FleetAuditEntry) {
+	_ = s.RecordAudit(entry)
+}
+
+// ManagedAuditQuery answers a caller-scoped, newest-first fleet audit query
+// from the running hub. Safe for concurrent use.
+func ManagedAuditQuery(scope FleetDeviceScope, q FleetAuditQuery) ([]FleetAuditEntry, error) {
+	managedRegistryReaders.RLock()
+	defer managedRegistryReaders.RUnlock()
+	s := managedDoctorSource.Load()
+	if s == nil {
+		return nil, ErrManagedNotServing
+	}
+	if s.audit == nil {
+		return nil, ErrManagedNotServing
+	}
+	return s.audit.Query(scope, q), nil
+}
+
+func (s *ManagedServer) recordConfigRejectAudit(name string, ack fleet.ConfigAck) {
+	if ack.Holding {
+		s.recordAudit(FleetAuditEntry{
+			Type:           FleetAuditConfigReject,
+			Device:         name,
+			Actor:          fleetAuditActorHub,
+			Surface:        fleetAuditSurfaceSession,
+			Outcome:        fleetAuditOutcomeHolding,
+			Version:        ack.Version,
+			DiagnosticCode: "config-holding",
+			Summary:        "client holds local configuration",
+		})
+		return
+	}
+	var meta map[string]string
+	if kind := safeRejectKind(ack.RejectKind); kind != "" {
+		meta = map[string]string{"reject-kind": kind}
+	}
+	s.recordAudit(FleetAuditEntry{
+		Type:           FleetAuditConfigReject,
+		Device:         name,
+		Actor:          fleetAuditActorHub,
+		Surface:        fleetAuditSurfaceSession,
+		Outcome:        fleetAuditOutcomeRejected,
+		Version:        ack.Version,
+		DiagnosticCode: safeRejectDiagnosticCode(ack.RejectKind),
+		Summary:        safeRejectSummary(ack.RejectKind),
+		Metadata:       meta,
+	})
+}
+
+func safeRejectKind(kind string) string {
+	switch kind {
+	case fleet.RejectKindVerify, fleet.RejectKindCommit, fleet.RejectKindResync:
+		return kind
+	default:
+		return ""
+	}
+}
+
+func safeRejectDiagnosticCode(kind string) string {
+	switch kind {
+	case fleet.RejectKindVerify:
+		return "config-reject-verify"
+	case fleet.RejectKindCommit:
+		return "config-reject-commit"
+	case fleet.RejectKindResync:
+		return "config-reject-resync"
+	default:
+		return "config-rejected"
+	}
+}
+
+func safeRejectSummary(kind string) string {
+	switch kind {
+	case fleet.RejectKindVerify:
+		return "client rejected configuration during verification"
+	case fleet.RejectKindCommit:
+		return "client rejected configuration during commit"
+	case fleet.RejectKindResync:
+		return "client rejected configuration during hash-chain resync"
+	default:
+		return "client rejected configuration"
+	}
+}
+
+func (s *ManagedServer) handleFleetAuditReceipts(name string, mc *rpc.MuxConn, req *rpc.Request) {
+	if err := s.checkActiveSession(name, mc, fleet.VerbFleetAuditReceipts); err != nil {
+		_ = mc.SendError(s.ctx, req.ID, err.Error())
+		return
+	}
+	if len(req.Params) == 0 {
+		_ = mc.SendError(s.ctx, req.ID, "bad fleet-audit-receipts payload")
+		return
+	}
+	if len(req.Params) > fleet.FleetAuditReceiptBatchBytesMax {
+		var tb textbuf.Buffer
+		tb.Str("fleet-audit-receipts payload exceeds ").Int(fleet.FleetAuditReceiptBatchBytesMax).Str(" bytes")
+		_ = mc.SendError(s.ctx, req.ID, tb.String())
+		return
+	}
+	var batch fleet.AuditReceiptBatch
+	dec := json.NewDecoder(bytes.NewReader(req.Params))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&batch); err != nil {
+		_ = mc.SendError(s.ctx, req.ID, "bad fleet-audit-receipts payload: "+err.Error())
+		return
+	}
+	if err := dec.Decode(new(any)); !errors.Is(err, io.EOF) {
+		_ = mc.SendError(s.ctx, req.ID, "bad fleet-audit-receipts payload: unexpected trailing data")
+		return
+	}
+	if err := batch.Validate(); err != nil {
+		_ = mc.SendError(s.ctx, req.ID, err.Error())
+		return
+	}
+	if s.audit == nil {
+		_ = mc.SendError(s.ctx, req.ID, "fleet audit log is unavailable on this hub")
+		return
+	}
+	if err := s.checkActiveSession(name, mc, fleet.VerbFleetAuditReceipts); err != nil {
+		_ = mc.SendError(s.ctx, req.ID, err.Error())
+		return
+	}
+	ack, err := s.audit.IngestReceipts(name, batch, s.currentTime().UTC())
+	if err != nil {
+		_ = mc.SendError(s.ctx, req.ID, err.Error())
+		return
+	}
+	_ = mc.SendResult(s.ctx, req.ID, ack)
 }
 
 // Alarms returns the server's hub alarm store. Safe for concurrent use.

@@ -787,13 +787,54 @@ func validateAlarmIntRange(leaf string, val, maxVal int, unit, why string) error
 	return nil
 }
 
-// HubConfig holds bus hub transport, metric history, and alarm configuration.
-// Extracted from: bus { hub { server ...; client ...; history { ... }; alarms { ... } } }.
+// Default and range constants for bus hub fleet audit settings matching
+// ze-plugin-conf.yang.
+const (
+	DefaultAuditMaxEntries = 10000
+	MinAuditMaxEntries     = 100
+	MaxAuditMaxEntries     = 100000
+)
+
+// HubAuditConfig holds hub-side fleet audit log retention settings extracted
+// from: bus { hub { audit { ... } } }.
+type HubAuditConfig struct {
+	MaxEntries int
+}
+
+// DefaultHubAuditConfig returns the default fleet audit log retention settings
+// matching ze-plugin-conf.yang defaults.
+func DefaultHubAuditConfig() HubAuditConfig {
+	return HubAuditConfig{
+		MaxEntries: DefaultAuditMaxEntries,
+	}
+}
+
+// ValidateHubAuditConfig validates the hub fleet audit retention ceiling,
+// returning an operator error naming the exact set bus hub audit fix command
+// on any out-of-range value.
+func ValidateHubAuditConfig(cfg HubAuditConfig) error {
+	var tb textbuf.Buffer
+	if cfg.MaxEntries < MinAuditMaxEntries {
+		what := tb.Reset().Str("bus hub audit max-entries ").Int(int64(cfg.MaxEntries)).Str(" is below minimum ").Int(MinAuditMaxEntries).String()
+		fix := tb.Reset().Str("set bus hub audit max-entries ").Int(MinAuditMaxEntries).String()
+		return opererr.New(what, "fleet audit retention must be between 100 and 100000 entries", fix)
+	}
+	if cfg.MaxEntries > MaxAuditMaxEntries {
+		what := tb.Reset().Str("bus hub audit max-entries ").Int(int64(cfg.MaxEntries)).Str(" exceeds maximum ").Int(MaxAuditMaxEntries).String()
+		fix := tb.Reset().Str("set bus hub audit max-entries ").Int(MaxAuditMaxEntries).String()
+		return opererr.New(what, "fleet audit retention cannot exceed 100000 entries", fix)
+	}
+	return nil
+}
+
+// HubConfig holds bus hub transport, metric history, alarm, and audit configuration.
+// Extracted from: bus { hub { server ...; client ...; history { ... }; alarms { ... }; audit { ... } } }.
 type HubConfig struct {
 	Servers []HubServerConfig // Named server blocks (listeners)
 	Clients []HubClientConfig // Hub-level client blocks (outbound)
 	History HubHistoryConfig  // Managed device sample interval, retention, and storage budgets
 	Alarms  HubAlarmsConfig   // Managed device alarm thresholds, delays, and history retention
+	Audit   HubAuditConfig    // Managed fleet audit log retention ceiling
 }
 
 // RespawnRequest is what a plugin block's `respawn` leaf asks for. The leaf is

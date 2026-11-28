@@ -280,8 +280,8 @@ publishes its record after `Start` attempts its configured addresses, and
 A startup failure that prevents publication remains visible with its cause.
 When a configuration drops a client, its last named rejection clears.
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, notifyDropped, appendChainHealth -->
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedHistoryCheckpoint, checkManagedHistoryCapacity, checkManagedHistoryCorrupt, checkManagedChainDrift, checkManagedChainUnreadable -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- ManagedRuntimeHealth, managedDoctorState, notifyDropped, appendChainHealth, appendAuditHealth -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedListenerUnbound, checkManagedClientRejected, checkManagedHistoryCheckpoint, checkManagedHistoryCapacity, checkManagedHistoryCorrupt, checkManagedChainDrift, checkManagedChainUnreadable, checkManagedAuditWrite, checkManagedAuditDropped, checkManagedAuditCorrupt -->
 
 | Event | Recorded as | Doctor code |
 |-------|-------------|-------------|
@@ -305,8 +305,11 @@ When a configuration drops a client, its last named rejection clears.
 | A persisted hub chain key (`meta/managed/client/<name>/chain`) fails read, strict JSON decode, or write | per-client unreadable entry (`ManagedChainUnreadableEntry`) naming the key and error; never treated as absent and healed on the next confirmed full replay | `doctor-managed-chain-unreadable` (warning) |
 | A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 | A `config-fetch` answer that failed to send over a live managed connection | an event on the report bus naming the client and the transport error, with no secret | `doctor-managed-config-fetch-undelivered` |
+| Hub fleet audit page or manifest persistence fails | failure count, timestamps, and error text. Previously published history remains readable until a later write succeeds | `doctor-managed-audit-write-failed` (error) |
+| Hub fleet audit admission queue drops events under load, or a device reports an offline receipt outbox overflow gap | drop count or gap count, last timestamp, and affected device | `doctor-managed-audit-dropped` (warning) |
+| Persisted hub fleet audit manifest or page keys fail startup read, size, or strict JSON decode | unreadable key count, timestamp, and last error. Healthy pages remain readable | `doctor-managed-audit-corrupt` (warning) |
 <!-- source: internal/component/plugin/server/managed_serve.go -- noteConfigFetchDeliveryFailure -->
-<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorManagedConfigFetchUndelivered -->
+<!-- source: internal/component/plugin/server/doctor_codes.go -- CodeDoctorManagedConfigFetchUndelivered, CodeDoctorManagedAuditWriteFailed, CodeDoctorManagedAuditDropped, CodeDoctorManagedAuditCorrupt -->
 
 ### Config Storage (Hub Side)
 
@@ -963,6 +966,7 @@ After `#0 auth`, the hub knows the client's name. All RPCs are scoped to that na
 | `inventory-report` | Client to hub | Compact JSON `InventoryReport` (max 64 KiB, per-section `available` flags, optional ECC counters, no raw SMART or drive serials) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
 | `health-report` | Client to hub | Compact JSON `HealthReport` (max 64 KiB, matching `/health` JSON status and component rows) | `ok {}`; RPC error on invalid, oversized, stale-session, or rate-limited report |
 | `sample-report` | Client to hub | Compact JSON `SampleReport` (max 8 KiB, `schema-version: 1`, optional diagnostic `device-time`, up to 16 registered finite scalar readings) | `ok {}`; RPC error on invalid, oversized, disabled, stale-session, clock-regression, or rate-limited report |
+| `fleet-audit-receipts` | Client to hub | Compact JSON `AuditReceiptBatch` (`epoch`, up to 32 `AuditReceiptEntry` rows of at most 1 KiB each, optional `lost`/`gap-from`/`gap-to` overflow range) | `ok {"epoch":"<epoch>","committed":<seq>}` (`AuditReceiptAck`) after durable manifest commit, or an RPC error on invalid, out-of-order, or stale-session batch |
 | `ping` | Either direction | `{"chain-hash":"<40-hex>"}` (`PingRequest`, `chain-hash` optional) | `ok {"chain-hash":"<40-hex>"}` (`ManagedReply`) |
 
 The `config-fetch` answer that carries a configuration may also carry
@@ -991,7 +995,7 @@ error.
 | `sample-interval-seconds` | `config-fetch` answer (full, diff, or `current`) | Hub-configured periodic metric sample interval in seconds (`1..3600`). Omitted when sampling is disabled (`interval 0`) or by older hubs |
 | `holding` | `config-ack` | `true` when the client refused because it holds a configuration of its own, not because the hub's one is invalid |
 | `edited-at` | `config-held` | When the version the client runs was written into its store (the stamp of its active version). Absent when the client's store records no such stamp |
-<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, VerbSampleReport, ManagedReply, DecodeManagedReply, PingRequest, ConfigFetchRequest, ConfigFetchResponse, ConfigChanged, ConfigAck, ConfigHeld, FetchModeFull, FetchModeDiff, ResyncModeDiff, ResyncModeFull, RejectKindVerify, RejectKindCommit, RejectKindResync -->
+<!-- source: pkg/fleet/envelope.go -- VerbConfigHeld, VerbSampleReport, VerbFleetAuditReceipts, ManagedReply, DecodeManagedReply, PingRequest, ConfigFetchRequest, ConfigFetchResponse, ConfigChanged, ConfigAck, ConfigHeld, AuditReceiptEntry, AuditReceiptBatch, AuditReceiptAck, FetchModeFull, FetchModeDiff, ResyncModeDiff, ResyncModeFull, RejectKindVerify, RejectKindCommit, RejectKindResync -->
 <!-- test: pkg/fleet/envelope_test.go TestConfigHeldEnvelopeRoundTrip, TestOldPeerIgnoresNewFields -->
 
 The hub caps concurrent unauthenticated handshakes at 32 (`managedMaxHandshakes`)
@@ -1360,6 +1364,118 @@ mismatches follow one hub-to-client synchronization path:
 <!-- source: internal/component/managed/chain.go -- newClientChainMetrics, NewChainAccess, ReadChainState, RecordActiveChainAnchor -->
 <!-- source: internal/component/managed/alarm_resync.go -- AlarmKindConfigResyncFailed, registerResyncFailedAlarm, evaluateResyncFailedAlarm -->
 
+### Fleet audit trail
+
+The hub records centralized fleet operations in an append-only, bounded audit
+log stored in its live ZeFS tree. Each entry carries a hub-assigned monotonic
+sequence number (`seq`), UTC `event-time` and `receipt-time`, dot-separated
+kebab-case `type`, `device`, authenticated `actor` and `surface`, and `outcome`.
+Entries also carry optional version references (`version`, `previous-version`),
+safe `diagnostic-code`, bounded `summary`, and bounded `metadata`. Entries
+never store raw configuration text, secrets, or free-form peer error text.
+
+#### Observation points and producer contract
+
+`ManagedAuditStore` accepts any event whose `type` passes
+`ValidFleetAuditEventType`, so future fleet producers (such as templates or
+rollouts) emit structured entries beside the operation that owns them. The hub
+and managed components emit these built-in event types:
+
+- Session lifecycle: `device.connect` and `device.disconnect` at authenticated
+  session admission and close.
+- Configuration delivery: `config.fetch` when the hub serves a configuration,
+  `config.push` when `config-changed` succeeds, `config.ack` on successful
+  application, and `config.reject` on negative or holding acknowledgement (with
+  safe rejection classification).
+- Hold and divergence resolution: `config.held` when the hub stores a held
+  copy, plus `divergence.adopt` and `divergence.revert` when the running hub
+  commits an operator decision.
+- Offline device mode transitions: `fleet.disable`, `fleet.enable`, and
+  `fleet.receipt.gap` ingested from authenticated device receipt batches.
+<!-- source: internal/component/plugin/server/audit.go -- ManagedAuditStore, FleetAuditEntry, FleetAuditQuery, ManagedAuditHealth, ValidFleetAuditEventType, FleetAuditQueueSize, FleetAuditPageMaxEntries, NewManagedAuditStore -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedAuditQuery, handleFleetAuditReceipts, recordConfigRejectAudit -->
+
+#### Bounded async writer, immutable pages, and retention
+
+`ManagedAuditStore` uses one long-lived writer goroutine that drains a bounded
+queue of 1,024 entries (`FleetAuditQueueSize`). Admission is non-blocking so
+audit queue saturation or storage errors never stall configuration delivery.
+Dropped events increment `QueueDropped` and record their timestamp.
+
+The writer groups rows into immutable ZeFS pages of at most 128 entries
+(`FleetAuditPageMaxEntries`) under `meta/fleet/audit/page/{page}`. On each
+commit, it writes new pages first and then atomically replaces
+`meta/fleet/audit/manifest` with the active page list, sequence bounds, and
+device receipt cursors. Queries pin one published generation in memory while
+they copy rows. The writer deletes superseded pages only after active readers
+unpin the retired generation, and `LoadFromStore` removes orphan pages on
+startup. `Stop` closes admission, drains queued events, publishes the final
+batch, and joins the writer before the hub closes its store.
+
+Retention is set by `bus hub audit max-entries` (`100..100000`, default
+`10000`). Startup reads this ceiling from `ExtractHubConfig`, and an accepted
+reload updates it live through `PrepareManagedListenersWithHistoryAlarmsAndAudit`
+and `ApplyManagedListeners`, trimming oldest entries on publication.
+<!-- source: internal/component/plugin/types.go -- DefaultAuditMaxEntries, MinAuditMaxEntries, MaxAuditMaxEntries, HubAuditConfig, DefaultHubAuditConfig, ValidateHubAuditConfig -->
+<!-- source: internal/component/config/loader_extract.go -- ExtractHubConfig, extractHubAuditConfig -->
+<!-- source: internal/component/plugin/server/managed_apply.go -- PrepareManagedListenersWithHistoryAlarmsAndAudit, ApplyManagedListeners -->
+
+#### Offline device receipt outbox and write intent
+
+When an operator runs `request fleet disable` or `request fleet enable` on a
+device (online or offline), `executeManagedModeChange` writes a recoverable
+write intent to `meta/managed/audit-intent` before it updates
+`meta/instance/managed`. After the flag write succeeds, it appends one
+sequenced receipt to `meta/managed/audit-receipts` under a persistent device
+epoch and removes the intent. If a crash interrupts the transition,
+`recoverAuditReceiptIntent` compares the intent against `meta/instance/managed`
+and either completes the receipt or discards the intent.
+
+The device outbox holds at most 1,024 entries (`FleetAuditReceiptsOutboxMax`).
+On overflow, it evicts the oldest entries and retains `lost`, `gap-from`, and
+`gap-to`. On each authenticated session, `drainAuditReceipts` sends batches of
+up to 32 entries (`FleetAuditReceiptsBatchMax`, each at most 1 KiB, batch
+payload bounded by `FleetAuditReceiptBatchBytesMax` = 64 KiB and ack payload by
+`FleetAuditReceiptAckBytesMax` = 4 KiB before JSON decoding) over
+`fleet-audit-receipts`.
+
+The hub binds `actor` to `device:<name>` and stores the device's local actor
+and surface in `metadata`. It deduplicates sequences already committed for that
+epoch even after retention pruning, commits entries and cursor in one manifest
+write, and returns `AuditReceiptAck`. The device trims its outbox only after a
+matching, in-range acknowledgement. Older hubs that answer `unknown method`
+leave the outbox untouched and continue config sync.
+<!-- source: internal/component/managed/audit_receipts.go -- executeManagedModeChange, recoverAuditReceiptIntent, drainAuditReceipts, auditReceiptOutboxHealth, decodeAuditReceiptAck -->
+<!-- source: pkg/fleet/envelope.go -- VerbFleetAuditReceipts, FleetAuditReceiptsOutboxMax, FleetAuditReceiptsBatchMax, FleetAuditReceiptEntryBytesMax, FleetAuditReceiptBatchBytesMax, FleetAuditReceiptAckBytesMax, AuditReceiptEntry, AuditReceiptBatch, AuditReceiptAck -->
+
+#### Doctor codes and authorized query contract
+
+Four doctor codes report audit health and do not fail configuration delivery:
+
+- `doctor-managed-audit-write-failed` (hub, error): failed audit page or
+  manifest write. It clears on the next successful write while published rows
+  stay readable.
+- `doctor-managed-audit-dropped` (hub, warning): hub admission queue overflow
+  or a device-reported receipt outbox overflow gap.
+- `doctor-managed-audit-corrupt` (hub, warning): unreadable manifest or page
+  keys skipped on startup while healthy pages remain readable.
+- `doctor-managed-audit-receipt-gap` (device, warning): device receipt outbox
+  overflow loss or unreadable outbox key.
+
+`show fleet audit` exposes the published rows newest first across CLI, SSH,
+REST, gRPC, MCP, and the web command line. It supports command-specific pipe
+filters `device`, `type`, `since`, and `until`, where `since` and `until` are
+inclusive RFC 3339 bounds on `event-time`. Fleet UI-6 consumes this same
+authorized query contract. Every query resolves a request-bound
+`FleetDeviceScope` against `show fleet device name <device>` before it applies
+caller predicates. Restricted callers see only authorized devices and cannot
+distinguish denied devices from absent ones.
+<!-- source: internal/component/managed/cmd_audit.go -- registerAuditCommands, handleFleetAudit, fleetAuditRow -->
+<!-- source: internal/component/managed/doctor.go -- managedAuditReceiptsDoctorCheck, checkManagedAuditReceipts -->
+<!-- source: internal/component/managed/register_doctor_codes.go -- CodeDoctorManagedAuditReceiptGap -->
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedAuditWrite, checkManagedAuditDropped, checkManagedAuditCorrupt -->
+<!-- test: test/managed/fleet-audit-log.ci -->
+
 ### Connection Lifecycle
 
 1. Client reads cached config from the local tree (or bootstrap metadata from `ze init` on first boot)
@@ -1537,6 +1653,8 @@ The store now has the cached config. On subsequent boots, the config itself prov
 | `bus/hub/alarms/retention-days` | uint8 (`1..30`, default `7`) | Maximum closed alarm episode history retention in days |
 | `bus/hub/alarms/max-episodes-per-device` | uint16 (`1..512`, default `512`) | Maximum closed alarm episodes retained per managed device |
 | `bus/hub/alarms/max-episodes-hub` | uint32 (`1..65536`, default `65536`) | Maximum closed alarm episodes retained across the hub |
+| `bus/hub/audit` | container | Hub-side centralized fleet audit log retention settings |
+| `bus/hub/audit/max-entries` | uint32 (`100..100000`, default `10000`) | Maximum centralized fleet audit entries retained on the hub |
 <!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- container bus -->
 
 ### Client Side

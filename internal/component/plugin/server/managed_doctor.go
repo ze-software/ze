@@ -244,6 +244,7 @@ type ManagedDoctorRecord struct {
 	HandshakeSaturation   *ManagedHandshakeSaturation
 	History               *ManagedHistoryHealth
 	Alarms                *ManagedAlarmHealth
+	Audit                 *ManagedAuditHealth
 	ChainDrifted          []ManagedChainDoctorEntry
 	ChainUnreadable       []ManagedChainUnreadableEntry
 }
@@ -298,8 +299,17 @@ func ManagedRuntimeHealth() (ManagedDoctorRecord, bool) {
 	s.appendCertificateAndAddressDevices(&record)
 	s.appendHistoryHealth(&record, now)
 	s.appendAlarmHealth(&record)
+	s.appendAuditHealth(&record)
 	s.appendChainHealth(&record)
 	return record, true
+}
+
+func (s *ManagedServer) appendAuditHealth(record *ManagedDoctorRecord) {
+	if s.audit == nil {
+		return
+	}
+	health := s.audit.Health()
+	record.Audit = &health
 }
 
 func (s *ManagedServer) appendChainHealth(record *ManagedDoctorRecord) {

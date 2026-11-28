@@ -71,11 +71,12 @@ const (
 	keywordBytes   = "bytes"
 )
 
-// pathUpdateDataKey is the command `update data key` is typed as, which its
-// refusals name first and the local `ze data write` sends, and
-// usageUpdateDataKey the whole command, the fix of a refusal that says what to
-// type.
+// pathDeleteDataKey and pathUpdateDataKey are the commands `delete data key`
+// and `update data key` are typed as, which their refusals name first and the
+// local `ze data write` sends, and usageUpdateDataKey is the whole command, the
+// fix of a refusal that says what to type.
 const (
+	pathDeleteDataKey  = "delete data key"
 	pathUpdateDataKey  = "update data key"
 	usageUpdateDataKey = "update data key <key> content <base64>"
 )
@@ -391,9 +392,12 @@ func handleDataKeyDelete(_ *pluginserver.CommandContext, validated command.Valid
 			"delete data key <key>")), nil
 	}
 	if !storage.RuntimeKey(key) {
-		return zePlugin.OperatorErrorResponse(configurationKeyError("delete data key", key)), nil
+		return zePlugin.OperatorErrorResponse(configurationKeyError(pathDeleteDataKey, key)), nil
 	}
-	if refusal := runningOwnerError("delete data key", key); refusal != nil {
+	if zefs.IsFleetAuditProtectedKey(key) {
+		return zePlugin.OperatorErrorResponse(fleetAuditProtectedKeyError(pathDeleteDataKey, key)), nil
+	}
+	if refusal := runningOwnerError(pathDeleteDataKey, key); refusal != nil {
 		return zePlugin.OperatorErrorResponse(refusal), nil
 	}
 	if err := target.Store.RemoveKey(key); err != nil {
@@ -438,6 +442,9 @@ func handleDataKeyUpdate(_ *pluginserver.CommandContext, validated command.Valid
 	if !storage.RuntimeKey(key) {
 		return zePlugin.OperatorErrorResponse(configurationKeyError(pathUpdateDataKey, key)), nil
 	}
+	if zefs.IsFleetAuditProtectedKey(key) {
+		return zePlugin.OperatorErrorResponse(fleetAuditProtectedKeyError(pathUpdateDataKey, key)), nil
+	}
 	if refusal := runningOwnerError(pathUpdateDataKey, key); refusal != nil {
 		return zePlugin.OperatorErrorResponse(refusal), nil
 	}
@@ -477,6 +484,17 @@ func configurationKeyError(commandPath, key string) *opererr.Error {
 		commandPath+": "+key+" is configuration, not runtime state",
 		commandPath+" reaches runtime state only, a key under meta/ outside meta/config/, because a raw change to a configuration key bypasses its versions, pointers and history",
 		usageUpdateDataConfig)
+}
+
+// fleetAuditProtectedKeyError refuses direct live mutation of fleet audit
+// manifest, journal pages, cursors, and device receipt keys while the daemon
+// runs. commandPath is the command the operator typed, which the refusal names
+// first.
+func fleetAuditProtectedKeyError(commandPath, key string) *opererr.Error {
+	return opererr.New(
+		commandPath+": "+key+" is protected fleet audit state",
+		"live mutation of fleet audit manifest, journal pages, cursors, and device receipt keys is refused while the daemon runs so the audit trail stays append-only and consistent",
+		"show fleet audit (or check store health with ze doctor)")
 }
 
 // keyOwners answers the plugin process names granted write access to a store

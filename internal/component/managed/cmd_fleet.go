@@ -29,6 +29,7 @@ import (
 	"errors"
 	"path/filepath"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
@@ -628,19 +629,35 @@ func noArguments(path string, validated command.ValidatedArgs) *opererr.Error {
 // share. refusal keeps what the write answered, so the command tells a flag
 // that was not stored from a client that did not start.
 type flagWrite struct {
-	path    string
-	write   keyWrite
-	managed bool
-	refusal *opererr.Error
+	path         string
+	write        keyWrite
+	managed      bool
+	receiptStore storage.Storage
+	actor        string
+	surface      string
+	refusal      *opererr.Error
 }
 
-// store writes the flag, and is the storeFlag a FleetTarget runs.
+// store writes the flag under executeManagedModeChange, and is the storeFlag a
+// FleetTarget runs.
 func (f *flagWrite) store() error {
-	f.refusal = storeManagedFlag(f.path, f.write, f.managed)
-	if f.refusal == nil {
-		return nil
+	err := executeManagedModeChange(f.receiptStore, f.managed, f.actor, f.surface, time.Now(), func() error {
+		f.refusal = storeManagedFlag(f.path, f.write, f.managed)
+		if f.refusal == nil {
+			return nil
+		}
+		return f.refusal
+	})
+	if err != nil {
+		if f.refusal == nil {
+			f.refusal = opererr.Wrap(err,
+				f.path+": the managed flag ("+zefs.KeyInstanceManaged.Pattern+") was not stored",
+				"the device stands with its hub as it did before the command, and its hub client was not changed",
+				fixCheckStore)
+		}
+		return f.refusal
 	}
-	return f.refusal
+	return nil
 }
 
 // failed answers the refusal of a target that answered err: the flag's own
@@ -662,7 +679,11 @@ func (f *flagWrite) failed(err error) *opererr.Error {
 // client. A nil target is a daemon that started unmanaged: it runs no hub
 // client, and the flag is all there is to change.
 func disableOnDaemon(write keyWrite, target *FleetTarget) (fleetChange, *opererr.Error) {
-	flag := &flagWrite{path: pathFleetDisable, write: write, managed: false}
+	return disableOnDaemonWithAudit(nil, write, target, "", "")
+}
+
+func disableOnDaemonWithAudit(store storage.Storage, write keyWrite, target *FleetTarget, actor, surface string) (fleetChange, *opererr.Error) {
+	flag := &flagWrite{path: pathFleetDisable, write: write, managed: false, receiptStore: store, actor: actor, surface: surface}
 	if target == nil {
 		if err := flag.store(); err != nil {
 			return fleetChange{}, flag.refusal
@@ -689,10 +710,14 @@ func disableOnDaemon(write keyWrite, target *FleetTarget) (fleetChange, *opererr
 // target. A nil target is a daemon that started unmanaged: it owns no hub
 // client, so the connection starts at the next `ze start`.
 func enableOnDaemon(read storage.Storage, write keyWrite, target *FleetTarget) (fleetChange, *opererr.Error) {
+	return enableOnDaemonWithAudit(read, nil, write, target, "", "")
+}
+
+func enableOnDaemonWithAudit(read, store storage.Storage, write keyWrite, target *FleetTarget, actor, surface string) (fleetChange, *opererr.Error) {
 	if refusal := requireDeclaredHub(read); refusal != nil {
 		return fleetChange{}, refusal
 	}
-	flag := &flagWrite{path: pathFleetEnable, write: write, managed: true}
+	flag := &flagWrite{path: pathFleetEnable, write: write, managed: true, receiptStore: store, actor: actor, surface: surface}
 	if target == nil {
 		if err := flag.store(); err != nil {
 			return fleetChange{}, flag.refusal
@@ -740,7 +765,21 @@ func clientStartRefusal(err error) *opererr.Error {
 // disableStopped is `request fleet disable` on a store no daemon holds: the
 // flag is the whole change, and the next start follows it.
 func disableStopped(store storage.Storage) (fleetChange, *opererr.Error) {
-	if refusal := storeManagedFlag(pathFleetDisable, store.WriteKey, false); refusal != nil {
+	var refusal *opererr.Error
+	err := executeManagedModeChange(store, false, localOSActor(), auditReceiptDefaultSurface, time.Now(), func() error {
+		refusal = storeManagedFlag(pathFleetDisable, store.WriteKey, false)
+		if refusal == nil {
+			return nil
+		}
+		return refusal
+	})
+	if err != nil {
+		if refusal == nil {
+			refusal = opererr.Wrap(err,
+				pathFleetDisable+": the managed flag ("+zefs.KeyInstanceManaged.Pattern+") was not stored",
+				"the device stands with its hub as it did before the command, and its hub client was not changed",
+				fixCheckStore)
+		}
 		return fleetChange{}, refusal
 	}
 	return fleetChange{Client: runtimeNoDaemon, Connection: runtimeNoDaemon, Note: noteLeftStopped}, nil
@@ -752,7 +791,21 @@ func enableStopped(store storage.Storage) (fleetChange, *opererr.Error) {
 	if refusal := requireDeclaredHub(store); refusal != nil {
 		return fleetChange{}, refusal
 	}
-	if refusal := storeManagedFlag(pathFleetEnable, store.WriteKey, true); refusal != nil {
+	var refusal *opererr.Error
+	err := executeManagedModeChange(store, true, localOSActor(), auditReceiptDefaultSurface, time.Now(), func() error {
+		refusal = storeManagedFlag(pathFleetEnable, store.WriteKey, true)
+		if refusal == nil {
+			return nil
+		}
+		return refusal
+	})
+	if err != nil {
+		if refusal == nil {
+			refusal = opererr.Wrap(err,
+				pathFleetEnable+": the managed flag ("+zefs.KeyInstanceManaged.Pattern+") was not stored",
+				"the device stands with its hub as it did before the command, and its hub client was not changed",
+				fixCheckStore)
+		}
 		return fleetChange{}, refusal
 	}
 	return fleetChange{Managed: true, Client: runtimeNoDaemon, Connection: runtimeNoDaemon, Note: noteJoinsStopped}, nil
@@ -800,17 +853,18 @@ func noDeclaredHub() *opererr.Error {
 // handleFleetDisable answers `request fleet disable` in the daemon. It writes
 // the flag through the store handle the daemon owns: opening the store afresh
 // here would be a second writer, which the owner lock refuses.
-func handleFleetDisable(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleFleetDisable(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	if refusal := noArguments(pathFleetDisable, validated); refusal != nil {
 		return plugin.OperatorErrorResponse(refusal), nil
 	}
-	return fleetChangeResponse(disableOnDaemon(statestore.Write, fleetTarget.Load()))
+	actor, surface := divergenceAuditContext(cmdCtx)
+	return fleetChangeResponse(disableOnDaemonWithAudit(statestore.Store(), statestore.Write, fleetTarget.Load(), actor, surface))
 }
 
 // handleFleetEnable answers `request fleet enable` in the daemon. It reads the
 // active configuration through a read-only handle beside the daemon's own, as
 // the fleet status does, and writes the flag through the daemon's handle.
-func handleFleetEnable(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleFleetEnable(cmdCtx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	if refusal := noArguments(pathFleetEnable, validated); refusal != nil {
 		return plugin.OperatorErrorResponse(refusal), nil
 	}
@@ -823,7 +877,8 @@ func handleFleetEnable(_ *pluginserver.CommandContext, validated command.Validat
 			"ze doctor")), nil
 	}
 	defer store.Close() //nolint:errcheck // read-only handle, nothing to flush
-	return fleetChangeResponse(enableOnDaemon(store, statestore.Write, fleetTarget.Load()))
+	actor, surface := divergenceAuditContext(cmdCtx)
+	return fleetChangeResponse(enableOnDaemonWithAudit(store, statestore.Store(), statestore.Write, fleetTarget.Load(), actor, surface))
 }
 
 // fleetChangeResponse answers a leave or rejoin, or its refusal.

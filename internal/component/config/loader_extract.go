@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"net/url"
 	"slices"
 	"strconv"
@@ -1009,6 +1010,7 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 	hub := plugin.HubConfig{
 		History: plugin.DefaultHubHistoryConfig(),
 		Alarms:  plugin.DefaultHubAlarmsConfig(),
+		Audit:   plugin.DefaultHubAuditConfig(),
 	}
 
 	for _, entry := range hubContainer.GetListOrdered("server") {
@@ -1069,7 +1071,46 @@ func ExtractHubConfig(tree *Tree) (plugin.HubConfig, error) {
 		}
 	}
 
+	auditContainer := hubContainer.GetContainer("audit")
+	if auditContainer != nil {
+		auditCfg, err := extractHubAuditConfig(auditContainer)
+		if err != nil {
+			return plugin.HubConfig{}, err
+		}
+		hub.Audit = auditCfg
+	}
+
+	needsAuditValidation := len(hub.Servers) > 0
+	if auditContainer != nil {
+		needsAuditValidation = true
+	}
+	if needsAuditValidation {
+		if err := plugin.ValidateHubAuditConfig(hub.Audit); err != nil {
+			return plugin.HubConfig{}, err
+		}
+	}
+
 	return hub, nil
+}
+
+func extractHubAuditConfig(tree *Tree) (plugin.HubAuditConfig, error) {
+	cfg := plugin.DefaultHubAuditConfig()
+	if raw, ok := tree.Get("max-entries"); ok {
+		val, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			var tb textbuf.Buffer
+			what := tb.Reset().Str("invalid bus hub audit max-entries ").Str(QuoteIfNeeded(raw)).String()
+			fix := tb.Reset().Str("set bus hub audit max-entries ").Int(plugin.DefaultAuditMaxEntries).String()
+			return cfg, opererr.New(what, "max-entries must be an integer between 100 and 100000", fix)
+		}
+		if val > math.MaxInt32 {
+			val = math.MaxInt32
+		} else if val < math.MinInt32 {
+			val = math.MinInt32
+		}
+		cfg.MaxEntries = int(val)
+	}
+	return cfg, nil
 }
 
 func extractHubAlarmsConfig(tree *Tree) (plugin.HubAlarmsConfig, error) {

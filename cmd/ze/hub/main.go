@@ -1863,6 +1863,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			Store:               store,
 			ServesClient:        managedServer.Serves,
 			NotifyConfigChanged: managedServer.NotifyConfigChanged,
+			RecordAudit:         managedServer.RecordAudit,
 		})
 		defer managed.InstallDivergenceTarget(nil)
 	}

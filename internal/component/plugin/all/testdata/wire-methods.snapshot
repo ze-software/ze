@@ -336,6 +336,7 @@ ze-managed:fleet-enable
 ze-managed:fleet-health
 ze-managed:show-fleet-alarm
 ze-managed:show-fleet-alarm-history
+ze-managed:show-fleet-audit
 ze-managed:show-fleet-sample-latest
 ze-managed:show-fleet-sample-series
 ze-managed:show-fleet-sample-storage

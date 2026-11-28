@@ -241,7 +241,11 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `meta/fleet/history/delete-intent/{name}` | Durable deletion intent fencing fleet metric history checkpoint writers while erasing a forgotten device's history (`KeyFleetHistoryDeleteIntent`, JSON, `Private: true`, `ValueMax: 4 KiB`) | `meta/fleet/history/delete-intent/edge-01` |
 | `meta/fleet/alarm/device/{name}` | Managed device declaration timing, active alarm occurrences, and bounded closed episode history (`KeyFleetAlarmDevice`, JSON, `Private: true`, `ValueMax: 256 KiB`) | `meta/fleet/alarm/device/edge-01` |
 | `meta/fleet/alarm/hub` | Hub-scoped active alarm occurrences, monotonic occurrence sequence state, and bounded hub closed episode history (`KeyFleetAlarmHub`, JSON, `Private: true`, `ValueMax: 64 KiB`) | `meta/fleet/alarm/hub` |
+| `meta/fleet/audit/manifest` | Hub fleet audit manifest holding immutable page references, retained sequence bounds, and per-device receipt cursors (`KeyFleetAuditManifest`, JSON, `Private: true`, `ValueMax: 256 KiB`) | `meta/fleet/audit/manifest` |
+| `meta/fleet/audit/page/{page}` | Immutable hub fleet audit page holding up to 128 sequenced entries (`KeyFleetAuditPage`, JSON, `Private: true`, `ValueMax: 512 KiB`) | `meta/fleet/audit/page/0000000000000001` |
 | `meta/managed/base-version` | The baseline of a managed client: the version hash (`fleet.VersionHash`) of the last configuration its hub gave it. `show fleet status` reports it beside the hash of the configuration the device runs. An absent key is a valid state, no baseline recorded. It sits under `meta/managed/`, beside the hub bootstrap keys, because `meta/instance/managed` is a value and the store refuses a key below a value | `meta/managed/base-version` |
+| `meta/managed/audit-receipts` | Bounded device outbox of offline fleet mode-change audit receipts awaiting hub acknowledgement (`KeyManagedAuditReceipts`, JSON, `Private: true`, `ValueMax: 1,536 KiB`) | `meta/managed/audit-receipts` |
+| `meta/managed/audit-intent` | Recoverable write intent that guards a managed mode transition and its receipt entry (`KeyManagedAuditIntent`, JSON, `Private: true`, `ValueMax: 8 KiB`) | `meta/managed/audit-intent` |
 | `meta/managed/chain-state` | Persisted SHA-1 configuration hash chain state for a managed client (`KeyManagedChainState`, JSON `fleet.ChainState`, `Private: true`, `ValueMax: 4 KiB`) | `meta/managed/chain-state` |
 | `meta/managed/client/{name}/chain` | Hub-side persisted SHA-1 configuration hash chain state for one managed client (`KeyManagedClientChain`, JSON `fleet.ChainState`, `Private: true`, `ValueMax: 4 KiB`, `ManagedClientChainPrefix`) | `meta/managed/client/edge-01/chain` |
 | `meta/config/client-<name>.conf/held` | The hub's copy of the configuration a managed client holds (`KeyConfigHeld`), one record per client, written only on the hub: a JSON value of the configuration bytes the client uploaded with `config-held`, their version hash, when that configuration became active on the client, and any revert decision an operator recorded. It sits under the client's own configuration name, beside its version pointers, so the running daemon's `update data key` and `delete data key` refuse it (`storage.RuntimeKey`). It is Private, so `show data registered` hides it, and it carries the client's secrets as `client-<name>.conf` does | `meta/config/client-edge1.conf/held` |
@@ -353,6 +357,36 @@ before strict JSON decode: `KeyManagedChainState` (`meta/managed/chain-state`,
 `ManagedClientChainValueMax` = 4 KiB, with trailing-slash `ListKeys` prefix
 `ManagedClientChainPrefix`) on the hub.
 <!-- source: pkg/zefs/keys.go -- ManagedChainStateValueMax, ManagedClientChainValueMax, ManagedClientChainPrefix, KeyManagedChainState, KeyManagedClientChain -->
+
+The fleet audit trail registers four `Private: true` raw state key families
+with explicit `ValueMax` limits. Each owner checks the byte limit before it
+writes a key and before it decodes stored JSON:
+
+- `KeyFleetAuditManifest` (`meta/fleet/audit/manifest`,
+  `FleetAuditManifestValueMax` = 256 KiB): owned and read by `ManagedAuditStore`
+  on the hub. It holds the active page list, monotonic sequence counters, and
+  per-device receipt cursors.
+- `KeyFleetAuditPage` (`meta/fleet/audit/page/{page}`,
+  `FleetAuditPageValueMax` = 512 KiB, `FleetAuditPagePrefix` =
+  `meta/fleet/audit/page/`): owned and read by `ManagedAuditStore` on the hub.
+  Each page is immutable and stores up to 128 audit entries.
+- `KeyManagedAuditReceipts` (`meta/managed/audit-receipts`,
+  `ManagedAuditReceiptsValueMax` = 1,536 KiB): owned by the device managed
+  component (`executeManagedModeChange`, `drainAuditReceipts`) and read by
+  `auditReceiptOutboxHealth` for doctor reporting.
+- `KeyManagedAuditIntent` (`meta/managed/audit-intent`,
+  `ManagedAuditIntentValueMax` = 8 KiB): owned and reconciled by
+  `executeManagedModeChange` and `recoverAuditReceiptIntent` on the device.
+
+While a daemon runs, `handleDataKeyDelete` and `handleDataKeyUpdate` check
+`zefs.IsFleetAuditProtectedKey` (which matches all four patterns plus any key
+under `FleetAuditPrefix`) and refuse direct live mutation with
+`fleetAuditProtectedKeyError`. Only the internal audit writers publish or
+prune these keys while the daemon runs.
+<!-- source: pkg/zefs/keys.go -- FleetAuditManifestValueMax, FleetAuditPageValueMax, ManagedAuditReceiptsValueMax, ManagedAuditIntentValueMax, FleetAuditPagePrefix, FleetAuditPrefix, KeyFleetAuditManifest, KeyFleetAuditPage, KeyManagedAuditReceipts, KeyManagedAuditIntent, IsFleetAuditProtectedKey -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete, handleDataKeyUpdate, fleetAuditProtectedKeyError -->
+<!-- source: internal/component/plugin/server/audit.go -- ManagedAuditStore -->
+<!-- source: internal/component/managed/audit_receipts.go -- executeManagedModeChange, recoverAuditReceiptIntent, drainAuditReceipts, auditReceiptOutboxHealth -->
 
 `KeyEntry.Matches` is the one rule that says whether a concrete key is an
 instance of a pattern: literal parts match exactly and each `{param}` matches

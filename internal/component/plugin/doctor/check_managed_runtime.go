@@ -55,6 +55,17 @@ const managedChainDriftCheckName = "managed-chain-drift"
 // keys that could not be read, decoded, or written.
 const managedChainUnreadableCheckName = "managed-chain-unreadable"
 
+// managedAuditWriteCheckName reports failed hub fleet audit log persistence.
+const managedAuditWriteCheckName = "managed-audit-write"
+
+// managedAuditDroppedCheckName reports dropped hub fleet audit events or
+// device-reported offline receipt overflow gaps.
+const managedAuditDroppedCheckName = "managed-audit-dropped"
+
+// managedAuditCorruptCheckName reports unreadable persisted hub fleet audit
+// manifest or page keys skipped during startup recovery.
+const managedAuditCorruptCheckName = "managed-audit-corrupt"
+
 // checkManagedListenerUnbound answers one error per managed listen address the
 // daemon could not bind, naming the address and the kernel's error. A
 // collision with the plugin acceptor is not among them: the local
@@ -517,4 +528,120 @@ func managedChainUnreadableRows(entries []server.ManagedChainUnreadableEntry) []
 		})
 	}
 	return rows
+}
+
+// checkManagedAuditWrite reports a failed hub fleet audit log write while
+// previously published audit history remains readable.
+func checkManagedAuditWrite(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedAuditWriteRows(record.Audit)
+}
+
+func managedAuditWriteRows(health *server.ManagedAuditHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	if !health.WriteFailed {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("managed fleet audit log write failed (").Uint(health.WriteFailCount).Str(" failure(s))")
+	if !health.LastWriteFailAt.IsZero() {
+		message.Str(" at ").Str(health.LastWriteFailAt.UTC().Format(time.RFC3339))
+	}
+	if health.LastWriteOKAt.IsZero() {
+		message.Str(" (no audit write has succeeded yet)")
+	} else {
+		message.Str(" (last successful write at ").Str(health.LastWriteOKAt.UTC().Format(time.RFC3339)).Str(")")
+	}
+	if health.LastWriteError != "" {
+		message.Str(": ").Str(health.LastWriteError)
+	}
+	message.Str("; configuration delivery continues while previously published audit rows remain readable")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedAuditWriteFailed,
+		Severity: diagnostic.SeverityError,
+		Message:  message.String(),
+		Fix:      "run ze show data check and repair the daemon state store before the next fleet audit batch writes",
+	}}
+}
+
+// checkManagedAuditDropped reports hub fleet audit queue drops and
+// device-reported offline audit receipt overflow gaps.
+func checkManagedAuditDropped(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedAuditDroppedRows(record.Audit)
+}
+
+func managedAuditDroppedRows(health *server.ManagedAuditHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	var rows []diagnostic.Diagnostic
+	if health.QueueDropped > 0 {
+		var message textbuf.Buffer
+		message.Str("managed fleet audit queue dropped ").Uint(health.QueueDropped).Str(" event(s)")
+		if !health.LastDropAt.IsZero() {
+			message.Str(" (last drop at ").Str(health.LastDropAt.UTC().Format(time.RFC3339)).Byte(')')
+		}
+		message.Str("; configuration delivery continued without blocking")
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedAuditDropped,
+			Severity: diagnostic.SeverityWarning,
+			Message:  message.String(),
+			Fix:      "inspect hub storage latency with ze show data check and review fleet event volume",
+		})
+	}
+	if health.ReceiptGaps > 0 {
+		var message textbuf.Buffer
+		message.Str("managed fleet audit observed ").Uint(health.ReceiptGaps).Str(" device receipt outbox overflow gap(s)")
+		if health.LastReceiptGapDevice != "" {
+			message.Str(" (last device ").Quoted(health.LastReceiptGapDevice)
+			if !health.LastReceiptGapAt.IsZero() {
+				message.Str(" at ").Str(health.LastReceiptGapAt.UTC().Format(time.RFC3339))
+			}
+			message.Byte(')')
+		} else if !health.LastReceiptGapAt.IsZero() {
+			message.Str(" (last at ").Str(health.LastReceiptGapAt.UTC().Format(time.RFC3339)).Byte(')')
+		}
+		message.Str("; offline mode-change receipts evicted on the device cannot be reconstructed")
+		rows = append(rows, diagnostic.Diagnostic{
+			Code:     server.CodeDoctorManagedAuditDropped,
+			Severity: diagnostic.SeverityWarning,
+			Message:  message.String(),
+			Fix:      "inspect the affected device's local audit log and connectivity with ze show fleet devices",
+		})
+	}
+	return rows
+}
+
+// checkManagedAuditCorrupt reports persisted fleet audit manifest or page keys
+// that failed read, size, or JSON validation on startup load.
+func checkManagedAuditCorrupt(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	record, _ := server.ManagedRuntimeHealth()
+	return managedAuditCorruptRows(record.Audit)
+}
+
+func managedAuditCorruptRows(health *server.ManagedAuditHealth) []diagnostic.Diagnostic {
+	if health == nil {
+		return nil
+	}
+	if !health.Unreadable {
+		return nil
+	}
+	var message textbuf.Buffer
+	message.Str("skipped ").Uint(health.UnreadableCount).Str(" unreadable managed fleet audit key(s) on startup load")
+	if !health.LastUnreadableAt.IsZero() {
+		message.Str(" at ").Str(health.LastUnreadableAt.UTC().Format(time.RFC3339))
+	}
+	if health.LastUnreadableError != "" {
+		message.Str(": ").Str(health.LastUnreadableError)
+	}
+	message.Str("; healthy fleet audit pages remain readable")
+	return []diagnostic.Diagnostic{{
+		Code:     server.CodeDoctorManagedAuditCorrupt,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(),
+		Fix:      "run ze show data check to inspect damaged keys under meta/fleet/audit/",
+	}}
 }

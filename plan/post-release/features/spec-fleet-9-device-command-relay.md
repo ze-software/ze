@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | RFC gaps | - |
-| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), plan/post-release/features/spec-fleet-3-audit-trail.md |
+| Depends | spec-fleet-1-device-registry (closed 2026-11-25; documented in `docs/architecture/fleet-config.md`, "Device registry"), spec-fleet-3-audit-trail (closed 2026-11-28; documented in `docs/architecture/fleet-config.md` and `docs/guide/audit.md`) |
 | Phase | 9/10 of plan/post-release/features/spec-fleet-0-umbrella.md |
 | Handoff | - |
 | Updated | 2026-11-25 |

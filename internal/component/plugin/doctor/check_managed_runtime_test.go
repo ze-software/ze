@@ -296,3 +296,116 @@ func TestCheckManagedChainUnreadable(t *testing.T) {
 	require.True(t, registered)
 	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedChainUnreadable))
 }
+
+// VALIDATES: fleet-3 AC-13 -- managed-audit-write reports failed hub fleet
+// audit persistence with count, timestamps, error detail, and store-check fix,
+// and is registered in the runtime phase.
+// PREVENTS: silent hub audit write failures hidden from ze doctor.
+func TestCheckManagedAuditWrite(t *testing.T) {
+	require.Empty(t, managedAuditWriteRows(nil))
+	require.Empty(t, managedAuditWriteRows(&server.ManagedAuditHealth{WriteFailed: false}))
+
+	failAt := time.Date(2026, 11, 28, 1, 20, 0, 0, time.UTC)
+	okAt := time.Date(2026, 11, 28, 1, 10, 0, 0, time.UTC)
+	rows := managedAuditWriteRows(&server.ManagedAuditHealth{
+		WriteFailed:     true,
+		WriteFailCount:  4,
+		LastWriteFailAt: failAt,
+		LastWriteOKAt:   okAt,
+		LastWriteError:  "no space left on device",
+	})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedAuditWriteFailed, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityError, rows[0].Severity)
+	require.Contains(t, rows[0].Message, "4 failure(s)")
+	require.Contains(t, rows[0].Message, failAt.Format(time.RFC3339))
+	require.Contains(t, rows[0].Message, okAt.Format(time.RFC3339))
+	require.Contains(t, rows[0].Message, "no space left on device")
+	require.Contains(t, rows[0].Fix, "ze show data check")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedAuditWriteCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedAuditWriteFailed))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedAuditWriteFailed))
+}
+
+// VALIDATES: fleet-3 AC-14, AC-17 -- managed-audit-dropped reports both hub
+// admission queue drops and device receipt outbox overflow gaps with counts,
+// device identity, timestamps, and fixes, and is registered in runtime phase.
+// PREVENTS: silent audit event loss under overload or device receipt overflow.
+func TestCheckManagedAuditDropped(t *testing.T) {
+	require.Empty(t, managedAuditDroppedRows(nil))
+	require.Empty(t, managedAuditDroppedRows(&server.ManagedAuditHealth{}))
+
+	dropAt := time.Date(2026, 11, 28, 2, 0, 0, 0, time.UTC)
+	gapAt := time.Date(2026, 11, 28, 2, 5, 0, 0, time.UTC)
+	rows := managedAuditDroppedRows(&server.ManagedAuditHealth{
+		QueueDropped:         7,
+		LastDropAt:           dropAt,
+		ReceiptGaps:          2,
+		LastReceiptGapAt:     gapAt,
+		LastReceiptGapDevice: "edge-01",
+	})
+	require.Len(t, rows, 2)
+	require.Equal(t, server.CodeDoctorManagedAuditDropped, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
+	require.Contains(t, rows[0].Message, "7 event(s)")
+	require.Contains(t, rows[0].Message, dropAt.Format(time.RFC3339))
+	require.Contains(t, rows[0].Fix, "ze show data check")
+
+	require.Equal(t, server.CodeDoctorManagedAuditDropped, rows[1].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[1].Severity)
+	require.Contains(t, rows[1].Message, "2 device receipt outbox overflow gap(s)")
+	require.Contains(t, rows[1].Message, "edge-01")
+	require.Contains(t, rows[1].Message, gapAt.Format(time.RFC3339))
+	require.Contains(t, rows[1].Fix, "ze show fleet devices")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedAuditDroppedCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedAuditDropped))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedAuditDropped))
+}
+
+// VALIDATES: fleet-3 AC-17 -- managed-audit-corrupt reports unreadable
+// persisted fleet audit keys skipped at startup load with count, timestamp,
+// error, and fix, and is registered in the runtime phase.
+// PREVENTS: corrupt audit manifest or page keys being silently ignored.
+func TestCheckManagedAuditCorrupt(t *testing.T) {
+	require.Empty(t, managedAuditCorruptRows(nil))
+	require.Empty(t, managedAuditCorruptRows(&server.ManagedAuditHealth{Unreadable: false}))
+
+	at := time.Date(2026, 11, 28, 3, 0, 0, 0, time.UTC)
+	rows := managedAuditCorruptRows(&server.ManagedAuditHealth{
+		Unreadable:          true,
+		UnreadableCount:     2,
+		LastUnreadableAt:    at,
+		LastUnreadableError: "decode fleet audit page: invalid character",
+	})
+	require.Len(t, rows, 1)
+	require.Equal(t, server.CodeDoctorManagedAuditCorrupt, rows[0].Code)
+	require.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
+	require.Contains(t, rows[0].Message, "2 unreadable")
+	require.Contains(t, rows[0].Message, at.Format(time.RFC3339))
+	require.Contains(t, rows[0].Message, "decode fleet audit page: invalid character")
+	require.Contains(t, rows[0].Fix, "ze show data check")
+
+	var registered bool
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
+		if check.Name == managedAuditCorruptCheckName {
+			registered = true
+			require.True(t, slices.Contains(check.Codes, server.CodeDoctorManagedAuditCorrupt))
+		}
+	}
+	require.True(t, registered)
+	require.NotNil(t, diagnostic.Lookup(server.CodeDoctorManagedAuditCorrupt))
+}

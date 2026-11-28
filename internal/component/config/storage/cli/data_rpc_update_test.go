@@ -17,6 +17,7 @@ import (
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/redact"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // updateTestKey is the runtime-state key the update tests write.
@@ -255,4 +256,57 @@ func TestUpdateKeyRefusesWithNoStore(t *testing.T) {
 	assert.Equal(t, zePlugin.StatusError, response.Status)
 	assert.Contains(t, response.Error, "update data key: this daemon serves no store")
 	assert.Contains(t, response.Error, "fix: ze data write <key> <file>")
+}
+
+// TestUpdateKeyRefusesFleetAuditProtectedKeys verifies that `update data key`
+// refuses live writes to the fleet audit manifest, existing and newly invented
+// journal pages, arbitrary keys under the audit namespace, device receipt
+// outbox, and device receipt intent keys without touching the store.
+// VALIDATES: spec-fleet-3 live-store audit integrity protection (update path).
+// PREVENTS: an operator forging or overwriting fleet audit history or device
+// receipt state while the daemon runs.
+func TestUpdateKeyRefusesFleetAuditProtectedKeys(t *testing.T) {
+	store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+
+	existing := map[string][]byte{
+		zefs.KeyFleetAuditManifest.Pattern:             []byte(`{"version":1}`),
+		zefs.KeyFleetAuditPage.Key("0000000000000001"): []byte(`{"version":1,"page-id":1}`),
+		zefs.KeyManagedAuditReceipts.Pattern:           []byte(`{"epoch":"e1"}`),
+		zefs.KeyManagedAuditIntent.Pattern:             []byte(`{"mode":"disabled"}`),
+	}
+	for k, v := range existing {
+		require.NoError(t, store.WriteKey(k, v))
+	}
+
+	invented := []string{
+		zefs.KeyFleetAuditPage.Key("9999999999999999"),
+		"meta/fleet/audit/custom-cursor",
+	}
+	allProtected := []string{
+		zefs.KeyFleetAuditManifest.Pattern,
+		zefs.KeyFleetAuditPage.Key("0000000000000001"),
+		invented[0],
+		invented[1],
+		zefs.KeyManagedAuditReceipts.Pattern,
+		zefs.KeyManagedAuditIntent.Pattern,
+	}
+
+	encoded := base64.StdEncoding.EncodeToString([]byte("tampered"))
+	for _, key := range allProtected {
+		response := updateCall(t, updateArgs(t, key, keywordContent, encoded))
+		assert.Equal(t, zePlugin.StatusError, response.Status, key)
+		assert.Contains(t, response.Error, "update data key: "+key+" is protected fleet audit state", key)
+		assert.Contains(t, response.Error, "show fleet audit", key)
+		assert.Contains(t, response.Error, "ze doctor", key)
+	}
+
+	for k, want := range existing {
+		got, err := store.ReadKey(k)
+		require.NoError(t, err, k)
+		assert.Equal(t, want, got, "protected key %s must remain untouched", k)
+	}
+	for _, k := range invented {
+		_, err := store.ReadKey(k)
+		assert.ErrorIs(t, err, fs.ErrNotExist, "invented protected key %s must not be created", k)
+	}
 }

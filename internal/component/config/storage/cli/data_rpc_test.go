@@ -137,6 +137,49 @@ func TestKeyCommandsRefuseConfigurationKey(t *testing.T) {
 	assert.Equal(t, before, after, "no key was removed")
 }
 
+// TestDeleteKeyRefusesFleetAuditProtectedKeys verifies that `delete data key`
+// refuses live deletion of the fleet audit manifest, existing and newly
+// invented journal pages, arbitrary keys under the audit namespace, device
+// receipt outbox, and device receipt intent keys without touching the store.
+// VALIDATES: spec-fleet-3 live-store audit integrity protection (delete path).
+// PREVENTS: an operator deleting fleet audit history or device receipt state
+// while the daemon runs.
+func TestDeleteKeyRefusesFleetAuditProtectedKeys(t *testing.T) {
+	store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+
+	existing := map[string][]byte{
+		zefs.KeyFleetAuditManifest.Pattern:             []byte(`{"version":1}`),
+		zefs.KeyFleetAuditPage.Key("0000000000000001"): []byte(`{"version":1,"page-id":1}`),
+		zefs.KeyManagedAuditReceipts.Pattern:           []byte(`{"epoch":"e1"}`),
+		zefs.KeyManagedAuditIntent.Pattern:             []byte(`{"mode":"disabled"}`),
+	}
+	for k, v := range existing {
+		require.NoError(t, store.WriteKey(k, v))
+	}
+
+	protected := []string{
+		zefs.KeyFleetAuditManifest.Pattern,
+		zefs.KeyFleetAuditPage.Key("0000000000000001"),
+		zefs.KeyFleetAuditPage.Key("9999999999999999"),
+		"meta/fleet/audit/custom-cursor",
+		zefs.KeyManagedAuditReceipts.Pattern,
+		zefs.KeyManagedAuditIntent.Pattern,
+	}
+	for _, key := range protected {
+		response := keyCall(t, key)
+		assert.Equal(t, zePlugin.StatusError, response.Status, key)
+		assert.Contains(t, response.Error, "delete data key: "+key+" is protected fleet audit state", key)
+		assert.Contains(t, response.Error, "show fleet audit", key)
+		assert.Contains(t, response.Error, "ze doctor", key)
+	}
+
+	for k, want := range existing {
+		got, err := store.ReadKey(k)
+		require.NoError(t, err, k)
+		assert.Equal(t, want, got, "protected key %s must remain untouched", k)
+	}
+}
+
 // standInPluginState replaces the two readers the running-owner guard reads,
 // the key grants and the plugin snapshot, with fixed answers, and restores the
 // real readers when the test ends. owners maps a key to the plugin process
