@@ -44,11 +44,16 @@ func recvFlowDatagram(t *testing.T, pc net.PacketConn) []byte {
 	return buf[:nr]
 }
 
-// samplePoolOffset is the flow_sample_expanded sample_pool field in an
-// IPv4-agent datagram: 28-byte header + 8-byte sample tag/length + 16.
-const samplePoolOffset = HeaderSizeIPv4 + 24
+const (
+	// sampleSeqOffset is the flow_sample_expanded sequence_number field in an
+	// IPv4-agent datagram: 28-byte header + 8-byte sample tag/length.
+	sampleSeqOffset = HeaderSizeIPv4 + 8
+	// samplePoolOffset is the flow_sample_expanded sample_pool field in an
+	// IPv4-agent datagram: 28-byte header + 8-byte sample tag/length + 16.
+	samplePoolOffset = HeaderSizeIPv4 + 24
+)
 
-// RFC requirement: SFLOW-V5-x-11 positive -- sample_pool tracks the total packets seen by the data source: EncodeFlowSample reports pool == min(seq*rate, MaxUint32), so it grows by rate per exported sample and saturates instead of wrapping (flow_adapter.go:73-79). The decoded on-wire sample_pool confirms both the seq*rate value and the saturation.
+// RFC requirement: SFLOW-V5-x-11 positive -- EncodeFlowSample estimates sample_pool as a per-source accumulated sum of each sample's Rate in unsigned 32-bit modular arithmetic (flow_adapter.go::FlowEncoder.EncodeFlowSample): below 2^32 it grows by Rate per exported sample, and across 2^32 it wraps modulo 2^32 instead of saturating at MaxUint32 (which sFlow v5 Section 5 reserves as the "not available" counter sentinel while permitting a natural rollover to zero). Decoded on-wire sample_pool values confirm both constant-rate growth and modular wrap.
 func TestSFlowFlowSamplePoolTracksTotal(t *testing.T) {
 	agent := netip.MustParseAddr("10.0.0.1")
 
@@ -69,34 +74,127 @@ func TestSFlowFlowSamplePoolTracksTotal(t *testing.T) {
 			dg := recvFlowDatagram(t, pc)
 			pool := binary.BigEndian.Uint32(dg[samplePoolOffset:])
 			if want := seq * rate; pool != want {
-				t.Errorf("sample %d: sample_pool = %d, want %d (seq*rate)", seq, pool, want)
+				t.Errorf("sample %d: sample_pool = %d, want %d (accumulated rate)", seq, pool, want)
 			}
 		}
 	})
 
-	t.Run("saturates rather than wraps", func(t *testing.T) {
+	t.Run("wraps modulo 2^32", func(t *testing.T) {
 		pc, s := newLoopbackFlowTarget(t)
 		defer func() { _ = pc.Close() }()
 		defer func() { _ = s.Close() }()
 
 		enc := NewFlowEncoder(agent, 1, time.Unix(1716000000, 0))
-		const rate = math.MaxUint32
+		const halfSpace uint32 = 1 << 31
+		wantPools := []uint32{halfSpace, 0, halfSpace}
 
-		// seq=1 -> 1*MaxUint32 == MaxUint32 (exact). seq=2 -> 2*MaxUint32 would wrap a
-		// uint32 to MaxUint32-1; the uint64 saturation must pin it at MaxUint32 instead.
-		for seq := uint32(1); seq <= 2; seq++ {
+		var prev uint32
+		for i, want := range wantPools {
 			if err := enc.EncodeFlowSample(flowexport.FlowSample{
+				IfIndex: 7, Rate: halfSpace, OrigSize: 128, Header: []byte{1, 2, 3, 4},
+			}, s); err != nil {
+				t.Fatal(err)
+			}
+			dg := recvFlowDatagram(t, pc)
+			pool := binary.BigEndian.Uint32(dg[samplePoolOffset:])
+			if pool == math.MaxUint32 {
+				t.Fatalf("sample %d: sample_pool saturated at MaxUint32 (%d)", i+1, uint32(math.MaxUint32))
+			}
+			if pool != want {
+				t.Errorf("sample %d: sample_pool = %d, want %d", i+1, pool, want)
+			}
+			if gotDelta := pool - prev; gotDelta != halfSpace {
+				t.Errorf("sample %d: modular delta = %d, want %d", i+1, gotDelta, halfSpace)
+			}
+			prev = pool
+		}
+
+		// Boundary check near MaxUint32: (MaxUint32 - 10) + 20 wraps cleanly to 9.
+		nearEnc := NewFlowEncoder(agent, 1, time.Unix(1716000000, 0))
+		boundaryRates := []uint32{math.MaxUint32 - 10, 20}
+		boundaryWant := []uint32{math.MaxUint32 - 10, 9}
+		prev = 0
+		for i, rate := range boundaryRates {
+			if err := nearEnc.EncodeFlowSample(flowexport.FlowSample{
 				IfIndex: 7, Rate: rate, OrigSize: 128, Header: []byte{1, 2, 3, 4},
 			}, s); err != nil {
 				t.Fatal(err)
 			}
 			dg := recvFlowDatagram(t, pc)
 			pool := binary.BigEndian.Uint32(dg[samplePoolOffset:])
-			if pool != math.MaxUint32 {
-				t.Errorf("sample %d: sample_pool = %d, want %d (saturated MaxUint32, not wrapped)", seq, pool, uint32(math.MaxUint32))
+			if pool != boundaryWant[i] {
+				t.Errorf("boundary sample %d: sample_pool = %d, want %d", i+1, pool, boundaryWant[i])
 			}
+			if gotDelta := pool - prev; gotDelta != rate {
+				t.Errorf("boundary sample %d: modular delta = %d, want %d", i+1, gotDelta, rate)
+			}
+			prev = pool
 		}
 	})
+}
+
+// TestSFlowSamplePoolPerSource verifies independent per-source accumulation,
+// rate changes without retroactive rewriting, and coupled encoder reset.
+//
+// VALIDATES: per-source (ifIndex) sample_pool accumulation advances by each
+// sample's Rate independently across interfaces and resets alongside
+// sequence_number on a fresh FlowEncoder.
+// PREVENTS: cross-source pool contamination, seq*currentRate retroactive
+// misstatement on rate change, or uncoupled sequence/pool reset.
+// RFC requirement: SFLOW-V5-x-11 positive -- EncodeFlowSample maintains independent per-source (ifIndex) accumulated sample_pool estimates that advance by each sample's Rate across rate changes and reset alongside sequence_number on a fresh FlowEncoder (flow_adapter.go::FlowEncoder.EncodeFlowSample)
+func TestSFlowSamplePoolPerSource(t *testing.T) {
+	pc, s := newLoopbackFlowTarget(t)
+	defer func() { _ = pc.Close() }()
+	defer func() { _ = s.Close() }()
+
+	agent := netip.MustParseAddr("10.0.0.1")
+	enc := NewFlowEncoder(agent, 1, time.Unix(1716000000, 0))
+
+	steps := []struct {
+		ifIndex  uint32
+		rate     uint32
+		wantSeq  uint32
+		wantPool uint32
+	}{
+		{ifIndex: 7, rate: 100, wantSeq: 1, wantPool: 100},
+		{ifIndex: 9, rate: 512, wantSeq: 1, wantPool: 512},
+		// Rate change on ifIndex 7: accumulated pool is 100 + 250 = 350, not 2*250 = 500.
+		{ifIndex: 7, rate: 250, wantSeq: 2, wantPool: 350},
+		{ifIndex: 9, rate: 512, wantSeq: 2, wantPool: 1024},
+		{ifIndex: 7, rate: 250, wantSeq: 3, wantPool: 600},
+	}
+
+	for i, step := range steps {
+		if err := enc.EncodeFlowSample(flowexport.FlowSample{
+			IfIndex: step.ifIndex, Rate: step.rate, OrigSize: 128, Header: []byte{1, 2, 3, 4},
+		}, s); err != nil {
+			t.Fatal(err)
+		}
+		dg := recvFlowDatagram(t, pc)
+		gotSeq := binary.BigEndian.Uint32(dg[sampleSeqOffset:])
+		gotPool := binary.BigEndian.Uint32(dg[samplePoolOffset:])
+		if gotSeq != step.wantSeq {
+			t.Errorf("step %d (ifIndex %d): sequence_number = %d, want %d", i+1, step.ifIndex, gotSeq, step.wantSeq)
+		}
+		if gotPool != step.wantPool {
+			t.Errorf("step %d (ifIndex %d): sample_pool = %d, want %d", i+1, step.ifIndex, gotPool, step.wantPool)
+		}
+	}
+
+	// A fresh FlowEncoder resets sequence_number and sample_pool together.
+	resetEnc := NewFlowEncoder(agent, 1, time.Unix(1716000000, 0))
+	if err := resetEnc.EncodeFlowSample(flowexport.FlowSample{
+		IfIndex: 7, Rate: 250, OrigSize: 128, Header: []byte{1, 2, 3, 4},
+	}, s); err != nil {
+		t.Fatal(err)
+	}
+	dg := recvFlowDatagram(t, pc)
+	if gotSeq := binary.BigEndian.Uint32(dg[sampleSeqOffset:]); gotSeq != 1 {
+		t.Errorf("fresh encoder: sequence_number = %d, want 1", gotSeq)
+	}
+	if gotPool := binary.BigEndian.Uint32(dg[samplePoolOffset:]); gotPool != 250 {
+		t.Errorf("fresh encoder: sample_pool = %d, want 250", gotPool)
+	}
 }
 
 // TestSFlowExpandedFlowDatagramBound reads the transmitted datagram and checks

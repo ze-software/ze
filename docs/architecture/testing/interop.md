@@ -5728,7 +5728,7 @@ under `internal/le`, imports `labtest` (`./le arch tier check`,
 `docs/architecture/module-tiers.md`).
 <!-- source: internal/le/interoplab/labtest/labtest.go -- Start, start, host.prepare, digestPinned, host.release -->
 <!-- source: internal/le/interoplab/labtest/container.go -- Container, host.build, host.readyInContainer -->
-<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop, TestFlowExportSFlowToolSamplePoolInterop -->
 <!-- source: internal/le/interoplab/labtest/labtest.go -- Run, run, Client -->
 <!-- source: internal/le/interoplab/docker.go -- OneShotContainer, OneShotDidNotExit -->
 <!-- source: internal/component/gnmi/gnmic_docker_test.go -- TestGnmicInterop -->

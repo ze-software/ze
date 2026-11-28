@@ -15,6 +15,13 @@ func newSFlowFlowEncoder(cfg flowexport.CollectorConfig, startTime time.Time) fl
 	return NewFlowEncoder(agentAddress(cfg), cfg.SubAgentID, startTime)
 }
 
+// sourceState holds the per-source (ifIndex) flow-sample sequence and pool
+// estimate so they are created and reset together (sFlow v5 Section 5).
+type sourceState struct {
+	seq  uint32
+	pool uint32
+}
+
 // FlowEncoder implements flowexport.FlowSampleEncoder, emitting one sFlow v5
 // datagram per sampled packet with a single flow_sample containing a
 // sampled_header record.
@@ -23,7 +30,7 @@ type FlowEncoder struct {
 	SubAgentID uint32
 	StartTime  time.Time
 
-	seqNums map[uint32]uint32 // per-source (ifIndex) sample sequence
+	sources map[uint32]sourceState // per-source (ifIndex) sample sequence and pool
 }
 
 // NewFlowEncoder creates an sFlow flow-sample encoder.
@@ -32,7 +39,7 @@ func NewFlowEncoder(agentAddr netip.Addr, subAgentID uint32, startTime time.Time
 		AgentAddr:  agentAddr,
 		SubAgentID: subAgentID,
 		StartTime:  startTime,
-		seqNums:    make(map[uint32]uint32),
+		sources:    make(map[uint32]sourceState),
 	}
 }
 
@@ -58,8 +65,26 @@ func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flo
 
 	off := WriteDatagramHeader(b, 0, e.AgentAddr, e.SubAgentID, sender.Sequence(), uptime, 1)
 
-	seq := e.seqNums[sample.IfIndex] + 1
-	e.seqNums[sample.IfIndex] = seq
+	// sFlow v5 Section 5 (flow_sample / flow_sample_expanded):
+	//   "unsigned int sample_pool; /* Total number of packets that could have
+	//    been sampled (i.e. packets skipped by sampling process + total number
+	//    of samples) */"
+	//   "Note: If the agent resets the sample_pool then it must also reset the
+	//    sequence_number."
+	//   Counter conventions: "Unknown counter. Use the maximum counter value to
+	//    indicate that the counter is not available. ... An available counter
+	//    may temporarily have the max value just before it rolls to zero. This
+	//    is permitted."
+	//
+	// Linux psample does not carry per-sample skipped-packet totals, so Ze
+	// maintains a per-source accumulated rate estimate beside sequence_number.
+	// Unsigned 32-bit addition wraps modulo 2^32 instead of saturating at
+	// MaxUint32 (which collectors interpret as an unavailable counter), and
+	// storing seq and pool together ensures they are created and reset together.
+	state := e.sources[sample.IfIndex]
+	state.seq++
+	state.pool += sample.Rate
+	e.sources[sample.IfIndex] = state
 
 	hdr := sample.Header
 	// Use expanded samples for every interface: Linux permits full-width
@@ -70,13 +95,8 @@ func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flo
 		hdr = hdr[:maxHdr]
 	}
 
-	// sample_pool ~= cumulative samples * rate (packets that could be sampled).
-	// Compute in uint64 and saturate so a high rate * large seq does not wrap
-	// the uint32 field and report a misleadingly small pool to the collector.
-	pool := uint32(min(uint64(seq)*uint64(sample.Rate), uint64(^uint32(0))))
-
 	fsOff, sampleLengthOff, numRecordsOff := writeFlowSample(
-		b, off, seq, sample.IfIndex, sample.Rate, pool, 0, sample.IfIndex, sample.Output)
+		b, off, state.seq, sample.IfIndex, sample.Rate, state.pool, 0, sample.IfIndex, sample.Output)
 	off = writeSampledHeader(b, fsOff, sample.OrigSize+ethernetFCSOctets, ethernetFCSOctets, hdr)
 	backfillFlowSample(b, sampleLengthOff, numRecordsOff, off, 1)
 

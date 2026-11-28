@@ -116,7 +116,12 @@ flow-export {
 ### Sampling
 
 Packet sampling uses the Linux `tc sample` action plus the kernel `psample`
-module and exports sampled packet headers as sFlow flow samples.
+module and exports sampled packet headers as sFlow flow samples. For each
+sampled interface, Ze reports `sample_pool` as a per-source accumulated rate
+estimate that wraps modulo `2^32`. It never saturates at `0xFFFFFFFF`, which
+sFlow v5 reserves for an unavailable counter, and resets with `sequence_number`
+when the encoder restarts.
+<!-- source: internal/plugins/flowexport/sflow/flow_adapter.go -- FlowEncoder.EncodeFlowSample, sourceState -->
 
 Because packet sampling installs a Linux kernel traffic-control filter,
 configuring `flow-export sampling` under `interface backend vpp` is refused at

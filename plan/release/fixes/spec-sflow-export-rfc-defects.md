@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | An sFlow collector's sample pool stops advancing once it saturates at `MaxUint32`, which sFlow v5 defines as the "not available" counter sentinel, and the multi-homed routed agent-address warning lacks its daemon-level `.ci` proof. |
 | RFC gaps | SFLOW-V5-x-11 |
 | Depends | - (split from `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` so the flow-export/system-plugins door and the BGP/BMP doors are owned in separate specs) |
-| Phase | - |
+| Phase | closure |
 | Handoff | - |
-| Updated | 2026-11-26 |
+| Updated | 2026-11-28 |
 
 Scope is protocol: the wire value semantics of the sFlow v5 `flow_sample_expanded.sample_pool` field change from saturating at `2^32 - 1` to wrapping modulo `2^32` per data source, and two daemon-level `.ci` tests prove the sFlow v5 Section 4.3 multi-homed agent-address warning. No config syntax, YANG schema, or CLI command changes.
 
@@ -170,8 +170,8 @@ This spec owns the sFlow v5 work split out of `plan/release/fixes/spec-bmp-sflow
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|------------|---------------------------------|----------|--------------|--------|
-| A-1 | `sflowtool` v6.11 (`c953cfe8991286457080938a29fc72019f64718a`) decodes `sample_pool` as an unsigned 32-bit integer and prints `"2147483648"`, `"0"`, `"2147483648"` across the `2^32` wrap | `collectors_docker_test.go` already decodes `"samplePool": "64"` from `sflowtool -j`; sFlow v5 XDR `sample_pool` is `unsigned int` | Test expectations or JSON key formatting would fail on first run | `TestFlowExportSFlowToolSamplePoolInterop` under `-tags docker` | unvalidated |
-| A-2 | The existing `flow-export/sflow-agent-address-daemon` and `flow-export/sflow-agent-address-receiver` fixtures work unmodified with both routed (`192.0.2.41`) and loopback (`127.0.0.1`) `.ci` files inside the Linux QEMU/CAP_NET_ADMIN test runner | `internal/test/fixture/register_sflow_agent_address_linux.go` lines 35-231 and `docs/architecture/flowexport/flow-export-1-counter-export.md` lines 180-210 | Fixture needs a small fix in the same work | Running both `.ci` files on Linux with `CAP_NET_ADMIN` | unvalidated |
+| A-1 | `sflowtool` v6.11 (`c953cfe8991286457080938a29fc72019f64718a`) decodes `sample_pool` as an unsigned 32-bit integer and prints `"2147483648"`, `"0"`, `"2147483648"` across the `2^32` wrap | `collectors_docker_test.go` already decodes `"samplePool": "64"` from `sflowtool -j`; sFlow v5 XDR `sample_pool` is `unsigned int` | Test expectations or JSON key formatting would fail on first run | `TestFlowExportSFlowToolSamplePoolInterop` under `-tags docker` | confirmed |
+| A-2 | The existing `flow-export/sflow-agent-address-daemon` and `flow-export/sflow-agent-address-receiver` fixtures work unmodified with both routed (`192.0.2.41`) and loopback (`127.0.0.1`) `.ci` files inside the Linux QEMU/CAP_NET_ADMIN test runner | `internal/test/fixture/register_sflow_agent_address_linux.go` lines 35-231 and `docs/architecture/flowexport/flow-export-1-counter-export.md` lines 180-210 | Fixture needs a small fix in the same work | Running both `.ci` files on Linux QEMU guest (`register_sflow_agent_address_linux.go:184` initially rejected valid datagram `sequence_number == 0`; fixed to check `num_samples != 0`) | broken (fixed) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -453,3 +453,138 @@ Add `// sFlow v5 Section 5: ...` comments above the per-source `sample_pool` acc
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + journal row status update
 - [ ] **Commit B:** `remove plan/release/fixes/spec-sflow-export-rfc-defects.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Replaced `FlowEncoder.seqNums map[uint32]uint32` with per-source `sources map[uint32]sourceState` (`seq, pool uint32`) in `internal/plugins/flowexport/sflow/flow_adapter.go`, advancing `state.pool += sample.Rate` in unsigned 32-bit modular arithmetic wrapping modulo `2^32` (never clamping to `MaxUint32`), keeping `seq` and `pool` coupled per `ifIndex` (`SFLOW-V5-x-28`), and updating the comment to cite sFlow v5 Section 5.
+- Updated `TestSFlowFlowSamplePoolTracksTotal` (with independent `ze-test-judge` approval via `./le rfc approve unit sflow.TestSFlowFlowSamplePoolTracksTotal`) to verify constant-rate growth (`1024, 2048, 3072`), modulo-`2^32` wrap (`2147483648, 0, 2147483648`), near-`MaxUint32` wrap (`(MaxUint32-10)+20 -> 9`), and rejection of `MaxUint32` saturation; added `TestSFlowSamplePoolPerSource` (tagged `SFLOW-V5-x-11 positive`) proving per-source `ifIndex` isolation, rate changes without retroactive rewriting, and coupled `seq`/`pool` reset.
+- Added sibling Docker `sflowtool` v6.11 interop test `TestFlowExportSFlowToolSamplePoolInterop` in `internal/plugins/flowexport/collectors_docker_test.go` (leaving `TestFlowExportSFlowToolInterop` unchanged) verifying constant-rate deltas and `2^32` wrap on the wire (`"2147483648"`, `"0"`, `"2147483648"`, `"4294967295"` absent).
+- Committed `test/flow-export/sflow-agent-address-multihomed-routed.ci` and `test/flow-export/sflow-agent-address-multihomed-loopback.ci` (`option=needs-linux`, `caps=CAP_NET_ADMIN`, exclusive group `sflow-agent-address-topology`), fixed `sflowAgentAddressDatagram` in `internal/test/fixture/register_sflow_agent_address_linux.go` to check `num_samples != 0` instead of rejecting valid initial datagram `sequence_number == 0`, and closed the 2026-10-30 row in `plan/journal/claim-outlives-the-evidence-it-cites.md`.
+- Updated `rfc/short/sflow-v5.md`, recorded discrimination proofs for both `TestSFlowFlowSamplePoolTracksTotal` and `TestSFlowSamplePoolPerSource` in `rfc/discrimination/sflow-v5/SFLOW-V5-x-11.json`, re-stamped independent `ze-rfc-audit` (`07d95366`) in `rfc/audit/sflow-v5/SFLOW-V5-x-11.json`, updated docs (`flow-export-1-counter-export.md`, `flow-export-2-flow-records.md`, `docs/guide/flow-export.md`, `docs/architecture/testing/interop.md`), and added `website/changes/fragments/sflow-export-rfc-defects.md`.
+
+### Bugs Found/Fixed
+- `internal/test/fixture/register_sflow_agent_address_linux.go:184` checked `be.Uint32(data[16:]) == 0` (`sequence_number`), which failed on the first datagram because `flowexport.Sender` legitimately starts datagram `sequence_number` at `0` (`SFLOW-V5-x-9`); fixed to check `be.Uint32(data[24:]) == 0` (`num_samples`), verified live in QEMU Linux guest with both multi-homed `.ci` tests passing.
+
+### Documentation Updates
+- Updated `docs/architecture/flowexport/flow-export-1-counter-export.md` (added `TestFlowExportSFlowToolSamplePoolInterop` and anchored both committed multi-homed `.ci` files), `docs/architecture/flowexport/flow-export-2-flow-records.md` (documented per-source wrapping `sample_pool`), `docs/guide/flow-export.md` (documented wrapping `sample_pool` under Sampling), `docs/architecture/testing/interop.md` (added `TestFlowExportSFlowToolSamplePoolInterop` to `collectors_docker_test.go` anchor), `rfc/short/sflow-v5.md`, and `website/changes/fragments/sflow-export-rfc-defects.md`.
+- `./le doc check all`: 0 findings across all flowexport/sFlow/interop docs.
+
+### Deviations from Plan
+- **AC-5 (`SFLOW-V5-x-11` audit verdict, approved by owner on 2026-11-28, Option A):** Both saturation and per-source tagging defects are resolved and proven with breaking-mutation discrimination records; `rfc/audit/sflow-v5/SFLOW-V5-x-11.json` remains honestly `weak` solely because Linux `psample` does not expose skipped-packet totals (owner decision 2026-11-24: accumulate `sample.Rate` modulo `2^32`). Owner explicitly approved closing under Option A on 2026-11-28.
+- **Assumption A-2 (`register_sflow_agent_address_linux.go`):** Fixed initial datagram `sequence_number == 0` false-negative check in the pre-existing fixture so both QEMU `.ci` tests pass.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed `register_sflow_agent_address_linux.go` worked unmodified | `sflowAgentAddressDatagram` rejected datagram `sequence_number == 0`, which `flowexport.Sender` legitimately sends on its first datagram (`SFLOW-V5-x-9`) | First QEMU run of `sflow-agent-address-multihomed-*.ci` | Checked `be.Uint32(data[24:]) == 0` (`num_samples`) instead; both `.ci` tests pass in QEMU |
+| assumption | Spec AC-5 expected `SFLOW-V5-x-11` to re-judge from `weak` to `enforced` while keeping the 2026-11-24 rate-sum estimate | Independent `ze-rfc-audit` honestly keeps `SFLOW-V5-x-11` at `weak` because Linux `psample` does not expose skipped-packet totals | Independent `ze-rfc-audit` re-judgement | Tagged `TestSFlowSamplePoolPerSource` to clear the per-source gap, re-audited honestly as `weak` solely for the `psample` limit, and obtained Thomas's Option A approval on 2026-11-28 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Per-source wrapping `sample_pool` accumulator coupled with `seq` | Done | `internal/plugins/flowexport/sflow/flow_adapter.go` | `sources map[uint32]sourceState`, `state.pool += sample.Rate` |
+| Unit tests (`TestSFlowFlowSamplePoolTracksTotal`, `TestSFlowSamplePoolPerSource`) | Done | `internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go` | Both tagged `SFLOW-V5-x-11 positive` and passing under `-race` |
+| Independent `sflowtool` v6.11 sibling test | Done | `internal/plugins/flowexport/collectors_docker_test.go` | `TestFlowExportSFlowToolSamplePoolInterop` PASS; `TestFlowExportSFlowToolInterop` untouched |
+| Multi-homed sFlow agent-address `.ci` tests + journal row | Done | `test/flow-export/sflow-agent-address-multihomed-{routed,loopback}.ci`, `plan/journal/claim-outlives-the-evidence-it-cites.md` | Both PASS in QEMU Linux guest |
+| RFC ledger, discrimination proofs, audit, docs, news fragment | Done | `rfc/short/sflow-v5.md`, `rfc/audit/sflow-v5/SFLOW-V5-x-11.json`, `rfc/discrimination/sflow-v5/SFLOW-V5-x-11.json`, `docs/...`, `website/changes/fragments/sflow-export-rfc-defects.md` | `./le rfc check` clean on `SFLOW-V5-x-11` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSFlowFlowSamplePoolTracksTotal/grows_by_rate_per_sample` | `1024`, `2048`, `3072` verified on wire |
+| AC-2 | Done | `TestSFlowFlowSamplePoolTracksTotal/wraps_modulo_2^32` | `2147483648`, `0`, `2147483648` and `(MaxUint32-10)+20 -> 9`; `MaxUint32` saturation rejected |
+| AC-3 | Done | `TestSFlowSamplePoolPerSource` | Independent `ifIndex` 7 vs 9, rate change `100+250=350`, coupled fresh-encoder reset |
+| AC-4 | Done | `TestFlowExportSFlowToolSamplePoolInterop` (Docker `sflowtool` v6.11) | Decoded `"64"`, `"128"`, `"192"` and `"2147483648"`, `"0"`, `"2147483648"`, `"4294967295"` absent |
+| AC-5 | Changed (Owner Option A) | `rfc/discrimination/sflow-v5/SFLOW-V5-x-11.json`, `rfc/audit/sflow-v5/SFLOW-V5-x-11.json` | Both tagged units have breaking-mutation proofs; independent `ze-rfc-audit` (`07d95366`) verdict honestly `weak` solely for `psample` rate-estimate limit, approved by Thomas on 2026-11-28 |
+| AC-6 | Done | `test/flow-export/sflow-agent-address-multihomed-{routed,loopback}.ci` (QEMU Linux) | Routed warns on stderr, loopback silent, both export valid sFlow v5 datagrams |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSFlowFlowSamplePoolTracksTotal`, `TestSFlowSamplePoolPerSource` | Done | `internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go` | PASS (1.094s under `-race`) |
+| `TestFlowExportSFlowToolSamplePoolInterop` | Done | `internal/plugins/flowexport/collectors_docker_test.go` | PASS with pinned `sflowtool` v6.11 Docker container |
+| `sflow-agent-address-multihomed-{routed,loopback}.ci` | Done | `test/flow-export/` | Both PASS in QEMU Linux guest |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 10 modified files from `Files to Modify` + `register_sflow_agent_address_linux.go` + `plan/journal/claim-outlives-the-evidence-it-cites.md` | Done | Verified via `git status --short` |
+| Both created `.ci` files + `website/changes/fragments/sflow-export-rfc-defects.md` | Done | Verified via `ls -la` |
+
+### Audit Summary
+- **Total items:** 29
+- **Done:** 28
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-5 Option A, explicitly approved by owner on 2026-11-28)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Per-source `sample_pool` wraps modulo `2^32` and tracks rate changes accurately without saturating at `MaxUint32` | Unit + Independent Docker `sflowtool` interop + RFC discrimination | `TestSFlowFlowSamplePoolTracksTotal` & `TestSFlowSamplePoolPerSource` PASS (1.094s); `TestFlowExportSFlowToolSamplePoolInterop` PASS against `sflowtool` v6.11; `./le rfc record` observed red on producer revert for both units |
+| Multi-homed routed vs loopback sFlow `agent-address` warning proven at daemon level | Functional (QEMU Linux `CAP_NET_ADMIN`) | `test/flow-export/sflow-agent-address-multihomed-routed.ci` & `test/flow-export/sflow-agent-address-multihomed-loopback.ci` PASS in QEMU Linux guest; closes 2026-10-30 `claim-outlives-the-evidence-it-cites.md` row |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| BMP RFC 7854 residuals R-1..R-4 | Split out before implementation per subsystem door boundary | `plan/release/fixes/spec-bmp-sflow-export-rfc-defects.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/sflow-export-rfc-defects-c6d40004-4444-4000-8000-000000000004.md` |
+| `./le spec review check` | clean |
+| Rounds | 1 |
+| Reviewer lenses used | Independent Review Gate (Round 1 CLEAN) + `ze-test-judge` (`tmp/commit-rfc-approved-6b384ffa.md`) + independent `ze-rfc-audit` (`07d95366`) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | - | None (Round 1 CLEAN; secondary `ze-rfc-audit` note on tagging `TestSFlowSamplePoolPerSource` resolved before closure) | - | - |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/flow-export/sflow-agent-address-multihomed-routed.ci` | Yes | Verified via `ls -la` |
+| `test/flow-export/sflow-agent-address-multihomed-loopback.ci` | Yes | Verified via `ls -la` |
+| `website/changes/fragments/sflow-export-rfc-defects.md` | Yes | Verified via `ls -la` |
+| `rfc/audit/sflow-v5/SFLOW-V5-x-11.json` | Yes | Re-stamped by `./le rfc audit-stamp` |
+| `rfc/discrimination/sflow-v5/SFLOW-V5-x-11.json` | Yes | Written by `./le rfc record` for both tagged units |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-3 | Constant-rate growth, modulo-`2^32` wrap, per-source isolation, rate changes, coupled reset | `./le test unit pkg path ./internal/plugins/flowexport/sflow/` -> `exit 0, 1 package ok, test time 1.094s` |
+| AC-4 | Independent `sflowtool` v6.11 interop | `TestFlowExportSFlowToolSamplePoolInterop` PASS under `-tags docker` |
+| AC-5 | Discrimination proofs & honest audit verdict (Option A) | `grep -rn "RFC requirement: SFLOW-V5-x-11" internal/plugins/flowexport/` returns both tagged units; `./le rfc check` clean on `SFLOW-V5-x-11` |
+| AC-6 | Multi-homed routed vs loopback daemon `.ci` tests | Both `.ci` files PASS in QEMU Linux guest with `CAP_NET_ADMIN` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Multi-homed routed `agent-address` emits warning and exports sFlow datagrams | `test/flow-export/sflow-agent-address-multihomed-routed.ci` | Yes (read & executed in QEMU Linux guest: PASS) |
+| Multi-homed loopback `agent-address` emits no warning and exports sFlow datagrams | `test/flow-export/sflow-agent-address-multihomed-loopback.ci` | Yes (read & executed in QEMU Linux guest: PASS) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestFlowExportSFlowToolSamplePoolInterop` decoded `"2147483648"`, `"0"`, `"2147483648"` from pinned `sflowtool` v6.11 |
+| A-2 | broken (fixed) | Fixed initial datagram `sequence_number == 0` check in `register_sflow_agent_address_linux.go:184`; both `.ci` tests pass in QEMU Linux guest |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/architecture/flowexport/flow-export-1-counter-export.md` & `flow-export-2-flow-records.md` | Checked against `flow_adapter.go`, `collectors_docker_test.go`, and committed `.ci` files | Yes |
+| `docs/guide/flow-export.md` & `docs/architecture/testing/interop.md` | Checked against `flow_adapter.go` and `collectors_docker_test.go` | Yes |
+| `rfc/short/sflow-v5.md` | `SFLOW-V5-x-11` annotation updated; `./le rfc check` clean | Yes |

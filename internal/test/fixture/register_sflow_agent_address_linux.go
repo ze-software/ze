@@ -181,8 +181,11 @@ func sflowAgentAddressDatagram(data []byte, agent netip.Addr, index uint32) (boo
 	if got := netip.AddrFrom4([4]byte(data[8:12])); got != agent {
 		return false, fmt.Errorf("exported agent address %s, want configured %s", got, agent)
 	}
-	if be.Uint32(data[16:]) == 0 {
-		return false, errors.New("sFlow export has no datagram sequence")
+	// flowexport.Sender starts datagram sequence_number at 0 (RFC/sFlow v5
+	// SFLOW-V5-x-9: TestSFlowCounterResetDoesNotResetDatagrams), so sequence 0
+	// on the first datagram is valid. Require at least one sample instead.
+	if be.Uint32(data[24:]) == 0 {
+		return false, errors.New("sFlow export datagram carries zero samples")
 	}
 	found := false
 	offset := 28

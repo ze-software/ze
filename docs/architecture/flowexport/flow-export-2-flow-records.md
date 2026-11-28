@@ -116,7 +116,13 @@ sFlow caps each captured header to the configured bound minus its overhead.
 `trunc-size` accepts up to 1500 bytes, but the exported header can be shorter.
 The Ethernet sample adds four FCS bytes to both `frame_length` and `stripped`,
 because the kernel packet length excludes the FCS.
-<!-- source: internal/plugins/flowexport/sflow/flow_adapter.go -- FlowEncoder.EncodeFlowSample, ethernetFCSOctets -->
+
+Each data source keeps its `sequence_number` and `sample_pool` together in one
+per-`ifIndex` struct. Both values are created and reset together. `sample_pool`
+accumulates each sample's `Rate` in unsigned 32-bit arithmetic modulo `2^32`. It
+never saturates at `0xFFFFFFFF`, which sFlow v5 Section 5 reserves for an
+unavailable counter.
+<!-- source: internal/plugins/flowexport/sflow/flow_adapter.go -- FlowEncoder.EncodeFlowSample, ethernetFCSOctets, sourceState -->
 
 sFlow counters include interface type, promiscuous mode and inbound multicast.
 Speed and duplex come from sysfs and are zero or unknown when unavailable.
@@ -128,7 +134,7 @@ the unavailable-counter value, on every poll. IPFIX packet totals use separate
 
 ## Independent flow interpretation
 
-<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop, TestFlowExportSFlowToolSamplePoolInterop -->
 
 The [collector carrier](flow-export-1-counter-export.md#independent-collector-tests)
 checks the records independent implementations decode from production encoder
@@ -141,6 +147,11 @@ For sFlow, the fixture contains an Ethernet frame carrying IPv4/UDP. `sflowtool`
 must decode its MAC and IP addresses, EtherType and UDP ports, as well as the
 expanded sample's source/input/output indexes. The expected 64-byte wire length,
 four stripped FCS bytes and 60-byte captured header check the kernel-to-sFlow
-length conversion. The test also requires one counter sample and one flow
-sample with the shared sender's datagram sequence. It does not exercise psample
-or conntrack ingestion; those producers retain their own tests.
+length conversion. `TestFlowExportSFlowToolInterop` also requires one counter
+sample and one flow sample with the shared sender's datagram sequence.
+
+Sibling `TestFlowExportSFlowToolSamplePoolInterop` sends three samples per
+source across two interfaces. It verifies that `sflowtool` decodes per-source
+`samplePool` values (`64`, `128`, `192`) and rollover past `2^32` (`2147483648`,
+`0`, `2147483648`) and never emits `4294967295`. Neither test exercises psample
+or conntrack ingestion. Those producers retain their own tests.

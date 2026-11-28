@@ -1,0 +1,92 @@
+# Test: on a multi-homed Linux router, an sFlow agent-address on a routed
+# interface draws a warning naming the address, its interface, the identity
+# risk and the loopback fix, and counter export still runs.
+#
+# Question: does the real Ze daemon reading real Linux veth interfaces through
+# netlink classify an agent-address held by one of two routed interfaces as
+# multi-homed routed, emit the routed warning (not the absent or error branch),
+# and still transmit a valid sFlow v5 counter datagram? A unit test uses a
+# synthetic interface list and cannot prove live netlink interface-type
+# classification or real daemon startup wiring.
+#
+# VALIDATES: sFlow v5 Section 4.3 ("In the case of a multi-homed agent, this
+#            should be the loopback address of the agent"): with real routed
+#            veth interfaces sfproof0 (192.0.2.41/32) and sfproof1
+#            (198.51.100.41/32), agent-address 192.0.2.41 draws the routed
+#            multi-homed warning while the daemon exports a valid sFlow v5
+#            counter datagram for sfproof0 carrying 192.0.2.41.
+# PREVENTS:  the multi-homed routed classification collapsing into silent
+#            acceptance or the absent-address branch on Linux netlink, or the
+#            SHOULD warning refusing the config.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=sflow-agent-address-topology
+option=env:var=ze.log.flow.export:value=info
+option=env:var=ze_test_bgp_port:value=$PORT
+option=timeout:value=20s
+
+stdin=ze-conf:terminator=EOF_CONF
+bus {
+	endpoint sflow-receiver {
+		external {
+			run "le test fixture flow-export/sflow-agent-address-receiver $PORT2 192.0.2.41";
+		}
+		encoding json;
+	}
+}
+
+environment {
+	log {
+		flow.export info
+	}
+}
+
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		agent-address 192.0.2.41
+		polling-interval 1
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture flow-export/sflow-agent-address-daemon:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured
+expect=stderr:contains=sflow agent-address 192.0.2.41 is on routed interface sfproof0, not on a loopback interface
+expect=stderr:contains=can lose this agent's identity when sfproof0 goes down or is renumbered
+expect=stderr:contains=create interface dummy name agent0 address 192.0.2.41/32
+reject=stderr:contains=is not configured on any interface
+reject=stderr:contains=was not checked against the router's interfaces

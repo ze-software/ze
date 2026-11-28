@@ -1,11 +1,13 @@
 {
-  "note": "asserts the code's estimate sample_pool = min(seq*rate, MaxUint32), not the RFC's 'Total number of packets that could have been sampled'; no packet count the data source saw is observed, and the saturation subtest asserts behaviour the RFC does not state (an XDR unsigned counter wraps; a saturated pool stops advancing)",
+  "note": "Re-judged 2026-11-28 by an independent auditor (07d95366): Prior saturation and per-source tagging defects are resolved: TestSFlowFlowSamplePoolTracksTotal asserts constant-rate growth (1024, 2048, 3072), modulo-2^32 wrap (2147483648, 0, 2147483648; MaxUint32-10 + 20 -> 9), and rejects MaxUint32 saturation per sFlow v5 Section 5 counter conventions, and TestSFlowSamplePoolPerSource is now tagged SFLOW-V5-x-11 positive and verifies independent per-source (ifIndex 7 vs 9) accumulation, rate changes without retroactive rewriting (100 + 250 = 350), and coupled sequence_number/sample_pool reset on a fresh FlowEncoder. Remains weak solely because Linux psample (sampling/psample.go::parsePsampleMessage) does not expose skipped-packet totals, so FlowEncoder.EncodeFlowSample accumulates sample.Rate modulo 2^32 by owner decision (2026-11-24) and both tagged tests assert Ze's synthetic rate-sum estimate rather than sFlow v5 Section 5/3.1 'Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples)' observed at a data source.",
   "requirement_sha": "a5b14faa945270d9",
   "tests": {
-    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "54a4f0a267225efb"
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "85face6114f1eaf8",
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowSamplePoolPerSource": "85face6114f1eaf8"
   },
   "units": {
-    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "5ec5c38d22711c09"
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "efa81e87e6dbda0c",
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowSamplePoolPerSource": "a5c8b60bcd0b5888"
   },
   "verdict": "weak"
 }

@@ -120,7 +120,7 @@ the netlink address list carries the tentative and DAD-failed flags.
 
 ## Independent collector tests
 
-<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->
+<!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop, TestFlowExportSFlowToolSamplePoolInterop -->
 <!-- source: test/interop-flowexport/Dockerfile.collectors -->
 
 The collector carrier sends production encoder output through `Sender`
@@ -133,7 +133,10 @@ exports combined receive/transmit totals through IEs 85 and 86.
 `TestFlowExportSFlowToolInterop` checks `sflowtool`'s decoded generic counters,
 including 64-bit octets and unavailable-counter sentinels. Its interface indexes
 exceed both compact sFlow limits, so the assertions detect truncation of the
-source index or the sampled packet's input/output ports.
+source index or the sampled packet's input/output ports. Sibling
+`TestFlowExportSFlowToolSamplePoolInterop` sends three flow samples per source
+across two interfaces. It checks that `sflowtool` decodes per-source
+`samplePool` deltas and 32-bit rollover past `2^32` and never sees `4294967295`.
 
 The carrier carries the build tag `docker`, so `./le test integration
 docker-peers` runs it, and it needs no privilege, namespace or guest kernel.
@@ -182,10 +185,15 @@ is released.
 sFlow v5 Section 4.3 says: "In the case of a multi-homed agent, this should be
 the loopback address of the agent."
 
-Only the fixture for the multi-homed cases exists. The two `.ci` cases meant to
-call it, a routed one and a loopback one, were never committed, so no test
-exercises the routed multi-homed classification through the daemon today. The
-existing absent-address case is the only daemon coverage of this warning.
+Two Linux functional tests exercise the multi-homed classification through the
+real daemon: `test/flow-export/sflow-agent-address-multihomed-routed.ci` and
+`test/flow-export/sflow-agent-address-multihomed-loopback.ci`. The routed case
+checks that the daemon's warning names the owned address, its interface, the
+identity risk and the loopback fix. It also rejects the absent-address and
+unavailable-interface-list branches. The loopback counterpart rejects any
+agent-address warning across the complete daemon output. The existing
+absent-address case (`test/flow-export/sflow-agent-address-warning.ci`) remains
+separate daemon coverage.
 
 Below the daemon, the classifier unit tests judge the classification and the
 advice text, and two engine tests judge what the operator sees. They start
@@ -207,4 +215,6 @@ exclusive group `sflow-agent-address-topology`, because it owns a named veth
 pair. An existing link makes creation fail; the fixture never removes it to make
 room. It deletes its own pair after reaping the daemon, including on failure.
 
+<!-- source: test/flow-export/sflow-agent-address-multihomed-routed.ci -->
+<!-- source: test/flow-export/sflow-agent-address-multihomed-loopback.ci -->
 <!-- source: internal/test/fixture/register_sflow_agent_address_linux.go -- sflowAgentAddressDaemon, sflowAgentAddressReceiver, sflowAgentAddressDatagram -->

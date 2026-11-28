@@ -1,0 +1,89 @@
+# Test: on a multi-homed Linux router, an sFlow agent-address on the loopback
+# interface draws no agent-address warning and counter export runs normally.
+#
+# Question: on the same multi-homed Linux veth topology as the routed case,
+# does the real Ze daemon recognize 127.0.0.1 as a loopback address through
+# netlink, stay silent with no agent-address warning across its full output,
+# and transmit a valid sFlow v5 counter datagram carrying 127.0.0.1? A unit
+# test uses a synthetic interface list and cannot prove live netlink loopback
+# classification end to end.
+#
+# VALIDATES: sFlow v5 Section 4.3 ("In the case of a multi-homed agent, this
+#            should be the loopback address of the agent"): with real routed
+#            veth interfaces sfproof0 (192.0.2.41/32) and sfproof1
+#            (198.51.100.41/32), agent-address 127.0.0.1 emits no agent-address
+#            warning while exporting a valid sFlow v5 counter datagram for
+#            sfproof0 carrying 127.0.0.1.
+# PREVENTS:  a false-positive multi-homed warning when the operator already
+#            followed the loopback recommendation on Linux.
+
+option=needs-linux:caps=net-admin
+option=exclusive:group=sflow-agent-address-topology
+option=env:var=ze.log.flow.export:value=info
+option=env:var=ze_test_bgp_port:value=$PORT
+option=timeout:value=20s
+
+stdin=ze-conf:terminator=EOF_CONF
+bus {
+	endpoint sflow-receiver {
+		external {
+			run "le test fixture flow-export/sflow-agent-address-receiver $PORT2 127.0.0.1";
+		}
+		encoding json;
+	}
+}
+
+environment {
+	log {
+		flow.export info
+	}
+}
+
+flow-export {
+	collector c1 {
+		address 127.0.0.1
+		port $PORT2
+		protocol sflow
+		agent-address 127.0.0.1
+		polling-interval 1
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture flow-export/sflow-agent-address-daemon:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=flow-export configured
+reject=stderr:contains=sflow agent-address
+reject=stderr:contains=is on routed interface
+reject=stderr:contains=is not configured on any interface
+reject=stderr:contains=was not checked against the router's interfaces

@@ -175,6 +175,72 @@ func TestFlowExportSFlowToolInterop(t *testing.T) {
 	t.Log("sflowtool decoded full-width counter/source/port indexes and the sampled Ethernet/IPv4/UDP frame")
 }
 
+// VALIDATES: sFlow v5 Section 5 sample_pool per-source accumulation and wrap
+// modulo 2^32 through independent sflowtool v6.11 decoding.
+// PREVENTS: saturating sample_pool at MaxUint32 (the Section 5 unavailable
+// counter sentinel) or cross-source pool contamination.
+// MUTATION: restoring MaxUint32 saturation in FlowEncoder.EncodeFlowSample
+// makes sflowtool decode "4294967295" on source 2 instead of "0" and "2147483648".
+func TestFlowExportSFlowToolSamplePoolInterop(t *testing.T) {
+	const (
+		outPath        = "/tmp/collector.out"
+		source1IfIndex = exportInteropIfIndex
+		source2IfIndex = exportInteropIfIndex + 1
+		source1Rate    = uint32(64)
+		source2Rate    = uint32(1 << 31)
+		samplesPerSrc  = 3
+		totalDatagrams = samplesPerSrc * 2
+	)
+
+	peer := startExportCollector(t, "sflowtool-pool", exportSFlowToolPort,
+		"sflowtool", "-4", "-p", strconv.Itoa(exportSFlowToolPort), "-j")
+	sender := exportInteropSender(t, peer.container.Address)
+	start := time.Now().Truncate(time.Second).Add(-time.Minute)
+	agent := netip.MustParseAddr("192.0.2.9")
+	flows := sflow.NewFlowEncoder(agent, 7, start)
+	frame := exportInteropEthernetFrame()
+
+	for i := range samplesPerSrc {
+		src1Sample := flowexport.FlowSample{
+			IfIndex: source1IfIndex, Output: exportInteropOutput,
+			Rate: source1Rate, OrigSize: 60, Header: frame,
+		}
+		if err := flows.EncodeFlowSample(src1Sample, sender); err != nil {
+			t.Fatalf("send source 1 sample %d: %v", i+1, err)
+		}
+		src2Sample := flowexport.FlowSample{
+			IfIndex: source2IfIndex, Output: exportInteropOutput,
+			Rate: source2Rate, OrigSize: 60, Header: frame,
+		}
+		if err := flows.EncodeFlowSample(src2Sample, sender); err != nil {
+			t.Fatalf("send source 2 sample %d: %v", i+1, err)
+		}
+	}
+
+	peer.wait(t, "six complete sflowtool JSON datagrams", 10*time.Second, func(ctx context.Context) (bool, error) {
+		data, err := peer.read(ctx, outPath)
+		if err != nil {
+			return false, err
+		}
+		complete := data[:bytes.LastIndexByte(data, '\n')+1]
+		datagrams, err := exportSFlowDatagrams(complete)
+		return len(datagrams) >= totalDatagrams, err
+	})
+	if err := peer.stop(t.Context()); err != nil {
+		t.Fatalf("stop sflowtool: %v\n%s", err, peer.diagnostics())
+	}
+	data, err := peer.read(t.Context(), outPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	datagrams, err := exportSFlowDatagrams(data)
+	if err != nil {
+		t.Fatalf("decode sflowtool output: %v", err)
+	}
+	assertExportSFlowSamplePoolDatagrams(t, datagrams, source1IfIndex, source2IfIndex)
+	t.Log("sflowtool decoded per-source samplePool progression (64, 128, 192) and 2^32 wrap (2147483648, 0, 2147483648)")
+}
+
 func exportInteropSnapshot(now time.Time) flowexport.CounterSnapshot {
 	return flowexport.CounterSnapshot{
 		Time: now,
@@ -599,5 +665,81 @@ func assertExportJSONStrings(t *testing.T, record map[string]json.RawMessage, ex
 		if err != nil || got != want {
 			t.Errorf("sflowtool %s=%s (%v), want %q", key, record[key], err, want)
 		}
+	}
+}
+
+func decodeExportJSONString(t *testing.T, record map[string]json.RawMessage, key string) string {
+	t.Helper()
+	var value string
+	if err := json.Unmarshal(record[key], &value); err != nil {
+		t.Fatalf("sflowtool %s=%s: %v", key, record[key], err)
+	}
+	return value
+}
+
+func assertExportSFlowSamplePoolDatagrams(t *testing.T, datagrams []map[string]json.RawMessage, source1IfIndex, source2IfIndex uint32) {
+	t.Helper()
+	if len(datagrams) != 6 {
+		t.Fatalf("sflowtool decoded %d datagrams, want exactly 6: %v", len(datagrams), datagrams)
+	}
+	source1ID := "0:" + strconv.FormatUint(uint64(source1IfIndex), 10)
+	source2ID := "0:" + strconv.FormatUint(uint64(source2IfIndex), 10)
+
+	poolsBySource := map[string][]string{
+		source1ID: nil,
+		source2ID: nil,
+	}
+	seqsBySource := map[string][]string{
+		source1ID: nil,
+		source2ID: nil,
+	}
+
+	for _, datagram := range datagrams {
+		assertExportJSONStrings(t, datagram, map[string]string{
+			"datagramVersion": "5", "agent": "192.0.2.9", "agentSubId": "7", "samplesInPacket": "1",
+		})
+		sample := exportJSONOnlyElement(t, datagram, "samples")
+		assertExportJSONStrings(t, sample, map[string]string{
+			"sampleType": "FLOWSAMPLE", "sampleType_tag": "0:3",
+		})
+		sourceID := decodeExportJSONString(t, sample, "sourceId")
+		if _, known := poolsBySource[sourceID]; !known {
+			t.Fatalf("unexpected sflowtool sourceId %q", sourceID)
+		}
+		poolText := decodeExportJSONString(t, sample, "samplePool")
+		if poolText == "4294967295" {
+			t.Fatalf("sflowtool decoded saturated MaxUint32 sentinel 4294967295 for source %s", sourceID)
+		}
+		poolsBySource[sourceID] = append(poolsBySource[sourceID], poolText)
+		seqsBySource[sourceID] = append(seqsBySource[sourceID], decodeExportJSONString(t, sample, "sampleSequenceNo"))
+	}
+
+	assertExportSFlowPoolSeries(t, "source 1", seqsBySource[source1ID], poolsBySource[source1ID], []string{"64", "128", "192"}, 64)
+	assertExportSFlowPoolSeries(t, "source 2", seqsBySource[source2ID], poolsBySource[source2ID], []string{"2147483648", "0", "2147483648"}, 1<<31)
+}
+
+func assertExportSFlowPoolSeries(t *testing.T, label string, gotSeqs, gotPools, wantPools []string, wantDelta uint32) {
+	t.Helper()
+	if len(gotPools) != len(wantPools) {
+		t.Fatalf("%s: decoded %d samples (%v), want %d (%v)", label, len(gotPools), gotPools, len(wantPools), wantPools)
+	}
+	var prev uint32
+	for i, wantPool := range wantPools {
+		wantSeq := strconv.Itoa(i + 1)
+		if gotSeqs[i] != wantSeq {
+			t.Errorf("%s sample %d: sampleSequenceNo=%q, want %q", label, i+1, gotSeqs[i], wantSeq)
+		}
+		if gotPools[i] != wantPool {
+			t.Errorf("%s sample %d: samplePool=%q, want %q", label, i+1, gotPools[i], wantPool)
+		}
+		parsed, err := strconv.ParseUint(gotPools[i], 10, 32)
+		if err != nil {
+			t.Fatalf("%s sample %d: parse samplePool %q: %v", label, i+1, gotPools[i], err)
+		}
+		current := uint32(parsed)
+		if gotDelta := current - prev; gotDelta != wantDelta {
+			t.Errorf("%s sample %d: modular samplePool delta=%d, want %d", label, i+1, gotDelta, wantDelta)
+		}
+		prev = current
 	}
 }
